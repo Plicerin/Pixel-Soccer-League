@@ -1,9 +1,9 @@
-import FootballGame3D from './components/FootballGame3D';
+import RetroFootball from './components/RetroFootball';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <FootballGame3D />
+    <div className="h-full bg-zinc-950">
+      <RetroFootball />
     </div>
   );
 }

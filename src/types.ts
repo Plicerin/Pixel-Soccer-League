@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export type Point = {
   x: number;
   y: number;
@@ -16,6 +18,15 @@ export interface Entity {
   speed: number;
   vx: number;
   vy: number;
+}
+
+export interface AIPlayer {
+  id: string;
+  position: THREE.Vector3;
+  type: 'WR' | 'defender';
+  speed: number;
+  isBursting: boolean;
+  burstTimer: number;
 }
 
 export type GameState = 'START' | 'PLAYING' | 'TOUCHDOWN';
