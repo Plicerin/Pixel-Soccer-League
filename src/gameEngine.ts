@@ -219,8 +219,13 @@ export function initGame(container: HTMLElement) {
 
   const freeKickPresentation = {
     active: false,
+    taker: null as any,
+    receiver: null as any,
+    startedAt: 0,
     whistleAt: 0,
     restartAt: 0,
+    foulSpot: new THREE.Vector3(),
+    takerStart: new THREE.Vector3(),
     whistlePlayed: false,
   };
 
@@ -342,6 +347,8 @@ export function initGame(container: HTMLElement) {
     if (matchClock.phase === 'FULL_TIME') return;
     clearStuckRestartTimer();
     freeKickPresentation.active = false;
+    freeKickPresentation.taker = null;
+    freeKickPresentation.receiver = null;
     freeKickPresentation.whistlePlayed = false;
     throwInPresentation.active = false;
     throwInPresentation.thrower = null;
@@ -468,6 +475,24 @@ export function initGame(container: HTMLElement) {
     gameState.kickoffState = 'READY';
   }
 
+  function chooseFreeKickReceiver(team: 'A' | 'B', taker: any, foulSpot: THREE.Vector3) {
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const teammates = players.filter((p: any) => p.team === team && p !== taker && !isGoalkeeper(p));
+    if (teammates.length === 0) {
+      return players.find((p: any) => p.team === team && p !== taker) || null;
+    }
+
+    return teammates.slice().sort((a: any, b: any) => {
+      const aForward = (a.homePos.x - foulSpot.x) * attackSign;
+      const bForward = (b.homePos.x - foulSpot.x) * attackSign;
+      const aForwardScore = Math.abs(THREE.MathUtils.clamp(aForward, 0, 8 * X_PER_YARD) - 4.5 * X_PER_YARD);
+      const bForwardScore = Math.abs(THREE.MathUtils.clamp(bForward, 0, 8 * X_PER_YARD) - 4.5 * X_PER_YARD);
+      const aWidthScore = Math.abs(a.homePos.z - foulSpot.z);
+      const bWidthScore = Math.abs(b.homePos.z - foulSpot.z);
+      return (aForwardScore + aWidthScore * 0.15) - (bForwardScore + bWidthScore * 0.15);
+    })[0] || null;
+  }
+
   function startSoccerRestart(type: 'KICK_OFF' | 'THROW_IN' | 'GOAL_KICK' | 'CORNER' | 'TURNOVER' | 'PENALTY', team: 'A' | 'B', x: number, z: number, message: string) {
     clearKickoffLawState();
     throwInPresentation.active = false;
@@ -475,6 +500,9 @@ export function initGame(container: HTMLElement) {
     penaltyPresentation.active = false;
     penaltyPresentation.kicker = null;
     penaltyPresentation.shotTaken = false;
+    freeKickPresentation.active = false;
+    freeKickPresentation.taker = null;
+    freeKickPresentation.receiver = null;
     soccerRestart.type = type;
     soccerRestart.team = team;
     gameState.crossAssistTeam = '';
@@ -502,7 +530,6 @@ export function initGame(container: HTMLElement) {
     updateHUD();
     if (restartAutoStartTimer) clearTimeout(restartAutoStartTimer);
     restartAutoStartTimer = null;
-    freeKickPresentation.active = false;
     freeKickPresentation.whistlePlayed = false;
 
     if (type === 'PENALTY') {
@@ -525,9 +552,27 @@ export function initGame(container: HTMLElement) {
       gameState.message = 'PENALTY KICK';
     } else if (type === 'TURNOVER') {
       const now = performance.now() / 1000;
+      const foulSpot = new THREE.Vector3(x, 0.15, z);
+      const takerCandidates = offenseTeam
+        .filter((p: any) => !isGoalkeeper(p))
+        .slice()
+        .sort((a: any, b: any) => a.homePos.distanceTo(foulSpot) - b.homePos.distanceTo(foulSpot));
+      const taker = takerCandidates[0] || offenseTeam[0] || null;
+      const receiver = taker ? chooseFreeKickReceiver(team, taker, foulSpot) : null;
+      const attackSign = teamAttacksRight(team) ? 1 : -1;
+      const holdTarget = foulSpot.clone().add(new THREE.Vector3(-attackSign * 0.42, 0, 0));
+      const takerStart = taker?.homePos?.clone?.() || holdTarget.clone();
+      if (takerStart.distanceTo(holdTarget) < 1.2) {
+        takerStart.copy(foulSpot).add(new THREE.Vector3(-attackSign * 3.4 * X_PER_YARD, 0, 0));
+      }
       freeKickPresentation.active = true;
-      freeKickPresentation.whistleAt = now + 0.85;
-      freeKickPresentation.restartAt = now + 1.35;
+      freeKickPresentation.taker = taker;
+      freeKickPresentation.receiver = receiver;
+      freeKickPresentation.startedAt = now;
+      freeKickPresentation.whistleAt = now + 1.15;
+      freeKickPresentation.restartAt = now + 2.0;
+      freeKickPresentation.foulSpot.copy(foulSpot);
+      freeKickPresentation.takerStart.copy(takerStart);
       gameState.message = message || 'FREE KICK';
     } else if (type !== 'KICK_OFF') {
       restartAutoStartTimer = setTimeout(() => {
@@ -5849,13 +5894,53 @@ export function initGame(container: HTMLElement) {
     }
 
     if (freeKickPresentation.active && !gameState.menuVisible && gameState.status === 'PLAYING') {
+      const foulSpot = freeKickPresentation.foulSpot;
+      const taker = freeKickPresentation.taker;
+      const receiver = freeKickPresentation.receiver;
+      const team = soccerRestart.team;
+      const attackSign = teamAttacksRight(team) ? 1 : -1;
+      const holdTarget = foulSpot.clone().add(new THREE.Vector3(-attackSign * 0.42, 0, 0));
+
+      ballState.heldBy = null;
+      ballState.lastHeldBy = null;
+      ballState.isFlying = false;
+      ballState.isRolling = false;
+      ballState.vel.set(0, 0, 0);
+      ballState.pos.copy(foulSpot);
+
+      if (taker) {
+        const walkDuration = Math.max(0.01, freeKickPresentation.restartAt - freeKickPresentation.startedAt);
+        const walkProgress = THREE.MathUtils.clamp((elapsed - freeKickPresentation.startedAt) / walkDuration, 0, 1);
+        const easedWalk = THREE.MathUtils.smoothstep(walkProgress, 0, 1);
+        const scriptedPos = freeKickPresentation.takerStart.clone().lerp(holdTarget, easedWalk);
+        const prevPos = taker.pos.clone();
+        taker.pos.copy(scriptedPos);
+        taker.pos.y = 0.15;
+        taker.vel.copy(scriptedPos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
+        taker.dir = attackSign;
+      }
+
+      if (receiver) {
+        receiver.dir = attackSign;
+      }
+
       if (!freeKickPresentation.whistlePlayed && elapsed >= freeKickPresentation.whistleAt) {
         sounds.whistle();
         freeKickPresentation.whistlePlayed = true;
       }
       if (elapsed >= freeKickPresentation.restartAt) {
+        const passTarget = receiver
+          || players.find((p: any) => p.team === team && p !== taker && !isGoalkeeper(p))
+          || players.find((p: any) => p.team === team && p !== taker)
+          || null;
         freeKickPresentation.active = false;
         beginCurrentRestart();
+        const passer = ballState.heldBy;
+        if (passer && passTarget && passer !== passTarget) {
+          executeAIGroundPass(passer, passTarget, elapsed, { style: 'WALL', receiverWindow: 1.6 });
+          if (passTarget.team === 'A') autoSelectTeamA(passTarget);
+          gameState.message = '';
+        }
       }
     }
 
@@ -6409,6 +6494,11 @@ export function initGame(container: HTMLElement) {
           const cooldownKey = team === 'A' ? 'cpuDecisionCooldownA' : 'cpuDecisionCooldownB';
 
           if (isGoalkeeper(cpuCarrier)) {
+            // Panic-press override: 3+ opponents within 6.5 m → cut distribution delay to ≤0.3 s
+            const panicPressure = opponents.filter((opp: any) => opp.pos.distanceTo(cpuCarrier.pos) < 6.5).length;
+            if (panicPressure >= 3) {
+              (gameState as any)[cooldownKey] = Math.min((gameState as any)[cooldownKey], 0.3);
+            }
             if ((gameState as any)[cooldownKey] <= 0 && teammates.length > 0) {
               const progressiveTarget = teammates
                 .slice()
@@ -8325,7 +8415,12 @@ export function initGame(container: HTMLElement) {
       role: p.role,
       team: p.team,
       name: p.name,
-      stats: p.stats
+      stats: p.stats,
+      pos: {
+        x: p.pos?.x ?? 0,
+        y: p.pos?.y ?? 0,
+        z: p.pos?.z ?? 0,
+      },
     })),
     getRenderFps: () => smoothedFPS,
     getOrbitViewTexture: () => orbitRenderTarget.texture,
@@ -8348,6 +8443,11 @@ export function initGame(container: HTMLElement) {
         team: target.team,
         name: target.name,
         stats: target.stats,
+        pos: {
+          x: target.pos?.x ?? 0,
+          y: target.pos?.y ?? 0,
+          z: target.pos?.z ?? 0,
+        },
         rosterTeam: activeTeams[target.team].rosterName,
         mls2025: multipliers ? {
           quality: multipliers.teamMods,
@@ -8374,6 +8474,11 @@ export function initGame(container: HTMLElement) {
         team: target.team,
         name: target.name,
         stats: target.stats,
+        pos: {
+          x: target.pos?.x ?? 0,
+          y: target.pos?.y ?? 0,
+          z: target.pos?.z ?? 0,
+        },
         rosterTeam: activeTeams[target.team].rosterName,
         mls2025: multipliers ? {
           quality: multipliers.teamMods,

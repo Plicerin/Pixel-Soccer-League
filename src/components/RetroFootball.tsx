@@ -1,7 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
-import { buildDriftDashboard, clearTelemetryDatabase, exportTelemetryBundle, generateDriftRecommendations, getTelemetryCounts, installTelemetryDebugApi, mirrorMatchSummary, TelemetryRecorder } from '../telemetry';
+import {
+  buildDriftDashboard,
+  clearTelemetryDatabase,
+  exportTelemetryBundle,
+  generateDriftRecommendations,
+  getDiskMirrorStatus,
+  getPositionSequence,
+  getTelemetryCounts,
+  installTelemetryDebugApi,
+  mirrorMatchSummary,
+  recoverLatestMirroredSession,
+  TelemetryRecorder,
+} from '../telemetry';
 
 const MLS_TEAM_OPTIONS = [
   'Atlanta United',  // keep list unchanged – just adding color map below it
@@ -141,6 +153,27 @@ const RetroFootball: React.FC = () => {
   const [telemCounts, setTelemCounts] = useState<Record<string, number> | null>(null);
   const [telemExporting, setTelemExporting] = useState(false);
   const [telemClearing, setTelemClearing] = useState(false);
+  const [diskMirrorStatus, setDiskMirrorStatus] = useState<Awaited<ReturnType<typeof getDiskMirrorStatus>> | null>(null);
+  const [diskMirrorMessage, setDiskMirrorMessage] = useState('');
+  const [diskRecovering, setDiskRecovering] = useState(false);
+  const [movementWindowSeconds, setMovementWindowSeconds] = useState<10 | 20>(20);
+  const [movementAnchor, setMovementAnchor] = useState<'pause' | 'full_time' | 'latest'>('pause');
+  const [autoScanOnPause, setAutoScanOnPause] = useState(true);
+  const [movementLoading, setMovementLoading] = useState(false);
+  const [movementMessage, setMovementMessage] = useState('');
+  const [movementFrames, setMovementFrames] = useState(0);
+  const [movementSessionId, setMovementSessionId] = useState<string | null>(null);
+  const [movementLastAnchorUsed, setMovementLastAnchorUsed] = useState<'pause' | 'full_time' | 'latest' | null>(null);
+  const [movementLastRunAt, setMovementLastRunAt] = useState<number | null>(null);
+  const [movementTopRows, setMovementTopRows] = useState<Array<{
+    name: string;
+    team?: 'A' | 'B';
+    role?: string;
+    distanceMeters: number;
+    avgSpeedMps: number;
+    maxStepMps: number;
+  }>>([]);
+  const [movementTrailPaths, setMovementTrailPaths] = useState<Record<string, string>>({});
   const [isLive, setIsLive] = useState(false);
   const [isGroundVisible, setIsGroundVisible] = useState(true);
   const [isFieldVisible, setIsFieldVisible] = useState(true);
@@ -151,6 +184,13 @@ const RetroFootball: React.FC = () => {
   const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | null>(null);
   const prevIsLive = useRef(false);
   const prevMatchSnapshotRef = useRef<any | null>(null);
+  const autoScanOnPauseRef = useRef(true);
+  const lastAutoScanAtRef = useRef(0);
+  const runMovementScanRef = useRef<(forcedAnchor?: 'pause' | 'full_time' | 'latest', forcedSeconds?: 10 | 20) => Promise<void>>(async () => {});
+
+  useEffect(() => {
+    autoScanOnPauseRef.current = autoScanOnPause;
+  }, [autoScanOnPause]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -190,6 +230,12 @@ const RetroFootball: React.FC = () => {
             phase: snapshot?.phase,
             elapsedInHalf: snapshot?.elapsedInHalf,
           });
+
+          const nowMs = Date.now();
+          if (autoScanOnPauseRef.current && nowMs - lastAutoScanAtRef.current >= 12000) {
+            lastAutoScanAtRef.current = nowMs;
+            void runMovementScanRef.current('pause', 10);
+          }
           
           gameRef.current.selectRandomDefensePlayer();
           setSelectedDefensePlayer(gameRef.current.getSelectedDefensePlayerStats());
@@ -502,11 +548,41 @@ const RetroFootball: React.FC = () => {
   // Poll telemetry counts while the floating window is open
   useEffect(() => {
     if (!showTelemetry) return;
-    const refresh = () => getTelemetryCounts().then(setTelemCounts).catch(() => {});
+    const refresh = () => {
+      getTelemetryCounts().then(setTelemCounts).catch(() => {});
+      getDiskMirrorStatus().then(setDiskMirrorStatus).catch(() => {});
+    };
     refresh();
-    const id = window.setInterval(refresh, 3000);
+    const id = window.setInterval(refresh, 10000);
     return () => window.clearInterval(id);
   }, [showTelemetry]);
+
+  const handleRecoverLatestMirror = async () => {
+    setDiskRecovering(true);
+    setDiskMirrorMessage('Recovering latest mirrored session...');
+    try {
+      const recovered = await recoverLatestMirroredSession();
+      if (!recovered?.ok || !recovered.sessionId) {
+        setDiskMirrorMessage('No mirrored session available yet.');
+        return;
+      }
+      const timestamp = recovered.latestBatch?.timestamp || (recovered.latestSnapshot?.timestamp as number | undefined) || null;
+      const timeLabel = timestamp ? new Date(timestamp).toLocaleTimeString() : 'unknown time';
+      const phase = (recovered.latestBatch?.matchSnapshot?.phase as string | undefined)
+        || (recovered.latestSnapshot?.match as { phase?: string } | undefined)?.phase
+        || (recovered.latestSummary?.phase as string | undefined)
+        || 'unknown phase';
+      const sampleNames = recovered.latestBatch?.samplePlayerNames?.slice(0, 3).join(', ');
+      setDiskMirrorMessage(
+        `Recovered ${recovered.sessionId.slice(0, 10)}… from disk at ${timeLabel} (${phase}). ${recovered.batchCount} batches, ${recovered.snapshotCount} snapshots${sampleNames ? `, sample players: ${sampleNames}.` : '.'}`
+      );
+      getDiskMirrorStatus().then(setDiskMirrorStatus).catch(() => {});
+    } catch (error) {
+      setDiskMirrorMessage(`Mirror recovery failed: ${String(error)}`);
+    } finally {
+      setDiskRecovering(false);
+    }
+  };
 
   const handleTelemetryExport = async () => {
     setTelemExporting(true);
@@ -542,6 +618,148 @@ const RetroFootball: React.FC = () => {
       setTelemClearing(false);
     }
   };
+
+  const toSparklinePath = (samples: Array<{ x: number; z: number }>) => {
+    if (samples.length < 2) return '';
+    const width = 66;
+    const height = 20;
+    const pitchXMin = -34;
+    const pitchXMax = 34;
+    const pitchZMin = -22;
+    const pitchZMax = 22;
+
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+    const toX = (x: number) => ((clamp(x, pitchXMin, pitchXMax) - pitchXMin) / (pitchXMax - pitchXMin)) * width;
+    const toY = (z: number) => (1 - (clamp(z, pitchZMin, pitchZMax) - pitchZMin) / (pitchZMax - pitchZMin)) * height;
+
+    return samples
+      .map((point, idx) => `${idx === 0 ? 'M' : 'L'}${toX(point.x).toFixed(1)} ${toY(point.z).toFixed(1)}`)
+      .join(' ');
+  };
+
+  const runMovementScan = async (forcedAnchor?: 'pause' | 'full_time' | 'latest', forcedSeconds?: 10 | 20) => {
+    if (movementLoading) return;
+    setMovementLoading(true);
+    setMovementMessage('Scanning movement data...');
+    try {
+      let anchorUsed: 'pause' | 'full_time' | 'latest' = forcedAnchor || movementAnchor;
+      const secondsUsed: 10 | 20 = forcedSeconds || movementWindowSeconds;
+      let sequence = await getPositionSequence({
+        seconds: secondsUsed,
+        anchor: anchorUsed,
+      });
+
+      if (!sequence && anchorUsed !== 'latest') {
+        anchorUsed = 'latest';
+        sequence = await getPositionSequence({
+          seconds: secondsUsed,
+          anchor: anchorUsed,
+        });
+      }
+
+      if (!sequence || sequence.frames.length < 2) {
+        setMovementTopRows([]);
+        setMovementTrailPaths({});
+        setMovementFrames(0);
+        setMovementSessionId(null);
+        setMovementLastAnchorUsed(null);
+        setMovementMessage('Not enough position frames to analyze yet.');
+        return;
+      }
+
+      const tracks = new Map<string, {
+        name: string;
+        team?: 'A' | 'B';
+        role?: string;
+        points: Array<{ t: number; x: number; y: number; z: number }>;
+      }>();
+      for (const frame of sequence.frames) {
+        for (const player of frame.players) {
+          const name = player.name || 'Unknown';
+          const key = `${player.team || '?'}::${name}`;
+          const item = tracks.get(key) || {
+            name,
+            team: player.team,
+            role: player.role,
+            points: [],
+          };
+          item.points.push({ t: frame.timestamp, x: player.x, y: player.y, z: player.z });
+          tracks.set(key, item);
+        }
+      }
+
+      const allRows: Array<{
+        name: string;
+        team?: 'A' | 'B';
+        role?: string;
+        distanceMeters: number;
+        avgSpeedMps: number;
+        maxStepMps: number;
+      }> = [];
+
+      for (const item of tracks.values()) {
+        if (item.points.length < 2) continue;
+        item.points.sort((a, b) => a.t - b.t);
+        let distanceMeters = 0;
+        let maxStepMps = 0;
+        for (let i = 1; i < item.points.length; i++) {
+          const prev = item.points[i - 1];
+          const curr = item.points[i];
+          const dt = Math.max(0.001, (curr.t - prev.t) / 1000);
+          const dx = curr.x - prev.x;
+          const dy = curr.y - prev.y;
+          const dz = curr.z - prev.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const mps = dist / dt;
+          distanceMeters += dist;
+          if (mps > maxStepMps) maxStepMps = mps;
+        }
+        const totalSeconds = Math.max(0.001, (item.points[item.points.length - 1].t - item.points[0].t) / 1000);
+        allRows.push({
+          name: item.name,
+          team: item.team,
+          role: item.role,
+          distanceMeters,
+          avgSpeedMps: distanceMeters / totalSeconds,
+          maxStepMps,
+        });
+      }
+
+      allRows.sort((a, b) => b.distanceMeters - a.distanceMeters);
+      if (allRows.length === 0) {
+        setMovementTopRows([]);
+        setMovementTrailPaths({});
+        setMovementFrames(0);
+        setMovementSessionId(null);
+        setMovementLastAnchorUsed(null);
+        setMovementMessage('No movement tracks available in the selected window.');
+        return;
+      }
+
+      setMovementFrames(sequence.frameCount);
+      setMovementSessionId(sequence.sessionId);
+      setMovementLastAnchorUsed(anchorUsed);
+      setMovementLastRunAt(Date.now());
+      const topRows = allRows.slice(0, 6);
+      setMovementTopRows(topRows);
+
+      const nextTrailPaths: Record<string, string> = {};
+      for (const row of topRows) {
+        const key = `${row.team || '?'}::${row.name}`;
+        const samples = tracks.get(key)?.points.map((p) => ({ x: p.x, z: p.z })) || [];
+        nextTrailPaths[key] = toSparklinePath(samples);
+      }
+      setMovementTrailPaths(nextTrailPaths);
+      const fallbackLabel = anchorUsed === movementAnchor ? '' : ` (fallback: ${anchorUsed})`;
+      setMovementMessage(`Analyzed ${allRows.length} players across ${sequence.frameCount} frames (${secondsUsed}s)${fallbackLabel}.`);
+    } catch (error) {
+      setMovementMessage(`Movement analysis failed: ${String(error)}`);
+    } finally {
+      setMovementLoading(false);
+    }
+  };
+
+  runMovementScanRef.current = runMovementScan;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black font-mono">
@@ -1025,7 +1243,48 @@ const RetroFootball: React.FC = () => {
           <div className="p-3 flex flex-col gap-3">
             {/* Session info */}
             <div className="text-[9px] text-white/40 uppercase tracking-widest truncate">
-              Session: {driftSessionId ? driftSessionId.slice(0, 24) + '…' : 'none'}
+              Session: {(diskMirrorStatus?.latestSessionId || movementSessionId || driftSessionId) ? ((diskMirrorStatus?.latestSessionId || movementSessionId || driftSessionId)?.slice(0, 24) + '…') : 'none'}
+            </div>
+
+            <div className="border border-cyan-500/15 bg-cyan-950/20 rounded-lg p-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="text-[9px] text-white/50 uppercase tracking-widest">Disk Mirror</div>
+                <button
+                  onClick={handleRecoverLatestMirror}
+                  disabled={diskRecovering}
+                  className="px-2 py-0.5 text-[8px] uppercase tracking-widest border border-cyan-500/35 text-cyan-300 rounded hover:border-cyan-300 disabled:opacity-30"
+                >
+                  {diskRecovering ? 'Recovering...' : 'Recover Latest'}
+                </button>
+              </div>
+              {diskMirrorStatus ? (
+                <div className="space-y-1 text-[9px]">
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Live batches</span>
+                    <span className="text-cyan-300 tabular-nums">{diskMirrorStatus.batchCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Snapshots</span>
+                    <span className="text-cyan-300 tabular-nums">{diskMirrorStatus.snapshotCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Last batch write</span>
+                    <span className="text-cyan-300">{diskMirrorStatus.latestBatchAt ? new Date(diskMirrorStatus.latestBatchAt).toLocaleTimeString() : 'n/a'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Last snapshot</span>
+                    <span className="text-cyan-300">{diskMirrorStatus.latestSnapshotAt ? new Date(diskMirrorStatus.latestSnapshotAt).toLocaleTimeString() : 'n/a'}</span>
+                  </div>
+                  <div className="text-[8px] text-white/35">
+                    {diskMirrorStatus.latestPhase ? `Phase: ${diskMirrorStatus.latestPhase}` : 'Waiting for mirrored gameplay...'}
+                    {diskMirrorStatus.latestSnapshotEventType ? ` • Last snapshot: ${diskMirrorStatus.latestSnapshotEventType}` : ''}
+                    {diskMirrorStatus.latestScore ? ` • Score ${diskMirrorStatus.latestScore.scoreA}-${diskMirrorStatus.latestScore.scoreB}` : ''}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[9px] text-white/30">Mirror status unavailable.</div>
+              )}
+              {diskMirrorMessage ? <div className="mt-1 text-[8px] text-white/45">{diskMirrorMessage}</div> : null}
             </div>
 
             {/* Row counts */}
@@ -1062,6 +1321,83 @@ const RetroFootball: React.FC = () => {
                     <div key={row.metricKey} className="flex justify-between text-[9px]">
                       <span className="text-red-300 truncate">{row.label}</span>
                       <span className="text-red-400 ml-2 shrink-0">{row.driftPct !== null ? `${row.driftPct >= 0 ? '+' : ''}${row.driftPct.toFixed(1)}%` : 'n/a'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Movement Applet */}
+            <div className="border-t border-white/10 pt-2">
+              <div className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Movement Applet</div>
+              <div className="grid grid-cols-2 gap-1 mb-2">
+                <select
+                  value={movementAnchor}
+                  onChange={(e) => setMovementAnchor(e.target.value as 'pause' | 'full_time' | 'latest')}
+                  className="bg-zinc-900 border border-white/20 text-white/80 rounded px-1.5 py-1 text-[9px]"
+                >
+                  <option value="pause">Anchor: Pause</option>
+                  <option value="full_time">Anchor: Full Time</option>
+                  <option value="latest">Anchor: Latest</option>
+                </select>
+                <select
+                  value={movementWindowSeconds}
+                  onChange={(e) => setMovementWindowSeconds(Number(e.target.value) === 10 ? 10 : 20)}
+                  className="bg-zinc-900 border border-white/20 text-white/80 rounded px-1.5 py-1 text-[9px]"
+                >
+                  <option value={10}>Window: 10s</option>
+                  <option value={20}>Window: 20s</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-1.5 mb-2 text-[9px] text-white/65">
+                <input
+                  type="checkbox"
+                  checked={autoScanOnPause}
+                  onChange={(e) => setAutoScanOnPause(e.target.checked)}
+                  className="accent-cyan-400"
+                />
+                Auto scan when play pauses (quick 10s)
+              </label>
+
+              <button
+                onClick={() => {
+                  void runMovementScan();
+                }}
+                disabled={movementLoading}
+                className="w-full py-1.5 mb-2 text-[9px] uppercase tracking-widest border border-cyan-500/40 text-cyan-300 rounded hover:border-cyan-300 disabled:opacity-30 transition-colors"
+              >
+                {movementLoading ? 'Scanning...' : 'Run Movement Scan'}
+              </button>
+
+              <div className="text-[9px] text-white/40 mb-1">
+                Frames: <span className="text-cyan-300">{movementFrames}</span>
+                {movementSessionId ? ` • Session: ${movementSessionId.slice(0, 10)}…` : ''}
+                {movementLastAnchorUsed ? ` • Anchor: ${movementLastAnchorUsed}` : ''}
+              </div>
+              {movementMessage ? <div className="text-[9px] text-white/55 mb-1">{movementMessage}</div> : null}
+              {movementLastRunAt ? (
+                <div className="text-[8px] text-white/35 mb-1">Last scan: {new Date(movementLastRunAt).toLocaleTimeString()}</div>
+              ) : null}
+
+              {movementTopRows.length > 0 && (
+                <div className="flex flex-col gap-0.5 max-h-20 overflow-y-auto pr-1">
+                  {movementTopRows.map((row) => (
+                    <div key={`${row.team || '?'}-${row.name}`} className="flex items-center justify-between gap-2 text-[9px]">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-white/75 truncate block">{row.name} {row.team ? `(${row.team})` : ''}</span>
+                      </div>
+                      <svg width="66" height="20" viewBox="0 0 66 20" className="shrink-0 rounded border border-white/10 bg-black/30">
+                        <path
+                          d={movementTrailPaths[`${row.team || '?'}::${row.name}`] || ''}
+                          fill="none"
+                          stroke={row.team === 'A' ? '#67e8f9' : '#c4b5fd'}
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span className="text-violet-300 shrink-0">{row.distanceMeters.toFixed(1)}m</span>
                     </div>
                   ))}
                 </div>

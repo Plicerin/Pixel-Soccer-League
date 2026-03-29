@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Runtime telemetry data — generated at dev-server runtime, never commit
+match-results.json
+telemetry-batches.ndjson
+telemetry-snapshots.json

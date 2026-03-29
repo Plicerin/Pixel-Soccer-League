@@ -1,10 +1,16 @@
 import { createId, telemetryDb, type CorrectionActionRow, type MatchSnapshotRow, type PlayerSnapshotRow, type RealWorldBaselineRow, type TelemetryEventRow, type TelemetrySession } from './db';
 import { buildDriftDashboard, generateDriftRecommendations } from './analysis';
+import { seedMLS2025Baselines } from './mls2025-baselines';
 
 type PlayerStatsLike = {
   role?: string;
   team?: 'A' | 'B';
   name?: string;
+  pos?: {
+    x?: number;
+    y?: number;
+    z?: number;
+  };
   rosterTeam?: string;
   stats?: unknown;
   mls2025?: unknown;
@@ -35,13 +41,166 @@ type MatchSnapshotLike = {
   teamBFormation?: string;
 };
 
+type PlayerPositionLike = {
+  name?: string;
+  team?: 'A' | 'B';
+  role?: string;
+  x: number;
+  y: number;
+  z: number;
+};
+
 type GameApiLike = {
   getMatchSnapshot?: () => MatchSnapshotLike | null;
   getSelectedPlayerStats?: () => PlayerStatsLike | null;
   getSelectedDefensePlayerStats?: () => PlayerStatsLike | null;
-  getPlayers?: () => Array<{ role?: string; team?: 'A' | 'B'; name?: string; stats?: unknown }>;
+  getPlayers?: () => Array<{
+    role?: string;
+    team?: 'A' | 'B';
+    name?: string;
+    pos?: { x?: number; y?: number; z?: number };
+    stats?: unknown;
+  }>;
   getRenderFps?: () => number;
 };
+
+function toTelemetryStats(stats: unknown, pos?: { x?: number; y?: number; z?: number }) {
+  const base = stats && typeof stats === 'object' ? { ...(stats as Record<string, unknown>) } : {};
+  if (!pos) return base;
+  base.position = {
+    x: typeof pos.x === 'number' ? pos.x : 0,
+    y: typeof pos.y === 'number' ? pos.y : 0,
+    z: typeof pos.z === 'number' ? pos.z : 0,
+  };
+  return base;
+}
+
+function toPositionSnapshot(players: Array<{ name?: string; team?: 'A' | 'B'; role?: string; pos?: { x?: number; y?: number; z?: number } }>) {
+  return players.map((p) => ({
+    name: p.name,
+    team: p.team,
+    role: p.role,
+    x: typeof p.pos?.x === 'number' ? p.pos.x : 0,
+    y: typeof p.pos?.y === 'number' ? p.pos.y : 0,
+    z: typeof p.pos?.z === 'number' ? p.pos.z : 0,
+  }));
+}
+
+async function mirrorTelemetrySnapshot(payload: {
+  sessionId: string;
+  timestamp: number;
+  eventType: 'play_stopped' | 'full_time_positions_captured';
+  match: {
+    scoreA: number;
+    scoreB: number;
+    phase?: string;
+    half?: 1 | 2;
+    elapsedInHalf?: number;
+    isLive: boolean;
+    teamAName?: string;
+    teamBName?: string;
+  };
+  positions: Array<{
+    name?: string;
+    team?: 'A' | 'B';
+    role?: string;
+    x: number;
+    y: number;
+    z: number;
+  }>;
+}) {
+  try {
+    await fetch('/__telemetry/mirror-snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Dev server mirror endpoint might not exist; silently ignore.
+  }
+}
+
+async function mirrorTelemetryBatch(payload: {
+  sessionId: string;
+  timestamp: number;
+  matchSnapshot?: MatchSnapshotRow | null;
+  playerSnapshots: PlayerSnapshotRow[];
+  performanceSample: {
+    sessionId: string;
+    timestamp: number;
+    frameDeltaMs: number;
+    fpsEstimate: number;
+    heapUsedBytes?: number;
+    heapLimitBytes?: number;
+  };
+  telemetryEvents: TelemetryEventRow[];
+}) {
+  try {
+    await fetch('/__telemetry/mirror-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Dev server mirror endpoint might not exist; silently ignore.
+  }
+}
+
+export type DiskMirrorStatus = {
+  ok: boolean;
+  summaryCount: number;
+  snapshotCount: number;
+  batchCount: number;
+  latestSessionId: string | null;
+  latestBatchAt: number | null;
+  latestSnapshotAt: number | null;
+  latestSummaryAt: number | null;
+  latestSnapshotEventType: string | null;
+  latestPhase: string | null;
+  latestScore: {
+    scoreA: number;
+    scoreB: number;
+  } | null;
+};
+
+export type MirroredRecoveryPayload = {
+  ok: boolean;
+  sessionId: string | null;
+  summaryCount: number;
+  snapshotCount: number;
+  batchCount: number;
+  latestSummary: Record<string, unknown> | null;
+  latestSnapshot: Record<string, unknown> | null;
+  latestBatch: {
+    sessionId: string;
+    timestamp: number;
+    matchSnapshot: Record<string, unknown> | null;
+    performanceSample: Record<string, unknown> | null;
+    telemetryEventTypes: string[];
+    playerSnapshotCount: number;
+    samplePlayerNames: string[];
+  } | null;
+};
+
+export async function getDiskMirrorStatus(): Promise<DiskMirrorStatus | null> {
+  try {
+    const response = await fetch('/__telemetry/mirror-status');
+    if (!response.ok) return null;
+    return await response.json() as DiskMirrorStatus;
+  } catch {
+    return null;
+  }
+}
+
+export async function recoverLatestMirroredSession(): Promise<MirroredRecoveryPayload | null> {
+  try {
+    const response = await fetch('/__telemetry/recover-latest');
+    if (!response.ok) return null;
+    return await response.json() as MirroredRecoveryPayload;
+  } catch {
+    return null;
+  }
+}
 
 export type TelemetryContext = {
   teamAName?: string;
@@ -56,6 +215,7 @@ export class TelemetryRecorder {
   private timerId: number | null = null;
   private lastTickMs = 0;
   private lastHeartbeatAt = 0;
+  private lastDiskMirrorAt = 0;
   private prevMatchSnapshot: MatchSnapshotLike | null = null;
   private context: TelemetryContext = {};
 
@@ -142,7 +302,7 @@ export class TelemetryRecorder {
           rosterTeam: offense?.rosterTeam,
           name: offense?.name,
           role: offense?.role,
-          statsJson: JSON.stringify(offense?.stats ?? {}),
+          statsJson: JSON.stringify(toTelemetryStats(offense?.stats, offense?.pos)),
           mls2025Json: JSON.stringify(offense?.mls2025 ?? null),
         },
         {
@@ -153,7 +313,7 @@ export class TelemetryRecorder {
           rosterTeam: defense?.rosterTeam,
           name: defense?.name,
           role: defense?.role,
-          statsJson: JSON.stringify(defense?.stats ?? {}),
+          statsJson: JSON.stringify(toTelemetryStats(defense?.stats, defense?.pos)),
           mls2025Json: JSON.stringify(defense?.mls2025 ?? null),
         },
       ];
@@ -166,11 +326,19 @@ export class TelemetryRecorder {
         rosterTeam: undefined,
         name: p?.name,
         role: p?.role,
-        statsJson: JSON.stringify(p?.stats ?? {}),
+        statsJson: JSON.stringify(toTelemetryStats(p?.stats, p?.pos)),
         mls2025Json: JSON.stringify(null),
       }));
 
       const perf = (performance as any).memory;
+      const perfRow = {
+        sessionId: this.sessionId!,
+        timestamp: now,
+        frameDeltaMs,
+        fpsEstimate,
+        heapUsedBytes: perf?.usedJSHeapSize,
+        heapLimitBytes: perf?.jsHeapSizeLimit,
+      };
       if (match) {
         if (!this.prevMatchSnapshot) {
           eventRows.push({
@@ -253,6 +421,7 @@ export class TelemetryRecorder {
             });
           }
           if (!!match.isLive !== !!this.prevMatchSnapshot.isLive) {
+            const positionSnapshot = toPositionSnapshot(allPlayers);
             eventRows.push({
               sessionId: this.sessionId,
               timestamp: now,
@@ -261,7 +430,61 @@ export class TelemetryRecorder {
                 phase: match.phase,
                 half: match.half,
                 elapsedInHalf: match.elapsedInHalf,
+                playerCount: positionSnapshot.length,
+                positions: positionSnapshot,
               }),
+            });
+
+            if (!match.isLive) {
+              void mirrorTelemetrySnapshot({
+                sessionId: this.sessionId,
+                timestamp: now,
+                eventType: 'play_stopped',
+                match: {
+                  scoreA: match.scoreA ?? 0,
+                  scoreB: match.scoreB ?? 0,
+                  phase: match.phase,
+                  half: match.half,
+                  elapsedInHalf: match.elapsedInHalf,
+                  isLive: !!match.isLive,
+                  teamAName: match.teamAName,
+                  teamBName: match.teamBName,
+                },
+                positions: positionSnapshot,
+              });
+            }
+          }
+
+          if (match.phase === 'FULL_TIME' && this.prevMatchSnapshot.phase !== 'FULL_TIME') {
+            const positionSnapshot = toPositionSnapshot(allPlayers);
+            eventRows.push({
+              sessionId: this.sessionId,
+              timestamp: now,
+              eventType: 'full_time_positions_captured',
+              payloadJson: JSON.stringify({
+                scoreA: match.scoreA ?? 0,
+                scoreB: match.scoreB ?? 0,
+                elapsedInHalf: match.elapsedInHalf,
+                playerCount: positionSnapshot.length,
+                positions: positionSnapshot,
+              }),
+            });
+
+            void mirrorTelemetrySnapshot({
+              sessionId: this.sessionId,
+              timestamp: now,
+              eventType: 'full_time_positions_captured',
+              match: {
+                scoreA: match.scoreA ?? 0,
+                scoreB: match.scoreB ?? 0,
+                phase: match.phase,
+                half: match.half,
+                elapsedInHalf: match.elapsedInHalf,
+                isLive: !!match.isLive,
+                teamAName: match.teamAName,
+                teamBName: match.teamBName,
+              },
+              positions: positionSnapshot,
             });
           }
         }
@@ -308,19 +531,24 @@ export class TelemetryRecorder {
         async () => {
           if (matchRow) await telemetryDb.matchSnapshots.add(matchRow);
           await telemetryDb.playerSnapshots.bulkAdd([...playerRows, ...allPlayerRows]);
-          await telemetryDb.performanceSamples.add({
-            sessionId: this.sessionId!,
-            timestamp: now,
-            frameDeltaMs,
-            fpsEstimate,
-            heapUsedBytes: perf?.usedJSHeapSize,
-            heapLimitBytes: perf?.jsHeapSizeLimit,
-          });
+          await telemetryDb.performanceSamples.add(perfRow);
           if (eventRows.length > 0) {
             await telemetryDb.telemetryEvents.bulkAdd(eventRows);
           }
         }
       );
+
+      if (now - this.lastDiskMirrorAt >= 2000) {
+        this.lastDiskMirrorAt = now;
+        void mirrorTelemetryBatch({
+          sessionId: this.sessionId!,
+          timestamp: now,
+          matchSnapshot: matchRow,
+          playerSnapshots: [...playerRows, ...allPlayerRows],
+          performanceSample: perfRow,
+          telemetryEvents: eventRows,
+        });
+      }
     }, intervalMs);
 
     return this.sessionId;
@@ -435,6 +663,222 @@ export type RecentMatchQuery = {
   scoreB?: number;
   limit?: number;
 };
+
+export type PositionSequenceOptions = {
+  sessionId?: string;
+  seconds?: number;
+  anchor?: 'latest' | 'pause' | 'full_time';
+};
+
+export type PositionFrame = {
+  timestamp: number;
+  players: PlayerPositionLike[];
+};
+
+export type PositionSequenceResult = {
+  sessionId: string;
+  anchor: 'latest' | 'pause' | 'full_time';
+  seconds: number;
+  fromTimestamp: number;
+  toTimestamp: number;
+  frameCount: number;
+  frames: PositionFrame[];
+};
+
+export type MovementSummaryRow = {
+  name: string;
+  team?: 'A' | 'B';
+  role?: string;
+  samples: number;
+  distanceMeters: number;
+  avgSpeedMps: number;
+  maxStepMps: number;
+};
+
+export type MovementSummaryResult = {
+  sessionId: string;
+  anchor: 'latest' | 'pause' | 'full_time';
+  seconds: number;
+  frameCount: number;
+  players: MovementSummaryRow[];
+};
+
+function parsePositionFromStatsJson(statsJson?: string): { x: number; y: number; z: number } | null {
+  if (!statsJson) return null;
+  try {
+    const parsed = JSON.parse(statsJson) as {
+      position?: { x?: number; y?: number; z?: number };
+      x?: number;
+      y?: number;
+      z?: number;
+      posX?: number;
+      posY?: number;
+      posZ?: number;
+    };
+    const x =
+      typeof parsed.position?.x === 'number' ? parsed.position.x
+      : typeof parsed.x === 'number' ? parsed.x
+      : typeof parsed.posX === 'number' ? parsed.posX
+      : null;
+    const y =
+      typeof parsed.position?.y === 'number' ? parsed.position.y
+      : typeof parsed.y === 'number' ? parsed.y
+      : typeof parsed.posY === 'number' ? parsed.posY
+      : null;
+    const z =
+      typeof parsed.position?.z === 'number' ? parsed.position.z
+      : typeof parsed.z === 'number' ? parsed.z
+      : typeof parsed.posZ === 'number' ? parsed.posZ
+      : null;
+    if (x === null || y === null || z === null) return null;
+    return { x, y, z };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSessionIdOrLatest(sessionId?: string) {
+  if (sessionId) return sessionId;
+  const latest = await telemetryDb.sessions.orderBy('startedAt').last();
+  return latest?.id || null;
+}
+
+async function resolveAnchorTimestamp(sessionId: string, anchor: 'latest' | 'pause' | 'full_time') {
+  if (anchor === 'latest') {
+    const latestPlayer = await telemetryDb.playerSnapshots.where('sessionId').equals(sessionId).last();
+    return latestPlayer?.timestamp || null;
+  }
+
+  if (anchor === 'pause') {
+    const pausedEvent = await telemetryDb.telemetryEvents
+      .where('sessionId')
+      .equals(sessionId)
+      .reverse()
+      .filter((e) => e.eventType === 'play_stopped')
+      .first();
+    return pausedEvent?.timestamp || null;
+  }
+
+  const fullTimeEvent = await telemetryDb.telemetryEvents
+    .where('sessionId')
+    .equals(sessionId)
+    .reverse()
+    .filter((e) => e.eventType === 'full_time_positions_captured')
+    .first();
+  if (fullTimeEvent) return fullTimeEvent.timestamp;
+
+  const fullTimeSnapshot = await telemetryDb.matchSnapshots
+    .where('sessionId')
+    .equals(sessionId)
+    .reverse()
+    .filter((m) => m.phase === 'FULL_TIME')
+    .first();
+  return fullTimeSnapshot?.timestamp || null;
+}
+
+export async function getPositionSequence(options: PositionSequenceOptions = {}): Promise<PositionSequenceResult | null> {
+  const sessionId = await resolveSessionIdOrLatest(options.sessionId);
+  if (!sessionId) return null;
+
+  const seconds = Math.max(1, Math.min(120, options.seconds ?? 20));
+  const anchor = options.anchor ?? 'latest';
+  const anchorTimestamp = await resolveAnchorTimestamp(sessionId, anchor);
+  if (!anchorTimestamp) return null;
+
+  const fromTimestamp = anchorTimestamp - seconds * 1000;
+  const rows = await telemetryDb.playerSnapshots
+    .where('sessionId')
+    .equals(sessionId)
+    .filter((p) => p.side === 'all' && p.timestamp >= fromTimestamp && p.timestamp <= anchorTimestamp)
+    .toArray();
+
+  const grouped = new Map<number, PlayerPositionLike[]>();
+  for (const row of rows) {
+    const pos = parsePositionFromStatsJson(row.statsJson);
+    if (!pos) continue;
+    const list = grouped.get(row.timestamp) || [];
+    list.push({
+      name: row.name,
+      team: row.team,
+      role: row.role,
+      x: pos.x,
+      y: pos.y,
+      z: pos.z,
+    });
+    grouped.set(row.timestamp, list);
+  }
+
+  const frames: PositionFrame[] = Array.from(grouped.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([timestamp, players]) => ({ timestamp, players }));
+
+  return {
+    sessionId,
+    anchor,
+    seconds,
+    fromTimestamp,
+    toTimestamp: anchorTimestamp,
+    frameCount: frames.length,
+    frames,
+  };
+}
+
+export async function summarizeMovement(options: PositionSequenceOptions = {}): Promise<MovementSummaryResult | null> {
+  const sequence = await getPositionSequence(options);
+  if (!sequence || sequence.frames.length < 2) return null;
+
+  const byPlayer = new Map<string, Array<{ t: number; x: number; y: number; z: number; team?: 'A' | 'B'; role?: string; name: string }>>();
+  for (const frame of sequence.frames) {
+    for (const p of frame.players) {
+      const name = p.name || 'Unknown';
+      const key = `${p.team || '?'}::${name}`;
+      const list = byPlayer.get(key) || [];
+      list.push({ t: frame.timestamp, x: p.x, y: p.y, z: p.z, team: p.team, role: p.role, name });
+      byPlayer.set(key, list);
+    }
+  }
+
+  const players: MovementSummaryRow[] = [];
+  for (const list of byPlayer.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.t - b.t);
+
+    let distanceMeters = 0;
+    let maxStepMps = 0;
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1];
+      const curr = list[i];
+      const dt = Math.max(0.001, (curr.t - prev.t) / 1000);
+      const dx = curr.x - prev.x;
+      const dy = curr.y - prev.y;
+      const dz = curr.z - prev.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const mps = dist / dt;
+      distanceMeters += dist;
+      if (mps > maxStepMps) maxStepMps = mps;
+    }
+
+    const totalSeconds = Math.max(0.001, (list[list.length - 1].t - list[0].t) / 1000);
+    players.push({
+      name: list[0].name,
+      team: list[0].team,
+      role: list[0].role,
+      samples: list.length,
+      distanceMeters,
+      avgSpeedMps: distanceMeters / totalSeconds,
+      maxStepMps,
+    });
+  }
+
+  players.sort((a, b) => b.distanceMeters - a.distanceMeters);
+  return {
+    sessionId: sequence.sessionId,
+    anchor: sequence.anchor,
+    seconds: sequence.seconds,
+    frameCount: sequence.frameCount,
+    players,
+  };
+}
 
 function normalizeName(value?: string) {
   return (value || '').trim().toLowerCase();
@@ -560,11 +1004,16 @@ type TelemetryDebugApi = {
   latestSummary: () => Promise<Awaited<ReturnType<typeof getLatestSessionSummary>>>;
   findMatches: (query?: RecentMatchQuery) => Promise<Awaited<ReturnType<typeof findRecentCompletedMatches>>>;
   mirrorToFile: () => Promise<boolean>;
+  mirrorStatus: () => Promise<DiskMirrorStatus | null>;
+  recoverMirror: () => Promise<MirroredRecoveryPayload | null>;
   clearAll: () => Promise<void>;
   addBaseline: typeof addRealWorldBaseline;
   addCorrection: typeof addCorrectionAction;
   compareDrift: typeof buildDriftDashboard;
   generateRecommendations: typeof generateDriftRecommendations;
+  seedBaselines: typeof seedMLS2025Baselines;
+  positions: (options?: PositionSequenceOptions) => Promise<PositionSequenceResult | null>;
+  movement: (options?: PositionSequenceOptions) => Promise<MovementSummaryResult | null>;
 };
 
 declare global {
@@ -601,10 +1050,15 @@ export function installTelemetryDebugApi() {
     latestSummary: getLatestSessionSummary,
     findMatches: findRecentCompletedMatches,
     mirrorToFile: mirrorMatchSummary,
+    mirrorStatus: getDiskMirrorStatus,
+    recoverMirror: recoverLatestMirroredSession,
     clearAll: clearTelemetryDatabase,
     addBaseline: addRealWorldBaseline,
     addCorrection: addCorrectionAction,
     compareDrift: buildDriftDashboard,
     generateRecommendations: generateDriftRecommendations,
+    seedBaselines: seedMLS2025Baselines,
+    positions: getPositionSequence,
+    movement: summarizeMovement,
   };
 }
