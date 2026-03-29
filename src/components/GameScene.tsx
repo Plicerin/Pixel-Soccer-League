@@ -4,7 +4,6 @@ import * as THREE from 'three';
 import { GameState, AIPlayer } from '../types';
 import { Player } from './Player';
 import { Field } from './Field';
-import { Goalpost } from './Goalpost';
 import { Ball } from './Ball';
 
 const FIELD_WIDTH = 100;
@@ -151,8 +150,6 @@ export const GameScene: React.FC<{
       <fog attach="fog" args={["#1a1a1a", 30, 100]} />
       
       <Field />
-      <Goalpost position={[-FIELD_WIDTH / 2 + 2, 0, 0]} />
-      <Goalpost position={[FIELD_WIDTH / 2 - 2, 0, 0]} />
 
       <Player position={playerPos.current} color="#0000ff" isMain />
       {aiPlayers.map(p => (

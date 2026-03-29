@@ -32,7 +32,7 @@ const FrameViewer: React.FC = () => {
                 camera.position.copy(view.cameraPos);
                 camera.lookAt(0, 0.8, 0);
 
-                const palette = TEAM_PALETTES.dolphins;
+                const palette = TEAM_PALETTES.teamA;
                 const frame = buildPlayerFrame(pattern, palette);
                 scene.add(frame);
 

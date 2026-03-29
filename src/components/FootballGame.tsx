@@ -152,16 +152,7 @@ const FootballGame: React.FC = () => {
         ctx.lineTo(x, CANVAS_HEIGHT);
         ctx.stroke();
 
-        // Numbers
-        ctx.fillStyle = LINE_COLOR;
-        ctx.font = 'bold 20px monospace';
-        ctx.textAlign = 'center';
-        const yard = Math.abs(50 - ((x - 80) / (CANVAS_WIDTH - 160)) * 100);
-        const yardText = Math.round(yard / 10) * 10;
-        if (yardText !== 0) {
-          ctx.fillText(yardText.toString(), x, 30);
-          ctx.fillText(yardText.toString(), x, CANVAS_HEIGHT - 10);
-        }
+        // Numbers removed
       }
       ctx.setLineDash([]);
 

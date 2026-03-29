@@ -1,0 +1,42 @@
+[
+  {
+    "sessionId": "a9416237-fc2a-4b3a-87a7-19431e60f7f3",
+    "startedAt": 1774791961140,
+    "teamAName": "Inter Miami",
+    "teamBName": "LA Galaxy",
+    "teamAFormation": "4-2-3-1",
+    "teamBFormation": "4-3-3",
+    "finalScoreA": 0,
+    "finalScoreB": 1,
+    "shotsA": 42,
+    "shotsB": 29,
+    "shotsOnTargetA": 6,
+    "shotsOnTargetB": 6,
+    "savesA": 5,
+    "savesB": 6,
+    "phase": "FULL_TIME",
+    "half": 2,
+    "elapsedInHalf": 300,
+    "timestamp": 1774792820383
+  },
+  {
+    "sessionId": "818b62cd-ca72-436b-9782-4c1f1812eaaa",
+    "startedAt": 1774794509491,
+    "teamAName": "Austin FC",
+    "teamBName": "FC Cincinnati",
+    "teamAFormation": "4-2-3-1",
+    "teamBFormation": "4-3-3",
+    "finalScoreA": 0,
+    "finalScoreB": 0,
+    "shotsA": 27,
+    "shotsB": 51,
+    "shotsOnTargetA": 3,
+    "shotsOnTargetB": 4,
+    "savesA": 4,
+    "savesB": 3,
+    "phase": "FULL_TIME",
+    "half": 2,
+    "elapsedInHalf": 300,
+    "timestamp": 1774795518168
+  }
+]

@@ -1,0 +1,6 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- LA Galaxy Logo Placeholder: Blue circle with star -->
+  <circle cx="100" cy="100" r="90" fill="#004687" stroke="#ffffff" stroke-width="3"/>
+  <polygon points="100,30 130,90 195,90 145,140 175,200 100,150 25,200 55,140 5,90 70,90" fill="#ffffff"/>
+  <text x="100" y="185" font-size="20" font-weight="bold" text-anchor="middle" fill="#ffffff">LA GALAXY</text>
+</svg>
