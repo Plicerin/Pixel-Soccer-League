@@ -182,6 +182,8 @@ const RetroFootball: React.FC = () => {
   const [hotSeatMode, setHotSeatMode] = useState(false);
   const [testingMode, setTestingMode] = useState(false);
   const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | null>(null);
+  const [isFullTime, setIsFullTime] = useState(false);
+  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string } | null>(null);
   const prevIsLive = useRef(false);
   const prevMatchSnapshotRef = useRef<any | null>(null);
   const autoScanOnPauseRef = useRef(true);
@@ -213,13 +215,31 @@ const RetroFootball: React.FC = () => {
             });
             // Mirror final result to local JSON when match ends
             if (snapshot.phase === 'FULL_TIME') {
+              setIsFullTime(true);
+              setFullTimeScore({
+                scoreA: snapshot.scoreA,
+                scoreB: snapshot.scoreB,
+                teamA: snapshot.teamAName || teamAName,
+                teamB: snapshot.teamBName || teamBName,
+              });
               mirrorMatchSummary();
+                // AUTOMATION: Seed baselines and auto-apply recommendations
+                import('../telemetry/mls2025-baselines').then(m =>
+                  m.seedMLS2025Baselines && m.seedMLS2025Baselines()
+                ).then(() =>
+                  generateDriftRecommendations({ thresholdPct: 10 })
+                );
             }
           }
           const prevShotSeq = prev.lastShotTelemetry?.seq ?? 0;
           const nextShotSeq = snapshot.lastShotTelemetry?.seq ?? 0;
           if (nextShotSeq > prevShotSeq && snapshot.lastShotTelemetry) {
             telemetryRecorderRef.current?.recordEvent('shot_style_taken', snapshot.lastShotTelemetry);
+          }
+          const prevKeeperKickSeq = prev.lastKeeperKickTelemetry?.seq ?? 0;
+          const nextKeeperKickSeq = snapshot.lastKeeperKickTelemetry?.seq ?? 0;
+          if (nextKeeperKickSeq > prevKeeperKickSeq && snapshot.lastKeeperKickTelemetry) {
+            telemetryRecorderRef.current?.recordEvent('keeper_kick', snapshot.lastKeeperKickTelemetry);
           }
         }
 
@@ -282,6 +302,9 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setCpuVsCpu?.(false);
+
+      // Expose game API on window for automation / telemetry scripts
+      (window as any).__gameRef = gameRef.current;
 
       if (!telemetryRecorderRef.current) {
         const recorder = new TelemetryRecorder();
@@ -439,6 +462,8 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setCpuVsCpu?.(isCpu);
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
+    setIsFullTime(false);
+    setFullTimeScore(null);
     telemetryRecorderRef.current?.recordEvent('kickoff_presentation_started', {
       autoKick: true,
       mode,
@@ -770,16 +795,18 @@ const RetroFootball: React.FC = () => {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
             {/* Title */}
-            <div className="text-center">
-              <p className="text-white/30 text-[9px] uppercase tracking-[0.4em] mb-1">Welcome to</p>
-              <h1 className="text-white text-2xl font-bold uppercase tracking-widest">Pixel Soccer</h1>
-              <h2 className="text-white/60 text-xs uppercase tracking-[0.3em]">League</h2>
+            <div className="flex flex-col items-center">
+              <img
+                src="/assets/pixel-soccer-league.webp"
+                alt="Pixel Soccer League"
+                className="w-72 drop-shadow-lg"
+              />
             </div>
 
             {/* Team selectors */}
             <div className="w-full flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Team A</span>
+                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Home</span>
                 <select
                   value={teamAName}
                   onChange={(e) => setTeamAName(e.target.value)}
@@ -791,7 +818,7 @@ const RetroFootball: React.FC = () => {
                 </select>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Team B</span>
+                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Away</span>
                 <select
                   value={teamBName}
                   onChange={(e) => setTeamBName(e.target.value)}
@@ -831,7 +858,46 @@ const RetroFootball: React.FC = () => {
           </div>
         </div>
       )}
-      
+
+      {/* Full Time / Game Over Overlay */}
+      {isFullTime && fullTimeScore && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 px-8 py-10 bg-zinc-900/90 rounded-2xl border border-white/10 shadow-2xl min-w-[320px]">
+            <div className="text-amber-400 text-3xl font-extrabold tracking-widest uppercase animate-pulse">Full Time</div>
+            <div className="flex items-center gap-6">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-white/50 text-[10px] uppercase tracking-wider">{fullTimeScore.teamA}</span>
+                <span className="text-white text-5xl font-black">{fullTimeScore.scoreA}</span>
+              </div>
+              <span className="text-white/30 text-2xl font-light">{'-'}</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-white/50 text-[10px] uppercase tracking-wider">{fullTimeScore.teamB}</span>
+                <span className="text-white text-5xl font-black">{fullTimeScore.scoreB}</span>
+              </div>
+            </div>
+            <div className="text-white/40 text-xs">
+              {fullTimeScore.scoreA > fullTimeScore.scoreB
+                ? `${fullTimeScore.teamA} Wins!`
+                : fullTimeScore.scoreB > fullTimeScore.scoreA
+                ? `${fullTimeScore.teamB} Wins!`
+                : 'Draw'}
+            </div>
+            <button
+              onClick={() => {
+                setIsFullTime(false);
+                setFullTimeScore(null);
+                gameRef.current?.resetMatch?.();
+                setGameMode(null);
+                gameRef.current?.setMenuVisible?.(true);
+              }}
+              className="mt-2 w-full py-3 border border-white/20 text-white text-xs uppercase tracking-widest rounded hover:bg-white hover:text-black transition-colors"
+            >
+              Return to Main Menu
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Options Menu Overlay */}
       {isOptionsOpen && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3">
@@ -1015,7 +1081,7 @@ const RetroFootball: React.FC = () => {
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">MLS Teams</h3>
                     <div className="flex flex-col gap-2">
-                      <label className="text-white/60 text-[9px] uppercase">Team A</label>
+                      <label className="text-white/60 text-[9px] uppercase">Home</label>
                       <select
                         value={teamAName}
                         onChange={(e) => setTeamAName(e.target.value)}
@@ -1026,7 +1092,7 @@ const RetroFootball: React.FC = () => {
                         ))}
                       </select>
 
-                      <label className="text-white/60 text-[9px] uppercase mt-1">Team B</label>
+                      <label className="text-white/60 text-[9px] uppercase mt-1">Away</label>
                       <select
                         value={teamBName}
                         onChange={(e) => setTeamBName(e.target.value)}
@@ -1042,7 +1108,7 @@ const RetroFootball: React.FC = () => {
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Formations</h3>
                     <div className="flex flex-col gap-2">
-                      <label className="text-white/60 text-[9px] uppercase">Team A</label>
+                      <label className="text-white/60 text-[9px] uppercase">Home</label>
                       <select
                         value={teamAFormation}
                         onChange={(e) => setTeamAFormation(e.target.value)}
@@ -1053,7 +1119,7 @@ const RetroFootball: React.FC = () => {
                         ))}
                       </select>
 
-                      <label className="text-white/60 text-[9px] uppercase mt-1">Team B</label>
+                      <label className="text-white/60 text-[9px] uppercase mt-1">Away</label>
                       <select
                         value={teamBFormation}
                         onChange={(e) => setTeamBFormation(e.target.value)}
@@ -1188,9 +1254,9 @@ const RetroFootball: React.FC = () => {
                 <div className="text-white/60">SPACEBAR</div>
                 <div className="text-white text-right">PASS / SELECT TARGET</div>
                 <div className="text-white/60">Q / E</div>
-                <div className="text-white text-right">SWITCH TEAM A PLAYER</div>
+                <div className="text-white text-right">SWITCH HOME PLAYER</div>
                 <div className="text-white/60">[ / ]</div>
-                <div className="text-white text-right">SWITCH TEAM B PLAYER</div>
+                <div className="text-white text-right">SWITCH AWAY PLAYER</div>
                 <div className="text-white/60">R</div>
                 <div className="text-white text-right">RESET GAME</div>
               </div>

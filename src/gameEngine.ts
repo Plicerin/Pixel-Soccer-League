@@ -1,8 +1,10 @@
+// Dead RL harness exports removed — replaced by hybrid keeper model in src/ai/keeperNet.ts
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { OFFENSE_FORMATIONS, DEFENSE_FORMATIONS, PASS_PLAYBOOK, DEFENSE_PLAYBOOK } from './playbookData';
-import { MLS_PLAYER_RATINGS, type MLSPlayerRating } from './mlsRatings';
-import { getMLS2025TeamModifiers } from './mlsTeamStats2025';
+import { OFFENSE_FORMATIONS, DEFENSE_FORMATIONS, PASS_PLAYBOOK, DEFENSE_PLAYBOOK } from './playbookData.ts';
+import { MLS_PLAYER_RATINGS, type MLSPlayerRating } from './mlsRatings.ts';
+import { getMLS2025TeamModifiers } from './mlsTeamStats2025.ts';
+import { keeperNet, encodeKeeperState, KEEPER_ACTIONS, type KeeperExperience, type KeeperNetWeights } from './ai/keeperNet.ts';
 
 export const M = {
   fieldGreen:  new THREE.MeshStandardMaterial({ color: 0x2e8b2e, roughness: 0.8, metalness: 0.1 }),
@@ -236,6 +238,13 @@ export function initGame(container: HTMLElement) {
     holdStarted: 0,
   };
 
+  const cornerPresentation = {
+    active: false,
+    taker: null as any,
+    crossAt: 0,
+    holdStarted: 0,
+  };
+
   const penaltyPresentation = {
     active: false,
     kicker: null as any,
@@ -352,9 +361,36 @@ export function initGame(container: HTMLElement) {
     freeKickPresentation.whistlePlayed = false;
     throwInPresentation.active = false;
     throwInPresentation.thrower = null;
-    penaltyPresentation.active = false;
-    penaltyPresentation.kicker = null;
-    penaltyPresentation.shotTaken = false;
+    if (soccerRestart.type === 'PENALTY') {
+      // Set up penalty presentation for the penalty shot sequence
+      const now = performance.now() / 1000;
+      const team = soccerRestart.team;
+      const defendingTeam = team === 'A' ? 'B' : 'A';
+      const attackRight = teamAttacksRight(team);
+      const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
+      const spotX = attackRight ? goalX - 12 * X_PER_YARD : goalX + 12 * X_PER_YARD;
+      penaltyPresentation.active = true;
+      penaltyPresentation.penaltySpotX = spotX;
+      penaltyPresentation.keeperTeam = defendingTeam;
+      penaltyPresentation.whistleAt = now + 1.2;
+      penaltyPresentation.shotAt = now + 2.4;
+      penaltyPresentation.whistlePlayed = false;
+      penaltyPresentation.shotTaken = false;
+      // Assign the kicker (nearest non-GK on offense team)
+      const kicker = offenseTeam.filter((p) => (p.displayRole || p.role) !== 'GK')
+        .sort((a, b) => a.pos.distanceTo(ballState.pos) - b.pos.distanceTo(ballState.pos))[0] || null;
+      penaltyPresentation.kicker = kicker;
+      // Place the ball on the penalty spot
+      ballState.pos.set(spotX, 0.15, 0);
+      gameState.ballPos.set(spotX, 0.15, 0);
+      ballState.heldBy = kicker;
+      soccerRestart.lastTouchTeam = kicker ? kicker.team : team;
+      gameState.message = 'PENALTY KICK';
+    } else {
+      penaltyPresentation.active = false;
+      penaltyPresentation.kicker = null;
+      penaltyPresentation.shotTaken = false;
+    }
     gameState.isLive = true;
     const isKickoffRestart = soccerRestart.type === 'KICK_OFF';
     const isGoalKickRestart = soccerRestart.type === 'GOAL_KICK';
@@ -364,8 +400,11 @@ export function initGame(container: HTMLElement) {
     gameState.status = 'PLAYING';
     gameState.passCaught = false;
     gameState.goalKickInProgress = isGoalKickRestart;
-    ballState.isFlying = false;
-    ballState.isRolling = false;
+    gameState.cornerKickInProgress = soccerRestart.type === 'CORNER';
+    if (soccerRestart.type !== 'PENALTY') {
+      ballState.isFlying = false;
+      ballState.isRolling = false;
+    }
     const goalkeeper = offenseTeam.find((p: any) => isGoalkeeper(p)) || null;
     const restartTaker = isGoalKickRestart
       ? (goalkeeper || offenseTeam[0] || null)
@@ -400,6 +439,14 @@ export function initGame(container: HTMLElement) {
         ballState.pos.copy(ballState.heldBy.pos);
         ballState.pos.y = 1.1;
         ballState.vel.set(0, 0, 0);
+      } else if (soccerRestart.type === 'CORNER') {
+        clearKickoffLawState();
+        const now = performance.now() / 1000;
+        cornerPresentation.active = true;
+        cornerPresentation.taker = ballState.heldBy;
+        cornerPresentation.holdStarted = now;
+        cornerPresentation.crossAt = now + 1.6;
+        updateDribbleBallPosition(ballState.heldBy, now);
       } else {
         clearKickoffLawState();
         updateDribbleBallPosition(ballState.heldBy, performance.now() / 1000);
@@ -497,6 +544,8 @@ export function initGame(container: HTMLElement) {
     clearKickoffLawState();
     throwInPresentation.active = false;
     throwInPresentation.thrower = null;
+    cornerPresentation.active = false;
+    cornerPresentation.taker = null;
     penaltyPresentation.active = false;
     penaltyPresentation.kicker = null;
     penaltyPresentation.shotTaken = false;
@@ -514,6 +563,7 @@ export function initGame(container: HTMLElement) {
     gameState.isKickoff = type === 'KICK_OFF';
     gameState.kickoffState = type === 'KICK_OFF' ? 'READY' : 'NONE';
     gameState.goalKickInProgress = false;
+    gameState.cornerKickInProgress = false;
     gameState.status = matchClock.phase === 'FULL_TIME' ? 'START' : 'PLAYING';
     gameState.message = message;
     gameState.messageReason = '';
@@ -715,7 +765,14 @@ export function initGame(container: HTMLElement) {
 
   function getGoalkeeperHomeTarget(player: any) {
     const defendsRightGoal = !teamAttacksRight(player.team);
-    const x = defendsRightGoal ? FIELD_W / 2 - 3 * X_PER_YARD : -FIELD_W / 2 + 3 * X_PER_YARD;
+    // Dynamic depth: push up to 8 yards off line when ball is far away, retreat to 3 yards when ball is near
+    const goalLineX = defendsRightGoal ? FIELD_W / 2 : -FIELD_W / 2;
+    const ballDistFromGoal = Math.abs(ballState.pos.x - goalLineX);
+    const fieldLength = FIELD_W;
+    const depthFraction = THREE.MathUtils.clamp(ballDistFromGoal / (fieldLength * 0.55), 0, 1);
+    const homeYards = THREE.MathUtils.lerp(3, 8, depthFraction);
+    const sign = defendsRightGoal ? -1 : 1;
+    const x = goalLineX + sign * homeYards * X_PER_YARD;
     return new THREE.Vector3(x, 0.15, 0);
   }
 
@@ -839,7 +896,7 @@ export function initGame(container: HTMLElement) {
   scoreBug.style.top = '20px';
   scoreBug.style.left = '50%';
   scoreBug.style.transform = 'translateX(-50%)';
-  scoreBug.style.display = 'flex';
+  scoreBug.style.display = 'none';
   scoreBug.style.alignItems = 'stretch';
   scoreBug.style.height = '68px';
   scoreBug.style.minWidth = '560px';
@@ -940,7 +997,7 @@ export function initGame(container: HTMLElement) {
   controlsOverlay.style.lineHeight = '1.45';
   controlsOverlay.style.zIndex = '210';
   controlsOverlay.style.pointerEvents = 'none';
-  controlsOverlay.textContent = 'TEAM A: WASD MOVE  F SHOOT  G PASS  Q/E SWITCH  |  TEAM B: ARROWS MOVE  . SHOOT  , PASS  [ ] SWITCH  |  P PAUSE';
+  controlsOverlay.textContent = 'HOME: WASD MOVE  F SHOOT  G PASS  Q/E SWITCH  |  AWAY: ARROWS MOVE  . SHOOT  , PASS  [ ] SWITCH  |  P PAUSE';
   container.appendChild(controlsOverlay);
 
   const fpsOverlay = document.createElement('div');
@@ -1321,8 +1378,8 @@ export function initGame(container: HTMLElement) {
   const CORNER_BUNCH_MIN_PLAYERS = 3;
   const CORNER_BUNCH_COMBINED_MIN_PLAYERS = 5;
   const CORNER_BUNCH_MIN_SECONDS = 1.5;
-  const CORNER_NEAR_X_RATIO = 0.24;
-  const CORNER_NEAR_Z_RATIO = 0.34;
+  const CORNER_NEAR_X_RATIO = 0.38;
+  const CORNER_NEAR_Z_RATIO = 0.42;
   const cornerBunchTracker = {
     A: { timer: 0, active: false, events: 0, peak: 0, current: 0 },
     B: { timer: 0, active: false, events: 0, peak: 0, current: 0 },
@@ -2299,6 +2356,7 @@ export function initGame(container: HTMLElement) {
     cpuDecisionCooldownA: 0,
     cpuDecisionCooldownB: 0,
     goalKickInProgress: false,
+    cornerKickInProgress: false,
     saveSlowmoUntil: 0,
     aiStyle: 'BALANCED' as 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION',
     // Counter-attack burst
@@ -2317,6 +2375,8 @@ export function initGame(container: HTMLElement) {
     defenseCalloutTeam: '' as 'A' | 'B' | '',
     crossAssistTeam: '' as 'A' | 'B' | '',
     crossAssistUntil: 0,
+    attackPhaseA: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
+    attackPhaseB: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
     lastShotTelemetrySeq: 0,
     lastShotTelemetry: null as null | {
       seq: number;
@@ -2332,7 +2392,46 @@ export function initGame(container: HTMLElement) {
       phase: string;
       elapsedInHalf: number;
     },
+    lastKeeperKickSeq: 0,
+    lastKeeperKickTelemetry: null as null | {
+      seq: number;
+      timestamp: number;
+      team: 'A' | 'B';
+      style: string;
+      distance: number;
+      half: number;
+      phase: string;
+      elapsedInHalf: number;
+    },
+    // Clearance tracking
+    lastClearanceTeam: '' as 'A' | 'B' | '',
+    lastClearanceTime: 0,
+    clearancePushUpUntil: 0,
+    clearancePushUpTeam: '' as 'A' | 'B' | '',
   };
+
+  // ── Keeper RL experience buffer ──
+  const keeperExperienceBuffer: KeeperExperience[] = [];
+  let _pendingKeeperExp: { state: number[]; action: number; style: string; timestamp: number; team: 'A' | 'B'; targetPlayer: any } | null = null;
+
+  // Try to load keeper net weights asynchronously
+  fetch('/assets/keeper-model/weights.json')
+    .then(r => { if (r.ok) return r.json(); throw new Error('no model'); })
+    .then((w: KeeperNetWeights) => { keeperNet.loadWeights(w); console.log('[KeeperNet] Weights loaded'); })
+    .catch(() => { /* No model yet — will run in rule-based fallback mode */ });
+
+  function getAttackPhase(team: 'A' | 'B'): 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD' {
+    const carrier = ballState.heldBy;
+    if (!carrier || carrier.team !== team) return 'BUILD_UP';
+    const attackRight = teamAttacksRight(team);
+    const attackSign = attackRight ? 1 : -1;
+    // Normalised progress: 0 = own goal-line, 1 = opponent goal-line
+    const progress = THREE.MathUtils.clamp(((carrier.pos.x * attackSign) + FIELD_W / 2) / FIELD_W, 0, 1);
+    if (progress >= 0.72) return 'FINAL_THIRD';
+    if (progress >= 0.52) return 'TRANSITION';
+    if (progress >= 0.30) return 'PROGRESSION';
+    return 'BUILD_UP';
+  }
 
   const playState = {
     activeRoutes: [] as any[],
@@ -2398,7 +2497,8 @@ export function initGame(container: HTMLElement) {
     ballState.intendedUntil = 0;
   }
 
-  const GAME_SPEED_SCALE = 0.7;
+  let GAME_SPEED_SCALE = 0.7;
+  let _seriesSpeedMul = 1.0; // Automation speed multiplier (stacks on GAME_SPEED_SCALE for clock only)
   const BALL_GROUND_Y = 0.15;
   const BALL_RADIUS = 0.2;
   const BALL_GRAVITY = 9.8;
@@ -2561,10 +2661,15 @@ export function initGame(container: HTMLElement) {
     arrivalEpsilon: number = 0.08,
   ) {
     let steeringTarget = target;
+    // Suppress corner anti-bunch during corner kick delivery, the cross-assist window,
+    // and always for the ball carrier / intended receiver (they should never be steered away from goal).
+    const isCarrierOrReceiver = player === ballState.heldBy || player === ballState.intendedReceiver;
+    const teamHasPossession = ballState.heldBy && ballState.heldBy.team === player.team;
+    const cornerSetPiece = gameState.cornerKickInProgress || isCarrierOrReceiver || teamHasPossession || (gameState.crossAssistTeam === player.team && performance.now() / 1000 <= gameState.crossAssistUntil);
     const targetCornerApex = getCornerApexIfInChannel(target);
     const playerCornerApex = getCornerApexIfInChannel(player.pos);
     const activeCornerApex = targetCornerApex || playerCornerApex;
-    if (activeCornerApex && !isGoalkeeper(player)) {
+    if (activeCornerApex && !isGoalkeeper(player) && !cornerSetPiece) {
       const sameTeamOutfield = players
         .filter((p: any) => p.team === player.team && !isGoalkeeper(p))
         .slice();
@@ -2639,9 +2744,10 @@ export function initGame(container: HTMLElement) {
     }
 
     // Corner escape bias: avoid trapping multiple teammates against touchline + goal line.
-    if (inCornerChannel) {
-      desiredVel.x += (player.pos.x > 0 ? -1 : 1) * 5.2;
-      desiredVel.z += (player.pos.z > 0 ? -1 : 1) * 5.8;
+    // Skip for the possessing team (they need to attack wide areas) and corner set pieces.
+    if (inCornerChannel && !cornerSetPiece) {
+      desiredVel.x += (player.pos.x > 0 ? -1 : 1) * 3.0;
+      desiredVel.z += (player.pos.z > 0 ? -1 : 1) * 3.4;
     }
 
     // Soft boundary avoidance before hard clamping.
@@ -2740,7 +2846,7 @@ export function initGame(container: HTMLElement) {
   let cameraMode: 'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' = 'BROADCAST';
   const cameraFocusSmoothed = new THREE.Vector3();
   let cameraFocusInitialized = false;
-  const BROADCAST_PAN_BLEND = 0.028;
+  const BROADCAST_PAN_BLEND = 0.06;
   const broadcastCameraHome = new THREE.Vector3();
 
   const teamAUniforms = [
@@ -3005,7 +3111,7 @@ export function initGame(container: HTMLElement) {
     const goalHeight = goalMouthHeight;
     const topDepth = goalRoofDepth;
     const bottomDepth = goalFloorDepth;
-    const postRadius = 0.11;
+    const postRadius = 0.055;
     const halfW = goalWidth / 2;
     const frontX = goalLineX - opensTowardField * postRadius;
     const backTopX = frontX - opensTowardField * topDepth;
@@ -3487,7 +3593,7 @@ export function initGame(container: HTMLElement) {
     const runFrames = PLAYER_PATTERNS.map(p => buildPlayerFrame(p, palette));
     const idleFrames = PLAYER_IDLE_PATTERNS.map(p => buildPlayerFrame(p, palette));
     runFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
-    idleFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+    idleFrames.forEach((f, i) => { f.visible = i === 0; spriteGroup.add(f); });
     
     group.castShadow = true;
     group.receiveShadow = true;
@@ -3839,6 +3945,265 @@ export function initGame(container: HTMLElement) {
     return lead;
   }
 
+  // ── Clearing system ──────────────────────────────────────────────
+  // Defensive safety action: remove the ball from danger near own goal.
+
+  type ClearanceStyle = 'HIGH_LONG' | 'WIDE' | 'FIRST_TIME' | 'HEADER' | 'EMERGENCY';
+
+  /**
+   * Is the player in a situation that warrants an immediate clearance?
+   * Returns a clearance urgency score 0–1 (0 = no danger, 1 = max danger).
+   */
+  function getClearanceUrgency(player: any, opponents: any[]): number {
+    const team = player.team as 'A' | 'B';
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const ownGoalX = attackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
+    const distToOwnGoal = Math.abs(player.pos.x - ownGoalX);
+
+    // Only consider clearance when in defensive third (roughly 30% of field from own goal)
+    const defensiveThirdDepth = FIELD_W * 0.30;
+    if (distToOwnGoal > defensiveThirdDepth) return 0;
+
+    // Check if ball is in/near own penalty area
+    const inOwnPenaltyArea = isInsideOwnPenaltyArea(player, player.pos);
+
+    // Count nearby opponents closing in on the ball
+    const closePressure = opponents.filter((opp: any) => opp.pos.distanceTo(player.pos) < 7).length;
+    const immediatePressure = opponents.filter((opp: any) => opp.pos.distanceTo(player.pos) < 4).length;
+
+    // Only defenders and DMs should clear (not strikers who somehow ended up deep)
+    const role = (player.displayRole || player.role || '').toString().toUpperCase();
+    const isDefender = ['CB', 'LB', 'RB', 'DM', 'GK'].includes(role);
+    if (!isDefender && !inOwnPenaltyArea) return 0;
+
+    // Base urgency from proximity to own goal
+    let urgency = THREE.MathUtils.clamp(1 - distToOwnGoal / defensiveThirdDepth, 0, 1);
+
+    // Inside penalty area — always urgent
+    if (inOwnPenaltyArea) urgency = Math.max(urgency, 0.65);
+
+    // Pressure multiplier
+    if (immediatePressure >= 2) urgency = Math.max(urgency, 0.8);
+    else if (closePressure >= 3) urgency = Math.max(urgency, 0.6);
+    else if (closePressure >= 1) urgency *= 1.2;
+
+    // Ball position: even more urgent if ball is near goal mouth (central corridor)
+    if (Math.abs(player.pos.z) < goalMouthWidth * 1.2) {
+      urgency *= 1.25;
+    }
+
+    return THREE.MathUtils.clamp(urgency, 0, 1);
+  }
+
+  /**
+   * Choose the best clearing method given the situation.
+   */
+  function chooseClearanceStyle(
+    player: any, urgency: number, closePressure: number, ballIsFlying: boolean
+  ): ClearanceStyle {
+    // Aerial ball → header clearance
+    if (ballIsFlying) return 'HEADER';
+
+    // Extreme urgency / pressure → emergency (no time to set up)
+    if (urgency > 0.85 || closePressure >= 3) return 'EMERGENCY';
+
+    // Very close to touchline → wide clearance
+    if (Math.abs(player.pos.z) > FIELD_D * 0.35) return 'WIDE';
+
+    // In central corridor under moderate pressure → high long clearance
+    if (closePressure >= 1 && Math.abs(player.pos.z) < goalMouthWidth * 1.5) return 'HIGH_LONG';
+
+    // First-time clearance: ball just arrived, moderate pressure
+    if (urgency > 0.5 && closePressure >= 1) return 'FIRST_TIME';
+
+    // Default: high and long
+    return 'HIGH_LONG';
+  }
+
+  /**
+   * Execute a defensive clearance — boot the ball away from the danger zone.
+   * Returns true if the clearance was performed.
+   */
+  function executeClearance(
+    player: any,
+    elapsed: number,
+    style: ClearanceStyle
+  ): boolean {
+    if (!player || !ballState.heldBy || ballState.heldBy !== player) return false;
+
+    const team = player.team as 'A' | 'B';
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const weather = getActiveWeatherPreset();
+
+    // Direction: away from own goal. Bias toward the sideline if in the central corridor.
+    const clearDir = new THREE.Vector3(attackSign, 0, 0); // Base: upfield
+
+    // Add lateral bias based on player's position
+    const zBias = player.pos.z > 0 ? 1 : -1; // Push toward nearer sideline
+    const centralness = 1 - Math.min(Math.abs(player.pos.z) / (FIELD_D * 0.35), 1);
+
+    let speed = 0;
+    let lift = 0;
+    let angleError = 0;
+    let releaseHeight = BALL_GROUND_Y;
+    let tag = 'CLEARANCE';
+
+    switch (style) {
+      case 'HIGH_LONG':
+        // High lofted boot upfield — maximum distance and height
+        clearDir.z += zBias * (0.2 + centralness * 0.3);
+        speed = THREE.MathUtils.clamp(18 + Math.random() * 6, 18, 24) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        lift = THREE.MathUtils.clamp(5.5 + Math.random() * 2.5, 5.5, 8.0);
+        angleError = 0.08;
+        releaseHeight = BALL_GROUND_Y;
+        tag = 'LONG CLEARANCE';
+        break;
+
+      case 'WIDE':
+        // Kick toward the nearest touchline
+        clearDir.x = attackSign * 0.4;
+        clearDir.z = zBias * 1.0;
+        speed = THREE.MathUtils.clamp(14 + Math.random() * 5, 14, 19) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        lift = THREE.MathUtils.clamp(2.0 + Math.random() * 2.0, 2.0, 4.0);
+        angleError = 0.06;
+        releaseHeight = BALL_GROUND_Y;
+        tag = 'WIDE CLEARANCE';
+        break;
+
+      case 'FIRST_TIME':
+        // Quick driven clearance upfield — less height, more pace
+        clearDir.z += zBias * (0.15 + Math.random() * 0.2);
+        speed = THREE.MathUtils.clamp(16 + Math.random() * 6, 16, 22) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        lift = THREE.MathUtils.clamp(2.5 + Math.random() * 1.5, 2.5, 4.0);
+        angleError = 0.10;
+        releaseHeight = BALL_GROUND_Y;
+        tag = 'FIRST-TIME CLEARANCE';
+        break;
+
+      case 'HEADER':
+        // Headed clearance — less power, higher angle error
+        clearDir.z += zBias * (0.3 + Math.random() * 0.3);
+        speed = THREE.MathUtils.clamp(10 + Math.random() * 5, 10, 15) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        lift = THREE.MathUtils.clamp(3.5 + Math.random() * 2.5, 3.5, 6.0);
+        angleError = 0.14;
+        releaseHeight = 1.2;
+        tag = 'HEADER CLEARANCE';
+        break;
+
+      case 'EMERGENCY':
+        // Desperate toe-poke / scoop — fastest possible reaction, low accuracy
+        clearDir.z += zBias * (0.1 + Math.random() * 0.5);
+        // Add randomness — emergency clears can go anywhere safe-ish
+        clearDir.x += (Math.random() * 0.4 - 0.2);
+        speed = THREE.MathUtils.clamp(12 + Math.random() * 8, 12, 20) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        lift = THREE.MathUtils.clamp(1.5 + Math.random() * 4, 1.5, 5.5);
+        angleError = 0.18;
+        releaseHeight = BALL_GROUND_Y;
+        tag = 'EMERGENCY CLEARANCE';
+        break;
+    }
+
+    clearDir.normalize();
+
+    // Apply angle error
+    if (angleError > 0) {
+      clearDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() * 2 - 1) * angleError);
+    }
+
+    // Release ball
+    ballState.lastHeldBy = player;
+    ballState.heldBy = null;
+    if (gameState.goalKickInProgress) gameState.goalKickInProgress = false;
+    ballState.isFlying = lift > 2.0;
+    ballState.isRolling = !ballState.isFlying;
+    ballState.isShot = false;
+    ballState.shotByTeam = null;
+    ballState.receiveLockUntil = elapsed + 0.15;
+    ballState.possessionLockUntil = elapsed + 0.2;
+
+    ballState.pos.copy(player.pos).addScaledVector(clearDir, style === 'HEADER' ? 0.3 : 0.5);
+    ballState.pos.y = releaseHeight;
+    ballState.vel.copy(clearDir.multiplyScalar(speed));
+    ballState.vel.y = lift;
+
+    // No intended receiver — clearances sacrifice possession for safety
+    clearIntendedReceiver();
+
+    showPlayPatternTag(tag, 'rgba(255,180,100,0.96)');
+    sounds.throw();
+
+    // Track clearance telemetry
+    gameState.lastClearanceTeam = team;
+    gameState.lastClearanceTime = elapsed;
+
+    // Trigger defensive line push-out: back line steps forward for 3 seconds
+    gameState.clearancePushUpUntil = elapsed + 3.0;
+    gameState.clearancePushUpTeam = team;
+
+    return true;
+  }
+
+  /**
+   * Attempt a headed/volleyed clearance when intercepting an aerial ball.
+   * Instead of catching and holding, immediately redirect the ball away.
+   * Returns true if the clearance was performed (ball not caught).
+   */
+  function attemptAerialClearance(
+    player: any, elapsed: number
+  ): boolean {
+    const team = player.team as 'A' | 'B';
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const opponents = players.filter((opp: any) => opp.team !== team);
+    const urgency = getClearanceUrgency(player, opponents);
+
+    // Only do aerial clearance if in danger zone
+    if (urgency < 0.4) return false;
+
+    // Goalkeepers should catch, not head away
+    if (isGoalkeeper(player)) return false;
+
+    const weather = getActiveWeatherPreset();
+    const clearDir = new THREE.Vector3(attackSign, 0, 0);
+    const zBias = player.pos.z > 0 ? 1 : -1;
+    clearDir.z += zBias * (0.25 + Math.random() * 0.35);
+    clearDir.normalize();
+
+    const angleError = 0.16;
+    clearDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() * 2 - 1) * angleError);
+
+    const speed = THREE.MathUtils.clamp(9 + Math.random() * 6, 9, 15) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+    const lift = THREE.MathUtils.clamp(3.0 + Math.random() * 3, 3.0, 6.0);
+
+    // Don't catch — redirect the ball
+    ballState.isFlying = true;
+    ballState.isRolling = false;
+    ballState.isShot = false;
+    ballState.shotByTeam = null;
+    ballState.lastHeldBy = player;
+    ballState.heldBy = null;
+    ballState.receiveLockUntil = elapsed + 0.18;
+    ballState.possessionLockUntil = elapsed + 0.25;
+
+    ballState.pos.copy(player.pos);
+    ballState.pos.y = Math.max(ballState.pos.y, 1.0);
+    ballState.vel.copy(clearDir.multiplyScalar(speed));
+    ballState.vel.y = lift;
+
+    clearIntendedReceiver();
+
+    showPlayPatternTag('HEADER CLEARANCE', 'rgba(255,180,100,0.96)');
+    sounds.catch();
+
+    gameState.lastClearanceTeam = team;
+    gameState.lastClearanceTime = elapsed;
+
+    // Trigger defensive line push-out
+    gameState.clearancePushUpUntil = elapsed + 3.0;
+    gameState.clearancePushUpTeam = team;
+
+    return true;
+  }
+
   function executeAIGroundPass(
     passer: any,
     target: any,
@@ -3995,6 +4360,93 @@ export function initGame(container: HTMLElement) {
     showPlayPatternTag(style === 'LONG_LOFTED' ? 'LONG LOFTED PASS' : 'LONG DRIVEN PASS', 'rgba(144,214,255,0.96)');
   }
 
+  function executeAICornerCross(taker: any, elapsed: number) {
+    if (!taker) return;
+    const team = taker.team as 'A' | 'B';
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const passSkill = getPassSkill(taker);
+
+    // Players inside the penalty area on offense team
+    const boxTargets = players.filter((p: any) =>
+      p.team === team &&
+      p !== taker &&
+      !isGoalkeeper(p) &&
+      (attackSign > 0 ? p.pos.x > rightPenaltyX - 5 : p.pos.x < leftPenaltyX + 5),
+    );
+
+    // Short corner: low probability, only when a nearby teammate is available
+    const shortCornerCandidate = players
+      .filter((p: any) => p.team === team && p !== taker && !isGoalkeeper(p) && p.pos.distanceTo(taker.pos) < 11)
+      .sort((a: any, b: any) => a.pos.distanceTo(taker.pos) - b.pos.distanceTo(taker.pos))[0] || null;
+    if (shortCornerCandidate && Math.random() < 0.12 + passSkill * 0.06) {
+      gameState.cornerKickInProgress = false;
+      executeAIGroundPass(taker, shortCornerCandidate, elapsed, { style: 'SHORT' });
+      showPlayPatternTag('SHORT CORNER', 'rgba(180,255,130,0.96)');
+      return;
+    }
+
+    // Fallback: if no one is in the box, aim for the penalty-spot area
+    const penSpotX = goalX - attackSign * 12 * X_PER_YARD;
+    let target: any;
+    if (boxTargets.length === 0) {
+      target = players
+        .filter((p: any) => p.team === team && p !== taker && !isGoalkeeper(p))
+        .sort((a: any, b: any) => a.pos.distanceTo(taker.pos) - b.pos.distanceTo(taker.pos))[0] || null;
+    } else {
+      // Choose delivery style
+      const roll = Math.random();
+      const delivery = roll < 0.36 ? 'INSWINGER' : roll < 0.65 ? 'OUTSWINGER' : roll < 0.84 ? 'DRIVEN' : 'HIGH_LOFTED';
+
+      if (delivery === 'INSWINGER' || delivery === 'HIGH_LOFTED') {
+        // Near-post / penalty-spot target: prefer players on the same z-side as corner
+        const cornerSideZ = taker.pos.z >= 0 ? 1 : -1;
+        target = boxTargets.slice().sort((a: any, b: any) =>
+          (Math.abs(a.pos.x - penSpotX) + Math.abs(a.pos.z - cornerSideZ * 2 * X_PER_YARD)) -
+          (Math.abs(b.pos.x - penSpotX) + Math.abs(b.pos.z - cornerSideZ * 2 * X_PER_YARD)),
+        )[0];
+      } else if (delivery === 'OUTSWINGER') {
+        // Far-post / far-side target
+        const cornerSideZ = taker.pos.z >= 0 ? 1 : -1;
+        target = boxTargets.slice().sort((a: any, b: any) =>
+          Math.abs(a.pos.z + cornerSideZ * 4 * X_PER_YARD) -
+          Math.abs(b.pos.z + cornerSideZ * 4 * X_PER_YARD),
+        )[0];
+      } else {
+        // Driven: aim for penalty spot
+        target = boxTargets.slice().sort((a: any, b: any) =>
+          (Math.abs(a.pos.x - penSpotX) + Math.abs(a.pos.z)) -
+          (Math.abs(b.pos.x - penSpotX) + Math.abs(b.pos.z)),
+        )[0];
+      }
+
+      const tagMap: Record<string, [string, string]> = {
+        INSWINGER:   ['INSWINGER',   'rgba(255,188,50,0.96)'],
+        OUTSWINGER:  ['OUTSWINGER',  'rgba(188,100,255,0.96)'],
+        DRIVEN:      ['DRIVEN CROSS','rgba(100,200,255,0.96)'],
+        HIGH_LOFTED: ['HIGH BALL',   'rgba(255,120,120,0.96)'],
+      };
+      const [label, color] = tagMap[delivery];
+      showPlayPatternTag(label, color);
+
+      const style = delivery === 'DRIVEN' ? 'LONG_DRIVEN' : 'LONG_LOFTED';
+      // Pre-set cross assist so headers receive assist credit (corner forwardProgress check fails)
+      gameState.crossAssistTeam = team;
+      gameState.crossAssistUntil = elapsed + 3.0;
+      gameState.cornerKickInProgress = false;
+      executeAILoftedPass(taker, target, elapsed, style);
+      return;
+    }
+
+    // Fallback delivery
+    if (target) {
+      gameState.crossAssistTeam = team;
+      gameState.crossAssistUntil = elapsed + 3.0;
+      executeAILoftedPass(taker, target, elapsed, 'LONG_LOFTED');
+    }
+    gameState.cornerKickInProgress = false;
+  }
+
   function executeAIKeeperKick(
     keeper: any,
     target: any,
@@ -4042,14 +4494,14 @@ export function initGame(container: HTMLElement) {
       case 'PUNT':
         {
           const keeperKickStrength = THREE.MathUtils.clamp(keeper.stats?.throwPower ?? 0.62, 0.2, 1.0);
-          const puntStrengthMul = THREE.MathUtils.lerp(1.04, 1.2, keeperKickStrength);
-          speed = THREE.MathUtils.clamp(25.5 + kickDist * 0.34, 27.0, 38.0) * GAME_SPEED_SCALE * weather.kickSpeedMul * puntStrengthMul;
-          lift = THREE.MathUtils.clamp(7.4 + kickDist * 0.055, 7.4, 11.8);
+          const puntStrengthMul = THREE.MathUtils.lerp(0.95, 1.08, keeperKickStrength);
+          speed = THREE.MathUtils.clamp(16.0 + kickDist * 0.2, 16.0, 23.0) * GAME_SPEED_SCALE * weather.kickSpeedMul * puntStrengthMul;
+          lift = THREE.MathUtils.clamp(4.2 + kickDist * 0.035, 4.2, 7.0);
         }
         releaseHeight = 0.72;
-        angleError = 0.08;
+        angleError = 0.06;
         tag = 'PUNT';
-        intendedWindow = 0;
+        intendedWindow = 1.8;
         break;
       case 'DROP_KICK':
         speed = THREE.MathUtils.clamp(19.0 + kickDist * 0.24, 19.0, 28.0) * GAME_SPEED_SCALE * weather.kickSpeedMul;
@@ -4095,6 +4547,20 @@ export function initGame(container: HTMLElement) {
 
     showPlayPatternTag(tag, 'rgba(146,220,255,0.96)');
     sounds.throw();
+
+    // Record keeper kick telemetry
+    gameState.lastKeeperKickSeq += 1;
+    gameState.lastKeeperKickTelemetry = {
+      seq: gameState.lastKeeperKickSeq,
+      timestamp: Date.now(),
+      team: keeper.team,
+      style: tag,
+      distance: kickDist,
+      half: matchClock.half,
+      phase: matchClock.phase,
+      elapsedInHalf: matchClock.elapsedInHalf,
+    };
+
     return true;
   }
 
@@ -4300,10 +4766,15 @@ export function initGame(container: HTMLElement) {
     const passSkill = getPassSkill(carrier);
     const roleProfile = getRoleDecisionProfile(carrier);
     const progressiveBlend = passSkill * 0.62 + roleProfile.progressivePass * 0.38;
+    const phase = team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+    // Phase-dependent pass weight adjustments
+    const phaseProgressBoost = phase === 'FINAL_THIRD' ? 0.12 : phase === 'TRANSITION' ? 0.08 : phase === 'PROGRESSION' ? 0.04 : 0;
+    const phaseSpaceBoost = phase === 'BUILD_UP' ? 0.10 : phase === 'PROGRESSION' ? 0.05 : 0;
+    const phaseLaneRelax = phase === 'FINAL_THIRD' ? -0.35 : phase === 'TRANSITION' ? -0.20 : 0;
     const idealDist = THREE.MathUtils.lerp(9.5, 19.0, progressiveBlend);
-    const progressWeight = THREE.MathUtils.lerp(0.34, 0.72, progressiveBlend);
-    const spaceWeight = THREE.MathUtils.lerp(0.82, 0.58, progressiveBlend);
-    const lanePenaltyScale = THREE.MathUtils.lerp(3.2, 1.55, passSkill);
+    const progressWeight = THREE.MathUtils.lerp(0.52, 0.88, progressiveBlend) + phaseProgressBoost;
+    const spaceWeight = THREE.MathUtils.lerp(0.72, 0.48, progressiveBlend) + phaseSpaceBoost;
+    const lanePenaltyScale = THREE.MathUtils.lerp(2.8, 1.35, passSkill) + phaseLaneRelax;
 
     teammates.forEach((candidate: any) => {
       const passDist = carrier.pos.distanceTo(candidate.pos);
@@ -4405,6 +4876,35 @@ export function initGame(container: HTMLElement) {
 
     const wasShot = ballState.isShot;
     const shootingTeam = ballState.shotByTeam;
+
+    // Parry/rebound: powerful shots have a chance to spill instead of clean catch
+    const shotSpeed = ballState.vel.length();
+    const parryThreshold = 14.0; // shots faster than this may be parried
+    const parryChance = wasShot ? THREE.MathUtils.clamp((shotSpeed - parryThreshold) / 18.0, 0, 0.45) : 0;
+    if (wasShot && Math.random() < parryChance) {
+      // PARRY: deflect ball away instead of catching
+      triggerGoalkeeperSaveAnimation(bestKeeper, elapsed);
+      if (shootingTeam) {
+        recordShotOnTarget(shootingTeam);
+        recordSave(bestKeeper.team);
+      }
+      const parryDir = new THREE.Vector3(
+        ballState.vel.x * -0.25 + (Math.random() - 0.5) * 2.0,
+        Math.random() * 1.8 + 0.8,
+        ballState.vel.z * -0.2 + (Math.random() - 0.5) * 3.0
+      );
+      ballState.vel.copy(parryDir);
+      ballState.isShot = false;
+      ballState.shotByTeam = null;
+      ballState.isFlying = true;
+      ballState.isRolling = false;
+      ballState.receiveLockUntil = elapsed + 0.25;
+      soccerRestart.lastTouchTeam = bestKeeper.team;
+      gameState.message = 'PARRY!';
+      sounds.catch();
+      return null; // ball is loose, not held
+    }
+
     ballState.isFlying = false;
     ballState.isRolling = false;
     ballState.isShot = false;
@@ -4414,13 +4914,21 @@ export function initGame(container: HTMLElement) {
     ballState.vel.set(0, 0, 0);
     ballState.pos.copy(bestKeeper.pos);
     ballState.pos.y = 0.58;
-    const keeperHoldSeconds = 1.2 + Math.random() * 2.2;
+    const keeperHoldSeconds = 2.5 + Math.random() * 5.5; // 2.5–8s, FIFA 6-second rule with slack
     ballState.possessionLockUntil = elapsed + keeperHoldSeconds + 0.65;
     clearIntendedReceiver();
     markKickoffTouch(bestKeeper);
     soccerRestart.lastTouchTeam = bestKeeper.team;
     // Keepers should distribute promptly after claiming in hands.
     setCPUTeamDecisionCooldown(bestKeeper.team, keeperHoldSeconds);
+
+    // Teammates reset toward formation positions so the keeper has clear outlets
+    const keeperTeammates = players.filter((p: any) => p.team === bestKeeper.team && p !== bestKeeper && !isGoalkeeper(p));
+    keeperTeammates.forEach((p: any) => {
+      if (p.homePos) {
+        p.pos.lerp(p.homePos, 0.05); // gentle nudge toward homePos each frame will accumulate
+      }
+    });
     if (wasShot && shootingTeam) {
       recordShotOnTarget(shootingTeam);
       recordSave(bestKeeper.team);
@@ -4624,8 +5132,14 @@ export function initGame(container: HTMLElement) {
     const inShootingLane = Math.abs(shooter.pos.z) < goalMouthWidth * 0.78;
     const inTapInZone = distToGoal < 9.5 && Math.abs(shooter.pos.z) < goalMouthWidth * 1.1;
     const composure = THREE.MathUtils.clamp(shotSkill - closePressure * 0.08, 0.12, 0.98);
-    const sign = shooter.pos.z >= 0 ? -1 : 1;
-    const desiredCornerBias = THREE.MathUtils.lerp(0.06, 0.34, composure) * sign;
+    // Keeper-aware aiming for the manual-path fallback
+    const oppTeamM = shooter.team === 'A' ? 'B' : 'A';
+    const oppKeeperM = players.find((p: any) => p.team === oppTeamM && isGoalkeeper(p));
+    const keeperZM = oppKeeperM ? oppKeeperM.pos.z : 0;
+    const farSideM = keeperZM >= 0 ? -1 : 1;
+    const keeperAwareChanceM = THREE.MathUtils.lerp(0.55, 0.82, composure);
+    const cornerSideM = Math.random() < keeperAwareChanceM ? farSideM : -farSideM;
+    const desiredCornerBias = THREE.MathUtils.lerp(0.14, 0.38, composure) * cornerSideM;
     const baseAimZ = THREE.MathUtils.clamp(
       shooter.pos.z * THREE.MathUtils.lerp(0.4, 0.18, composure) + desiredCornerBias * goalMouthWidth,
       -goalMouthWidth * 0.45,
@@ -4633,7 +5147,12 @@ export function initGame(container: HTMLElement) {
     );
     const aimError = skillDriven ? (Math.random() * 2 - 1) * THREE.MathUtils.lerp(0.32, 0.05, composure) : 0;
     const targetZ = THREE.MathUtils.clamp(baseAimZ + aimError, -goalMouthWidth * 0.45, goalMouthWidth * 0.45);
-    const targetPos = new THREE.Vector3(goalX, 1.1, targetZ);
+    // Vary height: low / mid / high instead of fixed 1.1
+    const hRoll = Math.random();
+    const manualTargetY = hRoll < 0.35 ? THREE.MathUtils.lerp(0.25, 0.55, Math.random())
+      : hRoll < 0.70 ? THREE.MathUtils.lerp(0.9, 1.4, Math.random())
+      : THREE.MathUtils.lerp(1.6, goalMouthHeight * 0.92, Math.random());
+    const targetPos = new THREE.Vector3(goalX, manualTargetY, targetZ);
 
     ballState.lastHeldBy = shooter;
     ballState.heldBy = null;
@@ -4682,29 +5201,53 @@ export function initGame(container: HTMLElement) {
   function getSupportRunProfile(player: any, index: number) {
     const label = player.displayRole || player.role;
     const sideBias = player.homePos.z === 0 ? 0 : Math.sign(player.homePos.z);
+    const phase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
 
+    let base: { depthBias: number; widthBias: number; anchorBlend: number; speedScale: number };
     switch (label) {
       case 'GK':
-        return { depthBias: -24, widthBias: 0, anchorBlend: 0.18, speedScale: 0.55 };
+        base = { depthBias: -24, widthBias: 0, anchorBlend: 0.18, speedScale: 0.55 }; break;
       case 'LB':
-        return { depthBias: -14, widthBias: -15, anchorBlend: 0.42, speedScale: 0.9 };
+        base = { depthBias: -8, widthBias: -15, anchorBlend: 0.48, speedScale: 0.94 }; break;
       case 'RB':
-        return { depthBias: -14, widthBias: 15, anchorBlend: 0.42, speedScale: 0.9 };
+        base = { depthBias: -8, widthBias: 15, anchorBlend: 0.48, speedScale: 0.94 }; break;
       case 'CB':
-        return { depthBias: -18, widthBias: sideBias * 6, anchorBlend: 0.28, speedScale: 0.78 };
+        base = { depthBias: -14, widthBias: sideBias * 6, anchorBlend: 0.32, speedScale: 0.82 }; break;
       case 'DM':
-        return { depthBias: -10, widthBias: 0, anchorBlend: 0.5, speedScale: 0.9 };
+        base = { depthBias: -4, widthBias: 0, anchorBlend: 0.55, speedScale: 0.94 }; break;
       case 'LM':
-        return { depthBias: -2, widthBias: -19, anchorBlend: 0.62, speedScale: 1.0 };
+        base = { depthBias: 6, widthBias: -19, anchorBlend: 0.68, speedScale: 1.04 }; break;
       case 'RM':
-        return { depthBias: -2, widthBias: 19, anchorBlend: 0.62, speedScale: 1.0 };
+        base = { depthBias: 6, widthBias: 19, anchorBlend: 0.68, speedScale: 1.04 }; break;
       case 'CM':
-        return { depthBias: index < 8 ? -4 : 4, widthBias: sideBias * 8, anchorBlend: 0.58, speedScale: 1.0 };
+        base = { depthBias: index < 8 ? 2 : 8, widthBias: sideBias * 8, anchorBlend: 0.62, speedScale: 1.02 }; break;
       case 'ST':
-        return { depthBias: 16, widthBias: 0, anchorBlend: 0.72, speedScale: 1.08 };
+        base = { depthBias: 20, widthBias: 0, anchorBlend: 0.78, speedScale: 1.12 }; break;
       default:
-        return { depthBias: 0, widthBias: sideBias * 6, anchorBlend: 0.45, speedScale: 0.92 };
+        base = { depthBias: 0, widthBias: sideBias * 6, anchorBlend: 0.45, speedScale: 0.92 }; break;
     }
+
+    // Phase-dependent overrides: push team higher as attack progresses
+    if (phase === 'PROGRESSION') {
+      if (label === 'CM' || label === 'DM') { base.depthBias += 4; base.anchorBlend += 0.06; }
+      if (label === 'LB' || label === 'RB') { base.depthBias += 3; base.anchorBlend += 0.05; }
+      if (label === 'LM' || label === 'RM') { base.depthBias += 2; base.anchorBlend += 0.04; }
+    } else if (phase === 'TRANSITION') {
+      if (label === 'CM') { base.depthBias += 7; base.anchorBlend += 0.10; base.speedScale += 0.04; }
+      if (label === 'DM') { base.depthBias += 5; base.anchorBlend += 0.08; }
+      if (label === 'LB' || label === 'RB') { base.depthBias += 5; base.anchorBlend += 0.08; base.speedScale += 0.03; }
+      if (label === 'LM' || label === 'RM') { base.depthBias += 4; base.anchorBlend += 0.06; }
+      if (label === 'ST') { base.depthBias += 3; base.anchorBlend += 0.05; }
+    } else if (phase === 'FINAL_THIRD') {
+      if (label === 'CM') { base.depthBias += 10; base.anchorBlend += 0.14; base.speedScale += 0.06; }
+      if (label === 'DM') { base.depthBias += 7; base.anchorBlend += 0.10; base.speedScale += 0.04; }
+      if (label === 'LB' || label === 'RB') { base.depthBias += 7; base.anchorBlend += 0.10; base.speedScale += 0.05; }
+      if (label === 'LM' || label === 'RM') { base.depthBias += 6; base.anchorBlend += 0.08; base.speedScale += 0.04; }
+      if (label === 'ST') { base.depthBias += 5; base.anchorBlend += 0.06; base.speedScale += 0.04; }
+      if (label === 'CB') { base.depthBias += 3; base.anchorBlend += 0.04; }
+    }
+
+    return base;
   }
 
   function getRoleShapeLeash(player: any) {
@@ -4713,21 +5256,21 @@ export function initGame(container: HTMLElement) {
       case 'GK':
         return 4.5;
       case 'CB':
-        return 12.5;
+        return 14.0;
       case 'LB':
       case 'RB':
-        return 14.5;
+        return 16.5;
       case 'DM':
-        return 15.5;
-      case 'CM':
         return 17.5;
+      case 'CM':
+        return 20.0;
       case 'LM':
       case 'RM':
-        return 19.5;
+        return 22.5;
       case 'ST':
-        return 22.0;
+        return 25.0;
       default:
-        return 16.0;
+        return 18.0;
     }
   }
 
@@ -4752,9 +5295,13 @@ export function initGame(container: HTMLElement) {
     const carrierProgress = carrier
       ? THREE.MathUtils.clamp(((carrier.pos.x * attackSign) + FIELD_W / 2) / FIELD_W, 0, 1)
       : 0;
+    // When ball is loose, blend more toward ball position so forwards hold their runs
+    const looseSupportBlend = !ballState.heldBy && (ballState.isRolling || ballState.isFlying)
+      ? THREE.MathUtils.lerp(0.45, 0.7, route.anchorBlend)
+      : 0.2;
     const supportBlend = carrier
       ? THREE.MathUtils.lerp(route.anchorBlend, Math.min(0.9, route.anchorBlend + 0.2), carrierProgress)
-      : 0.2;
+      : looseSupportBlend;
     const finalTarget = player.homePos.clone().lerp(supportTarget, supportBlend);
 
     if (carrier) {
@@ -4762,9 +5309,10 @@ export function initGame(container: HTMLElement) {
       if (opponents.length >= 2) {
         const sortedOpponents = opponents.slice().sort((a: any, b: any) => attackRight ? b.pos.x - a.pos.x : a.pos.x - b.pos.x);
         const secondLastOpponentX = sortedOpponents[1].pos.x;
+        // Offside law: onside if behind the ball OR behind 2nd-last defender (use the more permissive limit)
         const onsideX = attackRight
-          ? Math.min(anchor.x, secondLastOpponentX) - 1.1
-          : Math.max(anchor.x, secondLastOpponentX) + 1.1;
+          ? Math.max(anchor.x, secondLastOpponentX) - 1.1
+          : Math.min(anchor.x, secondLastOpponentX) + 1.1;
         finalTarget.x = attackRight ? Math.min(finalTarget.x, onsideX) : Math.max(finalTarget.x, onsideX);
       }
 
@@ -4776,11 +5324,14 @@ export function initGame(container: HTMLElement) {
       if (isAttacker) {
         const playerAdvance = (player.pos.x - player.homePos.x) * attackSign;
         const carrierAdvance = (carrier.pos.x - player.homePos.x) * attackSign;
-        const minimumProgressX = Math.max(player.pos.x * attackSign - 1.25, carrier.pos.x * attackSign - 11.0);
+        // minimumProgressX is in attack-direction space (positive = forward);
+        // convert back to world X by multiplying by attackSign.
+        const minProgressAD = Math.max(player.pos.x * attackSign - 1.25, carrier.pos.x * attackSign - 11.0);
         if (playerAdvance > 5 && carrierAdvance > 9) {
+          const minWorldX = minProgressAD * attackSign;
           finalTarget.x = attackRight
-            ? Math.max(finalTarget.x, minimumProgressX)
-            : Math.min(finalTarget.x, -minimumProgressX);
+            ? Math.max(finalTarget.x, minWorldX)
+            : Math.min(finalTarget.x, minWorldX);
         }
       }
     }
@@ -4812,6 +5363,40 @@ export function initGame(container: HTMLElement) {
         }
         fromCorner.setLength(minCornerRadius);
         finalTarget.copy(cornerApex).add(fromCorner);
+      }
+    }
+
+    // Phase-dependent anticipatory movement
+    if (carrier) {
+      const phase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+      const isAttackerRole = roleLabel === 'ST' || roleLabel === 'LM' || roleLabel === 'RM';
+      const isMidfield = roleLabel === 'CM' || roleLabel === 'DM';
+      const isFullback = roleLabel === 'LB' || roleLabel === 'RB';
+
+      if (phase === 'TRANSITION' || phase === 'FINAL_THIRD') {
+        // Midfielders push into half-spaces to offer passing options
+        if (isMidfield) {
+          const halfSpaceZ = player.homePos.z >= 0 ? FIELD_D * 0.18 : -FIELD_D * 0.18;
+          finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, halfSpaceZ, phase === 'FINAL_THIRD' ? 0.35 : 0.20);
+          finalTarget.x += attackSign * (phase === 'FINAL_THIRD' ? 4.5 : 2.5);
+        }
+        // Fullbacks overlap wide to stretch defence
+        if (isFullback && phase === 'FINAL_THIRD') {
+          const wideZ = roleLabel === 'LB' ? -FIELD_D * 0.38 : FIELD_D * 0.38;
+          finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wideZ, 0.30);
+          finalTarget.x += attackSign * 5;
+        }
+      }
+
+      if (phase === 'FINAL_THIRD' && isAttackerRole) {
+        // Box crash: attackers push toward penalty area when ball enters final third
+        const penaltyEdgeX = attackSign > 0 ? FIELD_W / 2 - 14 : -FIELD_W / 2 + 14;
+        if ((carrier.pos.x - penaltyEdgeX) * attackSign > -6) {
+          const boxCenterX = attackSign > 0 ? FIELD_W / 2 - 8 : -FIELD_W / 2 + 8;
+          const slotZ = roleLabel === 'ST' ? 0 : (roleLabel === 'LM' ? -FIELD_D * 0.15 : FIELD_D * 0.15);
+          finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, boxCenterX, 0.40);
+          finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, slotZ, 0.30);
+        }
       }
     }
 
@@ -5065,6 +5650,63 @@ export function initGame(container: HTMLElement) {
       };
     }
 
+    // Corner kick: compute positions from goal geometry rather than fixed offsets.
+    if (soccerRestart.type === 'CORNER') {
+      const goalX = offenseAttacksRight ? FIELD_W / 2 : -FIELD_W / 2;
+      const sideZ = restartZ >= 0 ? 1 : -1; // +1 = top touchline, -1 = bottom touchline
+      const cX = (x: number) => THREE.MathUtils.clamp(x, -FIELD_W / 2 + 1.4, FIELD_W / 2 - 1.4);
+      const cZ = (z: number) => THREE.MathUtils.clamp(z, -FIELD_D / 2 + 1.4, FIELD_D / 2 - 1.4);
+      const yd = (n: number) => n * X_PER_YARD;
+      // p(inYards, zYards): x = goalLine infield by inYards; z = zYards from centre (signed)
+      const p = (inYards: number, zYards: number) => ({
+        x: cX(goalX - attackSign * yd(inYards)),
+        z: cZ(yd(zYards)),
+      });
+
+      const offenseOwnGoalX = offenseAttacksRight ? (-FIELD_W / 2 + yd(4)) : (FIELD_W / 2 - yd(4));
+      const defenseOwnGoalX = offenseAttacksRight ? (FIELD_W / 2 - yd(4)) : (-FIELD_W / 2 + yd(4));
+
+      const offenseSlots = [
+        { x: offenseOwnGoalX, z: 0 },               // [0]  own GK
+        { x: cX(restartX), z: cZ(restartZ) },        // [1]  corner taker at flag
+        p(2,   sideZ * 4),                            // [2]  near-post run
+        p(5,  -sideZ * 4),                            // [3]  far-post crash
+        p(12,  sideZ * 1),                            // [4]  penalty-spot header
+        p(7,   sideZ * 3),                            // [5]  near 6yd-box diagonal
+        p(8,  -sideZ * 6),                            // [6]  far-side diagonal runner
+        p(0,   sideZ * 32),                           // [7]  short-corner option (byline)
+        p(20, -sideZ * 10),                           // [8]  outside-box second phase
+        p(34, -sideZ * 22),                           // [9]  midfield hold (far wing)
+        p(38,  sideZ * 16),                           // [10] midfield hold (near side)
+      ];
+
+      const defenseSlots = [
+        { x: defenseOwnGoalX, z: 0 },               // [0]  GK
+        p(2,   sideZ * 4),                            // [1]  near-post guard
+        p(2,  -sideZ * 4),                            // [2]  far-post guard
+        p(6,   sideZ * 4),                            // [3]  6yd-box near marker
+        p(6,  -sideZ * 5),                            // [4]  6yd-box far marker
+        p(11,  0),                                    // [5]  penalty-spot cover
+        p(8,   sideZ * 2),                            // [6]  mid-box marker
+        p(0,   sideZ * 32),                           // [7]  short-corner cover (byline)
+        p(18,  sideZ * 10),                           // [8]  outer-box near
+        p(28, -sideZ * 10),                           // [9]  counter-cover 1
+        p(34,  sideZ * 6),                            // [10] counter-cover 2
+      ];
+
+      return {
+        offense: {
+          qb: offenseSlots[0],
+          line: offenseSlots.slice(1, 6),
+          skill: offenseSlots.slice(6, 11),
+          team: offenseSlots,
+        },
+        defense: {
+          team: defenseSlots,
+        },
+      };
+    }
+
     const toWorld = (offsetXYards: number, offsetZYards: number) => ({
       x: THREE.MathUtils.clamp(restartX + offsetXYards * attackSign * X_PER_YARD, -FIELD_W / 2 + 1.4, FIELD_W / 2 - 1.4),
       z: THREE.MathUtils.clamp(restartZ + offsetZYards * Z_PER_YARD, -FIELD_D / 2 + 1.4, FIELD_D / 2 - 1.4),
@@ -5179,6 +5821,7 @@ export function initGame(container: HTMLElement) {
     }
   );
   ballMesh.castShadow = true;
+  ballMesh.renderOrder = 10;
   ballGroup.add(ballMesh);
   scene.add(ballGroup);
 
@@ -5266,17 +5909,39 @@ export function initGame(container: HTMLElement) {
     const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
     const shotSkill = getShotSkill(shooter);
     const composure = THREE.MathUtils.clamp(shotSkill * 0.8, 0.12, 0.98);
-    const sign = shooter.pos.z >= 0 ? -1 : 1;
-    const cornerSide = Math.random() < 0.5 ? 1 : -1;
-    const desiredCornerBias = THREE.MathUtils.lerp(0.22, 0.42, composure) * cornerSide;
+
+    // --- Keeper-aware aiming: pick the corner AWAY from the keeper ---
+    const oppTeam = shooter.team === 'A' ? 'B' : 'A';
+    const oppKeeper = players.find((p: any) => p.team === oppTeam && isGoalkeeper(p));
+    const keeperZ = oppKeeper ? oppKeeper.pos.z : 0;
+    // Favour the far side from the keeper; higher composure = more reliable pick
+    const farSide = keeperZ >= 0 ? -1 : 1;
+    const keeperAwareChance = THREE.MathUtils.lerp(0.60, 0.88, composure);
+    const cornerSide = Math.random() < keeperAwareChance ? farSide : -farSide;
+    const desiredCornerBias = THREE.MathUtils.lerp(0.30, 0.46, composure) * cornerSide;
     const baseAimZ = THREE.MathUtils.clamp(
       desiredCornerBias * goalMouthWidth,
       -goalMouthWidth * 0.48,
       goalMouthWidth * 0.48,
     );
+
+    // --- Height variety: low/mid/high corners instead of fixed 1.1 ---
+    const heightRoll = Math.random();
+    let targetY: number;
+    if (heightRoll < 0.35) {
+      // Low corner (ground-hugging)
+      targetY = THREE.MathUtils.lerp(0.25, 0.55, Math.random());
+    } else if (heightRoll < 0.70) {
+      // Mid height
+      targetY = THREE.MathUtils.lerp(0.9, 1.4, Math.random());
+    } else {
+      // High corner (top bins)
+      targetY = THREE.MathUtils.lerp(1.6, goalMouthHeight * 0.92, Math.random());
+    }
+
     const startPos = shooter.pos.clone();
     startPos.y = 0.24;
-    const targetPos = new THREE.Vector3(goalX, 1.1, baseAimZ);
+    const targetPos = new THREE.Vector3(goalX, targetY, baseAimZ);
     const dx = targetPos.x - startPos.x;
     const dz = targetPos.z - startPos.z;
     const distH = Math.max(0.1, Math.sqrt(dx * dx + dz * dz));
@@ -5435,6 +6100,18 @@ export function initGame(container: HTMLElement) {
     );
 
     const finalTarget = player.homePos.clone().lerp(compactTarget, attackAnchor ? assignment.anchorBlend : 0.3);
+
+    // After a clearance: back line pushes forward to compress space and re-establish offside line
+    if (gameState.clearancePushUpUntil > 0 && gameState.clearancePushUpTeam === player.team) {
+      const role = (player.displayRole || player.role || '').toString().toUpperCase();
+      const pushSign = teamAttacksRight(player.team as 'A' | 'B') ? 1 : -1;
+      if (['CB', 'LB', 'RB'].includes(role)) {
+        finalTarget.x += pushSign * 6.0;  // Back line steps forward ~6 units
+      } else if (['DM', 'CM'].includes(role)) {
+        finalTarget.x += pushSign * 4.0;  // Midfield compresses space
+      }
+    }
+
     finalTarget.x = THREE.MathUtils.clamp(finalTarget.x, -FIELD_W / 2 + 1.5, FIELD_W / 2 - 1.5);
     finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
     return finalTarget;
@@ -5774,6 +6451,8 @@ export function initGame(container: HTMLElement) {
     lastTime = now;
     const elapsed = now / 1000;
     if (isManualPause) {
+      players.forEach((p: any) => { p.mesh.position.copy(p.pos); });
+      ballGroup.position.copy(ballState.pos);
       updateBallShadowVisual();
       renderer.render(scene, camera);
       return;
@@ -5929,6 +6608,10 @@ export function initGame(container: HTMLElement) {
         freeKickPresentation.whistlePlayed = true;
       }
       if (elapsed >= freeKickPresentation.restartAt) {
+        const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+        const distToGoal = Math.abs(goalX - foulSpot.x);
+        const directFreeKick = distToGoal < 30 * X_PER_YARD;
+
         const passTarget = receiver
           || players.find((p: any) => p.team === team && p !== taker && !isGoalkeeper(p))
           || players.find((p: any) => p.team === team && p !== taker)
@@ -5936,7 +6619,11 @@ export function initGame(container: HTMLElement) {
         freeKickPresentation.active = false;
         beginCurrentRestart();
         const passer = ballState.heldBy;
-        if (passer && passTarget && passer !== passTarget) {
+        if (directFreeKick && passer) {
+          // Direct free kick at goal — shoot immediately
+          takeShot(passer, true, 1.0, 'CURLED');
+          gameState.message = '';
+        } else if (passer && passTarget && passer !== passTarget) {
           executeAIGroundPass(passer, passTarget, elapsed, { style: 'WALL', receiverWindow: 1.6 });
           if (passTarget.team === 'A') autoSelectTeamA(passTarget);
           gameState.message = '';
@@ -5992,6 +6679,21 @@ export function initGame(container: HTMLElement) {
           showPlayPatternTag('THROW-IN', 'rgba(180,220,255,0.96)');
           sounds.throw();
         }
+      }
+    }
+
+    // Corner presentation: taker holds at flag, then auto-crosses
+    if (cornerPresentation.active && cornerPresentation.taker && gameState.isLive) {
+      const taker = cornerPresentation.taker;
+      // Keep ball at taker's feet during hold
+      updateDribbleBallPosition(taker, elapsed);
+      ballState.vel.set(0, 0, 0);
+      taker.vel.set(0, 0, 0);
+
+      if (elapsed >= cornerPresentation.crossAt) {
+        cornerPresentation.active = false;
+        cornerPresentation.taker = null;
+        executeAICornerCross(taker, elapsed);
       }
     }
 
@@ -6159,7 +6861,7 @@ export function initGame(container: HTMLElement) {
 
     if (gameState.status === 'PLAYING') {
       if (gameState.isLive && (matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF')) {
-        matchClock.elapsedInHalf += dt;
+        matchClock.elapsedInHalf += dt * _seriesSpeedMul;
         const halfLimit = getHalfDurationSeconds() + getStoppageSeconds();
         if (matchClock.elapsedInHalf >= halfLimit) {
           matchClock.elapsedInHalf = halfLimit;
@@ -6441,7 +7143,7 @@ export function initGame(container: HTMLElement) {
           cpuTeams.forEach((team) => {
             const fieldPlayers = players.filter((p: any) => p.team === team && !isGoalkeeper(p));
             if (fieldPlayers.length === 0) return;
-            const maxCornerChasers = looseBallInCornerChannel ? 1 : aiStyle.looseBallChasers;
+            const maxCornerChasers = looseBallInCornerChannel ? 2 : aiStyle.looseBallChasers;
             const chasers = fieldPlayers
               .slice()
               .sort((a: any, b: any) => a.pos.distanceTo(looseBallTarget) - b.pos.distanceTo(looseBallTarget))
@@ -6464,29 +7166,35 @@ export function initGame(container: HTMLElement) {
               .filter((p: any) => p.team === team && !isGoalkeeper(p) && p !== controlled)
               .slice()
               .sort((a: any, b: any) => a.pos.distanceTo(looseBallTarget) - b.pos.distanceTo(looseBallTarget))
-              .slice(0, looseBallInCornerChannel ? 1 : Math.max(1, Math.min(2, aiStyle.looseBallChasers - 1)));
+              .slice(0, looseBallInCornerChannel ? 2 : Math.max(1, Math.min(2, aiStyle.looseBallChasers - 1)));
 
             helpers.forEach((p: any, idx: number) => {
               const toBall = new THREE.Vector3().subVectors(looseBallTarget, p.pos);
               toBall.y = 0;
               const dist = toBall.length();
-              const reactRadius = ballState.isFlying ? 22 : 16;
-              if (dist < 0.05 || dist > reactRadius) return;
+              const reactRadius = ballState.isFlying ? 28 : 22;
+              if (dist < 0.05) return;
+              // Beyond react radius, still chase but at reduced speed
+              const inRadius = dist <= reactRadius;
 
               const assistSpeedBase = ballState.isFlying ? 6.8 : 6.0;
-              const assistSpeed = (assistSpeedBase + (idx === 0 ? 0.55 : 0)) * GAME_SPEED_SCALE;
+              const assistSpeed = ((assistSpeedBase + (idx === 0 ? 0.55 : 0)) * (inRadius ? 1.0 : 0.7)) * GAME_SPEED_SCALE;
               setPlayerAIState(p, 'SUPPORT_LOOSE_BALL');
               steerPlayerTowards(p, looseBallTarget, dt, assistSpeed, 28, 4.4, 0.05);
             });
           });
         }
 
-        const cpuCarrier = ballState.heldBy && !throwInPresentation.active && !penaltyPresentation.active && ((ballState.heldBy.team === 'A' && !controlA) || (ballState.heldBy.team === 'B' && !controlB))
+        const cpuCarrier = ballState.heldBy && !throwInPresentation.active && !penaltyPresentation.active && !cornerPresentation.active && ((ballState.heldBy.team === 'A' && !controlA) || (ballState.heldBy.team === 'B' && !controlB))
           ? ballState.heldBy
           : null;
         if (cpuCarrier) {
           const team = cpuCarrier.team as 'A' | 'B';
           const attackSign = teamAttacksRight(team) ? 1 : -1;
+          // Update attack phase for this team
+          const currentPhase = getAttackPhase(team);
+          if (team === 'A') gameState.attackPhaseA = currentPhase;
+          else gameState.attackPhaseB = currentPhase;
           const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
           const distToGoal = Math.abs(goalX - cpuCarrier.pos.x);
           const teammates = players.filter((p: any) => p.team === team && p !== cpuCarrier && !isGoalkeeper(p));
@@ -6499,102 +7207,241 @@ export function initGame(container: HTMLElement) {
             if (panicPressure >= 3) {
               (gameState as any)[cooldownKey] = Math.min((gameState as any)[cooldownKey], 0.3);
             }
+
+            // While holding, steer teammates toward their formation positions
+            teammates.forEach((p: any) => {
+              if (p.homePos && p.aiState !== 'USER_CONTROL') {
+                steerPlayerTowards(p, p.homePos, dt, 5.5 * GAME_SPEED_SCALE, 18, 6.0, 0.4);
+              }
+            });
+
             if ((gameState as any)[cooldownKey] <= 0 && teammates.length > 0) {
-              const progressiveTarget = teammates
-                .slice()
-                .sort((a: any, b: any) => {
-                  const aProg = (a.pos.x - cpuCarrier.pos.x) * attackSign;
-                  const bProg = (b.pos.x - cpuCarrier.pos.x) * attackSign;
-                  return bProg - aProg;
-                })[0] || teammates[0];
-              const safeOutlet = teammates
-                .filter((p: any) => ['CB', 'LB', 'RB', 'DM'].includes((p.displayRole || p.role || '').toString().toUpperCase()))
-                .slice()
-                .sort((a: any, b: any) => a.pos.distanceTo(cpuCarrier.pos) - b.pos.distanceTo(cpuCarrier.pos))[0] || null;
+              // ── Find the least-covered teammate ──
+              const scoredTeammates = teammates.map((p: any) => {
+                const nearestOppDist = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(p.pos)), 99);
+                const distFromKeeper = p.pos.distanceTo(cpuCarrier.pos);
+                const progressForward = (p.pos.x - cpuCarrier.pos.x) * attackSign;
+                const rolePriority = ['CB', 'LB', 'RB', 'DM'].includes((p.displayRole || p.role || '').toString().toUpperCase()) ? 1.0 : 0.6;
+                // Higher score = better outlet: more space from opponents, reasonable distance, prefer defenders
+                const coverScore = nearestOppDist * 2.2
+                  + (distFromKeeper < 28 ? 3.0 : -2.0)
+                  + rolePriority * 2.5
+                  + (progressForward > 0 ? progressForward * 0.08 : 0);
+                return { player: p, coverScore, nearestOppDist, distFromKeeper };
+              });
+              scoredTeammates.sort((a, b) => b.coverScore - a.coverScore);
+
+              const bestOutlet = scoredTeammates[0]?.player || teammates[0];
+              const bestOutletDist = bestOutlet.pos.distanceTo(cpuCarrier.pos);
+              const bestOutletCover = scoredTeammates[0]?.nearestOppDist ?? 0;
 
               const nearbyPressure = opponents.filter((opp: any) => opp.pos.distanceTo(cpuCarrier.pos) < 8).length;
+              const panicPressureCount = opponents.filter((opp: any) => opp.pos.distanceTo(cpuCarrier.pos) < 6.5).length;
               const weather = getActiveWeatherPreset();
               const forceLongGoalKick = gameState.goalKickInProgress;
               const keeperStillHoldingBeforePass = ballState.heldBy === cpuCarrier;
-              const target = nearbyPressure <= 1 && safeOutlet ? safeOutlet : progressiveTarget;
-              const canThrowOutlet = !!safeOutlet && nearbyPressure <= 1 && safeOutlet.pos.distanceTo(cpuCarrier.pos) < 18;
 
-              // Distribution style matrix:
-              // calm -> throw/driven/sidewinder, medium pressure -> drop-kick mix, high pressure -> punt/drop-kick.
+              // ── Encode state for neural net ──
+              const keeperStateInput = {
+                keeperX: cpuCarrier.pos.x,
+                keeperZ: cpuCarrier.pos.z,
+                ballX: ballState.pos.x,
+                ballZ: ballState.pos.z,
+                fieldW: FIELD_W,
+                fieldD: FIELD_D,
+                nearbyPressure,
+                panicPressure: panicPressureCount,
+                scoreDiff: team === 'A' ? gameState.scoreA - gameState.scoreB : gameState.scoreB - gameState.scoreA,
+                timeRemainingFrac: Math.max(0, 1 - matchClock.elapsedInHalf / (45 * 60)),
+                isSecondHalf: matchClock.half === 2,
+                isGoalKick: forceLongGoalKick,
+                attackSign,
+                teammates: scoredTeammates.slice(0, 4).map(st => ({
+                  relX: st.player.pos.x - cpuCarrier.pos.x,
+                  relZ: st.player.pos.z - cpuCarrier.pos.z,
+                  oppDist: st.nearestOppDist,
+                  rolePri: ['CB', 'LB', 'RB', 'DM'].includes((st.player.displayRole || st.player.role || '').toString().toUpperCase()) ? 1.0 : 0.6,
+                })),
+              };
+              const encodedState = encodeKeeperState(keeperStateInput);
+
+              // ── Hybrid: try neural net first, fall back to rule-based ──
+              let useModelAction = false;
+              let modelActionName: string | null = null;
+              const modelProbs = keeperNet.predict(encodedState);
+              if (modelProbs && !forceLongGoalKick) {
+                const actionIdx = keeperNet.sampleAction(modelProbs);
+                modelActionName = KEEPER_ACTIONS[actionIdx];
+                // Don't let the model select HOLD repeatedly — only allow if pressure is low
+                if (modelActionName !== 'HOLD' || nearbyPressure <= 1) {
+                  useModelAction = true;
+                }
+              }
+
+              // ── Determine distribution style ──
               let selectedKickStyle: 'GOAL_KICK_STANDARD' | 'PUNT' | 'DROP_KICK' | 'SIDEWINDER' | 'DRIVEN_KICK' = 'DRIVEN_KICK';
-              const outlet = safeOutlet || target;
-              const outletWidth = outlet ? Math.abs(outlet.pos.z - cpuCarrier.pos.z) : 0;
-              const outletDist = outlet ? outlet.pos.distanceTo(cpuCarrier.pos) : 22;
-              const outletProgress = outlet ? (outlet.pos.x - cpuCarrier.pos.x) * attackSign : 0;
-              const hasReliableOutlet = !!safeOutlet && outletDist < 20;
+              let preferThrow = false;
 
-              if (forceLongGoalKick) {
-                selectedKickStyle = 'GOAL_KICK_STANDARD';
-              } else if (nearbyPressure >= 3) {
-                selectedKickStyle = Math.random() < 0.72 ? 'PUNT' : 'DROP_KICK';
-              } else if (nearbyPressure === 2) {
-                const roll = Math.random();
-                if (roll < 0.52) selectedKickStyle = 'DROP_KICK';
-                else if (roll < 0.77) selectedKickStyle = 'PUNT';
-                else selectedKickStyle = outletWidth > 8 ? 'SIDEWINDER' : 'DRIVEN_KICK';
-              } else if (nearbyPressure === 1) {
-                const roll = Math.random();
-                if (hasReliableOutlet && roll < 0.22) selectedKickStyle = 'SIDEWINDER';
-                else if (roll < 0.58) selectedKickStyle = 'DRIVEN_KICK';
-                else if (roll < 0.84) selectedKickStyle = 'DROP_KICK';
-                else selectedKickStyle = 'PUNT';
+              if (useModelAction && modelActionName) {
+                // Map model action to distribution style
+                switch (modelActionName) {
+                  case 'THROW':
+                    preferThrow = true;
+                    break;
+                  case 'DRIVEN_KICK':
+                    selectedKickStyle = 'DRIVEN_KICK';
+                    break;
+                  case 'DROP_KICK':
+                    selectedKickStyle = 'DROP_KICK';
+                    break;
+                  case 'SIDEWINDER':
+                    selectedKickStyle = 'SIDEWINDER';
+                    break;
+                  case 'PUNT':
+                    selectedKickStyle = 'PUNT';
+                    break;
+                  case 'GOAL_KICK':
+                    selectedKickStyle = 'GOAL_KICK_STANDARD';
+                    break;
+                  case 'HOLD':
+                    // Skip distribution this tick — keeper holds longer
+                    (gameState as any)[cooldownKey] = 0.4;
+                    _pendingKeeperExp = {
+                      state: Array.from(encodedState),
+                      action: KEEPER_ACTIONS.indexOf(modelActionName as any),
+                      style: 'HOLD',
+                      timestamp: Date.now(),
+                      team,
+                      targetPlayer: null,
+                    };
+                    break;
+                }
+                if (modelActionName === 'HOLD') {
+                  // Skip the rest of distribution for this tick
+                } else {
+                  // Record pending experience (reward resolved later)
+                  _pendingKeeperExp = {
+                    state: Array.from(encodedState),
+                    action: KEEPER_ACTIONS.indexOf(modelActionName as any),
+                    style: modelActionName,
+                    timestamp: Date.now(),
+                    team,
+                    targetPlayer: bestOutlet,
+                  };
+                }
               } else {
-                const roll = Math.random();
-                if (hasReliableOutlet && roll < 0.4) selectedKickStyle = outletWidth > 8 ? 'SIDEWINDER' : 'DRIVEN_KICK';
-                else if (roll < 0.72) selectedKickStyle = 'DRIVEN_KICK';
-                else if (roll < 0.88) selectedKickStyle = 'SIDEWINDER';
-                else selectedKickStyle = outletProgress > 14 ? 'DROP_KICK' : 'DRIVEN_KICK';
+                // ── Rule-based fallback ──
+                const outletWidth = Math.abs(bestOutlet.pos.z - cpuCarrier.pos.z);
+
+                if (forceLongGoalKick) {
+                  selectedKickStyle = 'GOAL_KICK_STANDARD';
+                } else if (nearbyPressure >= 4) {
+                  selectedKickStyle = Math.random() < 0.55 ? 'DROP_KICK' : 'PUNT';
+                } else if (nearbyPressure >= 3) {
+                  selectedKickStyle = Math.random() < 0.7 ? 'DROP_KICK' : 'DRIVEN_KICK';
+                } else if (nearbyPressure === 2) {
+                  const roll = Math.random();
+                  if (roll < 0.45) selectedKickStyle = 'DRIVEN_KICK';
+                  else if (roll < 0.72) selectedKickStyle = 'DROP_KICK';
+                  else selectedKickStyle = outletWidth > 8 ? 'SIDEWINDER' : 'DRIVEN_KICK';
+                } else {
+                  const roll = Math.random();
+                  if (roll < 0.38) selectedKickStyle = 'DRIVEN_KICK';
+                  else if (roll < 0.62) selectedKickStyle = outletWidth > 8 ? 'SIDEWINDER' : 'DRIVEN_KICK';
+                  else if (roll < 0.82) selectedKickStyle = 'DROP_KICK';
+                  else selectedKickStyle = 'SIDEWINDER';
+                }
+
+                // Prefer throw when a clear outlet is close (most accurate distribution)
+                const canThrowOutlet = bestOutletDist < 22 && bestOutletCover > 4.0;
+                preferThrow =
+                  canThrowOutlet &&
+                  !forceLongGoalKick &&
+                  nearbyPressure <= 1 &&
+                  Math.random() < 0.58;
+
+                // Log rule-based decision as experience for behavioral cloning
+                const ruleAction = preferThrow ? 'THROW'
+                  : selectedKickStyle === 'GOAL_KICK_STANDARD' ? 'GOAL_KICK'
+                  : selectedKickStyle;
+                _pendingKeeperExp = {
+                  state: Array.from(encodedState),
+                  action: KEEPER_ACTIONS.indexOf(ruleAction as any),
+                  style: ruleAction,
+                  timestamp: Date.now(),
+                  team,
+                  targetPlayer: bestOutlet,
+                };
               }
 
-              const preferThrow =
-                canThrowOutlet &&
-                !forceLongGoalKick &&
-                nearbyPressure === 0 &&
-                outletDist < 16 &&
-                Math.random() < 0.42;
+              // ── Execute the distribution (unless HOLD was chosen) ──
+              if (!(useModelAction && modelActionName === 'HOLD')) {
+                if (preferThrow) {
+                  const throwDir = new THREE.Vector3().subVectors(bestOutlet.pos, cpuCarrier.pos);
+                  throwDir.y = 0;
+                  if (throwDir.lengthSq() < 0.01) throwDir.set(attackSign, 0, 0);
+                  const throwDist = throwDir.length();
+                  throwDir.normalize();
+                  ballState.lastHeldBy = cpuCarrier;
+                  ballState.heldBy = null;
+                  gameState.goalKickInProgress = false;
+                  ballState.isFlying = true;
+                  ballState.isRolling = false;
+                  ballState.isShot = false;
+                  ballState.receiveLockUntil = elapsed + 0.15;
+                  setIntendedReceiver(bestOutlet, team, elapsed, 1.9);
+                  ballState.pos.copy(cpuCarrier.pos).addScaledVector(throwDir, 0.38);
+                  ballState.pos.y = 0.52;
+                  const throwSpeed = THREE.MathUtils.clamp(10.5 + throwDist * 0.28, 10.5, 15.5) * GAME_SPEED_SCALE * weather.passSpeedMul;
+                  ballState.vel.copy(throwDir.multiplyScalar(throwSpeed));
+                  ballState.vel.y = THREE.MathUtils.clamp(2.6 + throwDist * 0.05, 2.6, 4.4);
+                  ballState.possessionLockUntil = elapsed + 0.2;
+                  sounds.throw();
+                } else {
+                  executeAIKeeperKick(cpuCarrier, bestOutlet, elapsed, selectedKickStyle);
+                }
 
-              if (preferThrow) {
-                const throwDir = new THREE.Vector3().subVectors(safeOutlet!.pos, cpuCarrier.pos);
-                throwDir.y = 0;
-                if (throwDir.lengthSq() < 0.01) throwDir.set(attackSign, 0, 0);
-                const throwDist = throwDir.length();
-                throwDir.normalize();
-                ballState.lastHeldBy = cpuCarrier;
-                ballState.heldBy = null;
-                gameState.goalKickInProgress = false;
-                ballState.isFlying = true;
-                ballState.isRolling = false;
-                ballState.isShot = false;
-                ballState.receiveLockUntil = elapsed + 0.15;
-                setIntendedReceiver(safeOutlet, team, elapsed, 1.9);
-                ballState.pos.copy(cpuCarrier.pos).addScaledVector(throwDir, 0.38);
-                ballState.pos.y = 0.52;
-                const throwSpeed = THREE.MathUtils.clamp(10.5 + throwDist * 0.28, 10.5, 15.5) * GAME_SPEED_SCALE * weather.passSpeedMul;
-                ballState.vel.copy(throwDir.multiplyScalar(throwSpeed));
-                ballState.vel.y = THREE.MathUtils.clamp(2.6 + throwDist * 0.05, 2.6, 4.4);
-                ballState.possessionLockUntil = elapsed + 0.2;
-                sounds.throw();
-              } else {
-                executeAIKeeperKick(cpuCarrier, target, elapsed, selectedKickStyle);
+                // Safety net: if distribution attempt failed to release possession, force a clearance.
+                if (keeperStillHoldingBeforePass && ballState.heldBy === cpuCarrier) {
+                  const fallbackTarget = teammates[0];
+                  executeAIKeeperKick(cpuCarrier, fallbackTarget, elapsed, 'DROP_KICK');
+                }
+
+                (gameState as any)[cooldownKey] = 2.5; // brief re-hold pause after distributing
               }
-
-              // Safety net: if distribution attempt failed to release possession, force a clearance.
-              if (keeperStillHoldingBeforePass && ballState.heldBy === cpuCarrier) {
-                const fallbackTarget = progressiveTarget || teammates[0];
-                executeAIKeeperKick(cpuCarrier, fallbackTarget, elapsed, 'PUNT');
-              }
-
-              (gameState as any)[cooldownKey] = 2.5; // brief re-hold pause after distributing
             }
             // Keeper should distribute, not dribble/shoot.
           }
 
           if (!isGoalkeeper(cpuCarrier)) {
+            // Corner kick: override all other decisions — force a cross delivery.
+            if (gameState.cornerKickInProgress) {
+              setPlayerAIState(cpuCarrier, 'HOLD');
+              if ((gameState as any)[cooldownKey] <= 0) {
+                executeAICornerCross(cpuCarrier, elapsed);
+                (gameState as any)[cooldownKey] = 3.0;
+              }
+            } else if (
+              // ── Clearance override: defender in danger zone under pressure → clear immediately ──
+              (gameState as any)[cooldownKey] <= 0 &&
+              (() => {
+                const clearUrgency = getClearanceUrgency(cpuCarrier, opponents);
+                if (clearUrgency < 0.45) return false;
+                const closePressure = opponents.filter((opp: any) => opp.pos.distanceTo(cpuCarrier.pos) < 7).length;
+                // Higher urgency = higher chance of clearing vs. trying to play out
+                // At urgency 0.45 with 0 pressure: ~30% clear chance
+                // At urgency 0.8+ with 2+ pressure: ~90% clear chance
+                const clearChance = THREE.MathUtils.clamp(
+                  clearUrgency * 0.7 + closePressure * 0.15 - 0.1,
+                  0.25, 0.95
+                );
+                if (Math.random() > clearChance) return false;
+                const style = chooseClearanceStyle(cpuCarrier, clearUrgency, closePressure, false);
+                return executeClearance(cpuCarrier, elapsed, style);
+              })()
+            ) {
+              (gameState as any)[cooldownKey] = 1.2;
+            } else {
             // Choose a dribble lane with space instead of blindly running central.
             const carryTarget = chooseAIDribbleTarget(cpuCarrier, team, attackSign, aiStyle.carryBias);
             const carryDir = new THREE.Vector3().subVectors(carryTarget, cpuCarrier.pos);
@@ -6614,7 +7461,7 @@ export function initGame(container: HTMLElement) {
               const dribbleSkill = getDribbleSkill(cpuCarrier);
               const shotSkill = getShotSkill(cpuCarrier);
               const roleProfile = getRoleDecisionProfile(cpuCarrier);
-              const pressurePassBoost = closePressure >= 3 ? 0.34 : (closePressure === 2 ? 0.22 : (closePressure === 1 ? 0.1 : 0));
+              const pressurePassBoost = closePressure >= 3 ? 0.18 : (closePressure === 2 ? 0.1 : (closePressure === 1 ? 0.04 : 0));
               const lanePassBoost = carryLanePressure > 2.1 ? 0.16 : (carryLanePressure > 1.1 ? 0.08 : 0);
               const inShootingLane = Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 0.78;
               const inPrimeZone = distToGoal < 16.5 && inShootingLane;
@@ -6653,16 +7500,17 @@ export function initGame(container: HTMLElement) {
                 0.14,
                 0.94,
               );
+              const finalThirdBoost = distToGoal < 30 ? 0.14 : 0;
               const holdDribbleChance = THREE.MathUtils.clamp(
-                (dribbleSkill - 0.5) * 0.24 + (roleProfile.dribbleIntent - 0.5) * 0.22 - closePressure * 0.05,
-                -0.25,
-                0.26,
+                (dribbleSkill - 0.5) * 0.32 + (roleProfile.dribbleIntent - 0.5) * 0.28 - closePressure * 0.03 + finalThirdBoost,
+                -0.15,
+                0.38,
               );
               const maxShootDistance = THREE.MathUtils.clamp(roleProfile.shotRange + (shotSkill - 0.5) * 4.5, 8, 23);
 
             const forceShotNow = inTapInZone && closePressure <= 2;
             const shouldShoot = distToGoal < maxShootDistance && (forceShotNow || Math.random() < shootChance);
-            const shouldPass = !shouldShoot && bestPassTarget && (closePressure >= 3 || Math.random() < passChance);
+            const shouldPass = !shouldShoot && bestPassTarget && (closePressure >= 4 || Math.random() < passChance);
             const shouldHoldDribble = !shouldShoot && !shouldPass && Math.random() < holdDribbleChance;
             const nearTouchline = Math.abs(cpuCarrier.pos.z) > FIELD_D / 2 - 2.2;
             const nearGoalLine = Math.abs(cpuCarrier.pos.x) > FIELD_W / 2 - 2.2;
@@ -6790,6 +7638,7 @@ export function initGame(container: HTMLElement) {
               }
             }
             }
+            } // close corner-kick else
           }
         }
 
@@ -6829,6 +7678,27 @@ export function initGame(container: HTMLElement) {
 
         // Clear keeper distribution lock once another player touches the ball
         if (ballState.keeperDistributor && ballState.heldBy && ballState.heldBy !== ballState.keeperDistributor) {
+          // ── Resolve pending keeper experience reward ──
+          if (_pendingKeeperExp) {
+            const receiver = ballState.heldBy;
+            const distributorTeam = _pendingKeeperExp.team;
+            let reward = 0;
+            if (receiver && receiver.team === distributorTeam && !isGoalkeeper(receiver)) {
+              reward = 1; // teammate received successfully
+            } else if (receiver && receiver.team !== distributorTeam) {
+              reward = -1; // opponent intercepted
+            }
+            keeperExperienceBuffer.push({
+              state: _pendingKeeperExp.state,
+              action: _pendingKeeperExp.action,
+              reward,
+              style: _pendingKeeperExp.style,
+              timestamp: _pendingKeeperExp.timestamp,
+            });
+            // Cap buffer size
+            if (keeperExperienceBuffer.length > 2000) keeperExperienceBuffer.shift();
+            _pendingKeeperExp = null;
+          }
           ballState.keeperDistributor = null;
         }
 
@@ -6836,11 +7706,18 @@ export function initGame(container: HTMLElement) {
         if (gameState.counterAttackActive && elapsed > gameState.counterAttackExpiry) {
           gameState.counterAttackActive = false;
         }
+        // Expire clearance push-up timer
+        if (gameState.clearancePushUpUntil > 0 && elapsed > gameState.clearancePushUpUntil) {
+          gameState.clearancePushUpUntil = 0;
+          gameState.clearancePushUpTeam = '';
+        }
 
         // Off-ball support runs
         playState.activeRoutes.forEach(route => {
           const p = route.player;
           if (!p || (p === controlledPlayer && controlA) || (p === controlledPlayerB && controlB)) return;
+          // Don't override players already assigned to chase a loose ball
+          if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
 
           const isAttacker = ['ST', 'LM', 'RM', 'CM'].includes(p.displayRole || p.role);
           const isTransitionTeam = gameState.transitionDefenseTeam === p.team && elapsed < gameState.transitionDefenseExpiry;
@@ -6996,6 +7873,8 @@ export function initGame(container: HTMLElement) {
           if (!p) return;
           if (controlB && p === controlledPlayerB && !isGoalkeeper(p)) return;
           if (controlA && p === controlledPlayer && !isGoalkeeper(p)) return;
+          // Don't override players already assigned to chase a loose ball
+          if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
 
           if (isGoalkeeper(p)) {
             const keeperHome = getGoalkeeperHomeTarget(p);
@@ -7006,22 +7885,53 @@ export function initGame(container: HTMLElement) {
             const keeperMinX = defendsRightGoal ? rightPenaltyX : -FIELD_W / 2 + 0.75;
             const keeperMaxX = defendsRightGoal ? FIELD_W / 2 - 0.75 : leftPenaltyX;
 
-            if (ballState.isFlying && ballState.isShot && ballInOwnBox) {
-              // Shot incoming: predict where ball crosses the keeper's goal-line X and sprint there
-              const keeperLineX = defendsRightGoal ? FIELD_W / 2 - 0.4 : -FIELD_W / 2 + 0.4;
-              const vx = ballState.vel.x;
-              const tCross = Math.abs(vx) > 0.1 ? (keeperLineX - ballState.pos.x) / vx : 0.5;
-              const predictedZ = ballState.pos.z + ballState.vel.z * Math.max(0, Math.min(tCross, 1.2));
-              target.x = keeperHome.x;
-              target.z = THREE.MathUtils.clamp(predictedZ, -goalMouthWidth * 0.52, goalMouthWidth * 0.52);
-            } else if (attackCarrier && ballInOwnBox) {
-              target.x = THREE.MathUtils.clamp(ballState.pos.x, keeperMinX, keeperMaxX);
-              target.z = THREE.MathUtils.clamp(ballState.pos.z, -goalMouthWidth * 0.52, goalMouthWidth * 0.52);
-            } else if (!ballState.heldBy && ballInOwnBox) {
-              target.lerp(ballState.pos, 0.38);
-            } else {
-              target.x = keeperHome.x;
-              target.z = THREE.MathUtils.clamp(ballState.pos.z * 0.1, -3.4, 3.4);
+            // 1v1 rush-out: detect breakaway attacker in the box and rush to narrow angle
+            const goalLineX = defendsRightGoal ? FIELD_W / 2 : -FIELD_W / 2;
+            let isRushingOut = false;
+            if (attackCarrier && ballInOwnBox) {
+              const carrierDistToGoal = Math.abs(attackCarrier.pos.x - goalLineX);
+              // Check if any defender is between carrier and goal
+              const defendersBetween = players.filter((d: any) =>
+                d.team === p.team && !isGoalkeeper(d) &&
+                Math.abs(d.pos.z - attackCarrier.pos.z) < 4 &&
+                ((defendsRightGoal && d.pos.x > attackCarrier.pos.x) ||
+                 (!defendsRightGoal && d.pos.x < attackCarrier.pos.x))
+              ).length;
+              if (defendersBetween === 0 && carrierDistToGoal < 22 * X_PER_YARD) {
+                isRushingOut = true;
+                // Rush toward ball to narrow the angle, but don't go past the ball
+                const rushX = THREE.MathUtils.clamp(
+                  attackCarrier.pos.x + (defendsRightGoal ? 1.5 : -1.5),
+                  keeperMinX, keeperMaxX
+                );
+                target.x = rushX;
+                target.z = THREE.MathUtils.clamp(attackCarrier.pos.z, -goalMouthWidth * 0.7, goalMouthWidth * 0.7);
+              }
+            }
+
+            if (!isRushingOut) {
+              if (ballState.isFlying && ballState.isShot && ballInOwnBox) {
+                // Shot incoming: predict where ball crosses the keeper's goal-line X and sprint there
+                const keeperLineX = defendsRightGoal ? FIELD_W / 2 - 0.4 : -FIELD_W / 2 + 0.4;
+                const vx = ballState.vel.x;
+                const tCross = Math.abs(vx) > 0.1 ? (keeperLineX - ballState.pos.x) / vx : 0.5;
+                const predictedZ = ballState.pos.z + ballState.vel.z * Math.max(0, Math.min(tCross, 1.8));
+                target.x = keeperHome.x;
+                target.z = THREE.MathUtils.clamp(predictedZ, -goalMouthWidth * 0.52, goalMouthWidth * 0.52);
+              } else if (attackCarrier && ballInOwnBox) {
+                target.x = THREE.MathUtils.clamp(ballState.pos.x, keeperMinX, keeperMaxX);
+                target.z = THREE.MathUtils.clamp(ballState.pos.z, -goalMouthWidth * 0.52, goalMouthWidth * 0.52);
+              } else if (!ballState.heldBy && ballInOwnBox) {
+                target.lerp(ballState.pos, 0.38);
+              } else {
+                // Improved lateral tracking: 0.3 factor in own half, 0.1 in opponent half
+                const ballInOwnHalf = defendsRightGoal
+                  ? ballState.pos.x > 0
+                  : ballState.pos.x < 0;
+                const lateralFactor = ballInOwnHalf ? 0.3 : 0.1;
+                target.x = keeperHome.x;
+                target.z = THREE.MathUtils.clamp(ballState.pos.z * lateralFactor, -3.4, 3.4);
+              }
             }
 
             target.x = THREE.MathUtils.clamp(target.x, keeperMinX, keeperMaxX);
@@ -7032,8 +7942,8 @@ export function initGame(container: HTMLElement) {
             const dist = dir.length();
             if (dist > 0.05) {
               dir.normalize();
-              // Boost keeper sprint speed when reacting to an incoming shot
-              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.18 : 1.0;
+              // Boost keeper sprint speed when reacting to an incoming shot or rushing out
+              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.32 : (isRushingOut ? 1.25 : 1.0);
               const keeperSpeed = (3.7 + p.stats.agility * 2.6) * GAME_SPEED_SCALE * shotReactionBoost;
               p.vel.lerp(dir.multiplyScalar(keeperSpeed), dt * 7.5);
               p.pos.addScaledVector(p.vel, dt);
@@ -7084,17 +7994,24 @@ export function initGame(container: HTMLElement) {
                 const shotBonus = ballState.isShot ? 0.08 : 0;
                 const interceptChance = 0.11 + (p.stats.catching * 0.1) + (p.stats.coverage * 0.07) + shotBonus;
                 if (Math.random() < interceptChance * dt * 60) { // Chance to intercept per frame
-                  ballState.isFlying = false;
-                  ballState.isRolling = false;
-                   ballState.isShot = false;
-                  ballState.heldBy = p;
-                  ballState.possessionLockUntil = elapsed + 0.55;
-                  ballState.vel.set(0,0,0);
-                  markKickoffTouch(p);
-                   gameState.message = '';
-                  sounds.catch();
-                  // Change direction for return
-                   p.dir = -1;
+                  // Check if this is a defender in the danger zone — if so, headed clearance instead of catching
+                  if (!isGoalkeeper(p) && attemptAerialClearance(p, elapsed)) {
+                    markKickoffTouch(p);
+                    soccerRestart.lastTouchTeam = p.team;
+                    // Ball already redirected by attemptAerialClearance
+                  } else {
+                    ballState.isFlying = false;
+                    ballState.isRolling = false;
+                    ballState.isShot = false;
+                    ballState.heldBy = p;
+                    ballState.possessionLockUntil = elapsed + 0.55;
+                    ballState.vel.set(0,0,0);
+                    markKickoffTouch(p);
+                    gameState.message = '';
+                    sounds.catch();
+                    // Change direction for return
+                    p.dir = -1;
+                  }
                 }
               }
               return;
@@ -7230,9 +8147,11 @@ export function initGame(container: HTMLElement) {
 
             const distToBall = p.pos.distanceTo(ballState.pos);
             const isKeeperClaim = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos);
-            // Reduce keeper save radius for shots — keeper must be positioned correctly to stop a shot
+            // Keeper save radius: larger for close-range shots (reflex saves), tighter for long-range
+            const shotDistToKeeper = isKeeperClaim && ballState.isShot ? p.pos.distanceTo(ballState.pos) : 99;
+            const closeShotRadius = shotDistToKeeper < 3.0 ? 1.4 : 1.1;
             const flyingCollectRadius = isKeeperClaim
-              ? (ballState.isShot ? 1.1 : 2.15)
+              ? (ballState.isShot ? closeShotRadius : 2.15)
               : 1.5;
             if (distToBall < flyingCollectRadius) {
               const wasShot = ballState.isShot;
@@ -7633,7 +8552,24 @@ export function initGame(container: HTMLElement) {
                 ballState.possessionLockUntil = elapsed + keeperHoldSeconds + 0.55;
                 ballState.pos.y = 0.58;
               } else {
-                ballState.possessionLockUntil = elapsed + 0.45;
+                // ── Ground-ball clearance: defender in danger zone clears immediately ──
+                const isCPUDefender = !isGoalkeeper(collector) && ((collector.team === 'A' && !controlA) || (collector.team === 'B' && !controlB));
+                if (isCPUDefender) {
+                  const opps = players.filter((q: any) => q.team !== collector.team);
+                  const urg = getClearanceUrgency(collector, opps);
+                  if (urg >= 0.5 && Math.random() < urg * 0.85) {
+                    const closePressure = opps.filter((q: any) => q.pos.distanceTo(collector.pos) < 4.5).length;
+                    const style = chooseClearanceStyle(collector, urg, closePressure, false);
+                    executeClearance(collector, elapsed, style);
+                    markKickoffTouch(collector);
+                    soccerRestart.lastTouchTeam = collector.team;
+                    setCPUTeamDecisionCooldown(collector.team, 1.0);
+                  } else {
+                    ballState.possessionLockUntil = elapsed + 0.45;
+                  }
+                } else {
+                  ballState.possessionLockUntil = elapsed + 0.45;
+                }
               }
               if (enforceKickoffDoubleTouchIfNeeded(collector)) return;
               markKickoffTouch(collector);
@@ -7682,7 +8618,24 @@ export function initGame(container: HTMLElement) {
                 ballState.possessionLockUntil = elapsed + keeperHoldSeconds + 0.55;
                 ballState.pos.y = 0.58;
               } else {
-                ballState.possessionLockUntil = elapsed + 0.45;
+                // ── Ground-ball clearance: defender in danger zone clears immediately ──
+                const isCPUDefender2 = !isGoalkeeper(collector) && ((collector.team === 'A' && !controlA) || (collector.team === 'B' && !controlB));
+                if (isCPUDefender2) {
+                  const opps2 = players.filter((q: any) => q.team !== collector.team);
+                  const urg2 = getClearanceUrgency(collector, opps2);
+                  if (urg2 >= 0.5 && Math.random() < urg2 * 0.85) {
+                    const closePressure2 = opps2.filter((q: any) => q.pos.distanceTo(collector.pos) < 4.5).length;
+                    const style2 = chooseClearanceStyle(collector, urg2, closePressure2, false);
+                    executeClearance(collector, elapsed, style2);
+                    markKickoffTouch(collector);
+                    soccerRestart.lastTouchTeam = collector.team;
+                    setCPUTeamDecisionCooldown(collector.team, 1.0);
+                  } else {
+                    ballState.possessionLockUntil = elapsed + 0.45;
+                  }
+                } else {
+                  ballState.possessionLockUntil = elapsed + 0.45;
+                }
               }
               if (enforceKickoffDoubleTouchIfNeeded(collector)) return;
               markKickoffTouch(collector);
@@ -7690,6 +8643,11 @@ export function initGame(container: HTMLElement) {
               if (collector.team === 'A') autoSelectTeamA(collector);
             }
           }
+        }
+        // Guard against NaN ball position (causes ball to visually vanish)
+        if (Number.isNaN(ballState.pos.x) || Number.isNaN(ballState.pos.y) || Number.isNaN(ballState.pos.z)) {
+          ballState.pos.set(gameState.ballPos.x, BALL_GROUND_Y, gameState.ballPos.z || 0);
+          ballState.vel.set(0, 0, 0);
         }
         ballGroup.position.copy(ballState.pos);
         const omegaMag = ballState.angularVel.length();
@@ -7844,16 +8802,16 @@ export function initGame(container: HTMLElement) {
       // Increase sideline tracking near corner channels so lower-screen action stays visible.
       const edgeTrackT = THREE.MathUtils.clamp((absFocusZ - FIELD_D * 0.25) / Math.max(1, FIELD_D * 0.24), 0, 1);
       const desiredCamX = THREE.MathUtils.clamp(cameraFocusSmoothed.x * 0.8, -FIELD_W * 0.32, FIELD_W * 0.32);
-      const camZMul = THREE.MathUtils.lerp(0.05, 0.26, edgeTrackT);
-      const camZClamp = THREE.MathUtils.lerp(2.6, 9.2, edgeTrackT);
+      const camZMul = THREE.MathUtils.lerp(0.12, 0.38, edgeTrackT);
+      const camZClamp = THREE.MathUtils.lerp(4.5, 12.5, edgeTrackT);
       const desiredCamZ = broadcastCameraHome.z + THREE.MathUtils.clamp(cameraFocusSmoothed.z * camZMul, -camZClamp, camZClamp);
       cameraLerpPosition.set(desiredCamX, broadcastCameraHome.y, desiredCamZ);
-      camera.position.lerp(cameraLerpPosition, THREE.MathUtils.clamp(dt * 3.6, 0.08, 0.28));
+      camera.position.lerp(cameraLerpPosition, THREE.MathUtils.clamp(dt * 5.0, 0.10, 0.32));
 
       // Keep orientation stable and broadcast-like, but pan deeper toward touchline/corner play.
       const lookX = THREE.MathUtils.clamp(cameraFocusSmoothed.x * 0.88, -FIELD_W * 0.32, FIELD_W * 0.32);
-      const lookZMul = THREE.MathUtils.lerp(0.12, 0.5, edgeTrackT);
-      const lookZClamp = THREE.MathUtils.lerp(4.5, 12.0, edgeTrackT);
+      const lookZMul = THREE.MathUtils.lerp(0.18, 0.58, edgeTrackT);
+      const lookZClamp = THREE.MathUtils.lerp(6.0, 14.0, edgeTrackT);
       const lookZ = THREE.MathUtils.clamp(cameraFocusSmoothed.z * lookZMul, -lookZClamp, lookZClamp);
       const lookY = THREE.MathUtils.lerp(0.9, 0.55, edgeTrackT);
       broadcastCameraTarget.set(lookX, lookY, lookZ);
@@ -8333,6 +9291,7 @@ export function initGame(container: HTMLElement) {
     }),
     setMenuVisible: (visible: boolean) => {
       gameState.menuVisible = visible;
+      scoreBug.style.display = visible ? 'none' : 'flex';
     },
     setShowAIStateOverlay: (visible: boolean) => {
       showAIStateOverlay = !!visible;
@@ -8340,6 +9299,32 @@ export function initGame(container: HTMLElement) {
     },
     startKickoffPresentation: (autoKick: boolean = true) => {
       startKickoffPresentationSequence(autoKick);
+    },
+    resetMatch: () => {
+      onResetCallback?.();
+      gameState.scoreA = 0;
+      gameState.scoreB = 0;
+      gameState.shotsA = 0;
+      gameState.shotsB = 0;
+      gameState.shotsOnTargetA = 0;
+      gameState.shotsOnTargetB = 0;
+      gameState.savesA = 0;
+      gameState.savesB = 0;
+      matchClock.phase = 'FIRST_HALF';
+      matchClock.half = 1;
+      matchClock.elapsedInHalf = 0;
+      matchClock.halftimeBreakRemaining = 0;
+      setKickoffScheduleByCoinToss();
+      soccerRestart.lastTouchTeam = kickoffSchedule.firstHalfTeam;
+      gameState.isLive = false;
+      gameState.status = 'PLAYING';
+      gameState.message = 'READY';
+      isPlaybookVisible = false;
+      playbookBar.style.display = 'none';
+      playbookHint.style.display = 'none';
+      startSoccerRestart('KICK_OFF', kickoffSchedule.firstHalfTeam, 0, 0, 'KICK-OFF');
+      updateTimerDisplay();
+      updateHUD();
     },
     setHotSeatMode: (enabled: boolean) => { gameState.hotSeatMode = enabled; },
     setOnReset: (cb: (() => void) | null) => { onResetCallback = cb; },
@@ -8368,6 +9353,7 @@ export function initGame(container: HTMLElement) {
       updateTimerDisplay();
     },
     setCameraMode: (mode: 'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE') => cameraMode = mode,
+    setSeriesSpeedMul: (mul: number) => { _seriesSpeedMul = Math.max(1, Math.min(mul, 20)); },
     setUniform: (team: 'A' | 'B', index: number) => {
       if (team === 'A') teamAUniformIndex = index;
       else teamBUniformIndex = index;
@@ -8524,7 +9510,8 @@ export function initGame(container: HTMLElement) {
       teamBName: activeTeams.B.rosterName,
       teamAFormation: activeTeamFormations.A,
       teamBFormation: activeTeamFormations.B,
-      lastShotTelemetry: gameState.lastShotTelemetry,
+      lastShotTelemetry: gameState.lastShotTelemetry ? { ...gameState.lastShotTelemetry } : null,
+      lastKeeperKickTelemetry: gameState.lastKeeperKickTelemetry ? { ...gameState.lastKeeperKickTelemetry } : null,
     }),
     performPossessionSwap,
     setGroundVisible: (visible: boolean) => {
@@ -8535,6 +9522,12 @@ export function initGame(container: HTMLElement) {
     },
     setGrassVisible: (visible: boolean) => {
       fieldGrass.visible = visible;
-    }
+    },
+    // ── Keeper RL API ──
+    keeperModelLoaded: () => keeperNet.loaded,
+    loadKeeperWeights: (w: KeeperNetWeights) => keeperNet.loadWeights(w),
+    getKeeperExperience: () => [...keeperExperienceBuffer],
+    exportKeeperExperienceJSON: () => JSON.stringify(keeperExperienceBuffer),
+    clearKeeperExperience: () => { keeperExperienceBuffer.length = 0; },
   };
 }
