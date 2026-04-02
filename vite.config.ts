@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
+import { execFileSync } from 'child_process';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 
 /** Dev-only Vite plugin: tiny POST endpoint that mirrors match results to a local JSON file. */
@@ -9,6 +10,8 @@ function telemetryMirrorPlugin(): Plugin {
   const filePath = path.resolve(__dirname, 'match-results.json');
   const snapshotFilePath = path.resolve(__dirname, 'telemetry-snapshots.json');
   const batchFilePath = path.resolve(__dirname, 'telemetry-batches.ndjson');
+  const shotEventsFilePath = path.resolve(__dirname, 'shot-events.ndjson');
+  const keeperExpFilePath = path.resolve(__dirname, 'keeper-experience.ndjson');
 
   const readJsonArrayFile = (targetFilePath: string) => {
     if (!fs.existsSync(targetFilePath)) return [] as unknown[];
@@ -136,6 +139,109 @@ function telemetryMirrorPlugin(): Plugin {
                   : null,
           };
         });
+      });
+
+      // POST: append shot events (array of payloads) to NDJSON file
+      server.middlewares.use('/__telemetry/shot-events', (req, res) => {
+        if (req.method === 'GET') {
+          handleGetJson(req, res, () => {
+            const events = readNdjsonFile(shotEventsFilePath) as Array<Record<string, any>>;
+            const distances = events.map(e => e.distToGoal).filter((d): d is number => typeof d === 'number');
+            const avg = distances.length > 0 ? distances.reduce((a, b) => a + b, 0) / distances.length : 0;
+            const byTeam: Record<string, number[]> = {};
+            for (const e of events) {
+              const t = e.team || 'unknown';
+              (byTeam[t] ??= []).push(e.distToGoal ?? 0);
+            }
+            const teamAvg: Record<string, { avg: number; count: number }> = {};
+            for (const [t, ds] of Object.entries(byTeam)) {
+              teamAvg[t] = { avg: ds.reduce((a, b) => a + b, 0) / ds.length, count: ds.length };
+            }
+            return { ok: true, totalShots: events.length, avgDistance: +avg.toFixed(2), byTeam: teamAvg, events };
+          });
+          return;
+        }
+        // POST: bulk append
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+            const events = Array.isArray(body) ? body : [body];
+            const lines = events.map((e: unknown) => JSON.stringify(e)).join('\n') + '\n';
+            fs.appendFileSync(shotEventsFilePath, lines, 'utf-8');
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, appended: events.length }));
+          } catch (err) {
+            res.writeHead(400).end(String(err));
+          }
+        });
+      });
+
+      // POST: append keeper experiences to NDJSON file
+      // GET: return count + stats
+      server.middlewares.use('/__telemetry/keeper-experience', (req, res) => {
+        if (req.method === 'GET') {
+          handleGetJson(req, res, () => {
+            const exps = readNdjsonFile(keeperExpFilePath) as Array<Record<string, any>>;
+            let pos = 0, neg = 0, neutral = 0;
+            for (const e of exps) {
+              if (e.reward > 0) pos++;
+              else if (e.reward < 0) neg++;
+              else neutral++;
+            }
+            return { ok: true, total: exps.length, positive: pos, negative: neg, neutral };
+          });
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+            const exps = Array.isArray(body) ? body : [body];
+            const lines = exps.map((e: unknown) => JSON.stringify(e)).join('\n') + '\n';
+            fs.appendFileSync(keeperExpFilePath, lines, 'utf-8');
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, appended: exps.length }));
+          } catch (err) {
+            res.writeHead(400).end(String(err));
+          }
+        });
+      });
+
+      // POST: trigger training run on accumulated experience, returns new weights
+      server.middlewares.use('/__telemetry/keeper-train', (req, res) => {
+        if (req.method !== 'POST') { res.writeHead(405).end(); return; }
+        const exps = readNdjsonFile(keeperExpFilePath) as unknown[];
+        if (exps.length === 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: false, reason: 'no experience data' }));
+          return;
+        }
+        // Write a temp JSON file for the training script
+        const tmpFile = path.resolve(__dirname, '.keeper-train-input.json');
+        fs.writeFileSync(tmpFile, JSON.stringify(exps), 'utf-8');
+        try {
+          const result = execFileSync(
+            process.execPath,                    // node
+            [
+              '--import', 'tsx',                 // tsx loader
+              path.resolve(__dirname, 'src/ai/trainKeeper.ts'),
+              tmpFile,
+              '--epochs', '100',
+              '--lr', '0.003',
+            ],
+            { timeout: 60_000, encoding: 'utf-8', env: { ...process.env, NODE_NO_WARNINGS: '1' } },
+          );
+          console.log('[keeper-train]', result);
+          // Read the freshly-written weights
+          const weightsPath = path.resolve(__dirname, 'public/assets/keeper-model/weights.json');
+          const weights = JSON.parse(fs.readFileSync(weightsPath, 'utf-8'));
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, experiences: exps.length, weights }));
+        } catch (err: any) {
+          console.error('[keeper-train] Training failed:', err.stderr || err.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: false, error: String(err.stderr || err.message) }));
+        } finally {
+          try { fs.unlinkSync(tmpFile); } catch {}
+        }
       });
 
       server.middlewares.use('/__telemetry/recover-latest', (req, res) => {

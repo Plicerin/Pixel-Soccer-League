@@ -217,6 +217,7 @@ export class TelemetryRecorder {
   private lastHeartbeatAt = 0;
   private lastDiskMirrorAt = 0;
   private prevMatchSnapshot: MatchSnapshotLike | null = null;
+  private fullTimeCaptured = false;
   private context: TelemetryContext = {};
 
   isRecording() {
@@ -245,6 +246,7 @@ export class TelemetryRecorder {
     this.lastTickMs = performance.now();
     this.lastHeartbeatAt = Date.now();
     this.prevMatchSnapshot = null;
+    this.fullTimeCaptured = false;
 
     this.timerId = window.setInterval(async () => {
       const api = getGameApi();
@@ -420,6 +422,28 @@ export class TelemetryRecorder {
               }),
             });
           }
+          const prevShotSeq = (this.prevMatchSnapshot as any).lastShotTelemetry?.seq ?? 0;
+          const nextShotSeq = (match as any).lastShotTelemetry?.seq ?? 0;
+          if (nextShotSeq > prevShotSeq && (match as any).lastShotTelemetry) {
+            eventRows.push({
+              sessionId: this.sessionId,
+              timestamp: now,
+              eventType: 'shot_style_taken',
+              payloadJson: JSON.stringify((match as any).lastShotTelemetry),
+            });
+          }
+
+          const prevKickSeq = (this.prevMatchSnapshot as any).lastKeeperKickTelemetry?.seq ?? 0;
+          const nextKickSeq = (match as any).lastKeeperKickTelemetry?.seq ?? 0;
+          if (nextKickSeq > prevKickSeq && (match as any).lastKeeperKickTelemetry) {
+            eventRows.push({
+              sessionId: this.sessionId,
+              timestamp: now,
+              eventType: 'keeper_kick',
+              payloadJson: JSON.stringify((match as any).lastKeeperKickTelemetry),
+            });
+          }
+
           if (!!match.isLive !== !!this.prevMatchSnapshot.isLive) {
             const positionSnapshot = toPositionSnapshot(allPlayers);
             eventRows.push({
@@ -455,7 +479,7 @@ export class TelemetryRecorder {
             }
           }
 
-          if (match.phase === 'FULL_TIME' && this.prevMatchSnapshot.phase !== 'FULL_TIME') {
+          if (match.phase === 'FULL_TIME' && !this.fullTimeCaptured) {
             const positionSnapshot = toPositionSnapshot(allPlayers);
             eventRows.push({
               sessionId: this.sessionId,
@@ -486,6 +510,8 @@ export class TelemetryRecorder {
               },
               positions: positionSnapshot,
             });
+
+            this.fullTimeCaptured = true;
           }
         }
 
@@ -519,6 +545,8 @@ export class TelemetryRecorder {
           half: match.half,
           isLive: match.isLive,
           elapsedInHalf: match.elapsedInHalf,
+          lastShotTelemetry: (match as any).lastShotTelemetry || null,
+          lastKeeperKickTelemetry: (match as any).lastKeeperKickTelemetry || null,
         };
       }
 
@@ -564,6 +592,7 @@ export class TelemetryRecorder {
       this.sessionId = null;
     }
     this.prevMatchSnapshot = null;
+    this.fullTimeCaptured = false;
   }
 
   async recordEvent(eventType: string, payload: unknown, sessionId?: string) {
@@ -576,6 +605,14 @@ export class TelemetryRecorder {
       payloadJson: JSON.stringify(payload ?? {}),
     };
     await telemetryDb.telemetryEvents.add(row);
+    // Auto-mirror shot events to disk
+    if (eventType === 'shot_style_taken') {
+      fetch('/__telemetry/shot-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([payload]),
+      }).catch(() => {});
+    }
   }
 }
 
@@ -1014,12 +1051,62 @@ type TelemetryDebugApi = {
   seedBaselines: typeof seedMLS2025Baselines;
   positions: (options?: PositionSequenceOptions) => Promise<PositionSequenceResult | null>;
   movement: (options?: PositionSequenceOptions) => Promise<MovementSummaryResult | null>;
+  shotStats: () => Promise<ShotStatsResult>;
+  dumpShotEvents: () => Promise<{ ok: boolean; appended: number }>;
 };
 
 declare global {
   interface Window {
     pslTelemetry?: TelemetryDebugApi;
   }
+}
+
+type ShotStatsResult = {
+  totalShots: number;
+  avgDistance: number;
+  byTeam: Record<string, { avg: number; count: number }>;
+  byStyle: Record<string, { avg: number; count: number }>;
+};
+
+async function getShotStats(): Promise<ShotStatsResult> {
+  const rows = await telemetryDb.telemetryEvents
+    .where('eventType')
+    .equals('shot_style_taken')
+    .toArray();
+  const events = rows.map(r => JSON.parse(r.payloadJson));
+  const distances = events.map(e => e.distToGoal).filter((d): d is number => typeof d === 'number');
+  const avg = distances.length > 0 ? distances.reduce((a, b) => a + b, 0) / distances.length : 0;
+  const byTeam: Record<string, number[]> = {};
+  const byStyle: Record<string, number[]> = {};
+  for (const e of events) {
+    const t = e.team || 'unknown';
+    (byTeam[t] ??= []).push(e.distToGoal ?? 0);
+    const s = e.style || 'unknown';
+    (byStyle[s] ??= []).push(e.distToGoal ?? 0);
+  }
+  const summarize = (map: Record<string, number[]>) => {
+    const out: Record<string, { avg: number; count: number }> = {};
+    for (const [k, ds] of Object.entries(map)) {
+      out[k] = { avg: +(ds.reduce((a, b) => a + b, 0) / ds.length).toFixed(2), count: ds.length };
+    }
+    return out;
+  };
+  return { totalShots: events.length, avgDistance: +avg.toFixed(2), byTeam: summarize(byTeam), byStyle: summarize(byStyle) };
+}
+
+async function dumpShotEventsToFile(): Promise<{ ok: boolean; appended: number }> {
+  const rows = await telemetryDb.telemetryEvents
+    .where('eventType')
+    .equals('shot_style_taken')
+    .toArray();
+  if (rows.length === 0) return { ok: true, appended: 0 };
+  const payloads = rows.map(r => JSON.parse(r.payloadJson));
+  const res = await fetch('/__telemetry/shot-events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payloads),
+  });
+  return await res.json();
 }
 
 /**
@@ -1060,5 +1147,7 @@ export function installTelemetryDebugApi() {
     seedBaselines: seedMLS2025Baselines,
     positions: getPositionSequence,
     movement: summarizeMovement,
+    shotStats: getShotStats,
+    dumpShotEvents: dumpShotEventsToFile,
   };
 }

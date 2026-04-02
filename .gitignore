@@ -10,4 +10,6 @@ coverage/
 # Runtime telemetry data — generated at dev-server runtime, never commit
 match-results.json
 telemetry-batches.ndjson
-telemetry-snapshots.json
+telemetry-snapshots.jsonkeeper-experience.ndjson
+shot-events.ndjson
+tmp-rl-train-log.jsonl

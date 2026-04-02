@@ -15,7 +15,7 @@ import { Entity, GameState } from '../types';
 
 const FootballGame: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>('START');
+  const [gameState, setGameState] = useState<GameState | 'GAME_OVER'>('START');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
 
@@ -78,6 +78,11 @@ const FootballGame: React.FC = () => {
     teammatesRef.current = teammates;
   };
 
+  // Handler for ending the game (full time or user action)
+  const handleGameOver = () => {
+    setGameState('GAME_OVER');
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key] = true;
@@ -85,6 +90,10 @@ const FootballGame: React.FC = () => {
         if (e.key === 'Enter' || e.key === ' ') {
           initGame();
           setGameState('PLAYING');
+        }
+      } else if (gameState === 'GAME_OVER') {
+        if (e.key === 'Enter' || e.key === ' ') {
+          setGameState('START');
         }
       }
     };
@@ -171,7 +180,6 @@ const FootballGame: React.FC = () => {
       if (gameState !== 'PLAYING') return;
 
       const player = playerRef.current;
-      
       // Player movement
       player.vx = 0;
       player.vy = 0;
@@ -202,6 +210,12 @@ const FootballGame: React.FC = () => {
         });
         setGameState('TOUCHDOWN');
       }
+
+      // Example: End the game after a certain condition (e.g., after a touchdown, or timer, or user action)
+      // Here, for demo, end after touchdown (TOUCHDOWN state triggers GAME_OVER after 2s)
+      if (gameState === 'TOUCHDOWN') {
+        setTimeout(() => handleGameOver(), 2000);
+      }
     };
 
     const render = () => {
@@ -219,7 +233,7 @@ const FootballGame: React.FC = () => {
         ctx.textAlign = 'center';
         ctx.fillText('RETRO GRIDIRON', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
         ctx.font = '20px monospace';
-        ctx.fillText('PRESS SPACE TO KICK OFF', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20);
+
         ctx.fillText('USE ARROWS OR WASD TO MOVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
       } else if (gameState === 'TOUCHDOWN') {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -231,6 +245,14 @@ const FootballGame: React.FC = () => {
         ctx.fillStyle = '#ffffff';
         ctx.font = '20px monospace';
         ctx.fillText('PRESS SPACE FOR NEXT DRIVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 60);
+      }
+      if (gameState === 'GAME_OVER') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '72px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
       }
     };
 
@@ -270,6 +292,17 @@ const FootballGame: React.FC = () => {
           height={CANVAS_HEIGHT}
           className="block bg-emerald-800"
         />
+        {gameState === 'GAME_OVER' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 z-20">
+            <div className="text-6xl font-extrabold text-red-400 mb-8 animate-pulse drop-shadow-lg">GAME OVER</div>
+            <button
+              className="px-8 py-4 text-2xl font-bold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg transition"
+              onClick={() => setGameState('START')}
+            >
+              Main Menu / Start New Game
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-8 max-w-2xl w-full">
