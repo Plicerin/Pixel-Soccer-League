@@ -23,6 +23,8 @@ export interface MatchSnapshotRow {
   shotsOnTargetB: number;
   savesA: number;
   savesB: number;
+  headersA: number;
+  headersB: number;
   offensiveTeam: 'A' | 'B';
   isLive: boolean;
   weather?: string;

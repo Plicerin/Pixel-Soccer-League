@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
+import MatchHistoryDashboard from './MatchHistoryDashboard';
 import {
   buildDriftDashboard,
   clearTelemetryDatabase,
@@ -15,6 +16,7 @@ import {
   recoverLatestMirroredSession,
   TelemetryRecorder,
 } from '../telemetry';
+import { installSmokeTestApi } from '../smokeTest';
 
 const MLS_TEAM_OPTIONS = [
   'Atlanta United',  // keep list unchanged – just adding color map below it
@@ -149,7 +151,8 @@ const RetroFootball: React.FC = () => {
   const [teamAFormation, setTeamAFormation] = useState('4-2-3-1');
   const [teamBFormation, setTeamBFormation] = useState('4-3-3');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'STATS' | 'FRAME_VIEWER' | 'HOW_TO_PLAY'>('OPTIONS');
+  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY'>('OPTIONS');
+  const [crowdVolume, setCrowdVolume] = useState(0.60);
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [selectedDefensePlayer, setSelectedDefensePlayer] = useState<any>(null);
@@ -209,6 +212,7 @@ const RetroFootball: React.FC = () => {
   const prevMatchSnapshotRef = useRef<any | null>(null);
   const autoScanOnPauseRef = useRef(true);
   const lastAutoScanAtRef = useRef(0);
+  const smokeTestActiveRef = useRef(false);
   const runMovementScanRef = useRef<(forcedAnchor?: 'pause' | 'full_time' | 'latest', forcedSeconds?: 10 | 20) => Promise<void>>(async () => {});
 
   useEffect(() => {
@@ -225,8 +229,7 @@ const RetroFootball: React.FC = () => {
         const currentIsLive = gameRef.current.getIsLive();
         const snapshot = gameRef.current.getMatchSnapshot?.() || null;
 
-        if (snapshot?.phase === 'FULL_TIME') {
-          // Keep full-time UI latched even if a phase-transition event is missed.
+        if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
           setIsFullTime(true);
           setHasActiveMatchSession(true);
           setAllowMainMenu(false);
@@ -265,8 +268,7 @@ const RetroFootball: React.FC = () => {
               from: { phase: prev.phase, half: prev.half },
               to: { phase: snapshot.phase, half: snapshot.half },
             });
-            // Mirror final result to local JSON when match ends
-            if (snapshot.phase === 'FULL_TIME') {
+            if (snapshot.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
               setIsFullTime(true);
               const ftScore2 = {
                 scoreA: snapshot.scoreA,
@@ -377,6 +379,9 @@ const RetroFootball: React.FC = () => {
 
       // Expose game API on window for automation / telemetry scripts
       (window as any).__gameRef = gameRef.current;
+      (window as any).__gameRef.setSmokeTestMode = (active: boolean) => {
+        smokeTestActiveRef.current = active;
+      };
 
       if (!telemetryRecorderRef.current) {
         const recorder = new TelemetryRecorder();
@@ -392,19 +397,27 @@ const RetroFootball: React.FC = () => {
       }
 
       gameRef.current?.setOnReset?.(() => {
-        // Reset should always return to the main menu and clear session latches.
+        // Always clear full-time overlay and UI latches
         setIsLive(false);
         setIsFullTime(false);
         try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
         setFullTimeScore(null);
+        prevIsLive.current = false;
+        prevMatchSnapshotRef.current = null;
+
+        if (smokeTestActiveRef.current) {
+          // During smoke tests: clear UI but don't disable CPU mode or touch recorders
+          setAllowMainMenu(false);
+          return;
+        }
+
+        // Normal reset: return to main menu
         setGameMode(null);
         setHasActiveMatchSession(false);
         setAllowMainMenu(true);
         setSessionMenuLock(false);
         setHotSeatMode(false);
         setTestingMode(false);
-        prevIsLive.current = false;
-        prevMatchSnapshotRef.current = null;
         gameRef.current?.setHotSeatMode?.(false);
         gameRef.current?.setTestingMode?.(false);
         gameRef.current?.setCpuVsCpu?.(false);
@@ -432,6 +445,7 @@ const RetroFootball: React.FC = () => {
       });
 
       installTelemetryDebugApi();
+      installSmokeTestApi();
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1049,12 +1063,13 @@ const RetroFootball: React.FC = () => {
 
       {/* Options Menu Overlay */}
       {isOptionsOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3">
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-3">
           <div className="bg-zinc-900 p-4 md:p-6 rounded-2xl border border-white/10 shadow-2xl w-[min(1100px,calc(100vw-24px))] max-h-[calc(100vh-24px)] overflow-y-auto flex flex-col gap-5">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <div className="flex gap-4">
                 <button onClick={() => setActiveTab('OPTIONS')} className={`text-white text-sm ${activeTab === 'OPTIONS' ? 'font-bold' : 'text-white/40'}`}>OPTIONS</button>
                 <button onClick={() => setActiveTab('STATS')} className={`text-white text-sm ${activeTab === 'STATS' ? 'font-bold' : 'text-white/40'}`}>STATS</button>
+                <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
                 <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
                 <button onClick={() => setActiveTab('HOW_TO_PLAY')} className={`text-white text-sm ${activeTab === 'HOW_TO_PLAY' ? 'font-bold' : 'text-white/40'}`}>HOW TO PLAY</button>
               </div>
@@ -1175,6 +1190,29 @@ const RetroFootball: React.FC = () => {
                           className="w-full accent-white"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Audio</h3>
+                    <div>
+                      <div className="flex justify-between text-[9px] text-white/60 uppercase tracking-widest mb-1">
+                        <span>Crowd Volume</span>
+                        <span>{Math.round(crowdVolume * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={crowdVolume}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setCrowdVolume(v);
+                          gameRef.current?.setCrowdVolume?.(v);
+                        }}
+                        className="w-full accent-white"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1415,6 +1453,8 @@ const RetroFootball: React.FC = () => {
                   </div>
                 ))}
               </div>
+            ) : activeTab === 'MATCH_HISTORY' ? (
+              <MatchHistoryDashboard />
             ) : activeTab === 'HOW_TO_PLAY' ? (
               <div className="max-w-lg mx-auto flex flex-col gap-6">
                 <div>

@@ -1,20 +1,39 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Center } from '@react-three/drei';
 import * as THREE from 'three';
-import { ChevronLeft, ChevronRight, Download, Eraser } from 'lucide-react';
-import { PLAYER_PATTERNS, TEAM_PALETTES, PlayerPalette } from '../gameEngine';
+import { ChevronLeft, ChevronRight, Download, Eraser, Check } from 'lucide-react';
+import { PLAYER_PATTERNS, PLAYER_IDLE_PATTERNS, PLAYER_FRONT_RUN_COMPOSED, PLAYER_FRONT_IDLE_COMPOSED, PLAYER_BACK_RUN_COMPOSED, PLAYER_BACK_IDLE_COMPOSED, TEAM_PALETTES, PlayerPalette } from '../gameEngine';
+
+type FrameType = 'side-run' | 'side-idle' | 'front-run' | 'front-idle' | 'back-run' | 'back-idle';
+type PaletteKey = 'teamA' | 'teamB' | 'keeperA' | 'keeperB';
+
+const FRAME_TYPE_DATA: Record<FrameType, { label: string; patterns: string[][] }> = {
+  'side-run':   { label: 'Side Run',   patterns: PLAYER_PATTERNS },
+  'side-idle':  { label: 'Side Idle',  patterns: PLAYER_IDLE_PATTERNS },
+  'front-run':  { label: 'Front Run',  patterns: PLAYER_FRONT_RUN_COMPOSED },
+  'front-idle': { label: 'Front Idle', patterns: PLAYER_FRONT_IDLE_COMPOSED },
+  'back-run':   { label: 'Back Run',   patterns: PLAYER_BACK_RUN_COMPOSED },
+  'back-idle':  { label: 'Back Idle',  patterns: PLAYER_BACK_IDLE_COMPOSED },
+};
+
+const PALETTE_OPTIONS: { key: PaletteKey; label: string }[] = [
+  { key: 'teamA', label: 'Team A' },
+  { key: 'teamB', label: 'Team B' },
+  { key: 'keeperA', label: 'GK A' },
+  { key: 'keeperB', label: 'GK B' },
+];
 
 const VoxelPlayer: React.FC<{
     frameIndex: number;
-    team: 'teamA' | 'teamB';
+    paletteKey: PaletteKey;
     isRotating: boolean;
     patterns: string[][];
     showGrid: boolean;
     onVoxelClick: (r: number, c: number) => void;
-}> = ({ frameIndex, team, isRotating, patterns, showGrid, onVoxelClick }) => {
+}> = ({ frameIndex, paletteKey, isRotating, patterns, showGrid, onVoxelClick }) => {
     const pattern = patterns[frameIndex];
-    const palette = TEAM_PALETTES[team];
+    const palette = TEAM_PALETTES[paletteKey];
     const voxelSize = 0.1152;
 
     const boxGeo = useMemo(() => new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize * 4.2), []);
@@ -94,13 +113,45 @@ const VoxelPlayer: React.FC<{
 };
 
 const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }> = ({ onClose, embedded }) => {
-    const [patterns, setPatterns] = useState<string[][]>(PLAYER_PATTERNS);
+    const [frameType, setFrameType] = useState<FrameType>('side-run');
+    const [patterns, setPatterns] = useState<string[][]>(() => PLAYER_PATTERNS.map(f => [...f]));
     const [currentFrame, setCurrentFrame] = useState(0);
-    const [team, setTeam] = useState<'teamA' | 'teamB'>('teamA');
+    const [paletteKey, setPaletteKey] = useState<PaletteKey>('teamA');
     const [selectedChar, setSelectedChar] = useState<string>('S');
     const [isRotating, setIsRotating] = useState(true);
     const [isAnimating, setIsAnimating] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
+    const [applyFlash, setApplyFlash] = useState(false);
+
+    const handleFrameTypeChange = (newType: FrameType) => {
+        setFrameType(newType);
+        const source = FRAME_TYPE_DATA[newType].patterns;
+        setPatterns(source.map(f => [...f]));
+        setCurrentFrame(0);
+        setIsAnimating(false);
+    };
+
+    const handleApplyNow = useCallback(() => {
+        // Write current patterns back to the source arrays in-place
+        const source = FRAME_TYPE_DATA[frameType].patterns;
+        source.length = 0;
+        patterns.forEach(f => source.push([...f]));
+        // Persist to localStorage
+        try {
+            const saved = JSON.parse(localStorage.getItem('psl.voxelPatterns') || '{}');
+            saved[frameType] = patterns;
+            localStorage.setItem('psl.voxelPatterns', JSON.stringify(saved));
+        } catch { /* ignore quota errors */ }
+        // Lock GK kit so random assignment doesn't override editor changes
+        if (paletteKey === 'keeperA' || paletteKey === 'keeperB') {
+            const team = paletteKey === 'keeperA' ? 'A' : 'B';
+            (window as any).__gameRef?.lockGoalkeeperKit?.(team, true);
+        }
+        // Rebuild in-game player meshes so changes are visible immediately
+        (window as any).__gameRef?.rebuildPlayerFrames?.();
+        setApplyFlash(true);
+        setTimeout(() => setApplyFlash(false), 800);
+    }, [frameType, patterns, paletteKey]);
 
     useEffect(() => {
         if (!isAnimating) return;
@@ -153,29 +204,51 @@ const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }>
         alert("Patterns exported to console! (F12 to view)");
     };
 
-    const currentPalette = TEAM_PALETTES[team];
+    const currentPalette = TEAM_PALETTES[paletteKey];
 
     return (
         <div className={embedded ? "bg-zinc-900 p-6 rounded-2xl border border-white/10 shadow-2xl flex flex-col gap-6 overflow-auto" : "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-900 p-6 rounded-2xl border border-white/10 shadow-2xl z-[100] flex flex-col gap-6 max-w-[90vw] max-h-[90vh] overflow-auto"}>
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <h3 className="text-white font-bold text-lg tracking-tight">Voxel Editor</h3>
-                    <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
-                        <button
-                            onClick={() => setTeam('teamA')}
-                            className={`px-3 py-1 text-[10px] rounded-md uppercase font-bold transition-all ${team === 'teamA' ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                        >
-                            Team A
-                        </button>
-                        <button
-                            onClick={() => setTeam('teamB')}
-                            className={`px-3 py-1 text-[10px] rounded-md uppercase font-bold transition-all ${team === 'teamB' ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                        >
-                            Team B
-                        </button>
+                    <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 items-center">
+                        {PALETTE_OPTIONS.filter(o => !o.key.startsWith('keeper')).map(opt => (
+                            <button
+                                key={opt.key}
+                                onClick={() => setPaletteKey(opt.key)}
+                                className={`px-3 py-1 text-[10px] rounded-md uppercase font-bold transition-all ${paletteKey === opt.key ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                        <div className="w-px h-4 bg-white/10 mx-1" />
+                        <span className="text-[8px] text-white/25 uppercase tracking-wider mr-1">GK Only</span>
+                        {PALETTE_OPTIONS.filter(o => o.key.startsWith('keeper')).map(opt => (
+                            <button
+                                key={opt.key}
+                                onClick={() => setPaletteKey(opt.key)}
+                                className={`px-3 py-1 text-[10px] rounded-md uppercase font-bold transition-all ${paletteKey === opt.key ? 'bg-amber-400 text-black shadow-lg' : 'text-amber-400/40 hover:text-amber-400'}`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
                 {!embedded && onClose && <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all">{'✕'}</button>}
+            </div>
+
+            {/* Frame Type Tabs */}
+            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 gap-1 flex-wrap">
+                {(Object.entries(FRAME_TYPE_DATA) as [FrameType, { label: string }][]).map(([key, { label }]) => (
+                    <button
+                        key={key}
+                        onClick={() => handleFrameTypeChange(key)}
+                        className={`px-3 py-1.5 text-[10px] rounded-md uppercase font-bold transition-all ${frameType === key ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+                    >
+                        {label}
+                        <span className="ml-1 opacity-50">({FRAME_TYPE_DATA[key].patterns.length})</span>
+                    </button>
+                ))}
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8">
@@ -209,7 +282,7 @@ const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }>
                         <Center>
                             <VoxelPlayer
                                 frameIndex={currentFrame}
-                                team={team}
+                                paletteKey={paletteKey}
                                 isRotating={isRotating}
                                 patterns={patterns}
                                 showGrid={showGrid}
@@ -251,6 +324,12 @@ const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }>
                     </div>
 
                     <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-3">
+                        <button
+                            onClick={handleApplyNow}
+                            className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg ${applyFlash ? 'bg-green-300 text-black' : 'bg-amber-500 hover:bg-amber-400 text-black'}`}
+                        >
+                            <Check size={14} /> {applyFlash ? 'Applied!' : 'Apply Now'}
+                        </button>
                         <button
                             onClick={exportPatterns}
                             className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg"

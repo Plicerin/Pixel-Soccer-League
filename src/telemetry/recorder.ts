@@ -26,6 +26,8 @@ type MatchSnapshotLike = {
   shotsOnTargetB?: number;
   savesA?: number;
   savesB?: number;
+  headersA?: number;
+  headersB?: number;
   offensiveTeam?: 'A' | 'B';
   isLive?: boolean;
   weather?: string;
@@ -279,6 +281,8 @@ export class TelemetryRecorder {
             shotsOnTargetB: match.shotsOnTargetB ?? 0,
             savesA: match.savesA ?? 0,
             savesB: match.savesB ?? 0,
+            headersA: match.headersA ?? 0,
+            headersB: match.headersB ?? 0,
             offensiveTeam: match.offensiveTeam ?? 'A',
             isLive: !!match.isLive,
             weather: match.weather,
@@ -396,7 +400,9 @@ export class TelemetryRecorder {
             match.shotsOnTargetA !== this.prevMatchSnapshot.shotsOnTargetA ||
             match.shotsOnTargetB !== this.prevMatchSnapshot.shotsOnTargetB ||
             match.savesA !== this.prevMatchSnapshot.savesA ||
-            match.savesB !== this.prevMatchSnapshot.savesB
+            match.savesB !== this.prevMatchSnapshot.savesB ||
+            match.headersA !== this.prevMatchSnapshot.headersA ||
+            match.headersB !== this.prevMatchSnapshot.headersB
           ) {
             eventRows.push({
               sessionId: this.sessionId,
@@ -410,6 +416,8 @@ export class TelemetryRecorder {
                   shotsOnTargetB: this.prevMatchSnapshot.shotsOnTargetB ?? 0,
                   savesA: this.prevMatchSnapshot.savesA ?? 0,
                   savesB: this.prevMatchSnapshot.savesB ?? 0,
+                  headersA: this.prevMatchSnapshot.headersA ?? 0,
+                  headersB: this.prevMatchSnapshot.headersB ?? 0,
                 },
                 to: {
                   shotsA: match.shotsA ?? 0,
@@ -418,6 +426,8 @@ export class TelemetryRecorder {
                   shotsOnTargetB: match.shotsOnTargetB ?? 0,
                   savesA: match.savesA ?? 0,
                   savesB: match.savesB ?? 0,
+                  headersA: match.headersA ?? 0,
+                  headersB: match.headersB ?? 0,
                 },
               }),
             });
