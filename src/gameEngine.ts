@@ -57,10 +57,10 @@ export const TEAM_PALETTES: Record<string, PlayerPalette> = {
 };
 
 export const PLAYER_IDLE_PATTERNS = [
-  // Frame 0 – neutral stand (based on run frame 9): compact, arms at sides, both feet planted
+  // Frame 0 – neutral stand: compact, arms at sides, both feet planted
   ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000111110000000','00011111111110000000','00011100111000000000','00011100111000000000','00000000111000000000','00000000111110000000'],
-  // Frame 1 – subtle weight shift: left foot plants, right lifts slightly
-  ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000111110000000','00011111111110000000','00011100111000000000','00011100111000000000','00011100000000000000','00011110000000000000'],
+  // Frame 1 – subtle weight shift
+  ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000011110000000','00000000111110000000','00000000111000000000','00000000P11000000000','00000000PPP000000000','00000000PPPPP0000000'],
 ];
 
 export const PLAYER_PATTERNS = [
@@ -72,6 +72,23 @@ export const PLAYER_PATTERNS = [
   ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000PPPPP0000000','00000000111110000000','00011111111110000000','00011100111000000000','00011100111000000000','00000000111000000000','00000000111110000000'],
   ['00000000001111110000','00000000001110000000','0000011111H1111H0000','00011111111110000000','00011111111110000000','00011111111110000000','00011111111111110000','00000PPPPPP000000000','00000PPPPPPPP0000000','000PPPPPPPPPPPPP0000','00011100000011110000','00011100000111110000','00011100000011100000','00011100000000000000','00011100000000000000','00000111100000000000'],
   ['00000000000111111000','00000000000111000000','000000011111111HH000','00001111111111100000','00111111111111100000','00111001111111111000','0011100SSSSS00000000','0000000PPPPP00000000','0000000PPPPPPPP00000','0000PPPPPPPPPPPPPPP0','000011100000000P1110','00001110000011111110','00001110000011100000','00111000000011100000','00111000000000000000','00111000000000000000'],
+];
+
+// ─── Goalkeeper-specific side-view frames (with glove 'V' markings) ─────────
+export const KEEPER_PATTERNS = [
+  ['00000000001111110000','00000000001110000000','0000011111H1111H0000','00011111111110000000','00011100111110000000','000VVV001111111111VV','00000000SSSSS0000000','00000000PPPPP0000000','00000000PPPPP0000000','00000PPPPPPPPPPPPPPP','00000111100000000111','00011111100000011100','00011100000000011100','01111100000000000000','01110000000000000000','01110000000000000000'],
+  ['00000000001111110000','00000000001110000000','0111111111H1111H0000','01110000111110000000','0VVV00001111111111VV','00000000111110000000','00000000SSSSS0000000','00000000PPPPP0000000','00000PPPPPPPP0000000','00000PPPPPPPPPPPPPPP','00000111100000000111','00011111100000000111','00011100000000000111','01111100000000000000','01110000000000000000','00000000000000000000'],
+  ['00000000011111100000','00000000011100000000','000011111HH111100000','00111111111100000000','00111001111100000000','00VVV001111111111VV0','0000000SSSSS00000000','0000000PPPPP00000000','0000000PPPPP00000000','0000PPPPPPPPPPP00000','00001110000111100000','00111110000111111000','11111000000000111000','11100000000000111000','00000000000000111110','00000000000000000000'],
+  ['00000000000011111100','00000000000011100000','00000000111S111HHH00','00000111111111110000','00011111111111110000','0001110011111111VV00','000VVV00SSSSS0000000','00000000PPPPP0000000','00000PPPPPPPP0000000','00000PPPPPPPPPPP0000','00000111100011110000','01111111100011110000','01110000000011110000','01110000000011110000','00000000000011110000','00000000000011111100'],
+  ['00000000000111111000','00000000000111000000','000000011111111HH000','00001111111111100000','00001111111111100000','00001111111111100000','0000VVV11111111VV000','0000000PPPPP00000000','0000000PPPPP00000000','0000000PPPPP00000000','00000001111100000000','00111111111100000000','00111000011100000000','00111000011100000000','00000000011100000000','00000000011111100000'],
+  ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPVVS0000000','00000000PPVVP0000000','00000000111110000000','00011111111110000000','00011100111000000000','00011100111000000000','00000000111000000000','00000000111110000000'],
+  ['00000000001111110000','00000000001110000000','0000011111H1111H0000','00011111111110000000','00011111111110000000','00011111111110000000','000VV111111111VV0000','00000PPPPPP000000000','00000PPPPPPPP0000000','000PPPPPPPPPPPP00000','00011100000000110000','00011100000000110000','00011100000011100000','000111000000PP000000','000111000000P0000000','00000111100000000000'],
+  ['00000000000111111000','00000000000111000000','000000011111111HH000','00001111111111100000','00111111111111100000','001110011111111VV000','00VVV00SSSSS00000000','0000000PPPPP00000000','0000000PPPPPPPP00000','0000PPPPPPPPPPPPPPP0','000011100000000P1110','00001110000011111110','00001110000011100000','00111000000011100000','00111000000000000000','00111000000000000000'],
+];
+
+export const KEEPER_IDLE_PATTERNS = [
+  ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPVVS0000000','00000000PPVVP0000000','00000000111110000000','00011111111110000000','00011100111000000000','00011100111000000000','00000000111000000000','00000000111110000000'],
+  ['00000000001111110000','00000000001110000000','0000000011H1111H0000','00000000111110000000','00000000111110000000','00000000111110000000','00000000111110000000','00000000PPPPP0000000','00000000PPVVS0000000','00000000PPVVP0000000','00000000011110000000','00000000111110000000','00000000111000000000','00000000P11000000000','00000000PPP000000000','00000000PPPPP0000000'],
 ];
 
 // ─── Front-view frames (running toward camera) ──────────────────────────────
@@ -4932,8 +4949,10 @@ export function initGame(container: HTMLElement) {
     const spriteGroup = new THREE.Group();
     spriteGroup.position.y = PLAYER_SPRITE_CENTER_Y;
     group.add(spriteGroup);
-    const runFrames = PLAYER_PATTERNS.map(p => buildMergedPlayerFrame(p, palette));
-    const idleFrames = PLAYER_IDLE_PATTERNS.map(p => buildMergedPlayerFrame(p, palette));
+    const sideRunPatterns = isKeeperRole ? KEEPER_PATTERNS : PLAYER_PATTERNS;
+    const sideIdlePatterns = isKeeperRole ? KEEPER_IDLE_PATTERNS : PLAYER_IDLE_PATTERNS;
+    const runFrames = sideRunPatterns.map(p => buildMergedPlayerFrame(p, palette));
+    const idleFrames = sideIdlePatterns.map(p => buildMergedPlayerFrame(p, palette));
     // Front-view (toward camera) frames
     const frontRunComposed = PLAYER_FRONT_RUN_PATTERNS.map((base, i) =>
       composeFBPattern(base, PLAYER_FRONT_HELMET_MASK, PLAYER_FRONT_VISOR_MASK, PLAYER_FRONT_PANTS_OVERRIDES[String(i)] || PLAYER_FRONT_PANTS_OVERRIDES['0']));
@@ -6636,6 +6655,59 @@ export function initGame(container: HTMLElement) {
     return bestKeeper;
   }
 
+  // ── One-time shot: first-time finish off a teammate's pass or cross ──
+  function attemptOneTimeShot(
+    collector: any,
+    prevHolder: any,
+    nowElapsed: number,
+    incomingBallSpeed: number,
+    wasFlying: boolean,
+    ballHeight: number,
+  ): boolean {
+    if (!collector || isGoalkeeper(collector)) return false;
+    const { controlA: ctrlA, controlB: ctrlB } = getHumanControlFlags();
+    const isCPU = (collector.team === 'A' && !ctrlA) || (collector.team === 'B' && !ctrlB);
+    if (!isCPU) return false;
+    // Ball must have come from a teammate's pass, not a turnover
+    if (!prevHolder || prevHolder.team !== collector.team) return false;
+
+    const attackRight = teamAttacksRight(collector.team);
+    const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
+    const distToGoal = Math.abs(goalX - collector.pos.x);
+    if (distToGoal > 22) return false;
+
+    // Must be within a viable shooting lane (wider at close range)
+    const laneWidth = distToGoal < 10 ? goalMouthWidth * 1.6 : goalMouthWidth * 1.1;
+    if (Math.abs(collector.pos.z) >= laneWidth) return false;
+
+    // Ground passes need meaningful speed
+    if (!wasFlying && incomingBallSpeed < 3.5) return false;
+
+    const shotSkill = getShotSkill(collector);
+    const roleLabel = ((collector.displayRole || collector.role || '').toString()).toUpperCase();
+    const roleBonus = roleLabel === 'ST' ? 0.12 : (['CM', 'LM', 'RM'].includes(roleLabel) ? 0.05 : 0);
+    const crossWindow = gameState.crossAssistTeam === collector.team && nowElapsed <= gameState.crossAssistUntil;
+    const crossBonus = crossWindow ? 0.12 : 0;
+    const distFactor = THREE.MathUtils.clamp(1 - distToGoal / 22, 0, 1);
+    const flyingBonus = wasFlying ? 0.08 : 0;
+
+    const chance = THREE.MathUtils.clamp(
+      0.20 + shotSkill * 0.20 + roleBonus + crossBonus + distFactor * 0.10 + flyingBonus,
+      0.10, 0.52,
+    );
+    if (Math.random() >= chance) return false;
+
+    let shotStyle: 'VOLLEY' | 'HALF_VOLLEY' | 'HEADER' | 'TOE_POKE';
+    if (wasFlying && ballHeight > 1.8) shotStyle = 'HEADER';
+    else if (wasFlying) shotStyle = 'VOLLEY';
+    else if (incomingBallSpeed > 9) shotStyle = 'TOE_POKE';
+    else shotStyle = 'HALF_VOLLEY';
+
+    showPlayPatternTag('FIRST TIME!', 'rgba(255,95,95,0.96)');
+    takeShot(collector, true, 1.0, shotStyle);
+    return true;
+  }
+
   function takeShot(
     shooter: any,
     skillDriven: boolean = false,
@@ -7930,11 +8002,11 @@ export function initGame(container: HTMLElement) {
       case 'GK':
         return { depthBias: 27, widthBias: 0, anchorBlend: 0.12, pressStrength: 0.08, pressRadius: 1.6, discipline: 0.96 };
       case 'LB':
-        return { depthBias: 18, widthBias: -15, anchorBlend: 0.34, pressStrength: 0.48, pressRadius: 2.0, discipline: 0.92 };
+        return { depthBias: 18, widthBias: -15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.92 };
       case 'RB':
-        return { depthBias: 18, widthBias: 15, anchorBlend: 0.34, pressStrength: 0.48, pressRadius: 2.0, discipline: 0.92 };
+        return { depthBias: 18, widthBias: 15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.92 };
       case 'CB':
-        return { depthBias: 20, widthBias: sideBias * 6, anchorBlend: 0.24, pressStrength: 0.35, pressRadius: 1.7, discipline: 0.95 };
+        return { depthBias: 20, widthBias: sideBias * 6, anchorBlend: 0.55, pressStrength: 0.48, pressRadius: 2.1, discipline: 0.95 };
       case 'DM':
         return { depthBias: 12, widthBias: 0, anchorBlend: 0.44, pressStrength: 0.66, pressRadius: 2.35, discipline: 0.9 };
       case 'LM':
@@ -7963,34 +8035,23 @@ export function initGame(container: HTMLElement) {
     const anchor = attackAnchor || { pos: ballState.pos };
 
     // Compact shape: when ball is deep in our half, squeeze width inward
-    const defGoalX = attackRight ? -FIELD_W / 2 : FIELD_W / 2;
+    const defGoalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
     const ballDistToGoal = Math.abs(anchor.pos.x - defGoalX);
     const inLowBlock = ballDistToGoal < FIELD_W * 0.26;
     const compactFactor = ballDistToGoal < FIELD_W * 0.35
       ? THREE.MathUtils.lerp(0.5, 0.82, ballDistToGoal / (FIELD_W * 0.35))
       : 1.0;
 
+    // Position defenders proportionally between ball and own goal
+    const ballToGoal = defGoalX - anchor.pos.x;
+    const depthFraction = assignment.depthBias / 30;
     const compactTarget = new THREE.Vector3(
-      anchor.pos.x - assignment.depthBias * attackSign,
+      anchor.pos.x + ballToGoal * depthFraction,
       0.15,
       THREE.MathUtils.clamp(anchor.pos.z + assignment.widthBias * compactFactor, -FIELD_D / 2 + 2, FIELD_D / 2 - 2)
     );
 
-    const finalTarget = player.homePos.clone().lerp(compactTarget, attackAnchor ? assignment.anchorBlend : 0.3);
     const roleLabel = ((player.displayRole || player.role || '').toString()).toUpperCase();
-
-    if (inLowBlock) {
-      // Collapse central lanes and sink key roles when the ball enters the defensive third.
-      if (['CB', 'LB', 'RB', 'DM'].includes(roleLabel)) {
-        finalTarget.x += attackSign * 1.35;
-      } else if (roleLabel === 'CM') {
-        finalTarget.x += attackSign * 0.9;
-      }
-
-      if (['CB', 'DM', 'CM'].includes(roleLabel)) {
-        finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, 0, 0.34);
-      }
-    }
 
     const pressureNearBall = players.some((p: any) => p.team !== player.team && p.pos.distanceTo(ballState.pos) < 6);
     const lineAdjustedHome = computeDefensiveLineHome(
@@ -8020,14 +8081,37 @@ export function initGame(container: HTMLElement) {
     });
     const discipline = typeof assignment.discipline === 'number' ? assignment.discipline : 0.85;
     const disciplinedTarget = computeDisciplinedDefensivePosition(player.homePos, defensiveDynamic, discipline);
-    finalTarget.copy(applyDefensiveDisciplineBounds({
+    const finalTarget = applyDefensiveDisciplineBounds({
       role: (player.displayRole || player.role || '').toString(),
       target: disciplinedTarget,
       ballPos: ballState.pos,
       attackSign: attackSign > 0 ? 1 : -1,
       fieldWidth: FIELD_W,
       fieldDepth: FIELD_D,
-    }));
+    });
+
+    // ── Depth override: blend X toward proportional ball-to-goal position ──
+    // The discipline chain anchors heavily to homePos; this ensures defenders
+    // actually track deep when the ball is in their half.
+    const isBackLine = ['CB', 'LB', 'RB'].includes(roleLabel);
+    const depthBlend = isBackLine ? 0.65 : (roleLabel === 'DM' ? 0.45 : (['CM'].includes(roleLabel) ? 0.30 : 0));
+    if (depthBlend > 0) {
+      finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, compactTarget.x, depthBlend);
+    }
+
+    // Use lateral positioning from compactTarget (width compaction in low block)
+    finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, compactTarget.z, attackAnchor ? assignment.anchorBlend : 0.3);
+
+    if (inLowBlock) {
+      if (['CB', 'LB', 'RB', 'DM'].includes(roleLabel)) {
+        finalTarget.x += attackSign * 1.35;
+      } else if (roleLabel === 'CM') {
+        finalTarget.x += attackSign * 0.9;
+      }
+      if (['CB', 'DM', 'CM'].includes(roleLabel)) {
+        finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, 0, 0.34);
+      }
+    }
 
     // After a clearance: back line pushes forward to compress space and re-establish offside line
     if (gameState.clearancePushUpUntil > 0 && gameState.clearancePushUpTeam === player.team) {
@@ -10208,8 +10292,8 @@ export function initGame(container: HTMLElement) {
                 const rdz = attackCarrier.pos.z;
                 const rLen = Math.sqrt(rdx * rdx + rdz * rdz);
                 if (rLen > 0.5) {
-                  // Rush out to ~60 % of attacker's distance from goal to aggressively shrink the angle
-                  const rushDepth = rLen * 0.6;
+                  // Rush out to ~45 % of attacker's distance from goal to shrink the angle
+                  const rushDepth = rLen * 0.45;
                   target.x = goalLineX + (rdx / rLen) * rushDepth;
                   target.z = (rdz / rLen) * rushDepth;
                 }
@@ -10237,7 +10321,7 @@ export function initGame(container: HTMLElement) {
                 const cdz = attackCarrier.pos.z;
                 const cLen = Math.sqrt(cdx * cdx + cdz * cdz);
                 if (cLen > 0.5) {
-                  const closerDepth = cLen * 0.45;
+                  const closerDepth = cLen * 0.35;
                   target.x = goalLineX + (cdx / cLen) * closerDepth;
                   target.z = (cdz / cLen) * closerDepth;
                 }
@@ -10259,9 +10343,9 @@ export function initGame(container: HTMLElement) {
             if (dist > 0.05) {
               dir.normalize();
               // Boost keeper sprint speed when reacting to an incoming shot or rushing out
-              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.35 : (isRushingOut ? 1.15 : 1.0);
+              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.18 : (isRushingOut ? 1.10 : 1.0);
               const keeperSpeed = (3.2 + p.stats.agility * 2.6) * GAME_SPEED_SCALE * shotReactionBoost;
-              p.vel.lerp(dir.multiplyScalar(keeperSpeed), dt * 7.5);
+              p.vel.lerp(dir.multiplyScalar(keeperSpeed), dt * 5.5);
               p.pos.addScaledVector(p.vel, dt);
               p.pos.x = THREE.MathUtils.clamp(p.pos.x, keeperMinX, keeperMaxX);
               p.pos.z = THREE.MathUtils.clamp(p.pos.z, -penaltyHalfZ + 0.75, penaltyHalfZ - 0.75);
@@ -10294,7 +10378,7 @@ export function initGame(container: HTMLElement) {
             const markToBall = assignment.markTarget ? assignment.markTarget.pos.distanceTo(predictedBallPos) : 100;
             const shapeToBall = shapeTarget.distanceTo(predictedBallPos);
             if (ballState.lastHeldBy && ballState.intendedReceiver) {
-              const likelyInterception = predictInterceptionOpportunity(p.pos, ballState.lastHeldBy.pos, ballState.intendedReceiver.pos, 2.6);
+              const likelyInterception = predictInterceptionOpportunity(p.pos, ballState.lastHeldBy.pos, ballState.intendedReceiver.pos, 3.8);
               if (likelyInterception) {
                 setPlayerAIState(p, 'CUT_PASS_LANE');
                 steerPlayerTowards(p, predictedBallPos, dt, (p.stats.speed * 39) * GAME_SPEED_SCALE, 40, 5.0, 0.05);
@@ -10501,7 +10585,7 @@ export function initGame(container: HTMLElement) {
             const predictedMarkPos = markTarget.pos.clone().addScaledVector(markTarget.vel, 0.18);
             const anchorToMark = new THREE.Vector3().subVectors(predictedMarkPos, attackAnchor.pos).normalize();
             const markingLane = predictedMarkPos.clone().addScaledVector(anchorToMark, -0.8);
-            desiredTarget.lerp(markingLane, 0.34 + assignment.pressStrength * 0.14);
+            desiredTarget.lerp(markingLane, 0.50 + assignment.pressStrength * 0.18);
 
             const trackerVel = getRunnerTrackingVelocity(p.pos, predictedMarkPos, (2.8 + p.stats.speed * 3.2) * GAME_SPEED_SCALE);
             if (trackerVel.lengthSq() > 0.0001) {
@@ -10540,12 +10624,30 @@ export function initGame(container: HTMLElement) {
             const isKeeperClaim = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos);
             // Keeper save radius: larger for close-range shots (reflex saves), tighter for long-range
             const shotDistToKeeper = isKeeperClaim && ballState.isShot ? p.pos.distanceTo(ballState.pos) : 99;
-            const closeShotRadius = shotDistToKeeper < 3.0 ? 1.9 : 1.5;
+            const closeShotRadius = shotDistToKeeper < 3.0 ? 1.5 : 1.2;
             const flyingCollectRadius = isKeeperClaim
-              ? (ballState.isShot ? closeShotRadius : 1.7)
+              ? (ballState.isShot ? closeShotRadius : 1.3)
               : 1.5;
             if (distToBall < flyingCollectRadius) {
               const wasShot = ballState.isShot;
+
+              // Keeper save probability: harder shots and edge-of-reach saves can beat the keeper
+              if (wasShot && isKeeperClaim) {
+                const shotSpeed = ballState.vel.length();
+                const reachFraction = distToBall / flyingCollectRadius; // 0 = dead center, 1 = edge of reach
+                // Base save chance: 85% at center, drops toward edges and for powerful shots
+                const speedPenalty = THREE.MathUtils.clamp((shotSpeed - 10) * 0.025, 0, 0.25);
+                const saveChance = THREE.MathUtils.clamp(0.85 - reachFraction * 0.35 - speedPenalty, 0.25, 0.92);
+                if (Math.random() > saveChance) {
+                  // Shot beats the keeper — deflect but don't claim
+                  const deflect = (Math.random() - 0.5) * 2.5;
+                  ballState.vel.z += deflect;
+                  ballState.vel.x *= -0.3;
+                  ballState.vel.y = Math.abs(ballState.vel.y) * 0.4 + 0.5;
+                  soccerRestart.lastTouchTeam = p.team;
+                  return;
+                }
+              }
 
               if (wasShot && !isKeeperClaim) {
                 // Outfield player in path of shot: probabilistic block based on proximity
@@ -10599,10 +10701,17 @@ export function initGame(container: HTMLElement) {
               } else {
                 // Soccer receiving: secure first touch, no football-style drop/breakup outcomes.
                 const prevHolder = ballState.lastHeldBy;
+                const collectBallHeight = ballState.pos.y;
                 ballState.heldBy = p;
                 ballState.lastHeldBy = p;
                 if (enforceKickoffDoubleTouchIfNeeded(p)) return;
                 markKickoffTouch(p);
+                // ── One-time shot: first-time finish on aerial pass/cross from teammate ──
+                if (!isOffsideFlagged(p) && attemptOneTimeShot(p, prevHolder, elapsed, 0, true, collectBallHeight)) {
+                  soccerRestart.lastTouchTeam = p.team;
+                  if (p.team === 'A') { autoSelectTeamA(p); gameState.passCaught = true; }
+                  return;
+                }
                 if (isGoalkeeper(p) && (p.team === 'A' || p.team === 'B')) {
                   const keeperHoldSeconds = 0.9 + Math.random() * 1.7;
                   setCPUTeamDecisionCooldown(p.team, keeperHoldSeconds);
@@ -10782,14 +10891,14 @@ export function initGame(container: HTMLElement) {
             const dx = p1.pos.x - p2.pos.x;
             const dz = p1.pos.z - p2.pos.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < 0.85) {
+            if (dist < 1.1) {
               const pushDir = new THREE.Vector3(dx, 0, dz);
               if (pushDir.lengthSq() < 0.000001) {
                 pushDir.set(Math.random() < 0.5 ? -1 : 1, 0, 0);
               } else {
                 pushDir.normalize();
               }
-              const pushForce = (0.85 - dist) * 2.0;
+              const pushForce = (1.1 - dist) * 2.0;
               
               // Shoulder challenge (no American-football tackle stops)
               if (ballState.heldBy === p2 && p1.team !== p2.team) {
@@ -10815,7 +10924,7 @@ export function initGame(container: HTMLElement) {
               
               // Blocking logic (Offense hits Defense)
               // Positional separation for all player pairs
-              const overlap = 0.85 - dist;
+              const overlap = 1.1 - dist;
               p1.pos.addScaledVector(pushDir, overlap * 0.5);
               p2.pos.addScaledVector(pushDir, -overlap * 0.5);
             }
@@ -11024,6 +11133,7 @@ export function initGame(container: HTMLElement) {
           }
 
           if (collector) {
+            const incomingBallSpeed = Math.hypot(ballState.vel.x, ballState.vel.z);
             ballState.isRolling = false;
             ballState.vel.set(0, 0, 0);
             ballState.rollingTime = 0;
@@ -11052,6 +11162,8 @@ export function initGame(container: HTMLElement) {
                 setCPUTeamDecisionCooldown(collector.team, keeperHoldSeconds);
                 ballState.possessionLockUntil = elapsed + keeperHoldSeconds + 0.55;
                 ballState.pos.y = 0.58;
+              } else if (attemptOneTimeShot(collector, prevHolder, elapsed, incomingBallSpeed, false, 0)) {
+                // One-time shot taken on first touch
               } else {
                 // ── Ground-ball clearance: defender in danger zone clears immediately ──
                 const isCPUDefender = !isGoalkeeper(collector) && ((collector.team === 'A' && !controlA) || (collector.team === 'B' && !controlB));
@@ -12119,8 +12231,10 @@ export function initGame(container: HTMLElement) {
         }
 
         // Rebuild all 6 frame sets
-        const runFrames = PLAYER_PATTERNS.map(pat => buildMergedPlayerFrame(pat, palette));
-        const idleFrames = PLAYER_IDLE_PATTERNS.map(pat => buildMergedPlayerFrame(pat, palette));
+        const sideRunPatterns = isKeeperRole ? KEEPER_PATTERNS : PLAYER_PATTERNS;
+        const sideIdlePatterns = isKeeperRole ? KEEPER_IDLE_PATTERNS : PLAYER_IDLE_PATTERNS;
+        const runFrames = sideRunPatterns.map(pat => buildMergedPlayerFrame(pat, palette));
+        const idleFrames = sideIdlePatterns.map(pat => buildMergedPlayerFrame(pat, palette));
         const frontRunComposed = PLAYER_FRONT_RUN_PATTERNS.map((base, i) =>
           composeFBPattern(base, PLAYER_FRONT_HELMET_MASK, PLAYER_FRONT_VISOR_MASK, PLAYER_FRONT_PANTS_OVERRIDES[String(i)] || PLAYER_FRONT_PANTS_OVERRIDES['0']));
         const frontIdleComposed = PLAYER_FRONT_IDLE_PATTERNS.map(base =>

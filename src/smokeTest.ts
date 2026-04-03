@@ -144,9 +144,9 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
       teamBName: teamB,
     });
 
-    // Start CPU vs CPU at 8× speed
+    // Start CPU vs CPU at normal speed
     game.setCpuVsCpu?.(true);
-    game.setSeriesSpeedMul?.(8);
+    game.setSeriesSpeedMul?.(1);
     game.setRestartDelays?.(0.8, 1.2);
     game.setMenuVisible?.(false);
     game.startKickoffPresentation?.(true);

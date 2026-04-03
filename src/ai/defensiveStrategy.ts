@@ -171,9 +171,9 @@ export function shouldDefenderPress(params: PressDecisionParams) {
   const { playerPos, ballPos, opponentPos, opponentFacingAway, ballIsLoose } = params;
   const ballDist = ballPos.distanceTo(playerPos);
   const opDist = opponentPos.distanceTo(playerPos);
-  if (ballDist < 4.2) return true;
-  if (opDist < 3.2 && opponentFacingAway && ballDist < 5.8) return true;
-  if (ballIsLoose && ballDist < 8.6) return true;
+  if (ballDist < 5.5) return true;
+  if (opDist < 4.5 && opponentFacingAway && ballDist < 7.5) return true;
+  if (ballIsLoose && ballDist < 10.0) return true;
   return false;
 }
 
