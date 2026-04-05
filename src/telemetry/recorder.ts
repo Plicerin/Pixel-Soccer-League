@@ -226,6 +226,10 @@ export class TelemetryRecorder {
     return this.sessionId !== null && this.timerId !== null;
   }
 
+  getSessionId() {
+    return this.sessionId;
+  }
+
   setContext(nextContext: TelemetryContext) {
     this.context = { ...this.context, ...nextContext };
   }
@@ -970,8 +974,10 @@ async function getBestTerminalSnapshot(sessionId: string) {
     .last();
 }
 
-export async function getLatestSessionSummary() {
-  const session = await telemetryDb.sessions.orderBy('startedAt').last();
+export async function getLatestSessionSummary(sessionId?: string | null) {
+  const session = sessionId
+    ? await telemetryDb.sessions.get(sessionId)
+    : await telemetryDb.sessions.orderBy('startedAt').last();
   if (!session) return null;
 
   const snapshot = await getBestTerminalSnapshot(session.id);
@@ -1124,9 +1130,9 @@ async function dumpShotEventsToFile(): Promise<{ ok: boolean; appended: number }
  * so it's written to match-results.json on disk.
  * Silently no-ops in production (endpoint won't exist).
  */
-export async function mirrorMatchSummary(): Promise<boolean> {
+export async function mirrorMatchSummary(sessionId?: string | null): Promise<boolean> {
   try {
-    const summary = await getLatestSessionSummary();
+    const summary = await getLatestSessionSummary(sessionId);
     if (!summary) return false;
     const res = await fetch('/__telemetry/mirror', {
       method: 'POST',

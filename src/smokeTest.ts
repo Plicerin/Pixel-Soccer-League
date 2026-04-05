@@ -6,7 +6,7 @@
  *   window.pslSmokeTest.run(5, false)    // 5 games, same default teams
  *   window.pslSmokeTest.stop()           // abort early
  */
-import { TelemetryRecorder, findRecentCompletedMatches } from './telemetry';
+import { TelemetryRecorder, findRecentCompletedMatches, mirrorMatchSummary } from './telemetry';
 
 const MLS_TEAMS = [
   'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
@@ -153,13 +153,41 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
 
     // Wait for full time
     const finished = await waitForFullTime();
+    const snap = game.getMatchSnapshot?.();
 
-    if (finished) {
-      const snap = game.getMatchSnapshot?.();
+    if (finished && snap) {
       console.log(
         `%c[SmokeTest] Game ${i + 1} FINAL: ${teamA} ${snap?.scoreA ?? '?'} - ${snap?.scoreB ?? '?'} ${teamB}  |  Shots: ${snap?.shotsA}-${snap?.shotsB}  SOG: ${snap?.shotsOnTargetA}-${snap?.shotsOnTargetB}  Saves: ${snap?.savesA}-${snap?.savesB}`,
         'color: #ff0'
       );
+
+      // Directly POST the result to match-results.json (bypass IndexedDB lookup)
+      try {
+        await fetch('/__telemetry/mirror', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: recorder.getSessionId(),
+            startedAt: Date.now(),
+            teamAName: teamA,
+            teamBName: teamB,
+            teamAFormation: formA,
+            teamBFormation: formB,
+            finalScoreA: snap.scoreA ?? 0,
+            finalScoreB: snap.scoreB ?? 0,
+            shotsA: snap.shotsA ?? 0,
+            shotsB: snap.shotsB ?? 0,
+            shotsOnTargetA: snap.shotsOnTargetA ?? 0,
+            shotsOnTargetB: snap.shotsOnTargetB ?? 0,
+            savesA: snap.savesA ?? 0,
+            savesB: snap.savesB ?? 0,
+            phase: snap.phase,
+            half: snap.half,
+            elapsedInHalf: snap.elapsedInHalf,
+            timestamp: Date.now(),
+          }),
+        });
+      } catch { /* dev server may not be running */ }
     } else {
       console.warn(`%c[SmokeTest] Game ${i + 1} did not finish properly.`, 'color: #f80');
     }

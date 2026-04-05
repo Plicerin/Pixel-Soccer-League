@@ -3,6 +3,7 @@ import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
 import MatchHistoryDashboard from './MatchHistoryDashboard';
+import SeasonHub from './SeasonHub';
 import {
   buildDriftDashboard,
   clearTelemetryDatabase,
@@ -151,8 +152,10 @@ const RetroFootball: React.FC = () => {
   const [teamAFormation, setTeamAFormation] = useState('4-2-3-1');
   const [teamBFormation, setTeamBFormation] = useState('4-3-3');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY'>('OPTIONS');
+  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
+  const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
+  const [autoClearances, setAutoClearances] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [selectedDefensePlayer, setSelectedDefensePlayer] = useState<any>(null);
@@ -200,6 +203,8 @@ const RetroFootball: React.FC = () => {
   const [hasActiveMatchSession, setHasActiveMatchSession] = useState(false);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const splashAdvancedRef = useRef(false);
   const [isFullTime, setIsFullTime] = useState(() => {
     try { return sessionStorage.getItem('psl_fullTime') === '1'; } catch { return false; }
   });
@@ -208,6 +213,154 @@ const RetroFootball: React.FC = () => {
   });
   const fullTimeReturnArmedRef = useRef(false);
   const prevIsLive = useRef(false);
+
+  // ── Season mode state ─────────────────────────────────────────
+  const [seasonModeActive, setSeasonModeActive] = useState(false);
+  const [seasonMatchResult, setSeasonMatchResult] = useState<{ scoreA: number; scoreB: number } | null>(null);
+  const seasonReturnRef = useRef(false); // true when returning from a season match
+
+  // ── Gamepad menu navigation ───────────────────────────────────
+  const [menuFocusIndex, setMenuFocusIndex] = useState(2); // default to "1 Player vs CPU"
+  const menuFocusRef = useRef(2);
+  const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
+  const menuGpStickCooldown = useRef(0);
+  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test') => void>(() => {});
+  const setSeasonModeActiveRef = useRef(setSeasonModeActive);
+
+  // Keep ref in sync with state for use in gamepad polling
+  useEffect(() => { menuFocusRef.current = menuFocusIndex; }, [menuFocusIndex]);
+
+  const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
+  const MENU_ITEM_COUNT = 6; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season
+
+  // ── Splash screen dismiss handler ──
+  useEffect(() => {
+    if (!showSplash) return;
+    const dismiss = () => {
+      if (!splashAdvancedRef.current) {
+        splashAdvancedRef.current = true;
+        // Snapshot current gamepad state into menuGpPrev so the menu poll
+        // (which may run later in this same rAF batch) won't see a false "justPressed".
+        const gp0 = navigator.getGamepads()[0];
+        if (gp0) menuGpPrev.current = Array.from(gp0.buttons).map(b => b.pressed);
+        setShowSplash(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { e.preventDefault(); dismiss(); };
+    const onClick = () => dismiss();
+    let rafId = 0;
+    const pollPad = () => {
+      const gp = navigator.getGamepads()[0];
+      if (gp) {
+        const anyBtn = Array.from(gp.buttons).some(b => b.pressed);
+        if (anyBtn) { dismiss(); return; }
+      }
+      rafId = requestAnimationFrame(pollPad);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onClick);
+    rafId = requestAnimationFrame(pollPad);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onClick);
+      cancelAnimationFrame(rafId);
+    };
+  }, [showSplash]);
+
+  useEffect(() => {
+    if (!startMenuVisible) return;
+    let rafId = 0;
+    const poll = () => {
+      // Don't process menu gamepad input while splash screen is still showing
+      if (!splashAdvancedRef.current) {
+        // Keep prev state fresh so no false "just pressed" triggers after splash dismisses
+        const gp0 = navigator.getGamepads()[0];
+        if (gp0) menuGpPrev.current = Array.from(gp0.buttons).map(b => b.pressed);
+        rafId = requestAnimationFrame(poll);
+        return;
+      }
+      const pads = navigator.getGamepads();
+      const gp = pads[0];
+      if (gp) {
+        const btns = Array.from(gp.buttons).map(b => b.pressed);
+        const prev = menuGpPrev.current;
+        const justPressed = (i: number) => btns[i] && !prev[i];
+
+        // Stick / D-pad vertical navigation
+        const stickY = gp.axes[1] ?? 0;
+        const dpadUp = btns[12];
+        const dpadDown = btns[13];
+        const dpadLeft = btns[14];
+        const dpadRight = btns[15];
+        const now = performance.now();
+
+        if (now > menuGpStickCooldown.current) {
+          if (stickY < -0.5 || dpadUp) {
+            setMenuFocusIndex(i => (i - 1 + MENU_ITEM_COUNT) % MENU_ITEM_COUNT);
+            menuGpStickCooldown.current = now + 200;
+          } else if (stickY > 0.5 || dpadDown) {
+            setMenuFocusIndex(i => (i + 1) % MENU_ITEM_COUNT);
+            menuGpStickCooldown.current = now + 200;
+          }
+        }
+
+        // Left/Right on dropdowns to cycle teams
+        if (now > menuGpStickCooldown.current) {
+          const stickX = gp.axes[0] ?? 0;
+          const fi = menuFocusRef.current;
+          if (stickX > 0.5 || dpadRight) {
+            if (fi === 0) {
+              setTeamAName(prev => {
+                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
+                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+              });
+            } else if (fi === 1) {
+              setTeamBName(prev => {
+                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
+                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+              });
+            }
+            menuGpStickCooldown.current = now + 180;
+          } else if (stickX < -0.5 || dpadLeft) {
+            if (fi === 0) {
+              setTeamAName(prev => {
+                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
+                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+              });
+            } else if (fi === 1) {
+              setTeamBName(prev => {
+                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
+                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+              });
+            }
+            menuGpStickCooldown.current = now + 180;
+          }
+        }
+
+        // A / Cross (0) → select current item
+        if (justPressed(0)) {
+          setMenuFocusIndex(fi => {
+            if (fi === 2) handleKickOffRef.current('1p');
+            else if (fi === 3) handleKickOffRef.current('2p');
+            else if (fi === 4) handleKickOffRef.current('cpu');
+            else if (fi === 5) setSeasonModeActiveRef.current(true);
+            return fi;
+          });
+        }
+
+        // Start (9) → quick-start 1P
+        if (justPressed(9)) {
+          handleKickOffRef.current('1p');
+        }
+
+        menuGpPrev.current = btns;
+      }
+      rafId = requestAnimationFrame(poll);
+    };
+    rafId = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(rafId);
+  }, [startMenuVisible]);
+
   const hasActiveMatchSessionRef = useRef(false);
   const prevMatchSnapshotRef = useRef<any | null>(null);
   const autoScanOnPauseRef = useRef(true);
@@ -583,6 +736,10 @@ const RetroFootball: React.FC = () => {
     });
   };
 
+  // Keep gamepad menu refs in sync
+  handleKickOffRef.current = handleKickOff;
+  setSeasonModeActiveRef.current = setSeasonModeActive;
+
   useEffect(() => {
     gameRef.current?.setMenuVisible?.(allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock);
   }, [allowMainMenu, hasActiveMatchSession, isFullTime, sessionMenuLock]);
@@ -903,8 +1060,62 @@ const RetroFootball: React.FC = () => {
     <div className="relative w-screen h-screen overflow-hidden bg-black font-mono">
       <div ref={containerRef} className="w-full h-full" />
 
+      {/* ── Splash Screen ── */}
+      {showSplash && (
+        <div
+          className="absolute inset-0 z-[100] flex items-center justify-center cursor-pointer"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.75) 100%)' }}
+        >
+
+          <div className="flex flex-col items-center gap-6 px-8 py-10 relative"
+            style={{
+              animation: 'splashRiseBounce 0.9s ease-out forwards',
+            }}
+          >
+            {/* Logo */}
+            <div style={{ animation: 'splashFadeIn 0.6s ease-out 0.5s both' }}>
+              <img
+                src="/assets/pixel-soccer-league.webp"
+                alt="Pixel Soccer League"
+                className="w-80 drop-shadow-[0_4px_20px_rgba(34,197,94,0.3)]"
+              />
+            </div>
+
+            {/* Title */}
+            <h1
+              className="text-[22px] uppercase tracking-[0.3em] text-green-300/80 text-center"
+              style={{ animation: 'splashFadeIn 0.5s ease-out 0.7s both' }}
+            >
+              Pixel Soccer League
+            </h1>
+
+            {/* Subtitle — shimmer gradient text */}
+            <p
+              className="text-[18px] uppercase tracking-[0.25em] text-center mt-2"
+              style={{
+                animation: 'splashFadeIn 0.5s ease-out 0.9s both, splashPulse 2s ease-in-out 1.4s infinite',
+                background: 'linear-gradient(90deg, #4ade80, #facc15, #4ade80)',
+                backgroundSize: '200% auto',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Press any button to start
+            </p>
+
+            {/* Hint */}
+            <p
+              className="text-[14px] text-white/20 uppercase tracking-widest mt-1"
+              style={{ animation: 'splashFadeIn 0.4s ease-out 1.2s both' }}
+            >
+              Gamepad · Keyboard · Mouse
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Mode Select Screen */}
-      {allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && (
+      {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
             {/* Title */}
@@ -918,7 +1129,7 @@ const RetroFootball: React.FC = () => {
 
             {/* Team selectors */}
             <div className="w-full flex flex-col gap-3">
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 0 ? 'ring-2 ring-white/60' : ''}`}>
                 <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Home</span>
                 <select
                   value={teamAName}
@@ -929,8 +1140,9 @@ const RetroFootball: React.FC = () => {
                     <option key={`ms-a-${team}`} value={team}>{team}</option>
                   ))}
                 </select>
+                {menuFocusIndex === 0 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
               </div>
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 1 ? 'ring-2 ring-white/60' : ''}`}>
                 <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Away</span>
                 <select
                   value={teamBName}
@@ -941,6 +1153,7 @@ const RetroFootball: React.FC = () => {
                     <option key={`ms-b-${team}`} value={team}>{team}</option>
                   ))}
                 </select>
+                {menuFocusIndex === 1 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
               </div>
             </div>
 
@@ -949,27 +1162,81 @@ const RetroFootball: React.FC = () => {
               <p className="text-white/30 text-[9px] uppercase tracking-widest text-center">Select Mode</p>
               <button
                 onClick={() => handleKickOff('1p')}
-                className="w-full py-3 border border-white/20 text-white text-xs uppercase tracking-widest rounded hover:bg-white hover:text-black transition-colors"
+                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                  menuFocusIndex === 2 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
+                }`}
               >
                 1 Player vs CPU
               </button>
               <button
                 onClick={() => handleKickOff('2p')}
-                className="w-full py-3 border border-white/20 text-white text-xs uppercase tracking-widest rounded hover:bg-white hover:text-black transition-colors"
+                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                  menuFocusIndex === 3 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
+                }`}
               >
                 2 Players — Hot Seat
               </button>
               <button
                 onClick={() => handleKickOff('cpu')}
-                className="w-full py-3 border border-white/20 text-white/50 text-xs uppercase tracking-widest rounded hover:bg-white/10 hover:text-white transition-colors"
+                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                  menuFocusIndex === 4 ? 'bg-white/80 text-black border-white' : 'border-white/20 text-white/50 hover:bg-white/10 hover:text-white'
+                }`}
               >
                 CPU vs CPU
               </button>
+              <div className="border-t border-white/10 pt-3">
+                <button
+                  onClick={() => setSeasonModeActive(true)}
+                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                    menuFocusIndex === 5 ? 'bg-amber-500/40 text-amber-200 border-amber-400' : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
+                  }`}
+                >
+                  Season Mode
+                </button>
+              </div>
             </div>
 
             <p className="text-white/20 text-[9px] uppercase tracking-widest">Press [ESC] in-game for options</p>
           </div>
         </div>
+      )}
+
+      {/* Season Hub Overlay */}
+      {seasonModeActive && !hasActiveMatchSession && !isFullTime && (
+        <SeasonHub
+          onPlayMatch={(home, away) => {
+            // Set up teams for the season match
+            setTeamAName(home);
+            setTeamBName(away);
+            seasonReturnRef.current = true;
+            // Brief timeout to let team name state propagate before kickoff
+            setTimeout(() => {
+              const kitA = (MLS_TEAM_KITS[home] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
+              const kitB = (MLS_TEAM_KITS[away] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+              gameRef.current?.setTeamNames?.(home, away);
+              gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[home] ?? '', MLS_TEAM_LOGOS[away] ?? '');
+              gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
+              gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+              setGameMode('1p');
+              setHasActiveMatchSession(true);
+              setAllowMainMenu(false);
+              setSessionMenuLock(true);
+              gameRef.current?.setHotSeatMode?.(false);
+              gameRef.current?.setTestingMode?.(false);
+              gameRef.current?.setCpuVsCpu?.(false);
+              gameRef.current?.setMenuVisible?.(false);
+              gameRef.current?.startKickoffPresentation?.(true);
+              setIsFullTime(false);
+              setFullTimeScore(null);
+            }, 50);
+          }}
+          onExit={() => {
+            setSeasonModeActive(false);
+            seasonReturnRef.current = false;
+          }}
+          lastMatchResult={seasonMatchResult}
+          clearLastMatchResult={() => setSeasonMatchResult(null)}
+        />
       )}
 
       {/* Full Time / Game Over Overlay */}
@@ -1027,7 +1294,7 @@ const RetroFootball: React.FC = () => {
                 {fullTimeScore.goals.map((g, i) => (
                   <div key={i} className="flex items-center gap-2 text-[11px]">
                     <span className="text-white/40 w-8 text-right tabular-nums">{g.matchMinute}{"'"}</span>
-                    <span style={{ color: g.team === 'A' ? (fullTimeScore.colorA || '#38bdf8') : (fullTimeScore.colorB || '#fb7185') }}>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10" style={{ color: g.team === 'A' ? (fullTimeScore.colorA || '#38bdf8') : (fullTimeScore.colorB || '#fb7185') }}>
                       {g.shirtNumber > 0 ? `#${g.shirtNumber} ` : ''}{g.playerName}
                     </span>
                   </div>
@@ -1043,19 +1310,28 @@ const RetroFootball: React.FC = () => {
                 fullTimeReturnArmedRef.current = false;
                 // Ignore keyboard/programmatic activation; require explicit pointer click.
                 if (!e.isTrusted || !armedByPointer) return;
+
+                if (seasonModeActive && seasonReturnRef.current && fullTimeScore) {
+                  // Season mode: save result and return to season hub
+                  setSeasonMatchResult({ scoreA: fullTimeScore.scoreA, scoreB: fullTimeScore.scoreB });
+                  seasonReturnRef.current = false;
+                }
+
                 setIsFullTime(false);
                 setFullTimeScore(null);
                 try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
-                setAllowMainMenu(true);
+                setAllowMainMenu(!seasonModeActive);
                 setSessionMenuLock(false);
                 gameRef.current?.resetMatch?.();
                 setGameMode(null);
                 setHasActiveMatchSession(false);
-                gameRef.current?.setMenuVisible?.(true);
+                if (!seasonModeActive) {
+                  gameRef.current?.setMenuVisible?.(true);
+                }
               }}
               className="mt-2 w-full py-3 border border-white/20 text-white text-xs uppercase tracking-widest rounded hover:bg-white hover:text-black transition-colors"
             >
-              Return to Main Menu
+              {seasonModeActive ? 'Return to Season' : 'Return to Main Menu'}
             </button>
           </div>
         </div>
@@ -1068,6 +1344,7 @@ const RetroFootball: React.FC = () => {
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <div className="flex gap-4">
                 <button onClick={() => setActiveTab('OPTIONS')} className={`text-white text-sm ${activeTab === 'OPTIONS' ? 'font-bold' : 'text-white/40'}`}>OPTIONS</button>
+                <button onClick={() => setActiveTab('CONTROLS')} className={`text-white text-sm ${activeTab === 'CONTROLS' ? 'font-bold' : 'text-white/40'}`}>CONTROLS</button>
                 <button onClick={() => setActiveTab('STATS')} className={`text-white text-sm ${activeTab === 'STATS' ? 'font-bold' : 'text-white/40'}`}>STATS</button>
                 <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
                 <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
@@ -1382,6 +1659,91 @@ const RetroFootball: React.FC = () => {
                           ))}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === 'CONTROLS' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Auto Switching</h3>
+                    <p className="text-white/30 text-[9px] mb-2">Controls when the game automatically switches which player you control.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(['AUTOMATIC', 'AIR_BALLS', 'LOOSE_BALLS', 'MANUAL'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setAutoSwitching(mode);
+                            gameRef.current?.setAutoSwitching?.(mode);
+                          }}
+                          className={`px-3 py-1.5 text-[10px] border rounded ${
+                            autoSwitching === mode ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                          } transition-colors`}
+                        >
+                          {mode.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-white/25 text-[8px] space-y-0.5">
+                      <p><span className="text-white/40 font-bold">AUTOMATIC</span> — Always switches to the best defender near the ball</p>
+                      <p><span className="text-white/40 font-bold">AIR BALLS</span> — Only switches on crosses and lofted balls</p>
+                      <p><span className="text-white/40 font-bold">LOOSE BALLS</span> — Only switches on 50/50 and scramble situations</p>
+                      <p><span className="text-white/40 font-bold">MANUAL</span> — Never auto-switches, use X / LB / RB to switch manually</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Auto Clearances</h3>
+                    <p className="text-white/30 text-[9px] mb-2">When ON, your defenders will automatically clear the ball when under heavy pressure in the defensive third.</p>
+                    <label className="inline-flex items-center gap-2 text-[10px] text-white/70 uppercase tracking-widest cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="accent-white"
+                        checked={autoClearances}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setAutoClearances(enabled);
+                          gameRef.current?.setAutoClearances?.(enabled);
+                        }}
+                      />
+                      Auto Clearances {autoClearances ? 'ON' : 'OFF'}
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Gamepad</h3>
+                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
+                      <p><span className="text-white/60">Left Stick</span> — Move player</p>
+                      <p><span className="text-white/60">A / Cross</span> — Pass (hold to charge) / Switch player</p>
+                      <p><span className="text-white/60">B / Circle</span> — Shoot (hold to charge)</p>
+                      <p><span className="text-white/60">X / Square</span> — Switch to nearest player</p>
+                      <p><span className="text-white/60">Y / Triangle</span> — Chip pass (hold to charge)</p>
+                      <p><span className="text-white/60">LB / RB</span> — Cycle player left / right</p>
+                      <p><span className="text-white/60">RT</span> — Sprint</p>
+                      <p><span className="text-white/60">Start</span> — Pause</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Keyboard (Home)</h3>
+                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
+                      <p><span className="text-white/60">WASD</span> — Move player</p>
+                      <p><span className="text-white/60">Shift</span> — Sprint</p>
+                      <p><span className="text-white/60">F</span> — Shoot (hold to charge)</p>
+                      <p><span className="text-white/60">G</span> — Pass (hold to charge)</p>
+                      <p><span className="text-white/60">Shift+G</span> — Chip pass</p>
+                      <p><span className="text-white/60">Q / E</span> — Cycle player</p>
+                      <p><span className="text-white/60">Space</span> — Switch to nearest / Confirm restart</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Keyboard (Away)</h3>
+                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
+                      <p><span className="text-white/60">Arrows</span> — Move player</p>
+                      <p><span className="text-white/60">.</span> — Shoot &nbsp; <span className="text-white/60">,</span> — Pass</p>
+                      <p><span className="text-white/60">[ / ]</span> — Cycle player</p>
                     </div>
                   </div>
                 </div>

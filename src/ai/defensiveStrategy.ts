@@ -112,7 +112,7 @@ export function applyDefensiveDisciplineBounds(params: DefensiveBoundsParams) {
 
   if (['CB', 'LB', 'RB', 'DM', 'CM'].includes(upperRole)) {
     const maxAheadX = ballPos.x - attackSign * 2.8;
-    bounded.x = attackSign > 0 ? Math.min(bounded.x, maxAheadX) : Math.max(bounded.x, maxAheadX);
+    bounded.x = attackSign > 0 ? Math.max(bounded.x, maxAheadX) : Math.min(bounded.x, maxAheadX);
     bounded.z = clamp(bounded.z, -24.0, 24.0);
   }
 
