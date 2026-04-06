@@ -3,18 +3,24 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Center } from '@react-three/drei';
 import * as THREE from 'three';
 import { ChevronLeft, ChevronRight, Download, Eraser, Check } from 'lucide-react';
-import { PLAYER_PATTERNS, PLAYER_IDLE_PATTERNS, PLAYER_FRONT_RUN_COMPOSED, PLAYER_FRONT_IDLE_COMPOSED, PLAYER_BACK_RUN_COMPOSED, PLAYER_BACK_IDLE_COMPOSED, TEAM_PALETTES, PlayerPalette } from '../gameEngine';
+import { PLAYER_PATTERNS, PLAYER_IDLE_PATTERNS, PLAYER_FRONT_RUN_COMPOSED, PLAYER_FRONT_IDLE_COMPOSED, PLAYER_BACK_RUN_COMPOSED, PLAYER_BACK_IDLE_COMPOSED, KEEPER_PATTERNS, KEEPER_IDLE_PATTERNS, KEEPER_DIVE_LEFT_PATTERNS, KEEPER_DIVE_RIGHT_PATTERNS, KEEPER_DIVE_UP_PATTERNS, KEEPER_DIVE_DOWN_PATTERNS, TEAM_PALETTES, PlayerPalette } from '../gameEngine';
 
-type FrameType = 'side-run' | 'side-idle' | 'front-run' | 'front-idle' | 'back-run' | 'back-idle';
+type FrameType = 'side-run' | 'side-idle' | 'front-run' | 'front-idle' | 'back-run' | 'back-idle' | 'gk-run' | 'gk-idle' | 'gk-dive-left' | 'gk-dive-right' | 'gk-dive-up' | 'gk-dive-down';
 type PaletteKey = 'teamA' | 'teamB' | 'keeperA' | 'keeperB';
 
-const FRAME_TYPE_DATA: Record<FrameType, { label: string; patterns: string[][] }> = {
-  'side-run':   { label: 'Side Run',   patterns: PLAYER_PATTERNS },
-  'side-idle':  { label: 'Side Idle',  patterns: PLAYER_IDLE_PATTERNS },
-  'front-run':  { label: 'Front Run',  patterns: PLAYER_FRONT_RUN_COMPOSED },
-  'front-idle': { label: 'Front Idle', patterns: PLAYER_FRONT_IDLE_COMPOSED },
-  'back-run':   { label: 'Back Run',   patterns: PLAYER_BACK_RUN_COMPOSED },
-  'back-idle':  { label: 'Back Idle',  patterns: PLAYER_BACK_IDLE_COMPOSED },
+const FRAME_TYPE_DATA: Record<FrameType, { label: string; patterns: string[][]; group?: 'player' | 'keeper' }> = {
+  'side-run':       { label: 'Side Run',       patterns: PLAYER_PATTERNS,               group: 'player' },
+  'side-idle':      { label: 'Side Idle',      patterns: PLAYER_IDLE_PATTERNS,          group: 'player' },
+  'front-run':      { label: 'Front Run',      patterns: PLAYER_FRONT_RUN_COMPOSED,     group: 'player' },
+  'front-idle':     { label: 'Front Idle',     patterns: PLAYER_FRONT_IDLE_COMPOSED,    group: 'player' },
+  'back-run':       { label: 'Back Run',       patterns: PLAYER_BACK_RUN_COMPOSED,      group: 'player' },
+  'back-idle':      { label: 'Back Idle',      patterns: PLAYER_BACK_IDLE_COMPOSED,     group: 'player' },
+  'gk-run':         { label: 'GK Run',         patterns: KEEPER_PATTERNS,               group: 'keeper' },
+  'gk-idle':        { label: 'GK Idle',        patterns: KEEPER_IDLE_PATTERNS,          group: 'keeper' },
+  'gk-dive-left':   { label: 'GK Dive Left',   patterns: KEEPER_DIVE_LEFT_PATTERNS,    group: 'keeper' },
+  'gk-dive-right':  { label: 'GK Dive Right',  patterns: KEEPER_DIVE_RIGHT_PATTERNS,   group: 'keeper' },
+  'gk-dive-up':     { label: 'GK Dive Up',     patterns: KEEPER_DIVE_UP_PATTERNS,      group: 'keeper' },
+  'gk-dive-down':   { label: 'GK Dive Down',   patterns: KEEPER_DIVE_DOWN_PATTERNS,    group: 'keeper' },
 };
 
 const PALETTE_OPTIONS: { key: PaletteKey; label: string }[] = [
@@ -238,17 +244,23 @@ const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }>
             </div>
 
             {/* Frame Type Tabs */}
-            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 gap-1 flex-wrap">
-                {(Object.entries(FRAME_TYPE_DATA) as [FrameType, { label: string }][]).map(([key, { label }]) => (
-                    <button
-                        key={key}
-                        onClick={() => handleFrameTypeChange(key)}
-                        className={`px-3 py-1.5 text-[10px] rounded-md uppercase font-bold transition-all ${frameType === key ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                    >
-                        {label}
-                        <span className="ml-1 opacity-50">({FRAME_TYPE_DATA[key].patterns.length})</span>
-                    </button>
-                ))}
+            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 gap-1 flex-wrap items-center">
+                {(Object.entries(FRAME_TYPE_DATA) as [FrameType, { label: string; group?: string }][]).map(([key, { label, group }], i, arr) => {
+                    const prev = i > 0 ? (arr[i - 1][1] as { group?: string }).group : undefined;
+                    const showSep = prev && group && prev !== group;
+                    return (
+                        <React.Fragment key={key}>
+                            {showSep && <div className="w-px h-5 bg-white/10 mx-1" />}
+                            <button
+                                onClick={() => handleFrameTypeChange(key)}
+                                className={`px-3 py-1.5 text-[10px] rounded-md uppercase font-bold transition-all ${frameType === key ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+                            >
+                                {label}
+                                <span className="ml-1 opacity-50">({FRAME_TYPE_DATA[key].patterns.length})</span>
+                            </button>
+                        </React.Fragment>
+                    );
+                })}
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8">

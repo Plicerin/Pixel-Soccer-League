@@ -113,11 +113,12 @@ export function getForwardRunTriggerBoost(
   distanceAheadOfBall: number,
 ) {
   const normalized = normalizeRole(role);
-  if (!normalized) return 1.0;
+  const upper = (role || '').toUpperCase();
   const isFrontLine = normalized === 'LW' || normalized === 'LM' || normalized === 'ST' || normalized === 'RM' || normalized === 'RW';
-  if (!isFrontLine) return 1.0;
+  const isMidfield = normalized === 'CM' || upper === 'DM';
+  if (!isFrontLine && !isMidfield) return 1.0;
 
-  const progressBurst = ballForwardVelocity > 3.2 ? 1.18 : (ballForwardVelocity > 2.1 ? 1.1 : 1.0);
+  const progressBurst = ballForwardVelocity > 3.2 ? (isFrontLine ? 1.18 : 1.12) : (ballForwardVelocity > 2.1 ? (isFrontLine ? 1.1 : 1.06) : 1.0);
   const timingBonus = distanceAheadOfBall > 2.8 ? 1.07 : 1.0;
   return clamp(progressBurst * timingBonus, 1.0, 1.28);
 }

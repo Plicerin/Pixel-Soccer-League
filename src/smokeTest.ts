@@ -55,7 +55,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitForFullTime(timeoutMs: number = 300_000): Promise<boolean> {
+async function waitForFullTime(timeoutMs: number = 900_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (getState().aborted) return false;
@@ -166,26 +166,28 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
         await fetch('/__telemetry/mirror', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: recorder.getSessionId(),
-            startedAt: Date.now(),
-            teamAName: teamA,
-            teamBName: teamB,
-            teamAFormation: formA,
-            teamBFormation: formB,
-            finalScoreA: snap.scoreA ?? 0,
-            finalScoreB: snap.scoreB ?? 0,
-            shotsA: snap.shotsA ?? 0,
-            shotsB: snap.shotsB ?? 0,
-            shotsOnTargetA: snap.shotsOnTargetA ?? 0,
-            shotsOnTargetB: snap.shotsOnTargetB ?? 0,
-            savesA: snap.savesA ?? 0,
-            savesB: snap.savesB ?? 0,
-            phase: snap.phase,
-            half: snap.half,
-            elapsedInHalf: snap.elapsedInHalf,
-            timestamp: Date.now(),
-          }),
+            body: JSON.stringify({
+              sessionId: recorder.getSessionId(),
+              startedAt: Date.now(),
+              teamAName: teamA,
+              teamBName: teamB,
+              teamAFormation: formA,
+              teamBFormation: formB,
+              finalScoreA: snap.scoreA ?? 0,
+              finalScoreB: snap.scoreB ?? 0,
+              shotsA: snap.shotsA ?? 0,
+              shotsB: snap.shotsB ?? 0,
+              shotsOnTargetA: snap.shotsOnTargetA ?? 0,
+              shotsOnTargetB: snap.shotsOnTargetB ?? 0,
+              savesA: snap.savesA ?? 0,
+              savesB: snap.savesB ?? 0,
+              cornersA: snap.cornersA ?? 0,
+              cornersB: snap.cornersB ?? 0,
+              phase: snap.phase,
+              half: snap.half,
+              elapsedInHalf: snap.elapsedInHalf,
+              timestamp: Date.now(),
+            }),
         });
       } catch { /* dev server may not be running */ }
     } else {

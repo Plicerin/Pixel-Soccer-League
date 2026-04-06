@@ -3,6 +3,7 @@ import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
 import MatchHistoryDashboard from './MatchHistoryDashboard';
+import LiveTelemetry from './LiveTelemetry';
 import SeasonHub from './SeasonHub';
 import {
   buildDriftDashboard,
@@ -94,6 +95,8 @@ const MLS_TEAM_KITS: Record<string, { home: { shirt: number; pants: number }; aw
   'Vancouver Whitecaps':     { home: { shirt: 0x0B63A0, pants: 0xFFFFFF }, away: { shirt: 0xFFFFFF, pants: 0x0B63A0 } },
 };
 
+const MLS_TEAM_NAMES = Object.keys(MLS_TEAM_KITS);
+
 function getTeamColor(teamName: string): string {
   const kit = MLS_TEAM_KITS[teamName];
   if (!kit) return '#38bdf8'; // fallback sky-400
@@ -152,7 +155,7 @@ const RetroFootball: React.FC = () => {
   const [teamAFormation, setTeamAFormation] = useState('4-2-3-1');
   const [teamBFormation, setTeamBFormation] = useState('4-3-3');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY'>('OPTIONS');
+  const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
   const [autoClearances, setAutoClearances] = useState(true);
@@ -204,7 +207,9 @@ const RetroFootball: React.FC = () => {
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [splashAudioStarted, setSplashAudioStarted] = useState(false);
   const splashAdvancedRef = useRef(false);
+  const splashAudioStartedRef = useRef(false);
   const [isFullTime, setIsFullTime] = useState(() => {
     try { return sessionStorage.getItem('psl_fullTime') === '1'; } catch { return false; }
   });
@@ -224,7 +229,7 @@ const RetroFootball: React.FC = () => {
   const menuFocusRef = useRef(2);
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
   const menuGpStickCooldown = useRef(0);
-  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test') => void>(() => {});
+  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test', overrideTeams?: { a: string; b: string }) => void>(() => {});
   const setSeasonModeActiveRef = useRef(setSeasonModeActive);
 
   // Keep ref in sync with state for use in gamepad polling
@@ -237,7 +242,15 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     if (!showSplash) return;
     const dismiss = () => {
+      if (!splashAudioStartedRef.current) {
+        // First press: start audio, stay on splash
+        splashAudioStartedRef.current = true;
+        setSplashAudioStarted(true);
+        gameRef.current?.splashMusicStart?.();
+        return;
+      }
       if (!splashAdvancedRef.current) {
+        // Second press: advance to menu
         splashAdvancedRef.current = true;
         // Snapshot current gamepad state into menuGpPrev so the menu poll
         // (which may run later in this same rAF batch) won't see a false "justPressed".
@@ -342,7 +355,10 @@ const RetroFootball: React.FC = () => {
           setMenuFocusIndex(fi => {
             if (fi === 2) handleKickOffRef.current('1p');
             else if (fi === 3) handleKickOffRef.current('2p');
-            else if (fi === 4) handleKickOffRef.current('cpu');
+            else if (fi === 4) {
+              const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
+              handleKickOffRef.current('cpu', { a: shuffled[0], b: shuffled[1] });
+            }
             else if (fi === 5) setSeasonModeActiveRef.current(true);
             return fi;
           });
@@ -681,12 +697,16 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setUniform(team, index);
   };
 
-  const handleKickOff = (mode: '1p' | '2p' | 'cpu' | 'test') => {
+  const handleKickOff = (mode: '1p' | '2p' | 'cpu' | 'test', overrideTeams?: { a: string; b: string }) => {
     const isHotSeat = mode === '2p';
     const isCpu = mode === 'cpu';
     const isTesting = mode === 'test';
-    const nextTeamAName = teamAName;
-    const nextTeamBName = teamBName;
+    const nextTeamAName = overrideTeams?.a ?? teamAName;
+    const nextTeamBName = overrideTeams?.b ?? teamBName;
+    if (overrideTeams) {
+      setTeamAName(overrideTeams.a);
+      setTeamBName(overrideTeams.b);
+    }
 
     const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
     const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
@@ -725,6 +745,7 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setHotSeatMode?.(isHotSeat || isTesting);
     gameRef.current?.setTestingMode?.(isTesting);
     gameRef.current?.setCpuVsCpu?.(isCpu);
+    gameRef.current?.splashMusicStop?.();
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
     setIsFullTime(false);
@@ -1100,7 +1121,7 @@ const RetroFootball: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Press any button to start
+              {splashAudioStarted ? 'Press again to continue' : 'Press any button to start'}
             </p>
 
             {/* Hint */}
@@ -1177,7 +1198,10 @@ const RetroFootball: React.FC = () => {
                 2 Players — Hot Seat
               </button>
               <button
-                onClick={() => handleKickOff('cpu')}
+                onClick={() => {
+                  const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
+                  handleKickOff('cpu', { a: shuffled[0], b: shuffled[1] });
+                }}
                 className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
                   menuFocusIndex === 4 ? 'bg-white/80 text-black border-white' : 'border-white/20 text-white/50 hover:bg-white/10 hover:text-white'
                 }`}
@@ -1224,6 +1248,7 @@ const RetroFootball: React.FC = () => {
               gameRef.current?.setHotSeatMode?.(false);
               gameRef.current?.setTestingMode?.(false);
               gameRef.current?.setCpuVsCpu?.(false);
+              gameRef.current?.splashMusicStop?.();
               gameRef.current?.setMenuVisible?.(false);
               gameRef.current?.startKickoffPresentation?.(true);
               setIsFullTime(false);
@@ -1349,6 +1374,7 @@ const RetroFootball: React.FC = () => {
                 <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
                 <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
                 <button onClick={() => setActiveTab('HOW_TO_PLAY')} className={`text-white text-sm ${activeTab === 'HOW_TO_PLAY' ? 'font-bold' : 'text-white/40'}`}>HOW TO PLAY</button>
+                <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
               </div>
               <button 
                 onClick={() => setIsOptionsOpen(false)}
@@ -1849,6 +1875,8 @@ const RetroFootball: React.FC = () => {
                   </div>
                 </div>
               </div>
+            ) : activeTab === 'LIVE_TELEMETRY' ? (
+              <LiveTelemetry gameRef={gameRef} />
             ) : (
               <div className="max-h-[70vh] overflow-y-auto">
                 <FrameViewer>
