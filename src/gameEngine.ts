@@ -47,6 +47,9 @@ export const M = {
   teamAKeeperPants: new THREE.MeshStandardMaterial({ color: 0x7fff00, roughness: 0.72, metalness: 0.0 }),
   teamBKeeperShirt: new THREE.MeshStandardMaterial({ color: 0xff7a00, roughness: 0.72, metalness: 0.0 }),
   teamBKeeperPants: new THREE.MeshStandardMaterial({ color: 0xff7a00, roughness: 0.72, metalness: 0.0 }),
+  refShirt:  new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.0 }),
+  refPants:  new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.0 }),
+  refVisor:  new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.0 }),
 };
 
 export type PlayerPalette = { shirt: THREE.Material; pants: THREE.Material; hair: THREE.Material; visor: THREE.Material };
@@ -55,6 +58,7 @@ export const TEAM_PALETTES: Record<string, PlayerPalette> = {
   teamB: { shirt: M.teamBShirt, pants: M.teamBPants, hair: M.hairBlack, visor: M.teamBVisor },
   keeperA: { shirt: M.teamAKeeperShirt, pants: M.teamAKeeperPants, hair: M.hairBlack, visor: M.teamAVisor },
   keeperB: { shirt: M.teamBKeeperShirt, pants: M.teamBKeeperPants, hair: M.hairBlack, visor: M.teamBVisor },
+  referee: { shirt: M.refShirt, pants: M.refPants, hair: M.hairBlack, visor: M.refVisor },
 };
 
 export const PLAYER_IDLE_PATTERNS = [
@@ -205,7 +209,7 @@ export const PLAYER_BACK_IDLE_COMPOSED = PLAYER_BACK_IDLE_PATTERNS.map(base =>
 );
 
 const PLAYER_VOXEL_SIZE = 0.0665;
-const PLAYER_SPRITE_CENTER_Y = PLAYER_VOXEL_SIZE * 7.5;
+const PLAYER_SPRITE_CENTER_Y = PLAYER_VOXEL_SIZE * 5.25; // lowered so feet sit at ground level (group.y=0.15)
 
 export function buildPlayerFrame(pattern: string[], palette: { shirt: THREE.Material; pants: THREE.Material; hair: THREE.Material; visor: THREE.Material }) {
   const group = new THREE.Group();
@@ -370,6 +374,11 @@ export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
 export function initGame(container: HTMLElement) {
   // --- Sound Manager ---
   const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  // Master bus: simple gain node for headroom — no DynamicsCompressor (causes pumping artifacts)
+  const _masterGain = audioCtx.createGain();
+  _masterGain.gain.value = 0.6;             // headroom so overlapping sounds don't clip hard
+  _masterGain.connect(audioCtx.destination);
+  const audioDest: AudioNode = _masterGain;  // all sounds connect here instead of audioCtx.destination
   let _whistleBuffer: AudioBuffer | null = null;
   let _kickBuffer: AudioBuffer | null = null;
   let _shotBuffer: AudioBuffer | null = null;
@@ -377,7 +386,16 @@ export function initGame(container: HTMLElement) {
   let _catchBuffer: AudioBuffer | null = null;
   let _splashMusicBuffer: AudioBuffer | null = null;
   let _welcomeBuffer: AudioBuffer | null = null;
-  const _crowdLoop = { source: null as AudioBufferSourceNode | null, gain: null as GainNode | null, baseVolume: 0.60, shouldPlay: false };
+  let _kickoffAnnouncerBuffer: AudioBuffer | null = null;
+  let _cornerAnnouncerBuffer: AudioBuffer | null = null;
+  let _throwAnnouncerBuffer: AudioBuffer | null = null;
+  let _penaltyAnnouncerBuffer: AudioBuffer | null = null;
+  let _goalAnnouncerBuffer: AudioBuffer | null = null;
+  let _offsideAnnouncerBuffer: AudioBuffer | null = null;
+  let _foulAnnouncerBuffer: AudioBuffer | null = null;
+  let _outOfBoundsBuffer: AudioBuffer | null = null;
+  let _crowdGoalBuffer: AudioBuffer | null = null;
+  const _crowdLoop = { source: null as AudioBufferSourceNode | null, gain: null as GainNode | null, baseVolume: 0.85, shouldPlay: false };
   const _splashMusic = { source: null as AudioBufferSourceNode | null, gain: null as GainNode | null };
   // When AudioContext resumes after suspension, restart crowd if it was supposed to be playing
   audioCtx.addEventListener('statechange', () => {
@@ -389,37 +407,82 @@ export function initGame(container: HTMLElement) {
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _whistleBuffer = decoded; })
-    .catch(() => { /* whistle.mp3 not available, fall back to synth */ });
+    .catch(() => {});
   fetch('/kick.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _kickBuffer = decoded; })
-    .catch(() => { /* kick.mp3 not available, fall back to synth */ });
+    .catch(() => {});
   fetch('/shot.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _shotBuffer = decoded; })
-    .catch(() => { /* shot.mp3 not available, fall back to kick */ });
+    .catch(() => {});
   fetch('/crowd.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _crowdBuffer = decoded; })
-    .catch(() => { /* crowd.mp3 not available */ });
+    .catch(() => {});
   fetch('/soft-body-impact.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _catchBuffer = decoded; })
-    .catch(() => { /* soft-body-impact.mp3 not available, fall back to synth */ });
+    .catch(() => {});
   fetch('/Pixel Soccer League.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _splashMusicBuffer = decoded; })
-    .catch(() => { /* splash music not available */ });
+    .catch(() => {});
   fetch('/welcome.mp3')
     .then(r => r.arrayBuffer())
     .then(buf => audioCtx.decodeAudioData(buf))
     .then(decoded => { _welcomeBuffer = decoded; })
-    .catch(() => { /* welcome announcer not available */ });
+    .catch(() => {});
+  fetch('/kickoff.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _kickoffAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/corner.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _cornerAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/throw.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _throwAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/penalty.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _penaltyAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/goal.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _goalAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/crowd%20goal.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _crowdGoalBuffer = decoded; })
+    .catch(() => {});
+  fetch('/offisides.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _offsideAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/foul.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _foulAnnouncerBuffer = decoded; })
+    .catch(() => {});
+  fetch('/out.mp3')
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => { _outOfBoundsBuffer = decoded; })
+    .catch(() => {});
   function playSound(freq: number, type: OscillatorType, duration: number, volume: number = 0.1) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const osc = audioCtx.createOscillator();
@@ -429,9 +492,10 @@ export function initGame(container: HTMLElement) {
     gain.gain.setValueAtTime(volume, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(audioDest);
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
+    osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch {} };
   }
 
   const sounds = {
@@ -444,9 +508,10 @@ export function initGame(container: HTMLElement) {
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
         src.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(audioDest);
         src.start();
         src.stop(audioCtx.currentTime + 0.4);
+        src.onended = () => { try { src.disconnect(); gain.disconnect(); } catch {} };
       } else {
         playSound(400, 'sine', 0.2, 0.05);
       }
@@ -460,9 +525,10 @@ export function initGame(container: HTMLElement) {
         gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
         src.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(audioDest);
         src.start();
         src.stop(audioCtx.currentTime + 0.5);
+        src.onended = () => { try { src.disconnect(); gain.disconnect(); } catch {} };
       } else {
         sounds.kick();
       }
@@ -481,9 +547,10 @@ export function initGame(container: HTMLElement) {
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
         src.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(audioDest);
         src.start();
         src.stop(audioCtx.currentTime + 0.4);
+        src.onended = () => { try { src.disconnect(); gain.disconnect(); } catch {} };
       } else {
         playSound(200, 'triangle', 0.1, 0.08);
       }
@@ -496,8 +563,9 @@ export function initGame(container: HTMLElement) {
         const gain = audioCtx.createGain();
         gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
         src.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(audioDest);
         src.start();
+        src.onended = () => { try { src.disconnect(); gain.disconnect(); } catch {} };
       } else {
         playSound(1460, 'square', 0.08, 0.06);
         setTimeout(() => playSound(1280, 'square', 0.08, 0.055), 90);
@@ -509,45 +577,48 @@ export function initGame(container: HTMLElement) {
       setTimeout(() => playSound(659, 'square', 0.4, 0.05), 400);
     },
     crowdRoar: () => {
-      // Surge the ambient crowd loop on goals; swell matches celebration duration
+      // Swell the background crowd loop on goal — ramp up then ease back down
       if (_crowdLoop.gain) {
-        const swellDuration = goalRestartDelaySec;
-        const peakHold = swellDuration * 0.5;
-        const fadeBack = swellDuration * 0.5;
-        const roarPeak = Math.min(1.0, Math.max(0.70, _crowdLoop.baseVolume * 1.5));
-        _crowdLoop.gain.gain.cancelScheduledValues(audioCtx.currentTime);
-        _crowdLoop.gain.gain.setValueAtTime(_crowdLoop.gain.gain.value, audioCtx.currentTime);
-        _crowdLoop.gain.gain.linearRampToValueAtTime(roarPeak, audioCtx.currentTime + 0.3);
-        _crowdLoop.gain.gain.setValueAtTime(roarPeak, audioCtx.currentTime + peakHold);
-        _crowdLoop.gain.gain.linearRampToValueAtTime(_crowdLoop.baseVolume, audioCtx.currentTime + peakHold + fadeBack);
-      } else {
-        // Crowd loop not yet started — try starting it now
-        sounds.crowdStart();
+        const g = _crowdLoop.gain;
+        const now = audioCtx.currentTime;
+        const peak = Math.min(_crowdLoop.baseVolume * 1.8, 1.0);
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(peak, now + 0.4);           // swell up
+        g.gain.setValueAtTime(peak, now + 3.5);                    // hold
+        g.gain.linearRampToValueAtTime(_crowdLoop.baseVolume, now + 6.0); // ease back
       }
     },
     crowdStart: () => {
       _crowdLoop.shouldPlay = true;
       if (_crowdLoop.source) return; // already playing
       if (!_crowdBuffer) return;
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const src = audioCtx.createBufferSource();
-      src.buffer = _crowdBuffer;
-      src.loop = true;
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(_crowdLoop.baseVolume, audioCtx.currentTime + 1.5);
-      src.connect(gain);
-      gain.connect(audioCtx.destination);
-      src.start();
-      _crowdLoop.source = src;
-      _crowdLoop.gain = gain;
-      // If the source ends unexpectedly (e.g. context interruption), clear refs so it can restart
-      src.onended = () => {
-        if (_crowdLoop.source === src) {
-          _crowdLoop.source = null;
-          _crowdLoop.gain = null;
-        }
+      const startCrowd = () => {
+        if (_crowdLoop.source) return;
+        if (!_crowdBuffer) return;
+        const src = audioCtx.createBufferSource();
+        src.buffer = _crowdBuffer;
+        src.loop = true;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(_crowdLoop.baseVolume, audioCtx.currentTime + 1.5);
+        src.connect(gain);
+        gain.connect(audioDest);
+        src.start();
+        _crowdLoop.source = src;
+        _crowdLoop.gain = gain;
+        src.onended = () => {
+          if (_crowdLoop.source === src) {
+            _crowdLoop.source = null;
+            _crowdLoop.gain = null;
+          }
+        };
       };
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(startCrowd);
+      } else {
+        startCrowd();
+      }
     },
     crowdStop: () => {
       _crowdLoop.shouldPlay = false;
@@ -556,43 +627,131 @@ export function initGame(container: HTMLElement) {
       _crowdLoop.gain.gain.setValueAtTime(_crowdLoop.gain.gain.value, audioCtx.currentTime);
       _crowdLoop.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2.0);
       const src = _crowdLoop.source;
-      setTimeout(() => { try { src.stop(); } catch {} }, 2200);
+      const g = _crowdLoop.gain;
       _crowdLoop.source = null;
       _crowdLoop.gain = null;
+      setTimeout(() => { try { src.stop(); src.disconnect(); g.disconnect(); } catch {} }, 2200);
     },
     incomplete: () => playSound(100, 'sawtooth', 0.3, 0.05),
     select: () => playSound(800, 'sine', 0.05, 0.02),
     splashMusicStart: () => {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      // Background music (looping)
-      if (_splashMusicBuffer && !_splashMusic.source) {
-        const src = audioCtx.createBufferSource();
-        src.buffer = _splashMusicBuffer;
-        src.loop = true;
-        const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0.30, audioCtx.currentTime);
-        src.connect(gain);
-        gain.connect(audioCtx.destination);
-        src.start();
-        _splashMusic.source = src;
-        _splashMusic.gain = gain;
-        src.onended = () => {
-          if (_splashMusic.source === src) {
-            _splashMusic.source = null;
-            _splashMusic.gain = null;
-          }
-        };
+      const doStart = () => {
+        // Background music (looping)
+        if (_splashMusicBuffer && !_splashMusic.source) {
+          const src = audioCtx.createBufferSource();
+          src.buffer = _splashMusicBuffer;
+          src.loop = true;
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0.50, audioCtx.currentTime);
+          src.connect(gain);
+          gain.connect(audioDest);
+          src.start();
+          _splashMusic.source = src;
+          _splashMusic.gain = gain;
+          src.onended = () => {
+            if (_splashMusic.source === src) {
+              _splashMusic.source = null;
+              _splashMusic.gain = null;
+            }
+          };
+        }
+        // Welcome announcer (one-shot, delayed 1s after music)
+        if (_welcomeBuffer) {
+          const src = audioCtx.createBufferSource();
+          src.buffer = _welcomeBuffer;
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0.80, audioCtx.currentTime + 1.0);
+          src.connect(gain);
+          gain.connect(audioDest);
+          src.start(audioCtx.currentTime + 1.0);
+          src.onended = () => { try { src.disconnect(); gain.disconnect(); } catch {} };
+        }
+      };
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(doStart);
+      } else {
+        doStart();
       }
-      // Welcome announcer (one-shot, delayed 1s after music)
-      if (_welcomeBuffer) {
-        const src = audioCtx.createBufferSource();
-        src.buffer = _welcomeBuffer;
-        const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0.80, audioCtx.currentTime + 1.0);
-        src.connect(gain);
-        gain.connect(audioCtx.destination);
-        src.start(audioCtx.currentTime + 1.0);
-      }
+    },
+    kickoffAnnouncer: () => {
+      if (!_kickoffAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _kickoffAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    cornerAnnouncer: () => {
+      if (!_cornerAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _cornerAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    throwAnnouncer: () => {
+      if (!_throwAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _throwAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    penaltyAnnouncer: () => {
+      if (!_penaltyAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _penaltyAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    goalAnnouncer: () => {
+      if (!_goalAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _goalAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.85;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    offsideAnnouncer: () => {
+      if (!_offsideAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _offsideAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    foulAnnouncer: () => {
+      if (!_foulAnnouncerBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _foulAnnouncerBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
+    },
+    outOfBounds: () => {
+      if (!_outOfBoundsBuffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = _outOfBoundsBuffer;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.80;
+      src.connect(g).connect(audioDest);
+      src.start();
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch {} };
     },
     splashMusicStop: () => {
       if (!_splashMusic.source || !_splashMusic.gain) return;
@@ -617,8 +776,7 @@ export function initGame(container: HTMLElement) {
   renderer.domElement.style.display = 'block';
   renderer.shadowMap.enabled = true;
   // BasicShadowMap avoids sampler-type mismatches on some WebGL drivers.
-  renderer.shadowMap.type = THREE.BasicShadowMap;
-  renderer.shadowMap.autoUpdate = false; // GPU-OPT-2: manual shadow updates
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -827,6 +985,7 @@ export function initGame(container: HTMLElement) {
       waveStartTime = performance.now() * 0.001;
       goalSwellUntil = performance.now() * 0.001 + GOAL_SWELL_DURATION;
       sounds.crowdRoar();
+      sounds.goalAnnouncer();
     }
   }
 
@@ -849,6 +1008,11 @@ export function initGame(container: HTMLElement) {
       pushTelemEvent(team, 'THROW_IN', `Throw-in awarded`);
     }
     if (delayedRestartState.active) return;
+    // Whistle for out-of-bounds restarts (throw-in, goal kick, corner)
+    if (type === 'THROW_IN' || type === 'GOAL_KICK' || type === 'CORNER') {
+      sounds.whistle();
+      // sounds.outOfBounds(); // disabled — wrong audio file uploaded
+    }
     const safeDelay = normalizeDelaySeconds(delaySeconds, goalAwardTeam ? goalRestartDelaySec : outOfPlayRestartDelaySec);
     delayedRestartState.active = true;
     delayedRestartState.restartAt = performance.now() / 1000 + safeDelay;
@@ -894,7 +1058,6 @@ export function initGame(container: HTMLElement) {
         matchMinute,
       });
       pushTelemEvent(scoringTeam, 'GOAL', `${scorer?.name || 'Unknown'} scores! (${matchMinute}')`);
-      sounds.crowdRoar();
     }
 
     const { type, team, x, z, message } = delayedRestartState;
@@ -927,6 +1090,15 @@ export function initGame(container: HTMLElement) {
     centerPosition: new THREE.Vector3(0, 0.15, 0),
   };
 
+  /** During kickoff, players outside the center circle must stay frozen. */
+  function isKickoffFrozen(player: any): boolean {
+    if (!kickoffLawState.active || kickoffLawState.firstKickTaken) return false;
+    const centerCircleR = 10 * (FIELD_W / 120); // 10 yards in world units
+    const dx = player.pos.x - kickoffLawState.centerPosition.x;
+    const dz = player.pos.z - kickoffLawState.centerPosition.z;
+    return Math.sqrt(dx * dx + dz * dz) > centerCircleR;
+  }
+
   const kickoffPresentation = {
     active: false,
     autoKick: true,
@@ -956,6 +1128,8 @@ export function initGame(container: HTMLElement) {
 
   const throwInPresentation = {
     active: false,
+    relocating: false,
+    relocatingUntil: 0,
     thrower: null as any,
     throwAt: 0,
     holdStarted: 0,
@@ -1103,6 +1277,7 @@ export function initGame(container: HTMLElement) {
     freeKickPresentation.wallPlayers = [];
     freeKickPresentation.wallPositions = [];
     throwInPresentation.active = false;
+    throwInPresentation.relocating = false;
     throwInPresentation.thrower = null;
     throwInPresentation.thrown = false;
     if (soccerRestart.type === 'PENALTY') {
@@ -1120,6 +1295,7 @@ export function initGame(container: HTMLElement) {
       penaltyPresentation.shotAt = now + 2.4;
       penaltyPresentation.whistlePlayed = false;
       penaltyPresentation.shotTaken = false;
+      sounds.penaltyAnnouncer();
       // Assign the kicker (nearest non-GK on offense team)
       const kicker = offenseTeam.filter((p) => (p.displayRole || p.role) !== 'GK')
         .sort((a, b) => a.pos.distanceTo(ballState.pos) - b.pos.distanceTo(ballState.pos))[0] || null;
@@ -1174,7 +1350,7 @@ export function initGame(container: HTMLElement) {
         kickoffLawState.touchedByAnotherPlayer = false;
         // Visual pause is now handled upstream (timer delay before calling
         // beginCurrentRestart), so no extra in-game delay is needed.
-        kickoffLawState.kickoffAllowedAt = nowSec;
+        kickoffLawState.kickoffAllowedAt = 0;
         kickoffLawState.centerPosition.set(0, 0.15, 0);
         ballState.pos.copy(kickoffLawState.centerPosition);
         ballState.vel.set(0, 0, 0);
@@ -1217,6 +1393,7 @@ export function initGame(container: HTMLElement) {
         throwInPresentation.spotX = throwSpotX;
         throwInPresentation.thrown = false;
         throwInPresentation.returnAt = 0;
+        sounds.throwAnnouncer();
         // Ball above head during throw-in hold
         ballState.pos.copy(ballState.heldBy.pos);
         ballState.pos.y = 1.1;
@@ -1224,16 +1401,18 @@ export function initGame(container: HTMLElement) {
       } else if (soccerRestart.type === 'CORNER') {
         clearKickoffLawState();
         const now = performance.now() / 1000;
-        // Move taker to the corner flag (ball was placed at the corner by startSoccerRestart)
+        // Move taker to the corner flag — ball is pinned at corner by updateDribbleBallPosition
         const cornerX = gameState.ballPos.x;
         const cornerZ = gameState.ballPos.z;
         ballState.heldBy.pos.set(cornerX, 0.15, cornerZ);
         ballState.heldBy.vel.set(0, 0, 0);
+        ballState.pos.set(cornerX, BALL_GROUND_Y, cornerZ);
+        ballState.vel.set(0, 0, 0);
         cornerPresentation.active = true;
         cornerPresentation.taker = ballState.heldBy;
         cornerPresentation.holdStarted = now;
         cornerPresentation.crossAt = now + 1.6;
-        updateDribbleBallPosition(ballState.heldBy, now, 1/60);
+        sounds.cornerAnnouncer();
       } else {
         clearKickoffLawState();
         updateDribbleBallPosition(ballState.heldBy, performance.now() / 1000, 1/60);
@@ -1303,12 +1482,46 @@ export function initGame(container: HTMLElement) {
     const now = performance.now() / 1000;
     const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
 
+    // Reset match clock and stats for a fresh match
+    matchClock.phase = 'FIRST_HALF';
+    matchClock.half = 1;
+    matchClock.elapsedInHalf = 0;
+    matchClock.halftimeBreakRemaining = 0;
+    gameState.scoreA = 0;
+    gameState.scoreB = 0;
+    gameState.shotsA = 0;
+    gameState.shotsB = 0;
+    gameState.shotsOnTargetA = 0;
+    gameState.shotsOnTargetB = 0;
+    gameState.savesA = 0;
+    gameState.savesB = 0;
+    gameState.headersA = 0;
+    gameState.headersB = 0;
+    gameState.passesA = 0;
+    gameState.passesB = 0;
+    gameState.tacklesWonA = 0;
+    gameState.tacklesWonB = 0;
+    gameState.clearancesA = 0;
+    gameState.clearancesB = 0;
+    gameState.foulsA = 0;
+    gameState.foulsB = 0;
+    gameState.cornersA = 0;
+    gameState.cornersB = 0;
+    gameState.throwInsA = 0;
+    gameState.throwInsB = 0;
+    gameState.possessionFramesA = 0;
+    gameState.possessionFramesB = 0;
+    goalLog.length = 0;
+    telemEventLog.length = 0;
+    setKickoffScheduleByCoinToss();
+
     // Ensure the game is staged at a center kickoff before cinematic start.
     startSoccerRestart('KICK_OFF', kickoffTeam, 0, 0, '');
 
     kickoffPresentation.active = true;
     kickoffPresentation.autoKick = autoKick;
     kickoffPresentation.fieldRevealAt = now + 0.7;
+    sounds.kickoffAnnouncer();
     kickoffPresentation.whistleAt = now + 2.1;
     kickoffPresentation.kickoffAt = now + 2.7;
     sounds.crowdStart();
@@ -1399,6 +1612,7 @@ export function initGame(container: HTMLElement) {
     delayedRestartState.goalFromShot = false;
     clearKickoffLawState();
     throwInPresentation.active = false;
+    throwInPresentation.relocating = false;
     throwInPresentation.thrower = null;
     throwInPresentation.thrown = false;
     cornerPresentation.active = false;
@@ -1441,7 +1655,8 @@ export function initGame(container: HTMLElement) {
     ballState.receiveLockUntil = performance.now() / 1000 + 1.0;
     ballState.possessionLockUntil = performance.now() / 1000 + 1.0;
     const isFoulRestart = type === 'TURNOVER' && (message === 'FREE KICK' || message === 'INDIRECT FREE KICK' || message === 'OFFSIDE');
-    if (isFoulRestart && players.length === 22) {
+    const isThrowInSmooth = type === 'THROW_IN' && players.length === 22;
+    if ((isFoulRestart || isThrowInSmooth) && players.length === 22) {
       // Smooth relocation: keep existing players, move them to new positions
       relocateToFormation();
     } else {
@@ -1469,6 +1684,7 @@ export function initGame(container: HTMLElement) {
       penaltyPresentation.shotAt = now + 2.4;
       penaltyPresentation.whistlePlayed = false;
       penaltyPresentation.shotTaken = false;
+      sounds.penaltyAnnouncer();
       gameState.message = 'PENALTY KICK';
     } else if (type === 'TURNOVER') {
       const now = performance.now() / 1000;
@@ -1479,7 +1695,7 @@ export function initGame(container: HTMLElement) {
       const takerCandidates = offenseTeam
         .filter((p: any) => !isGoalkeeper(p))
         .slice()
-        .sort((a: any, b: any) => a.homePos.distanceTo(foulSpot) - b.homePos.distanceTo(foulSpot));
+        .sort((a: any, b: any) => a.pos.distanceTo(foulSpot) - b.pos.distanceTo(foulSpot));
       const taker = takerCandidates[0] || offenseTeam[0] || null;
       const receiver = taker ? chooseFreeKickReceiver(team, taker, foulSpot) : null;
       const attackSign = teamAttacksRight(team) ? 1 : -1;
@@ -1508,6 +1724,14 @@ export function initGame(container: HTMLElement) {
       gameState.message = isFoul
         ? (isDirect ? 'FREE KICK' : 'INDIRECT FREE KICK')
         : (message || 'FREE KICK');
+    } else if (type === 'THROW_IN' && players.length === 22) {
+      // Throw-in with smooth relocation: players walk to positions before the throw
+      const now = performance.now() / 1000;
+      throwInPresentation.active = true;
+      throwInPresentation.relocating = true;
+      throwInPresentation.relocatingUntil = now + 2.0;
+      throwInPresentation.thrower = null;
+      throwInPresentation.thrown = false;
     } else if (type !== 'KICK_OFF') {
       restartAutoStartTimer = setTimeout(() => {
         beginCurrentRestart();
@@ -1627,6 +1851,7 @@ export function initGame(container: HTMLElement) {
 
     // Whistle at the moment of the foul
     sounds.whistle();
+    sounds.foulAnnouncer();
 
     const foulReasons = fromBehind
       ? ['Tackle from Behind', 'Push in the Back', 'Reckless Challenge']
@@ -1764,8 +1989,8 @@ export function initGame(container: HTMLElement) {
     const x = goalLineX + bx * depthUnits;
     const z = bz * depthUnits;
 
-    // Clamp lateral to goal-mouth width (keeper shouldn't wander past posts)
-    const clampedZ = THREE.MathUtils.clamp(z, -goalHalfW, goalHalfW);
+    // Clamp lateral to penalty area width so keeper covers the full box
+    const clampedZ = THREE.MathUtils.clamp(z, -penaltyHalfZ * 0.85, penaltyHalfZ * 0.85);
 
     return new THREE.Vector3(x, 0.15, clampedZ);
   }
@@ -1781,7 +2006,35 @@ export function initGame(container: HTMLElement) {
   }
 
   function handleSoccerOutOfPlay() {
-    if (delayedRestartState.active) return true;
+    // If a non-goal restart is pending (e.g. keeper parry queued a CORNER), but the
+    // ball has since crossed into the goal mouth, cancel the restart and let goal
+    // detection proceed — the parried/tipped ball actually went in.
+    if (delayedRestartState.active) {
+      if (delayedRestartState.goalAwardTeam == null) {
+        const gx = ballState.pos.x;
+        const gz = ballState.pos.z;
+        const gy = ballState.pos.y;
+        const gmhw = goalMouthWidth / 2;
+        if (Math.abs(gx) > FIELD_W / 2 && Math.abs(gz) <= gmhw && gy <= goalMouthHeight + BALL_RADIUS) {
+          // A legitimate goal must cross from in-front of the endline to behind it.
+          // If the ball was already behind the endline last frame, it's bouncing
+          // inside the net (from the side or back) — not a new goal.
+          const rightGoal = gx > 0;
+          const prevX = goalPlaneMonitor.prevX;
+          const wasBehindEndline = rightGoal ? prevX > FIELD_W / 2 : prevX < -FIELD_W / 2;
+          if (wasBehindEndline) {
+            goalMonitorLog(`GOAL OVERRIDE BLOCKED (already behind line): prev=(${prevX.toFixed(2)},${goalPlaneMonitor.prevZ.toFixed(2)}) now=(${gx.toFixed(2)},${gz.toFixed(2)})`);
+            return true;
+          }
+          goalMonitorLog(`GOAL OVERRIDE: ball crossed line during pending ${delayedRestartState.type} restart`);
+          const scoringTeam = getTeamAttackingGoal(rightGoal);
+          delayedRestartState.active = false;
+          awardSoccerGoal(scoringTeam, false);
+          return true;
+        }
+      }
+      return true;
+    }
     if (!gameState.isLive || gameState.isResetting) return false;
     if (kickoffPresentation.active || freeKickPresentation.active || throwInPresentation.active || cornerPresentation.active || penaltyPresentation.active) return false;
 
@@ -1882,15 +2135,12 @@ export function initGame(container: HTMLElement) {
       const rightGoal = x > 0;
       const insideMouth = Math.abs(z) <= goalMouthHalfWidth && y <= goalMouthHeight + BALL_RADIUS;
       if (insideMouth) {
-        // ── Side-netting validation: only award a goal if the ball crossed the endline through the front mouth ──
-        // If the ball was already behind the endline last frame AND was outside the goal width, it entered from the side — not a goal.
+        // ── Netting validation: a legitimate goal must cross from in-front of the endline to behind it.
+        // If the ball was already behind the endline last frame, it entered from the side or back netting — not a goal.
         const prevX = goalPlaneMonitor.prevX;
-        const prevZ = goalPlaneMonitor.prevZ;
         const wasBehindEndline = rightGoal ? prevX > FIELD_W / 2 : prevX < -FIELD_W / 2;
-        const wasOutsideGoalWidth = Math.abs(prevZ) > goalMouthHalfWidth;
-        if (wasBehindEndline && wasOutsideGoalWidth) {
-          // Ball entered through side netting — treat as goal kick / corner, not a goal
-          goalMonitorLog(`SIDE-NET BLOCKED: prev=(${prevX.toFixed(2)},${prevZ.toFixed(2)}) now=(${x.toFixed(2)},${z.toFixed(2)})`);
+        if (wasBehindEndline) {
+          goalMonitorLog(`NETTING BLOCKED: prev=(${prevX.toFixed(2)},${goalPlaneMonitor.prevZ.toFixed(2)}) now=(${x.toFixed(2)},${z.toFixed(2)})`);
           const attackingTeam = getTeamAttackingGoal(rightGoal);
           const defendingTeam = attackingTeam === 'A' ? 'B' : 'A';
           if (soccerRestart.lastTouchTeam === attackingTeam) {
@@ -1927,9 +2177,9 @@ export function initGame(container: HTMLElement) {
     if (!holder) {
       const absX = Math.abs(x);
       const outwardVelX = Math.sign(x) * ballState.vel.x;
-      const outsideMouth = Math.abs(z) > goalMouthHalfWidth + 0.5;
-      const aboveCrossbar = y > goalMouthHeight + BALL_RADIUS;
-      if (absX >= FIELD_W / 2 - 1.5 && outwardVelX > 2.5 && (outsideMouth || aboveCrossbar) && (ballState.isFlying || ballState.isRolling)) {
+      const outsideMouth = Math.abs(z) > goalMouthHalfWidth + 1.5;
+      const aboveCrossbar = y > goalMouthHeight + BALL_RADIUS + 1.0;
+      if (absX >= FIELD_W / 2 - 1.0 && outwardVelX > 2.5 && (outsideMouth || aboveCrossbar) && (ballState.isFlying || ballState.isRolling)) {
         const rightGoal = x > 0;
         const attackingTeam = getTeamAttackingGoal(rightGoal);
         const defendingTeam = attackingTeam === 'A' ? 'B' : 'A';
@@ -2179,6 +2429,14 @@ export function initGame(container: HTMLElement) {
         audioCtx.currentTime + 0.3
       );
     }
+    if (_splashMusic.gain) {
+      _splashMusic.gain.gain.cancelScheduledValues(audioCtx.currentTime);
+      _splashMusic.gain.gain.setValueAtTime(_splashMusic.gain.gain.value, audioCtx.currentTime);
+      _splashMusic.gain.gain.linearRampToValueAtTime(
+        nextPause ? 0 : 0.30,
+        audioCtx.currentTime + 0.3
+      );
+    }
   }
 
   pauseToggleBtn.addEventListener('click', () => {
@@ -2287,7 +2545,6 @@ export function initGame(container: HTMLElement) {
   const miniMapOverlayCtx = miniMapOverlayCanvas.getContext('2d');
   let lastMiniMapDrawMs = 0;
   const MINI_MAP_DRAW_INTERVAL_MS = 1000 / 30;
-  let _shadowFrameCount = 0;
   const miniMapToggleBtn = document.createElement('button');
   miniMapToggleBtn.type = 'button';
   miniMapToggleBtn.style.position = 'fixed';
@@ -2813,6 +3070,7 @@ export function initGame(container: HTMLElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb); // Neutral sky blue
   scene.fog = new THREE.Fog(0x87ceeb, 100, 300);
+  const _savedFog = scene.fog;
 
   const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 350);
   const orbitCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
@@ -2943,6 +3201,7 @@ export function initGame(container: HTMLElement) {
   sun.shadow.camera.bottom = -60;
   sun.shadow.radius = 1;
   scene.add(sun);
+  scene.add(sun.target);
   const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
   rimLight.position.set(26, 11, -18);
   scene.add(rimLight);
@@ -3004,27 +3263,27 @@ export function initGame(container: HTMLElement) {
     },
     night: { 
       label: 'Stadium Lights', 
-      background: 0x050510, 
-      fogColor: 0x050510, 
+      background: 0x060a14, 
+      fogColor: 0x060a14, 
       fogNear: 40, 
-      fogFar: 130, 
+      fogFar: 180, 
       exposure: 1.0, 
       ambientColor: 0x111122, 
-      ambientIntensity: 0.2, 
+      ambientIntensity: 0.08, 
       hemiSkyColor: 0x222244, 
       hemiGroundColor: 0x000000, 
-      hemiIntensity: 0.4, 
-      sunColor: 0xccccff, 
-      sunIntensity: 3.0, 
+      hemiIntensity: 0.15, 
+      sunColor: 0x6677aa, 
+      sunIntensity: 0.35, 
       sunPosition: [0, 40, 0], 
       rimColor: 0xaaaaff, 
-      rimIntensity: 1.2, 
+      rimIntensity: 0.15, 
       rimPosition: [-30, 20, -30], 
       fillColor: 0x8888ff, 
-      fillIntensity: 0.6, 
+      fillIntensity: 0.08, 
       fillPosition: [30, 20, 30], 
       turfColor: 0x4444ff, 
-      turfIntensity: 0.3 
+      turfIntensity: 0.05 
     },
   };
 
@@ -3152,9 +3411,9 @@ export function initGame(container: HTMLElement) {
   }
 
   const LIGHTING_PRESETS = {
-    NOON: { sun: 1.5, amb: 0.54, sky: 0x77a9d9 },
-    LATE: { sun: 1.7, amb: 0.42, sky: 0x6d7f5a },
-    NIGHT: { sun: 1.95, amb: 0.23, sky: 0x0c1224 },
+    NOON: { sun: 1.5, amb: 0.54, sky: 0x77a9d9, sunColor: 0xffffff, fogNear: null as number | null, fogFar: null as number | null, fillMul: 1.0, floodGlow: 0.15 },
+    LATE: { sun: 1.7, amb: 0.42, sky: 0x6d7f5a, sunColor: 0xff8c00, fogNear: 200 as number | null, fogFar: 500 as number | null, fillMul: 0.7, floodGlow: 1.5 },
+    NIGHT: { sun: 0.75, amb: 0.06, sky: 0x060a14, sunColor: 0xffe0a0, fogNear: -1, fogFar: -1, fillMul: 0.1, floodGlow: 3.0 },
   };
 
   type WeatherKey = 'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY';
@@ -3285,6 +3544,8 @@ export function initGame(container: HTMLElement) {
   snowPoints.visible = false;
   scene.add(snowPoints);
 
+  let floodEmissiveMat: THREE.MeshStandardMaterial | null = null;
+
   function getActiveWeatherPreset() {
     return WEATHER_PRESETS[activeWeather];
   }
@@ -3294,16 +3555,39 @@ export function initGame(container: HTMLElement) {
     const weather = WEATHER_PRESETS[activeWeather] || WEATHER_PRESETS.SUNNY;
     const baseSky = new THREE.Color(lighting.sky);
     const tintSky = new THREE.Color(weather.skyTint);
-    const mixedSky = baseSky.clone().lerp(tintSky, 0.42);
+    // At night, use pure dark sky — even tiny lerp looks bright due to linear→sRGB gamma
+    const skyLerp = activeLightingPreset === 'NIGHT' ? 0.0 : 0.42;
+    const mixedSky = baseSky.clone().lerp(tintSky, skyLerp);
 
     sun.intensity = lighting.sun * weather.sunMul;
+    sun.color.setHex(lighting.sunColor);
     amb.intensity = lighting.amb * weather.ambientMul;
+
+    // Scale secondary fill lights (hemisphere, rim, sideline, turf) by preset
+    const fm = lighting.fillMul;
+    skyBounce.intensity = 0.6 * fm;
+    rimLight.intensity = 0.4 * fm;
+    sidelineFill.intensity = 0.2 * fm;
+    turfBounce.intensity = 0.1 * fm;
+
+    sun.castShadow = true;
+
     scene.background = mixedSky;
-    if (scene.fog instanceof THREE.Fog) {
-      scene.fog.color.copy(mixedSky);
-      scene.fog.near = weather.fogNear;
-      scene.fog.far = weather.fogFar;
+    // fogNear === -1 disables fog entirely (NIGHT preset).
+    if (lighting.fogNear === -1) {
+      scene.fog = null;
+    } else {
+      if (!scene.fog) scene.fog = _savedFog;
+      const fog = scene.fog as THREE.Fog;
+      fog.color.copy(mixedSky);
+      fog.near = lighting.fogNear ?? weather.fogNear;
+      fog.far = lighting.fogFar ?? weather.fogFar;
     }
+    // Scale floodlight pylon emissive glow by preset
+    if (floodEmissiveMat) {
+      floodEmissiveMat.emissiveIntensity = lighting.floodGlow;
+    }
+
     rainPoints.visible = weather.precip === 'rain';
     snowPoints.visible = weather.precip === 'snow';
   }
@@ -3490,6 +3774,7 @@ export function initGame(container: HTMLElement) {
   const TEAM_PALETTES = {
     teamA: { shirt: M.teamAShirt, pants: M.teamAPants, hair: M.hairBlack, visor: M.teamAVisor },
     teamB: { shirt: M.teamBShirt, pants: M.teamBPants, hair: M.hairBlack, visor: M.teamBVisor },
+    referee: { shirt: M.refShirt, pants: M.refPants, hair: M.hairBlack, visor: M.refVisor },
   };
 
   const gameState = {
@@ -4211,6 +4496,12 @@ export function initGame(container: HTMLElement) {
       deadBallDist.y = 0;
       return deadBallDist.length();
     }
+    // Kickoff freeze: players outside the center circle stay stationary until the kick is taken
+    if (isKickoffFrozen(player)) {
+      player.vel.x = 0;
+      player.vel.z = 0;
+      return 0;
+    }
 
     let steeringTarget = target;
     // Suppress corner anti-bunch during corner kick delivery, the cross-assist window,
@@ -4686,6 +4977,37 @@ export function initGame(container: HTMLElement) {
   makeCornerArc(FIELD_W / 2, -FIELD_D / 2, Math.PI / 2);
   makeCornerArc(FIELD_W / 2, FIELD_D / 2, Math.PI);
   makeCornerArc(-FIELD_W / 2, FIELD_D / 2, -Math.PI / 2);
+
+  // Corner flags
+  const FLAG_POLE_HEIGHT = 1.5;
+  const FLAG_POLE_RADIUS = 0.03;
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5, metalness: 0.3 });
+  const flagMat = new THREE.MeshStandardMaterial({ color: 0xff4444, side: THREE.DoubleSide, roughness: 0.6 });
+  const poleGeo = new THREE.CylinderGeometry(FLAG_POLE_RADIUS, FLAG_POLE_RADIUS, FLAG_POLE_HEIGHT, 8);
+  const flagShape = new THREE.Shape();
+  flagShape.moveTo(0, 0);
+  flagShape.lineTo(0.45, 0.15);
+  flagShape.lineTo(0, 0.3);
+  flagShape.closePath();
+  const flagGeo = new THREE.ShapeGeometry(flagShape);
+  const cornerPositions = [
+    [-FIELD_W / 2, -FIELD_D / 2],
+    [ FIELD_W / 2, -FIELD_D / 2],
+    [ FIELD_W / 2,  FIELD_D / 2],
+    [-FIELD_W / 2,  FIELD_D / 2],
+  ];
+  for (const [cx, cz] of cornerPositions) {
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.set(cx, FLAG_POLE_HEIGHT / 2, cz);
+    pole.castShadow = true;
+    scene.add(pole);
+    fieldElements.push(pole);
+    const flag = new THREE.Mesh(flagGeo, flagMat);
+    flag.position.set(cx, FLAG_POLE_HEIGHT - 0.3, cz);
+    flag.rotation.y = Math.atan2(-cz, -cx);
+    scene.add(flag);
+    fieldElements.push(flag);
+  }
 
   // Soccer goals: regulation senior 11-a-side size is 24 ft x 8 ft (8 yds x 8/3 yds)
   const goalFrameMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.22 });
@@ -5225,6 +5547,42 @@ export function initGame(container: HTMLElement) {
     crowdMesh.instanceMatrix.needsUpdate = true;
     if (crowdMesh.instanceColor) crowdMesh.instanceColor.needsUpdate = true;
 
+    // ── Floodlight pylons ──
+    const pylonHeight = 18;
+    const pylonShaftMat = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.6, metalness: 0.3 });
+    floodEmissiveMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffe8c0,
+      emissiveIntensity: LIGHTING_PRESETS[activeLightingPreset]?.floodGlow ?? 0.15,
+    });
+    const pylonCorners: [number, number][] = [
+      [-wallW / 2, -wallD / 2], [ wallW / 2, -wallD / 2],
+      [-wallW / 2,  wallD / 2], [ wallW / 2,  wallD / 2],
+    ];
+    for (const [px, pz] of pylonCorners) {
+      // Shaft
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.5, pylonHeight, 0.5), pylonShaftMat);
+      shaft.position.set(px, pylonHeight / 2, pz);
+      shaft.castShadow = true;
+      stadiumGroup.add(shaft);
+      // Lamp bracket
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 1.4), pylonShaftMat);
+      bracket.position.set(px, pylonHeight + 0.2, pz);
+      stadiumGroup.add(bracket);
+      // Lamp array (2 rows × 3 cols of emissive cubes)
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), floodEmissiveMat);
+          lamp.position.set(
+            px - 0.5 + col * 0.5,
+            pylonHeight + 0.6 + row * 0.4,
+            pz - 0.25 + row * 0.5,
+          );
+          stadiumGroup.add(lamp);
+        }
+      }
+    }
+
     // Filter visible blocks for word balloons
     visibleCrowdBlocks.length = 0;
     crowdBlocks.forEach(b => {
@@ -5233,7 +5591,7 @@ export function initGame(container: HTMLElement) {
       }
     });
 
-    // Floodlights & Flags
+
   }
 
   createStadium();
@@ -5244,6 +5602,71 @@ export function initGame(container: HTMLElement) {
 
 
   const players: any[] = [];
+  let referee: any = null;
+
+  function createReferee() {
+    const refHairChoices = [M.hairBrown, M.hairBlond];
+    const refHair = refHairChoices[Math.floor(Math.random() * refHairChoices.length)];
+    const palette = { ...TEAM_PALETTES.referee, hair: refHair };
+    const group = new THREE.Group();
+    group.position.set(0, 0.15, FIELD_D / 2 - 2); // start near sideline at midfield
+    const spriteGroup = new THREE.Group();
+    spriteGroup.position.y = PLAYER_SPRITE_CENTER_Y;
+    group.add(spriteGroup);
+    const runFrames = PLAYER_PATTERNS.map(p => buildMergedPlayerFrame(p, palette));
+    const idleFrames = PLAYER_IDLE_PATTERNS.map(p => buildMergedPlayerFrame(p, palette));
+    const frontRunComposed = PLAYER_FRONT_RUN_PATTERNS.map((base, i) =>
+      composeFBPattern(base, PLAYER_FRONT_HELMET_MASK, PLAYER_FRONT_VISOR_MASK, PLAYER_FRONT_PANTS_OVERRIDES[String(i)] || PLAYER_FRONT_PANTS_OVERRIDES['0']));
+    const frontIdleComposed = PLAYER_FRONT_IDLE_PATTERNS.map(base =>
+      composeFBPattern(base, PLAYER_FRONT_HELMET_MASK, PLAYER_FRONT_VISOR_MASK, PLAYER_FRONT_PANTS_OVERRIDES.idle));
+    const frontRunFrames = frontRunComposed.map(p => buildMergedPlayerFrame(p, palette));
+    const frontIdleFrames = frontIdleComposed.map(p => buildMergedPlayerFrame(p, palette));
+    const backRunComposed = PLAYER_BACK_RUN_PATTERNS.map((base, i) =>
+      composeFBPattern(base, PLAYER_BACK_HELMET_MASK, PLAYER_BACK_VISOR_MASK, PLAYER_BACK_PANTS_OVERRIDES[String(i)] || PLAYER_BACK_PANTS_OVERRIDES['0']));
+    const backIdleComposed = PLAYER_BACK_IDLE_PATTERNS.map(base =>
+      composeFBPattern(base, PLAYER_BACK_HELMET_MASK, PLAYER_BACK_VISOR_MASK, PLAYER_BACK_PANTS_OVERRIDES.idle));
+    const backRunFrames = backRunComposed.map(p => buildMergedPlayerFrame(p, palette));
+    const backIdleFrames = backIdleComposed.map(p => buildMergedPlayerFrame(p, palette));
+
+    runFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+    idleFrames.forEach((f, i) => { f.visible = i === 0; spriteGroup.add(f); });
+    frontRunFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+    frontIdleFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+    backRunFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+    backIdleFrames.forEach(f => { f.visible = false; spriteGroup.add(f); });
+
+    group.traverse((child: any) => {
+      if (child instanceof THREE.Mesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+
+    const ref = {
+      mesh: group, spriteGroup, runFrames, idleFrames,
+      frontRunFrames, frontIdleFrames, backRunFrames, backIdleFrames,
+      facingMode: 'side' as 'side' | 'front' | 'back',
+      pos: new THREE.Vector3(0, 0.15, FIELD_D / 2 - 2),
+      vel: new THREE.Vector3(),
+      dir: 1,
+      state: 'IDLE' as 'IDLE' | 'RUN',
+      frame: 0,
+      animTimer: 0,
+      breathOffset: Math.random() * Math.PI * 2,
+    };
+    scene.add(group);
+    return ref;
+  }
+
+  function removeReferee() {
+    if (referee) {
+      scene.remove(referee.mesh);
+      referee.mesh.traverse((child: any) => {
+        if (child.isMesh) {
+          if (child.geometry) child.geometry.dispose();
+        }
+      });
+      referee = null;
+    }
+  }
+
   function addPlayer(
     x: number,
     z: number,
@@ -5519,6 +5942,20 @@ export function initGame(container: HTMLElement) {
       holder._prevDribbleDir = null;
       return;
     }
+    if (cornerPresentation.active && cornerPresentation.taker === holder) {
+      // Corner kicks are dead-ball restarts: pin ball at the corner flag.
+      ballState.dribbleVel.set(0, 0, 0);
+      ballState.pos.set(gameState.ballPos.x, BALL_GROUND_Y, gameState.ballPos.z);
+      holder._prevDribbleDir = null;
+      return;
+    }
+    if (kickoffLawState.active && !kickoffLawState.firstKickTaken && holder === kickoffLawState.kicker) {
+      // Kickoff dead-ball: pin the ball at the center spot.
+      ballState.dribbleVel.set(0, 0, 0);
+      ballState.pos.copy(kickoffLawState.centerPosition);
+      holder._prevDribbleDir = null;
+      return;
+    }
 
     const travel = holder.vel.clone();
     travel.y = 0;
@@ -5544,8 +5981,11 @@ export function initGame(container: HTMLElement) {
     const lift = speed > 0.2 ? Math.abs(Math.sin(cadence * 0.5)) * 0.04 : 0;
 
     // Control point: where the ball wants to be (slightly ahead, with sway)
+    // Lead the control point by velocity so ball stays at feet at high speed
+    const leadTime = THREE.MathUtils.clamp(speed * 0.04, 0, 0.35);
     const controlPoint = holder.pos.clone()
       .addScaledVector(travel, controlRadius)
+      .addScaledVector(holder.vel, leadTime)
       .addScaledVector(lateral, sway);
     controlPoint.y = 0.18 + lift;
 
@@ -5571,12 +6011,14 @@ export function initGame(container: HTMLElement) {
 
     if (dist > 0.001) {
       const dir = toControl.clone().normalize();
+      // At high speed, boost correction so ball doesn't trail behind
+      const speedBoost = 1 + THREE.MathUtils.clamp((speed - 4) * 0.25, 0, 1.5);
       if (dist > maxTouchDist) {
         // Hard corrective touch — ball got away, snap it back firmly
-        ballState.dribbleVel.add(dir.multiplyScalar(correctionStrength * dt * 60));
+        ballState.dribbleVel.add(dir.multiplyScalar(correctionStrength * speedBoost * dt * 60));
       } else {
         // Soft continuous correction — gentle guidance toward control point
-        ballState.dribbleVel.add(dir.multiplyScalar(softCorrection * dt * 60 * (dist / maxTouchDist)));
+        ballState.dribbleVel.add(dir.multiplyScalar(softCorrection * speedBoost * dt * 60 * (dist / maxTouchDist)));
       }
     }
 
@@ -5595,8 +6037,8 @@ export function initGame(container: HTMLElement) {
     const friction = keeperHandsControl ? 0.82 : 0.88;
     ballState.dribbleVel.multiplyScalar(Math.pow(friction, dt * 60));
 
-    // Clamp dribble velocity to prevent runaway
-    const maxDribbleSpeed = 8.0;
+    // Clamp dribble velocity to prevent runaway — scale cap with carrier speed
+    const maxDribbleSpeed = Math.max(8.0, speed * 1.3);
     if (ballState.dribbleVel.lengthSq() > maxDribbleSpeed * maxDribbleSpeed) {
       ballState.dribbleVel.setLength(maxDribbleSpeed);
     }
@@ -5604,6 +6046,13 @@ export function initGame(container: HTMLElement) {
     // Integrate position
     ballState.pos.addScaledVector(ballState.dribbleVel, dt);
     ballState.pos.y = controlPoint.y;
+
+    // At high speed, hard-lerp ball toward control point so it can't fall behind
+    if (speed > 3.0 && !keeperHandsControl) {
+      const lerpStrength = THREE.MathUtils.clamp((speed - 3.0) * 0.12, 0, 0.85);
+      ballState.pos.x = THREE.MathUtils.lerp(ballState.pos.x, controlPoint.x, lerpStrength);
+      ballState.pos.z = THREE.MathUtils.lerp(ballState.pos.z, controlPoint.z, lerpStrength);
+    }
 
     // Safety clamp: never let ball drift more than maxTouchDist * 1.5 from holder
     const holderDist = new THREE.Vector3(ballState.pos.x - holder.pos.x, 0, ballState.pos.z - holder.pos.z).length();
@@ -6065,7 +6514,7 @@ export function initGame(container: HTMLElement) {
     const skillBoost = (passSkill - 0.5) * 0.18;
     // Under heavy pressure, passes are slightly weaker (rushed)
     const pressurePenalty = Math.min(pressure, 4) * 0.03;
-    return THREE.MathUtils.clamp(1.15 + distBoost + skillBoost - pressurePenalty, 1.0, 1.55);
+    return THREE.MathUtils.clamp(1.28 + distBoost + skillBoost - pressurePenalty, 1.0, 1.70);
   }
 
   function executeAIGroundPass(
@@ -6142,15 +6591,17 @@ export function initGame(container: HTMLElement) {
     const effectivePassPower = gameState.humanPassPower * cpuPower;
     const powerScale = THREE.MathUtils.lerp(0.96, 1.08, passSkill) * THREE.MathUtils.lerp(1.0, 0.95, Math.min(nearbyOppPressure, 3) / 3);
     const distNorm = THREE.MathUtils.clamp((dist - 4) / 24, 0, 1);
-    const baseSpeed = THREE.MathUtils.lerp(5.1, 14.5, distNorm);
-    const shortPassCap = dist < 10 ? THREE.MathUtils.lerp(9.7, 13.3, dist / 10) : 18.2;
-    const speed = THREE.MathUtils.clamp(baseSpeed * powerScale * speedMultiplier * effectivePassPower, 5.6, shortPassCap * effectivePassPower) * GAME_SPEED_SCALE * weather.passSpeedMul;
+    const baseSpeed = THREE.MathUtils.lerp(7.0, 17.5, distNorm);
+    const shortPassCap = dist < 10 ? THREE.MathUtils.lerp(12.5, 16.0, dist / 10) : 21.0;
+    const speed = THREE.MathUtils.clamp(baseSpeed * powerScale * speedMultiplier * effectivePassPower, 7.2, shortPassCap * effectivePassPower) * GAME_SPEED_SCALE * weather.passSpeedMul;
     ballState.lastHeldBy = passer;
     ballState.heldBy = null;
     if (gameState.goalKickInProgress) gameState.goalKickInProgress = false;
     ballState.isFlying = false;
     ballState.isRolling = true;
     ballState.isShot = false;
+    ballState.rollingTime = 0;
+    ballState.rollingLaunchSpeed = speed;
     ballState.receiveLockUntil = elapsed + 0.2;
     if (!options?.skipOffside) snapshotOffsidePlayers(passer.team, passer);
     setIntendedReceiver(target, passer.team, elapsed, receiverWindow);
@@ -6533,7 +6984,7 @@ export function initGame(container: HTMLElement) {
 
     switch (style) {
       case 'GOAL_KICK_STANDARD':
-        speed = THREE.MathUtils.clamp(19.5 + kickDist * 0.24, 19.5, 28.5) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        speed = THREE.MathUtils.clamp(21.45 + kickDist * 0.264, 21.45, 31.35) * GAME_SPEED_SCALE * weather.kickSpeedMul;
         lift = THREE.MathUtils.clamp(4.8 + kickDist * 0.045, 4.8, 8.4);
         releaseHeight = BALL_GROUND_Y;
         angleError = 0.03;
@@ -6544,7 +6995,7 @@ export function initGame(container: HTMLElement) {
         {
           const keeperKickStrength = THREE.MathUtils.clamp(keeper.stats?.throwPower ?? 0.62, 0.2, 1.0);
           const puntStrengthMul = THREE.MathUtils.lerp(1.08, 1.24, keeperKickStrength);
-          speed = THREE.MathUtils.clamp(15.75 + kickDist * 0.225, 15.75, 22.5) * GAME_SPEED_SCALE * weather.kickSpeedMul * puntStrengthMul;
+          speed = THREE.MathUtils.clamp(17.325 + kickDist * 0.2475, 17.325, 24.75) * GAME_SPEED_SCALE * weather.kickSpeedMul * puntStrengthMul;
           lift = THREE.MathUtils.clamp(6.3 + kickDist * 0.053, 6.3, 9.9);
         }
         releaseHeight = 0.96;
@@ -6553,7 +7004,7 @@ export function initGame(container: HTMLElement) {
         intendedWindow = 2.4;
         break;
       case 'DROP_KICK':
-        speed = THREE.MathUtils.clamp(19.0 + kickDist * 0.24, 19.0, 28.0) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        speed = THREE.MathUtils.clamp(20.9 + kickDist * 0.264, 20.9, 30.8) * GAME_SPEED_SCALE * weather.kickSpeedMul;
         lift = THREE.MathUtils.clamp(3.2 + kickDist * 0.03, 3.2, 5.8);
         releaseHeight = 0.17;
         angleError = 0.025;
@@ -6561,7 +7012,7 @@ export function initGame(container: HTMLElement) {
         intendedWindow = 2.2;
         break;
       case 'SIDEWINDER':
-        speed = THREE.MathUtils.clamp(17.8 + kickDist * 0.21, 17.8, 24.0) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        speed = THREE.MathUtils.clamp(19.58 + kickDist * 0.231, 19.58, 26.4) * GAME_SPEED_SCALE * weather.kickSpeedMul;
         lift = THREE.MathUtils.clamp(2.1 + kickDist * 0.018, 2.1, 3.8);
         releaseHeight = 0.34;
         angleError = 0.02;
@@ -6570,7 +7021,7 @@ export function initGame(container: HTMLElement) {
         break;
       case 'DRIVEN_KICK':
       default:
-        speed = THREE.MathUtils.clamp(16.5 + kickDist * 0.18, 16.5, 23.5) * GAME_SPEED_SCALE * weather.kickSpeedMul;
+        speed = THREE.MathUtils.clamp(18.15 + kickDist * 0.198, 18.15, 25.85) * GAME_SPEED_SCALE * weather.kickSpeedMul;
         lift = THREE.MathUtils.clamp(1.3 + kickDist * 0.01, 1.3, 2.3);
         releaseHeight = BALL_GROUND_Y;
         angleError = 0.025;
@@ -7036,7 +7487,7 @@ export function initGame(container: HTMLElement) {
     if (!ballState.isFlying && !ballState.isRolling) return null;
     if (elapsed < ballState.receiveLockUntil) return null;
 
-    const claimRadius = ballState.isFlying ? 1.1 : 1.2;
+    const claimRadius = ballState.isFlying ? 1.25 : 1.3;
     let bestKeeper: any = null;
     let bestDist = Infinity;
 
@@ -7060,8 +7511,8 @@ export function initGame(container: HTMLElement) {
 
     // Parry/rebound: powerful shots have a chance to spill instead of clean catch
     const shotSpeed = ballState.vel.length();
-    const parryThreshold = 14.0; // shots faster than this may be parried
-    const parryChance = wasShot ? THREE.MathUtils.clamp((shotSpeed - parryThreshold) / 18.0, 0, 0.45) : 0;
+    const parryThreshold = 16.0; // shots faster than this may be parried
+    const parryChance = wasShot ? THREE.MathUtils.clamp((shotSpeed - parryThreshold) / 20.0, 0, 0.40) : 0;
     if (wasShot && Math.random() < parryChance) {
       // PARRY: deflect ball away instead of catching
       triggerGoalkeeperSaveAnimation(bestKeeper, elapsed);
@@ -7228,7 +7679,7 @@ export function initGame(container: HTMLElement) {
     if (Math.random() >= chance) return false;
 
     let shotStyle: 'VOLLEY' | 'HALF_VOLLEY' | 'HEADER' | 'TOE_POKE';
-    if (wasFlying && ballHeight > 1.8) shotStyle = 'HEADER';
+    if (wasFlying && ballHeight > 1.2) shotStyle = 'HEADER';
     else if (wasFlying) shotStyle = 'VOLLEY';
     else if (incomingBallSpeed > 9) shotStyle = 'TOE_POKE';
     else shotStyle = 'HALF_VOLLEY';
@@ -8304,6 +8755,16 @@ export function initGame(container: HTMLElement) {
     if (!restartSlots) return;
     const offSlots = restartSlots.offense.team;
     const defSlots = restartSlots.defense.team;
+    // Rebuild team arrays to match the new offensive/defensive assignment
+    offenseTeam.length = 0;
+    defenseTeam.length = 0;
+    getOrderedTeamPlayers(offTeam).forEach((p: any) => offenseTeam.push(p));
+    getOrderedTeamPlayers(defTeam).forEach((p: any) => defenseTeam.push(p));
+    // Ensure GK is at index 0 so slot 0 (goal-line position) is assigned correctly
+    const offGkIdx = offenseTeam.findIndex((p: any) => isGoalkeeper(p));
+    if (offGkIdx > 0) { const gk = offenseTeam.splice(offGkIdx, 1)[0]; offenseTeam.unshift(gk); }
+    const defGkIdx = defenseTeam.findIndex((p: any) => isGoalkeeper(p));
+    if (defGkIdx > 0) { const gk = defenseTeam.splice(defGkIdx, 1)[0]; defenseTeam.unshift(gk); }
     for (let i = 0; i < offenseTeam.length && i < offSlots.length; i++) {
       const p = offenseTeam[i];
       const s = offSlots[i];
@@ -8371,6 +8832,10 @@ export function initGame(container: HTMLElement) {
       const statProfile = ratingProfile ? buildPlayerStatsFromMLS(ratingProfile, roleLabel, defTeam) : undefined;
       defenseTeam.push(addPlayer(slot.x, slot.z, defTeam, archetype, playerName, idx + 1, roleLabel, statProfile, ratingProfile));
     }
+
+    // Create referee
+    removeReferee();
+    referee = createReferee();
   }
 
   const ballGroup = new THREE.Group();
@@ -8604,9 +9069,9 @@ export function initGame(container: HTMLElement) {
       case 'GK':
         return { depthBias: 27, widthBias: 0, anchorBlend: 0.12, pressStrength: 0.08, pressRadius: 1.6, discipline: 0.96 };
       case 'LB':
-        return { depthBias: 18, widthBias: -15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.92 };
+        return { depthBias: 18, widthBias: -15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.94 };
       case 'RB':
-        return { depthBias: 18, widthBias: 15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.92 };
+        return { depthBias: 18, widthBias: 15, anchorBlend: 0.50, pressStrength: 0.58, pressRadius: 2.4, discipline: 0.94 };
       case 'CB':
         return { depthBias: 20, widthBias: sideBias * 6, anchorBlend: 0.55, pressStrength: 0.48, pressRadius: 2.1, discipline: 0.95 };
       case 'DM':
@@ -8696,7 +9161,7 @@ export function initGame(container: HTMLElement) {
     // The discipline chain anchors heavily to homePos; this ensures defenders
     // actually track deep when the ball is in their half.
     const isBackLine = ['CB', 'LB', 'RB'].includes(roleLabel);
-    const depthBlend = isBackLine ? 0.65 : (roleLabel === 'DM' ? 0.45 : (['CM'].includes(roleLabel) ? 0.30 : 0));
+    const depthBlend = isBackLine ? 0.72 : (roleLabel === 'DM' ? 0.58 : (['CM'].includes(roleLabel) ? 0.40 : 0));
     if (depthBlend > 0) {
       finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, compactTarget.x, depthBlend);
     }
@@ -8706,9 +9171,9 @@ export function initGame(container: HTMLElement) {
 
     if (inLowBlock) {
       if (['CB', 'LB', 'RB', 'DM'].includes(roleLabel)) {
-        finalTarget.x += attackSign * 1.35;
+        finalTarget.x += attackSign * 1.85;
       } else if (roleLabel === 'CM') {
-        finalTarget.x += attackSign * 0.9;
+        finalTarget.x += attackSign * 1.2;
       }
       if (['CB', 'DM', 'CM'].includes(roleLabel)) {
         finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, 0, 0.34);
@@ -8720,9 +9185,9 @@ export function initGame(container: HTMLElement) {
       const role = (player.displayRole || player.role || '').toString().toUpperCase();
       const pushSign = teamAttacksRight(player.team as 'A' | 'B') ? 1 : -1;
       if (['CB', 'LB', 'RB'].includes(role)) {
-        finalTarget.x += pushSign * 6.0;  // Back line steps forward ~6 units
+        finalTarget.x += pushSign * 1.2;  // Back line steps forward modestly
       } else if (['DM', 'CM'].includes(role)) {
-        finalTarget.x += pushSign * 4.0;  // Midfield compresses space
+        finalTarget.x += pushSign * 0.8;  // Midfield compresses space
       }
     }
 
@@ -8802,7 +9267,7 @@ export function initGame(container: HTMLElement) {
     }
 
     // Transition defense: losing team must sprint back
-    gameState.transitionDefenseExpiry = elapsed + 3.5;
+    gameState.transitionDefenseExpiry = elapsed + 5.0;
     gameState.transitionDefenseTeam = lostTeam;
 
     // Cancel any give-and-go if possession changed to opponent
@@ -9143,8 +9608,6 @@ export function initGame(container: HTMLElement) {
       players.forEach((p: any) => { p.mesh.position.copy(p.pos); });
       ballGroup.position.copy(ballState.pos);
       updateBallShadowVisual();
-      _shadowFrameCount++;
-      renderer.shadowMap.needsUpdate = (_shadowFrameCount & 1) === 0;
       renderMainCamera();
       return;
     }
@@ -9240,18 +9703,19 @@ export function initGame(container: HTMLElement) {
         gameState.message = '';
       }
       beginCurrentRestart();
-      if (gameState.isKickoff && gameState.kickoffState === 'READY' && elapsed >= kickoffLawState.kickoffAllowedAt) {
-        executeKickoffTouch();
-      }
     }
 
-    // In 1P/2P mode, auto-execute kickoff touch for CPU team (e.g. after conceding a goal)
-    if (!gameState.cpuVsCpu && !kickoffPresentation.active && !gameState.menuVisible && gameState.isKickoff && gameState.kickoffState === 'READY' && gameState.isLive && elapsed >= kickoffLawState.kickoffAllowedAt) {
-      const kickerTeam = kickoffLawState.kicker?.team;
-      const { controlA: ka, controlB: kb } = getHumanControlFlags();
-      const kickerIsHuman = (kickerTeam === 'A' && ka) || (kickerTeam === 'B' && kb);
-      if (!kickerIsHuman) {
+    // CPU vs CPU / CPU kicker: execute kickoff touch when live and ready
+    if (!kickoffPresentation.active && !gameState.menuVisible && gameState.isKickoff && gameState.kickoffState === 'READY' && gameState.isLive && elapsed >= kickoffLawState.kickoffAllowedAt) {
+      if (gameState.cpuVsCpu) {
         executeKickoffTouch();
+      } else {
+        const kickerTeam = kickoffLawState.kicker?.team;
+        const { controlA: ka, controlB: kb } = getHumanControlFlags();
+        const kickerIsHuman = (kickerTeam === 'A' && ka) || (kickerTeam === 'B' && kb);
+        if (!kickerIsHuman) {
+          executeKickoffTouch();
+        }
       }
     }
 
@@ -9265,9 +9729,6 @@ export function initGame(container: HTMLElement) {
               const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
               startSoccerRestart('KICK_OFF', kickoffTeam, 0, 0, matchClock.half === 1 ? '1ST HALF KICK-OFF' : '2ND HALF KICK-OFF');
               beginCurrentRestart();
-              if (gameState.isKickoff && gameState.kickoffState === 'READY' && elapsed >= kickoffLawState.kickoffAllowedAt) {
-                executeKickoffTouch();
-              }
             }
           }, 2000);
         }
@@ -9296,9 +9757,7 @@ export function initGame(container: HTMLElement) {
             gameState.message = '';
           }
         }, 900);
-        if (kickoffPresentation.autoKick && gameState.isKickoff && gameState.kickoffState === 'READY') {
-          executeKickoffTouch();
-        }
+        // Kickoff touch is handled by the unified kickoff-touch block below
       }
     }
 
@@ -9327,6 +9786,9 @@ export function initGame(container: HTMLElement) {
       ballState.isRolling = false;
       ballState.vel.set(0, 0, 0);
       ballState.pos.copy(foulSpot);
+      // Keep gameState.ballPos in sync so the !isLive idle branch doesn't overwrite with stale data
+      gameState.ballPos.copy(foulSpot);
+      ballGroup.position.copy(foulSpot);
 
       // ── Relocating phase: players jog to formation positions ──
       if (freeKickPresentation.relocating) {
@@ -9334,7 +9796,6 @@ export function initGame(container: HTMLElement) {
           const horizSpeedSq = p.vel.x * p.vel.x + p.vel.z * p.vel.z;
           if (horizSpeedSq > 0.03) {
             p.state = 'RUN';
-            if (Math.abs(p.vel.x) > 0.01) p.dir = p.vel.x > 0 ? 1 : -1;
           } else {
             p.state = 'IDLE';
           }
@@ -9350,7 +9811,15 @@ export function initGame(container: HTMLElement) {
             p.frontIdleFrames.forEach((f: any) => f.visible = false);
             p.backRunFrames.forEach((f: any) => f.visible = false);
             p.backIdleFrames.forEach((f: any) => f.visible = false);
-            const frames = p.state === 'RUN' ? p.runFrames : p.idleFrames;
+            // Select correct frame set based on facing mode
+            let frames: any[];
+            if (p.facingMode === 'front') {
+              frames = p.state === 'RUN' ? p.frontRunFrames : p.frontIdleFrames;
+            } else if (p.facingMode === 'back') {
+              frames = p.state === 'RUN' ? p.backRunFrames : p.backIdleFrames;
+            } else {
+              frames = p.state === 'RUN' ? p.runFrames : p.idleFrames;
+            }
             p.frame = (p.frame + 1) % frames.length;
             frames.forEach((f: any, i: number) => f.visible = i === p.frame);
           }
@@ -9372,7 +9841,15 @@ export function initGame(container: HTMLElement) {
             p.pos.addScaledVector(dir, Math.min(runSpeed * dt, dist));
             p.pos.y = 0.15;
             p.vel.copy(p.pos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
-            p.dir = dir.x > 0 ? 1 : -1;
+            // Set facing mode based on movement direction so players don't slide sideways
+            const absVx = Math.abs(dir.x);
+            const absVz = Math.abs(dir.z);
+            if (absVz > absVx * 1.3 && absVz > 0.1) {
+              p.facingMode = dir.z > 0 ? 'front' : 'back';
+            } else {
+              p.facingMode = 'side';
+              p.dir = dir.x > 0 ? 1 : -1;
+            }
           } else {
             p.vel.multiplyScalar(0);
           }
@@ -9395,7 +9872,14 @@ export function initGame(container: HTMLElement) {
             wp.pos.addScaledVector(wdir, Math.min(runSpeed * dt, wdist));
             wp.pos.y = 0.15;
             wp.vel.copy(wp.pos.clone().sub(prevWP).multiplyScalar(1 / Math.max(dt, 0.0001)));
-            wp.dir = wdir.x > 0 ? 1 : -1;
+            const wAbsVx = Math.abs(wdir.x);
+            const wAbsVz = Math.abs(wdir.z);
+            if (wAbsVz > wAbsVx * 1.3 && wAbsVz > 0.1) {
+              wp.facingMode = wdir.z > 0 ? 'front' : 'back';
+            } else {
+              wp.facingMode = 'side';
+              wp.dir = wdir.x > 0 ? 1 : -1;
+            }
           } else {
             wp.vel.multiplyScalar(0);
           }
@@ -9418,8 +9902,6 @@ export function initGame(container: HTMLElement) {
         ballGroup.position.copy(ballState.pos);
         updateBallShadowVisual();
         updateHUD();
-        _shadowFrameCount++;
-        renderer.shadowMap.needsUpdate = (_shadowFrameCount & 1) === 0;
         renderMainCamera();
         return; // Skip the normal presentation logic during relocating
       }
@@ -9534,12 +10016,56 @@ export function initGame(container: HTMLElement) {
             // Indirect free kick or too far for direct shot — pass
             // skipOffside on restarts: can't be offside directly from a free kick restart
             executeAIGroundPass(passer, passTarget, elapsed, { style: 'WALL', receiverWindow: 1.6, skipOffside: true });
+            // Dead-ball restart: extend receive/possession lock so the ball visibly rolls
+            // before the receiver can collect it (prevents the "teleport" look)
+            ballState.receiveLockUntil = elapsed + 0.5;
+            ballState.possessionLockUntil = elapsed + 0.55;
             if (passTarget.team === 'A') autoSelectTeamA(passTarget);
             gameState.message = '';
           }
         }
       }
       } // end else (not humanWaiting)
+    }
+
+    // Throw-in relocation: players walk to restart positions before the throw begins
+    if (throwInPresentation.active && throwInPresentation.relocating) {
+      const relocRunSpeed = 4.5 * GAME_SPEED_SCALE;
+      let allSettled = true;
+      for (const p of players) {
+        const target = p.homePos;
+        const dir = new THREE.Vector3().subVectors(target, p.pos);
+        dir.y = 0;
+        const dist = dir.length();
+        if (dist > 0.3) {
+          allSettled = false;
+          dir.normalize();
+          const prevPos = p.pos.clone();
+          p.pos.addScaledVector(dir, Math.min(relocRunSpeed * dt, dist));
+          p.pos.y = 0.15;
+          p.vel.copy(p.pos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
+          const absVx = Math.abs(dir.x);
+          const absVz = Math.abs(dir.z);
+          if (absVz > absVx * 1.3 && absVz > 0.1) {
+            p.facingMode = dir.z > 0 ? 'front' : 'back';
+          } else {
+            p.facingMode = 'side';
+            p.dir = dir.x > 0 ? 1 : -1;
+          }
+          p.state = 'RUN';
+        } else {
+          p.vel.multiplyScalar(0);
+          p.state = 'IDLE';
+        }
+      }
+      // Pin ball at the throw-in spot on the ground during relocation
+      ballState.pos.set(soccerRestart.type === 'THROW_IN' ? ballState.pos.x : 0, 0.15, ballState.pos.z);
+      ballState.vel.set(0, 0, 0);
+      if (elapsed >= throwInPresentation.relocatingUntil || allSettled) {
+        throwInPresentation.relocating = false;
+        throwInPresentation.active = false;
+        beginCurrentRestart();
+      }
     }
 
     // Throw-in presentation: hold ball above head, then throw to teammate
@@ -9662,9 +10188,10 @@ export function initGame(container: HTMLElement) {
     // Corner presentation: taker holds at flag, then auto-crosses
     if (cornerPresentation.active && cornerPresentation.taker && gameState.isLive) {
       const taker = cornerPresentation.taker;
-      // Keep ball at taker's feet during hold
-      updateDribbleBallPosition(taker, elapsed, dt);
+      // Dead-ball: pin ball at corner flag, freeze taker
+      ballState.pos.set(gameState.ballPos.x, BALL_GROUND_Y, gameState.ballPos.z);
       ballState.vel.set(0, 0, 0);
+      taker.pos.set(gameState.ballPos.x, 0.15, gameState.ballPos.z);
       taker.vel.set(0, 0, 0);
 
       if (elapsed >= cornerPresentation.crossAt) {
@@ -10807,7 +11334,7 @@ export function initGame(container: HTMLElement) {
             carryDir.y = 0;
             if (carryDir.lengthSq() > 0.02) {
               const dribbleSkill = getDribbleSkill(cpuCarrier);
-              const carrySpeed = (4.6 + cpuCarrier.stats.speed * 7.6 + dribbleSkill * 1.9) * GAME_SPEED_SCALE;
+              const carrySpeed = (4.6 + THREE.MathUtils.lerp(0.20, cpuCarrier.stats.speed, 0.65) * 7.6 + dribbleSkill * 1.9) * GAME_SPEED_SCALE;
               setPlayerAIState(cpuCarrier, 'CARRY');
               steerPlayerTowards(cpuCarrier, carryTarget, dt, carrySpeed, 30, 5.6, 0.08);
             }
@@ -11129,8 +11656,6 @@ export function initGame(container: HTMLElement) {
             drawMiniMapOverlay();
             lastMiniMapDrawMs = now;
           }
-          _shadowFrameCount++;
-          renderer.shadowMap.needsUpdate = (_shadowFrameCount & 1) === 0;
           renderMainCamera();
           return;
         }
@@ -11199,6 +11724,8 @@ export function initGame(container: HTMLElement) {
           if (!p || (p === controlledPlayer && controlA) || (p === controlledPlayerB && controlB)) return;
           // Don't override players already assigned to chase a loose ball
           if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
+          // Kickoff freeze: players outside the center circle stay stationary
+          if (isKickoffFrozen(p)) { p.vel.x = 0; p.vel.z = 0; return; }
 
           // Goalkeeper: stay near goal regardless of possession — never run support routes
           if (isGoalkeeper(p)) {
@@ -11247,9 +11774,10 @@ export function initGame(container: HTMLElement) {
           }
 
           const dir = toTarget.normalize();
-          let speed = (4.2 + p.stats.speed * 14) * route.speedScale * GAME_SPEED_SCALE;
+          const clampedSpd = THREE.MathUtils.lerp(0.20, p.stats.speed, 0.6); // compress toward midpoint
+          let speed = (4.2 + clampedSpd * 14) * route.speedScale * GAME_SPEED_SCALE;
           // Counter-attack burst: attackers sprint faster into space
-          if (isCounterTeam && isAttacker && !isGoalkeeper(p)) speed *= 1.28;
+          if (isCounterTeam && isAttacker && !isGoalkeeper(p)) speed *= 1.18;
           // Transition defense: losing team sprints home faster
           if (isTransitionTeam) speed *= 1.35;
 
@@ -11296,6 +11824,7 @@ export function initGame(container: HTMLElement) {
           const pressureCandidates = players
             .filter((p: any) => p.team !== liveCarrier.team && !isGoalkeeper(p))
             .filter((p: any) => !(controlB && p === controlledPlayerB) && !(controlA && p === controlledPlayer))
+            .filter((p: any) => !isKickoffFrozen(p))
             .sort((a: any, b: any) => a.pos.distanceTo(liveCarrier.pos) - b.pos.distanceTo(liveCarrier.pos))
             .slice(0, maxPressers);
 
@@ -11439,7 +11968,7 @@ export function initGame(container: HTMLElement) {
                   target.z = (rdz / rLen) * rushDepth;
                 }
                 target.x = THREE.MathUtils.clamp(target.x, keeperMinX, keeperMaxX);
-                target.z = THREE.MathUtils.clamp(target.z, -goalHalfW * 0.85, goalHalfW * 0.85);
+                target.z = THREE.MathUtils.clamp(target.z, -penaltyHalfZ * 0.7, penaltyHalfZ * 0.7);
               }
             }
 
@@ -11455,7 +11984,7 @@ export function initGame(container: HTMLElement) {
                 const retreatFraction = THREE.MathUtils.clamp(1.0 - shotDistToGoal / (penaltyDepth * 1.2), 0, 1);
                 const goalLineDepth = goalLineX + (defendsRightGoal ? -1 : 1) * 1.0 * X_PER_YARD;
                 target.x = THREE.MathUtils.lerp(keeperHome.x, goalLineDepth, retreatFraction);
-                target.z = THREE.MathUtils.clamp(predictedZ, -goalHalfW * 0.85, goalHalfW * 0.85);
+                target.z = THREE.MathUtils.clamp(predictedZ, -penaltyHalfZ * 0.6, penaltyHalfZ * 0.6);
               } else if (attackCarrier && ballInOwnBox) {
                 // Attacker in box: bisector toward carrier, tighter depth
                 const cdx = attackCarrier.pos.x - goalLineX;
@@ -11467,10 +11996,10 @@ export function initGame(container: HTMLElement) {
                   target.z = (cdz / cLen) * closerDepth;
                 }
                 target.x = THREE.MathUtils.clamp(target.x, keeperMinX, keeperMaxX);
-                target.z = THREE.MathUtils.clamp(target.z, -goalHalfW * 0.8, goalHalfW * 0.8);
+                target.z = THREE.MathUtils.clamp(target.z, -penaltyHalfZ * 0.8, penaltyHalfZ * 0.8);
               } else if (!ballState.heldBy && ballInOwnBox) {
-                // Loose ball in box: drift toward ball along bisector line
-                target.lerp(ballState.pos, 0.38);
+                // Loose ball in box: aggressively chase toward ball
+                target.copy(ballState.pos);
               }
               // else: default — keeperHome already has bisector-based positioning
             }
@@ -11484,9 +12013,9 @@ export function initGame(container: HTMLElement) {
             if (dist > 0.05) {
               dir.normalize();
               // Boost keeper sprint speed when reacting to an incoming shot or rushing out
-              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.18 : (isRushingOut ? 1.10 : 1.0);
+              const shotReactionBoost = (ballState.isFlying && ballState.isShot) ? 1.30 : (isRushingOut ? 1.14 : 1.0);
               const keeperSpeed = (3.2 + p.stats.agility * 2.6) * GAME_SPEED_SCALE * shotReactionBoost;
-              p.vel.lerp(dir.multiplyScalar(keeperSpeed), dt * 5.5);
+              p.vel.lerp(dir.multiplyScalar(keeperSpeed), dt * 7.0);
               p.pos.addScaledVector(p.vel, dt);
               p.pos.x = THREE.MathUtils.clamp(p.pos.x, keeperMinX, keeperMaxX);
               p.pos.z = THREE.MathUtils.clamp(p.pos.z, -penaltyHalfZ + 0.75, penaltyHalfZ - 0.75);
@@ -11522,7 +12051,7 @@ export function initGame(container: HTMLElement) {
               const likelyInterception = predictInterceptionOpportunity(p.pos, ballState.lastHeldBy.pos, ballState.intendedReceiver.pos, 3.8);
               if (likelyInterception) {
                 setPlayerAIState(p, 'CUT_PASS_LANE');
-                steerPlayerTowards(p, predictedBallPos, dt, (p.stats.speed * 39) * GAME_SPEED_SCALE, 40, 5.0, 0.05);
+                steerPlayerTowards(p, predictedBallPos, dt, (THREE.MathUtils.lerp(0.20, p.stats.speed, 0.6) * 32) * GAME_SPEED_SCALE, 40, 5.0, 0.05);
                 return;
               }
             }
@@ -11532,7 +12061,7 @@ export function initGame(container: HTMLElement) {
 
             if (reactionStrength > 0) {
               // Aggressive pursuit of the ball
-              const maxSpeed = p.stats.speed * 45 * GAME_SPEED_SCALE; // Fast pursuit
+              const maxSpeed = THREE.MathUtils.lerp(0.20, p.stats.speed, 0.6) * 36 * GAME_SPEED_SCALE; // Fast pursuit
               const speed = maxSpeed * reactionStrength;
               setPlayerAIState(p, 'INTERCEPT_AIR');
               steerPlayerTowards(p, predictedBallPos, dt, speed, 46, 5.4, 0.05);
@@ -11542,6 +12071,8 @@ export function initGame(container: HTMLElement) {
                 // Don't let the kicker/distributor re-intercept their own ball (expires)
                 if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) return;
                 if (ballState.keeperDistributor === p && (elapsed - ballState.keeperDistributorAt) < KEEPER_DIST_EXPIRY) return;
+                // Kickoff law: kicker cannot touch ball again until another player has touched it
+                if (kickoffLawState.active && kickoffLawState.firstKickTaken && !kickoffLawState.touchedByAnotherPlayer && p === kickoffLawState.kicker) return;
                 // Base chance + catching/coverage bonus
                 const shotBonus = ballState.isShot ? 0.08 : 0;
                 const interceptChance = 0.11 + (p.stats.catching * 0.1) + (p.stats.coverage * 0.07) + shotBonus;
@@ -11682,7 +12213,7 @@ export function initGame(container: HTMLElement) {
                 );
                 supportTarget.z = THREE.MathUtils.clamp(supportTarget.z, -FIELD_D / 2 + 2, FIELD_D / 2 - 2);
               }
-              const speed = p.stats.speed * 34 * GAME_SPEED_SCALE;
+              const speed = THREE.MathUtils.lerp(0.20, p.stats.speed, 0.6) * 28 * GAME_SPEED_SCALE;
               setPlayerAIState(p, 'SUPPORT_ATTACK');
               steerPlayerTowards(p, supportTarget, dt, speed, 28, 4.6, 0.07);
             }
@@ -11763,7 +12294,7 @@ export function initGame(container: HTMLElement) {
           dir.y = 0;
           const dist = dir.length();
           if (dist > 0.05) {
-            const maxSpeed = p.stats.speed * (28 + assignment.pressStrength * 10) * GAME_SPEED_SCALE;
+            const maxSpeed = THREE.MathUtils.lerp(0.20, p.stats.speed, 0.6) * (24 + assignment.pressStrength * 8) * GAME_SPEED_SCALE;
             const speed = dist > 2.5 ? maxSpeed : maxSpeed * 0.55;
             setPlayerAIState(p, assignment.markTarget ? 'MARK' : 'HOLD_SHAPE');
             steerPlayerTowards(p, desiredTarget, dt, speed, dist > 2 ? 30 : 22, 3.6, 0.08);
@@ -11785,14 +12316,16 @@ export function initGame(container: HTMLElement) {
             // Prevent the thrower/kicker from instantly re-catching the ball (expires after LAST_HELD_BY_EXPIRY)
             if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) return;
             if (ballState.keeperDistributor === p && (elapsed - ballState.keeperDistributorAt) < KEEPER_DIST_EXPIRY) return;
+            // Kickoff law: kicker cannot touch ball again until another player has touched it
+            if (kickoffLawState.active && kickoffLawState.firstKickTaken && !kickoffLawState.touchedByAnotherPlayer && p === kickoffLawState.kicker) return;
 
             const distToBall = p.pos.distanceTo(ballState.pos);
             const isKeeperClaim = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos);
             // Keeper save radius: larger for close-range shots (reflex saves), tighter for long-range
             const shotDistToKeeper = isKeeperClaim && ballState.isShot ? p.pos.distanceTo(ballState.pos) : 99;
-            const closeShotRadius = shotDistToKeeper < 3.0 ? 1.2 : 0.9;
+            const closeShotRadius = shotDistToKeeper < 3.0 ? 1.4 : 1.05;
             const flyingCollectRadius = isKeeperClaim
-              ? (ballState.isShot ? closeShotRadius : 1.0)
+              ? (ballState.isShot ? closeShotRadius : 1.1)
               : 1.2;
             if (distToBall < flyingCollectRadius) {
               const wasShot = ballState.isShot;
@@ -11801,9 +12334,9 @@ export function initGame(container: HTMLElement) {
               if (wasShot && isKeeperClaim) {
                 const shotSpeed = ballState.vel.length();
                 const reachFraction = distToBall / flyingCollectRadius; // 0 = dead center, 1 = edge of reach
-                // Base save chance: 85% at center, drops toward edges and for powerful shots
-                const speedPenalty = THREE.MathUtils.clamp((shotSpeed - 10) * 0.025, 0, 0.25);
-                const saveChance = THREE.MathUtils.clamp(0.85 - reachFraction * 0.35 - speedPenalty, 0.25, 0.92);
+                // Base save chance: 90% at center, drops toward edges and for powerful shots
+                const speedPenalty = THREE.MathUtils.clamp((shotSpeed - 10) * 0.025, 0, 0.22);
+                const saveChance = THREE.MathUtils.clamp(0.90 - reachFraction * 0.28 - speedPenalty, 0.30, 0.94);
                 if (Math.random() > saveChance) {
                   // Shot beats the keeper — deflect but don't claim
                   const deflect = (Math.random() - 0.5) * 2.5;
@@ -11907,6 +12440,7 @@ export function initGame(container: HTMLElement) {
                     startSoccerRestart('TURNOVER', p.team === 'A' ? 'B' : 'A', p.pos.x, p.pos.z, 'OFFSIDE');
                     gameState.messageReason = 'Player in Offside Position';
                     sounds.incomplete();
+                    sounds.offsideAnnouncer();
                     return;
                   }
                 }
@@ -12085,6 +12619,71 @@ export function initGame(container: HTMLElement) {
           const dirScale = p.facingMode === 'side' ? p.dir : 1;
           p.spriteGroup.scale.set(dirScale * scaleX, scaleY, 1.0);
         });
+
+        // ── Referee: follow ball at a distance, stay near sideline ──
+        if (referee) {
+          const ref = referee;
+          // Target position: offset from ball toward the near sideline (+Z)
+          const REF_FOLLOW_DIST = 8.0;   // lateral distance from ball
+          const REF_SPEED = 5.5 * GAME_SPEED_SCALE;
+          const targetX = THREE.MathUtils.clamp(ballState.pos.x, -FIELD_W / 2 + 3, FIELD_W / 2 - 3);
+          const targetZ = THREE.MathUtils.clamp(ballState.pos.z + REF_FOLLOW_DIST, -FIELD_D / 2 + 1, FIELD_D / 2 - 1);
+          const dx = targetX - ref.pos.x;
+          const dz = targetZ - ref.pos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0.5) {
+            const moveSpeed = Math.min(REF_SPEED, dist * 3.0); // ease into position
+            ref.vel.set(dx / dist * moveSpeed, 0, dz / dist * moveSpeed);
+            ref.pos.addScaledVector(ref.vel, dt);
+            ref.state = 'RUN';
+            if (Math.abs(ref.vel.x) > 0.01) ref.dir = ref.vel.x > 0 ? 1 : -1;
+          } else {
+            ref.vel.set(0, 0, 0);
+            ref.state = 'IDLE';
+          }
+          ref.pos.y = 0.15;
+          ref.mesh.position.copy(ref.pos);
+
+          // Facing mode
+          const rAbsVx = Math.abs(ref.vel.x);
+          const rAbsVz = Math.abs(ref.vel.z);
+          let rFacing: 'side' | 'front' | 'back' = 'side';
+          if (ref.state === 'RUN' && rAbsVz > rAbsVx * 1.3 && rAbsVz > 0.8) {
+            rFacing = ref.vel.z > 0 ? 'front' : 'back';
+          }
+          const rFacingChanged = rFacing !== ref.facingMode;
+          if (rFacingChanged) ref.facingMode = rFacing;
+
+          // Animation
+          const rAnimThreshold = ref.state === 'IDLE' ? 0.6 : 0.12;
+          ref.animTimer += dt;
+          if (ref.animTimer > rAnimThreshold || rFacingChanged) {
+            ref.animTimer = 0;
+            ref.runFrames.forEach((f: any) => f.visible = false);
+            ref.idleFrames.forEach((f: any) => f.visible = false);
+            ref.frontRunFrames.forEach((f: any) => f.visible = false);
+            ref.frontIdleFrames.forEach((f: any) => f.visible = false);
+            ref.backRunFrames.forEach((f: any) => f.visible = false);
+            ref.backIdleFrames.forEach((f: any) => f.visible = false);
+            let rFrames: any[];
+            if (ref.facingMode === 'front') {
+              rFrames = ref.state === 'RUN' ? ref.frontRunFrames : ref.frontIdleFrames;
+            } else if (ref.facingMode === 'back') {
+              rFrames = ref.state === 'RUN' ? ref.backRunFrames : ref.backIdleFrames;
+            } else {
+              rFrames = ref.state === 'RUN' ? ref.runFrames : ref.idleFrames;
+            }
+            ref.frame = (ref.frame + 1) % rFrames.length;
+            rFrames.forEach((f: any, i: number) => f.visible = i === ref.frame);
+          }
+          // Sprite scale + breathing
+          const rBreath = ref.state === 'IDLE' ? Math.sin(elapsed * 2.5 + ref.breathOffset) * 0.012 : 0;
+          const rScaleX = 1.0 - rBreath * 0.3;
+          const rScaleY = 1.0 + rBreath;
+          const rDirScale = ref.facingMode === 'side' ? ref.dir : 1;
+          ref.spriteGroup.scale.set(rDirScale * rScaleX, rScaleY, 1.0);
+          ref.spriteGroup.position.set(0, PLAYER_SPRITE_CENTER_Y, 0);
+        }
 
         // Player-to-Player Collisions (Blocking & Tackling)
         players.forEach(p1 => {
@@ -12317,6 +12916,8 @@ export function initGame(container: HTMLElement) {
             for (const p of players) {
               if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) continue;
               if (ballState.keeperDistributor === p && (elapsed - ballState.keeperDistributorAt) < KEEPER_DIST_EXPIRY) continue;
+              // Kickoff law: kicker cannot touch ball again until another player has touched it
+              if (kickoffLawState.active && kickoffLawState.firstKickTaken && !kickoffLawState.touchedByAnotherPlayer && p === kickoffLawState.kicker) continue;
               const distToBall = p.pos.distanceTo(ballState.pos);
               const isIntended = p === ballState.intendedReceiver && elapsed <= ballState.intendedUntil;
               const collectRadius = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos)
@@ -12351,6 +12952,7 @@ export function initGame(container: HTMLElement) {
                 startSoccerRestart('TURNOVER', collector.team === 'A' ? 'B' : 'A', collector.pos.x, collector.pos.z, 'OFFSIDE');
                 gameState.messageReason = 'Player in Offside Position';
                 sounds.incomplete();
+                sounds.offsideAnnouncer();
               }
             } else {
               const prevHolder = ballState.lastHeldBy;
@@ -12438,6 +13040,7 @@ export function initGame(container: HTMLElement) {
                 startSoccerRestart('TURNOVER', collector.team === 'A' ? 'B' : 'A', collector.pos.x, collector.pos.z, 'OFFSIDE');
                 gameState.messageReason = 'Player in Offside Position';
                 sounds.incomplete();
+                sounds.offsideAnnouncer();
               }
             } else {
               const prevHolder = ballState.lastHeldBy;
@@ -12737,6 +13340,31 @@ export function initGame(container: HTMLElement) {
           p.spriteGroup.position.set(spriteOffsetX, spriteOffsetY, 0);
         });
 
+        // Referee idle animation during dead ball
+        if (referee) {
+          const ref = referee;
+          ref.state = 'IDLE';
+          ref.vel.set(0, 0, 0);
+          ref.mesh.position.copy(ref.pos);
+          const rAnimThreshold = 0.6;
+          ref.animTimer += dt;
+          if (ref.animTimer > rAnimThreshold) {
+            ref.animTimer = 0;
+            ref.runFrames.forEach((f: any) => f.visible = false);
+            ref.idleFrames.forEach((f: any) => f.visible = false);
+            ref.frontRunFrames.forEach((f: any) => f.visible = false);
+            ref.frontIdleFrames.forEach((f: any) => f.visible = false);
+            ref.backRunFrames.forEach((f: any) => f.visible = false);
+            ref.backIdleFrames.forEach((f: any) => f.visible = false);
+            const rFrames = ref.idleFrames;
+            ref.frame = (ref.frame + 1) % rFrames.length;
+            rFrames.forEach((f: any, i: number) => f.visible = i === ref.frame);
+          }
+          const rBreath = Math.sin(elapsed * 2.5 + ref.breathOffset) * 0.012;
+          ref.spriteGroup.scale.set(ref.dir * (1.0 - rBreath * 0.3), 1.0 + rBreath, 1.0);
+          ref.spriteGroup.position.set(0, PLAYER_SPRITE_CENTER_Y, 0);
+        }
+
         // ── Goal dead-ball settling (runs in the !isLive branch) ──
         if (isGoalDeadBallActive()) {
           ballState.heldBy = null;
@@ -12776,11 +13404,14 @@ export function initGame(container: HTMLElement) {
       }
 
       // ── Goal-plane monitor + delayed restart + out-of-play: must run even when !isLive ──
-      runGoalPlaneMonitor();
+      // NOTE: handleSoccerOutOfPlay reads goalPlaneMonitor.prevX (previous frame's
+      // position) for the wasBehindEndline netting guard, so it MUST run before
+      // runGoalPlaneMonitor() updates prevX to the current frame.
       updateDelayedRestart();
       if (handleSoccerOutOfPlay()) {
         ballGroup.position.copy(ballState.pos);
       }
+      runGoalPlaneMonitor();
 
       // ── Track when lastHeldBy / keeperDistributor change (auto-stamp for expiry) ──
       if (ballState.lastHeldBy !== _prevLastHeldBy) {
@@ -13133,9 +13764,6 @@ export function initGame(container: HTMLElement) {
       lastMiniMapDrawMs = now;
     }
     updateBallShadowVisual();
-    // GPU-OPT-2: update shadow map every other frame
-    _shadowFrameCount++;
-    renderer.shadowMap.needsUpdate = (_shadowFrameCount & 1) === 0;
     renderMainCamera();
 
     // Orbit camera
@@ -13363,6 +13991,9 @@ export function initGame(container: HTMLElement) {
       // Override the PLAYING status set by startSoccerRestart — the menu must be shown first.
       gameState.status = 'START';
       gameState.menuVisible = true;
+      activeLightingPreset = 'NOON';
+      activeWeather = 'SUNNY';
+      applyWeatherAtmosphere();
       scoreBug.style.display = 'none';
       _miniMapMenuUp = true;
       applyMiniMapVisibility();
@@ -13466,6 +14097,7 @@ export function initGame(container: HTMLElement) {
       activeLightingPreset = LIGHTING_PRESETS[key] ? key : 'NOON';
       applyWeatherAtmosphere();
     },
+    get _scene() { return scene; },
     setWeather: (weather: string) => {
       const key = weather as WeatherKey;
       activeWeather = WEATHER_PRESETS[key] ? key : 'SUNNY';
@@ -13491,6 +14123,13 @@ export function initGame(container: HTMLElement) {
       scoreBug.style.display = visible ? 'none' : 'flex';
       _miniMapMenuUp = visible;
       applyMiniMapVisibility();
+      // Reset lighting to NOON when returning to menu so the attract-mode
+      // scene isn't stuck on a dark NIGHT or LATE preset.
+      if (visible) {
+        activeLightingPreset = 'NOON';
+        activeWeather = 'SUNNY';
+        applyWeatherAtmosphere();
+      }
     },
     splashMusicStart: () => sounds.splashMusicStart(),
     splashMusicStop: () => sounds.splashMusicStop(),
@@ -13550,6 +14189,9 @@ export function initGame(container: HTMLElement) {
       // Override the PLAYING status set by startSoccerRestart — the menu must be shown first.
       gameState.status = 'START';
       gameState.menuVisible = true;
+      activeLightingPreset = 'NOON';
+      activeWeather = 'SUNNY';
+      applyWeatherAtmosphere();
       scoreBug.style.display = 'none';
       _miniMapMenuUp = true;
       applyMiniMapVisibility();
@@ -13587,8 +14229,10 @@ export function initGame(container: HTMLElement) {
     setCrowdVolume: (vol: number) => {
       _crowdLoop.baseVolume = THREE.MathUtils.clamp(vol, 0, 1);
       if (_crowdLoop.gain) {
+        // Smoothly ramp to new base volume instead of hard-cutting scheduled automation
         _crowdLoop.gain.gain.cancelScheduledValues(audioCtx.currentTime);
-        _crowdLoop.gain.gain.setValueAtTime(_crowdLoop.baseVolume, audioCtx.currentTime);
+        _crowdLoop.gain.gain.setValueAtTime(_crowdLoop.gain.gain.value, audioCtx.currentTime);
+        _crowdLoop.gain.gain.linearRampToValueAtTime(_crowdLoop.baseVolume, audioCtx.currentTime + 0.15);
       }
     },
     setStadiumCamTiltShift: (enabled: boolean) => { tiltShiftEnabled = !!enabled; },
