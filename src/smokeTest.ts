@@ -6,7 +6,7 @@
  *   window.pslSmokeTest.run(5, false)    // 5 games, same default teams
  *   window.pslSmokeTest.stop()           // abort early
  */
-import { TelemetryRecorder, findRecentCompletedMatches, mirrorMatchSummary } from './telemetry';
+import { findRecentCompletedMatches } from './telemetry';
 
 const MLS_TEAMS = [
   'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
@@ -79,7 +79,7 @@ async function waitForPhase(phase: string, timeoutMs: number = 10_000): Promise<
   return false;
 }
 
-export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolean = true): Promise<void> {
+export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolean = true, speedMul: number = 1): Promise<void> {
   const game = getGameRef();
   if (!game) {
     console.error('[SmokeTest] No game ref found. Make sure the game is loaded.');
@@ -123,37 +123,17 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
     game.setTeamNames?.(teamA, teamB);
     game.setTeamFormations?.(formA, formB);
 
-    // Start telemetry session
-    const recorder = new TelemetryRecorder();
-    recorder.setContext({
-      teamAName: teamA,
-      teamBName: teamB,
-      teamAFormation: formA,
-      teamBFormation: formB,
-      notes: `Smoke test game ${i + 1}/${numGames}`,
-    });
-    await recorder.start(() => getGameRef(), 500);
-
-    await recorder.recordEvent('mode_selected', {
-      mode: 'cpu',
-      cpuVsCpu: true,
-      smokeTest: true,
-      gameNumber: i + 1,
-      totalGames: numGames,
-      teamAName: teamA,
-      teamBName: teamB,
-    });
-
-    // Start CPU vs CPU at normal speed
+    // Start CPU vs CPU at requested speed
     game.setCpuVsCpu?.(true);
-    game.setSeriesSpeedMul?.(1);
-    game.setRestartDelays?.(0.8, 1.2);
+    game.setSeriesSpeedMul?.(Math.max(1, speedMul));
+    game.setRestartDelays?.(speedMul > 1 ? 0.2 : 0.8, speedMul > 1 ? 0.3 : 1.2);
     game.setMenuVisible?.(false);
     game.startKickoffPresentation?.(true);
 
     // Wait for full time
     const finished = await waitForFullTime();
     const snap = game.getMatchSnapshot?.();
+    const live = game.getLiveTelemetry?.();
 
     if (finished && snap) {
       console.log(
@@ -167,7 +147,7 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              sessionId: recorder.getSessionId(),
+              sessionId: `smoke-${Date.now()}-${i}`,
               startedAt: Date.now(),
               teamAName: teamA,
               teamBName: teamB,
@@ -183,6 +163,20 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
               savesB: snap.savesB ?? 0,
               cornersA: snap.cornersA ?? 0,
               cornersB: snap.cornersB ?? 0,
+              foulsA: live?.teamA?.fouls ?? 0,
+              foulsB: live?.teamB?.fouls ?? 0,
+              throwInsA: live?.teamA?.throwIns ?? 0,
+              throwInsB: live?.teamB?.throwIns ?? 0,
+              headersA: snap.headersA ?? 0,
+              headersB: snap.headersB ?? 0,
+              passesA: live?.teamA?.passes ?? 0,
+              passesB: live?.teamB?.passes ?? 0,
+              tacklesWonA: live?.teamA?.tackles ?? 0,
+              tacklesWonB: live?.teamB?.tackles ?? 0,
+              clearancesA: live?.teamA?.clearances ?? 0,
+              clearancesB: live?.teamB?.clearances ?? 0,
+              possessionA: live?.teamA?.possession ?? '',
+              possessionB: live?.teamB?.possession ?? '',
               phase: snap.phase,
               half: snap.half,
               elapsedInHalf: snap.elapsedInHalf,
@@ -194,15 +188,14 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
       console.warn(`%c[SmokeTest] Game ${i + 1} did not finish properly.`, 'color: #f80');
     }
 
-    // Give recorder time to capture the FULL_TIME snapshot
-    await sleep(2000);
-    await recorder.stop();
-
     getState().gamesPlayed = i + 1;
+
+    // Give a brief pause before the next game
     await sleep(300);
   }
   } catch (err) {
     console.error('[SmokeTest] Error during test:', err);
+    console.error('[SmokeTest] Games completed before error:', getState().gamesPlayed);
   }
 
   // Restore normal mode & speeds

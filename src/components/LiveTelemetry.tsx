@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 interface TeamStats {
   name: string;
   passes: number;
+  passesCompleted: number;
   shots: number;
   shotsOnTarget: number;
   saves: number;
@@ -11,6 +12,8 @@ interface TeamStats {
   fouls: number;
   corners: number;
   throwIns: number;
+  gkDistributions: number;
+  gkDistCompleted: number;
   possession: number;
 }
 
@@ -40,7 +43,7 @@ interface Props {
 
 const STAT_ROWS: { key: keyof TeamStats; label: string }[] = [
   { key: 'possession', label: 'Possession %' },
-  { key: 'passes', label: 'Passes' },
+  { key: 'passes', label: 'Passes (Comp/Att)' },
   { key: 'shots', label: 'Shots' },
   { key: 'shotsOnTarget', label: 'On Target' },
   { key: 'saves', label: 'Saves' },
@@ -49,6 +52,7 @@ const STAT_ROWS: { key: keyof TeamStats; label: string }[] = [
   { key: 'fouls', label: 'Fouls' },
   { key: 'corners', label: 'Corners' },
   { key: 'throwIns', label: 'Throw-Ins' },
+  { key: 'gkDistCompleted', label: 'GK Dist (Comp/Att)' },
 ];
 
 function formatTime(half: number, elapsed: number, halfDuration: number): string {
@@ -159,14 +163,18 @@ export default function LiveTelemetry({ gameRef }: Props) {
               const valA = teamA[key];
               const valB = teamB[key];
               const suffix = key === 'possession' ? '%' : '';
+              const isGkDist = key === 'gkDistCompleted';
+              const isPasses = key === 'passes';
+              const displayA = isGkDist ? `${teamA.gkDistCompleted}/${teamA.gkDistributions}` : isPasses ? `${teamA.passesCompleted}/${teamA.passes}` : `${valA}${suffix}`;
+              const displayB = isGkDist ? `${teamB.gkDistCompleted}/${teamB.gkDistributions}` : isPasses ? `${teamB.passesCompleted}/${teamB.passes}` : `${valB}${suffix}`;
               return (
                 <tr key={key} className="border-b border-white/5 last:border-0">
                   <td className="text-right py-1 px-3 tabular-nums text-white font-medium">
-                    {valA}{suffix}
+                    {displayA}
                   </td>
                   <td className="text-center py-1 px-2 text-white/40">{label}</td>
                   <td className="text-left py-1 px-3 tabular-nums text-white font-medium">
-                    {valB}{suffix}
+                    {displayB}
                   </td>
                 </tr>
               );

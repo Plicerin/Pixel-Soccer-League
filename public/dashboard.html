@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSL — AI Tuning Dashboard</title>
+<style>
+/* ── Reset & Theme ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;--bg1:#111520;--bg2:#161b28;--bg3:#1c2235;
+  --fg:#d0d4dc;--fg2:#8890a0;--fg3:#565e72;
+  --accent-red:#e74c5a;--accent-blue:#3b82f6;--accent-green:#22c55e;
+  --accent-yellow:#eab308;--accent-purple:#a855f7;--accent-orange:#f97316;
+  --accent-brown:#a8763e;--accent-cyan:#06b6d4;
+  --radius:8px;--gap:10px;
+}
+html{font-size:13px;background:var(--bg);color:var(--fg);font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+body{min-height:100vh;padding:var(--gap)}
+canvas{display:block}
+button,select{font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--fg3);border-radius:4px;padding:4px 10px;cursor:pointer}
+button:hover,select:hover{border-color:var(--fg2)}
+button.active{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
+input[type="file"]{display:none}
+
+/* ── Layout ── */
+.dashboard{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);max-width:1800px;margin:0 auto}
+.full-width{grid-column:1/-1}
+
+/* ── Panels ── */
+.panel{background:var(--bg1);border:1px solid var(--bg3);border-radius:var(--radius);overflow:hidden}
+.panel-header{display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--bg3)}
+.panel-header .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.panel-body{padding:10px 12px}
+
+/* ── Stat cards ── */
+.stat-row{display:flex;gap:6px;flex-wrap:wrap}
+.stat-card{flex:1;min-width:90px;background:var(--bg2);border-radius:6px;padding:8px 10px;text-align:center}
+.stat-card .label{font-size:.7rem;color:var(--fg2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
+.stat-card .value{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat-card .sub{font-size:.65rem;color:var(--fg3);margin-top:1px}
+
+/* ── Comparison bar ── */
+.comp-bar{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:.72rem}
+.comp-bar .bar-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;position:relative;overflow:hidden}
+.comp-bar .bar-fill-a{position:absolute;left:0;top:0;height:100%;background:var(--accent-blue);border-radius:3px;transition:width .4s}
+.comp-bar .bar-fill-b{position:absolute;right:0;top:0;height:100%;background:var(--accent-red);border-radius:3px;transition:width .4s}
+.comp-bar .val{min-width:28px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:8px}
+.tabs button{font-size:.72rem;padding:3px 10px;border-radius:4px;border:1px solid var(--bg3);background:var(--bg2)}
+.tabs button.active{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
+
+/* ── Event list ── */
+.event-filters{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.event-filters button{font-size:.68rem;padding:2px 8px}
+.event-list{max-height:320px;overflow-y:auto;font-size:.75rem}
+.event-list::-webkit-scrollbar{width:5px}
+.event-list::-webkit-scrollbar-thumb{background:var(--fg3);border-radius:3px}
+.event-item{display:grid;grid-template-columns:50px 30px 44px 1fr;gap:6px;padding:4px 6px;border-bottom:1px solid var(--bg3);align-items:center}
+.event-item:hover{background:var(--bg2)}
+.event-item .ev-time{color:var(--fg2);font-variant-numeric:tabular-nums}
+.event-item .ev-team{font-weight:700;font-size:.7rem}
+.event-item .ev-type{font-size:.65rem;padding:1px 5px;border-radius:3px;text-align:center;font-weight:600}
+.ev-type.PASS{background:#1e3a5f;color:#60a5fa}.ev-type.SHOT{background:#5f1e1e;color:#f87171}
+.ev-type.TACKLE{background:#1e5f2e;color:#4ade80}.ev-type.INTERCEPTION{background:#4a1e5f;color:#c084fc}
+.ev-type.FOUL{background:#5f4a1e;color:#fbbf24}.ev-type.CLEARANCE{background:#1e4a5f;color:#22d3ee}
+.ev-type.RECOVERY{background:#2e5f1e;color:#86efac}
+
+/* ── Role stats ── */
+.role-select{margin-bottom:10px}
+.role-stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+.role-stat{background:var(--bg2);border-radius:6px;padding:7px 9px}
+.role-stat .rs-label{font-size:.65rem;color:var(--fg2);text-transform:uppercase}
+.role-stat .rs-val{font-size:1.1rem;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ── Behavioral flags ── */
+.flags{margin-top:10px}
+.flag{display:flex;align-items:center;gap:6px;padding:5px 8px;margin:3px 0;border-radius:5px;font-size:.75rem;background:var(--bg2)}
+.flag .flag-icon{font-size:.9rem}
+.flag.warn{border-left:3px solid var(--accent-yellow)}
+.flag.ok{border-left:3px solid var(--accent-green)}
+
+/* ── Keeper ── */
+.keeper-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rl-table{width:100%;border-collapse:collapse;font-size:.7rem}
+.rl-table th,.rl-table td{padding:3px 6px;border-bottom:1px solid var(--bg3);text-align:left}
+.rl-table th{color:var(--fg2);font-weight:600}
+
+/* ── Insights ── */
+.insight{padding:8px 10px;margin:4px 0;border-radius:6px;font-size:.78rem;line-height:1.4}
+.insight.info{background:#1a2744;border-left:3px solid var(--accent-blue)}
+.insight.warn{background:#2e2510;border-left:3px solid var(--accent-yellow)}
+.insight.good{background:#102e1a;border-left:3px solid var(--accent-green)}
+.insight.bad{background:#2e1010;border-left:3px solid var(--accent-red)}
+
+/* ── Comparison ── */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.delta{font-size:.7rem;font-weight:600;margin-left:4px}
+.delta.up{color:var(--accent-green)}.delta.down{color:var(--accent-red)}.delta.flat{color:var(--fg3)}
+
+/* ── Waiting state ── */
+.waiting{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--fg2);text-align:center}
+.waiting .pulse{width:16px;height:16px;border-radius:50%;background:var(--accent-blue);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+
+/* ── Header bar ── */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg1);border:1px solid var(--bg3);border-radius:var(--radius);margin-bottom:var(--gap)}
+.top-bar h1{font-size:1rem;font-weight:800;letter-spacing:.03em}
+.top-bar .controls{display:flex;gap:6px;align-items:center}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse 1.5s infinite}
+.status{font-size:.75rem;color:var(--fg2)}
+</style>
+</head>
+<body>
+
+<div class="top-bar full-width">
+  <h1>⚙️ ULTIMATE AI‑TUNING DASHBOARD</h1>
+  <div class="controls">
+    <span class="status" id="statusText">Waiting for game data…</span>
+    <span class="live-dot" id="liveDot" style="display:none"></span>
+    <span class="status" id="debugText" style="color:var(--accent-yellow)"></span>
+    <button onclick="document.getElementById('fileInput').click()">Load JSON</button>
+    <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
+    <button onclick="saveCurrent()">Save Match</button>
+    <select id="historySelect" onchange="loadFromHistory()" style="max-width:200px"><option value="">— Match History —</option></select>
+    <button onclick="openComparison()">Compare</button>
+  </div>
+</div>
+
+<div class="dashboard" id="main">
+
+<!-- ══════ 1. MATCH OVERVIEW ══════ -->
+<div class="panel full-width" id="panelOverview">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-red)"></span>MATCH OVERVIEW</div>
+  <div class="panel-body">
+    <div id="scoreline" style="text-align:center;font-size:1.6rem;font-weight:800;margin:6px 0;letter-spacing:.02em">— vs —</div>
+    <div class="stat-row" id="overviewStats"></div>
+    <div id="overviewBars" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ══════ 2. MATCH FLOW TIMELINE ══════ -->
+<div class="panel full-width" id="panelTimeline">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH FLOW TIMELINE</div>
+  <div class="panel-body" style="padding:6px">
+    <canvas id="timelineCanvas" height="140"></canvas>
+  </div>
+</div>
+
+<!-- ══════ 3. TEAM STYLE ══════ -->
+<div class="panel" id="panelTeamStyle">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TEAM STYLE</div>
+  <div class="panel-body">
+    <div class="tabs" id="teamStyleTabs">
+      <button class="active" onclick="setTeamStyleTab('buildup')">Build‑Up</button>
+      <button onclick="setTeamStyleTab('defense')">Defensive</button>
+      <button onclick="setTeamStyleTab('transition')">Transitions</button>
+    </div>
+    <div id="teamStyleContent">
+      <canvas id="passNetCanvas" height="260"></canvas>
+      <div id="buildupStats" class="stat-row" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 4. ROLE BEHAVIOR ══════ -->
+<div class="panel" id="panelRole">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>ROLE BEHAVIOR</div>
+  <div class="panel-body">
+    <div class="role-select">
+      <select id="teamSelect" onchange="renderRolePanel()"><option value="A">Team A</option><option value="B">Team B</option></select>
+      <select id="roleSelect" onchange="renderRolePanel()"></select>
+    </div>
+    <div id="roleStatsGrid" class="role-stats-grid"></div>
+    <div id="roleFlags" class="flags"></div>
+  </div>
+</div>
+
+<!-- ══════ 5. EVENT STREAM ══════ -->
+<div class="panel full-width" id="panelEvents">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-purple)"></span>EVENT STREAM ANALYZER</div>
+  <div class="panel-body">
+    <div class="event-filters" id="eventFilters"></div>
+    <div class="event-list" id="eventList"></div>
+  </div>
+</div>
+
+<!-- ══════ 6. SPATIAL INTELLIGENCE ══════ -->
+<div class="panel" id="panelSpatial">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-brown)"></span>SPATIAL INTELLIGENCE</div>
+  <div class="panel-body">
+    <div class="tabs" id="spatialTabs">
+      <button class="active" onclick="setSpatialTab('heatmap')">Heatmap</button>
+      <button onclick="setSpatialTab('shape')">Shape</button>
+    </div>
+    <canvas id="spatialCanvas" height="300"></canvas>
+  </div>
+</div>
+
+<!-- ══════ 7. KEEPER EXPERIENCE ══════ -->
+<div class="panel" id="panelKeeper">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-orange)"></span>KEEPER EXPERIENCE</div>
+  <div class="panel-body">
+    <div class="keeper-grid">
+      <div><canvas id="keeperCanvas" width="240" height="160"></canvas></div>
+      <div>
+        <div style="font-size:.75rem;color:var(--fg2);margin-bottom:4px;font-weight:600">RL TUPLE EXPLORER</div>
+        <div id="rlTuples" style="max-height:150px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div id="keeperFlags" class="flags" style="margin-top:6px"></div>
+  </div>
+</div>
+
+<!-- ══════ 8. MATCH COMPARISON ══════ -->
+<div class="panel" id="panelComparison" style="display:none">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH COMPARISON</div>
+  <div class="panel-body">
+    <div id="compContent" class="comp-grid"></div>
+  </div>
+</div>
+
+<!-- ══════ 9. TUNING INSIGHTS ══════ -->
+<div class="panel full-width" id="panelInsights">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TUNING INSIGHTS</div>
+  <div class="panel-body" id="insightsBody"></div>
+</div>
+
+</div><!-- /dashboard -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   DATA LAYER
+   ═══════════════════════════════════════════════════════════ */
+let D = null;        // current tuning bundle
+let snap = null;     // current match snapshot
+let live = null;     // current live telemetry
+let prevD = null;    // comparison match data
+let lastUpdate = 0;
+let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
+let activeTeamStyleTab = 'buildup';
+let activeSpatialTab = 'heatmap';
+let selectedRole = '';
+let selectedTeam = 'A';
+
+// BroadcastChannel listener
+let _msgCount = 0;
+const ch = new BroadcastChannel('psl-telemetry');
+console.log('[PSL-Dashboard] BroadcastChannel created on origin:', location.origin);
+ch.onmessage = (e) => {
+  _msgCount++;
+  console.log('[PSL-Dashboard] Received message #' + _msgCount, e.data?.type);
+  if (e.data?.type === 'tuning') {
+    D = e.data.bundle;
+    snap = e.data.snapshot;
+    live = e.data.live;
+    lastUpdate = Date.now();
+    renderAll();
+  }
+};
+ch.onmessageerror = (e) => {
+  console.error('[PSL-Dashboard] Message deserialization error:', e);
+  $('debugText').textContent = 'Channel error — see console';
+};
+
+// Fallback: poll localStorage + window.opener every 2s
+setInterval(() => {
+  if (D && Date.now() - lastUpdate < 4000) return;
+  // Fallback 1: localStorage (most reliable)
+  try {
+    const raw = localStorage.getItem('psl-tuning');
+    if (raw) {
+      const payload = JSON.parse(raw);
+      if (payload?.ts && payload.ts !== _lastLSTs) {
+        _lastLSTs = payload.ts;
+        D = payload.bundle;
+        snap = payload.snapshot;
+        live = payload.live;
+        lastUpdate = Date.now();
+        $('debugText').textContent = 'via localStorage';
+        renderAll();
+        return;
+      }
+    }
+  } catch (e) { console.warn('[PSL-Dashboard] localStorage poll error:', e); }
+  // Fallback 2: window.opener
+  try {
+    const g = window.opener?.__gameRef;
+    if (g) {
+      D = g.getTuningBundle?.();
+      snap = g.getMatchSnapshot?.();
+      live = g.getLiveTelemetry?.();
+      if (D) { lastUpdate = Date.now(); $('debugText').textContent = 'via window.opener'; renderAll(); return; }
+    }
+  } catch {}
+  // Show waiting status
+  if (!D || Date.now() - lastUpdate > 6000) {
+    const age = ((Date.now() - _bootTime) / 1000).toFixed(0);
+    $('debugText').textContent = `No data (${age}s) — origin: ${location.origin} — refresh game tab`;
+  }
+}, 2000);
+let _lastLSTs = 0;
+const _bootTime = Date.now();
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const pct = (n, d) => d ? (n / d * 100).toFixed(1) + '%' : '0%';
+const f1 = n => Number(n || 0).toFixed(1);
+const f0 = n => Math.round(n || 0);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function statCard(label, value, sub) {
+  return `<div class="stat-card"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+}
+
+function compBar(labelA, valA, valB, labelB) {
+  const max = Math.max(valA, valB, 1);
+  const pA = (valA / max * 50).toFixed(1);
+  const pB = (valB / max * 50).toFixed(1);
+  return `<div class="comp-bar">
+    <span class="val">${valA}</span>
+    <div class="bar-track"><div class="bar-fill-a" style="width:${pA}%"></div><div class="bar-fill-b" style="width:${pB}%"></div></div>
+    <span class="val">${valB}</span>
+    <span style="font-size:.65rem;color:var(--fg3);min-width:80px;text-align:center">${labelA}</span>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CANVAS HELPERS
+   ═══════════════════════════════════════════════════════════ */
+function fitCanvas(canvas) {
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.floor(r.width);
+  // keep height from attribute
+  if (!canvas.getAttribute('height')) canvas.height = 140;
+}
+
+function drawPitch(ctx, w, h, pad) {
+  const px = pad, py = pad, pw = w - 2 * pad, ph = h - 2 * pad;
+  ctx.strokeStyle = '#2a3248'; ctx.lineWidth = 1;
+  ctx.strokeRect(px, py, pw, ph);
+  ctx.beginPath(); ctx.moveTo(px + pw / 2, py); ctx.lineTo(px + pw / 2, py + ph); ctx.stroke();
+  ctx.beginPath(); ctx.arc(px + pw / 2, py + ph / 2, ph * 0.15, 0, Math.PI * 2); ctx.stroke();
+  // penalty areas
+  const paW = pw * 0.16, paH = ph * 0.4;
+  ctx.strokeRect(px, py + ph / 2 - paH / 2, paW, paH);
+  ctx.strokeRect(px + pw - paW, py + ph / 2 - paH / 2, paW, paH);
+  return { px, py, pw, ph };
+}
+
+function pitchToCanvas(x, z, pitch) {
+  // x: -32.8..32.8 (FIELD_W/2), z: -20..20 (FIELD_D/2)
+  const nx = clamp((x + 32.8) / 65.6, 0, 1);
+  const nz = clamp((z + 20) / 40, 0, 1);
+  return { cx: pitch.px + nx * pitch.pw, cy: pitch.py + nz * pitch.ph };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 1. MATCH OVERVIEW
+   ═══════════════════════════════════════════════════════════ */
+function renderOverview() {
+  if (!D) return;
+  const a = D.teamA, b = D.teamB;
+  $('scoreline').textContent = `${a.name || 'Team A'}  ${a.score ?? 0} — ${b.score ?? 0}  ${b.name || 'Team B'}`;
+
+  // xG estimate: SOG * 0.35 + (shots-SOG) * 0.05
+  const xgA = ((a.shotsOnTarget || 0) * 0.35 + ((a.shots || 0) - (a.shotsOnTarget || 0)) * 0.05).toFixed(2);
+  const xgB = ((b.shotsOnTarget || 0) * 0.35 + ((b.shots || 0) - (b.shotsOnTarget || 0)) * 0.05).toFixed(2);
+
+  const totalRoleA = a.roleStats ? Object.values(a.roleStats) : [];
+  const totalRoleB = b.roleStats ? Object.values(b.roleStats) : [];
+  const intA = totalRoleA.reduce((s, r) => s + (r.interceptions || 0), 0);
+  const intB = totalRoleB.reduce((s, r) => s + (r.interceptions || 0), 0);
+  const recA = totalRoleA.reduce((s, r) => s + (r.recoveries || 0), 0);
+  const recB = totalRoleB.reduce((s, r) => s + (r.recoveries || 0), 0);
+  const transA = (D.transitions || []).filter(t => t.team === 'A').length;
+  const transB = (D.transitions || []).filter(t => t.team === 'B').length;
+
+  $('overviewStats').innerHTML = [
+    statCard('xG', `${xgA} — ${xgB}`),
+    statCard('Possession', `${a.possession ?? 50}% — ${b.possession ?? 50}%`),
+    statCard('Shots / SOT', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`),
+    statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
+    statCard('Def Actions', `${(a.tackles||0)+intA+recA} — ${(b.tackles||0)+intB+recB}`, `T/I/R`),
+    statCard('Transitions', `${transA} — ${transB}`),
+    statCard('Saves', `${a.saves} — ${b.saves}`),
+  ].join('');
+
+  $('overviewBars').innerHTML = [
+    compBar('Shots', a.shots || 0, b.shots || 0, 'Shots'),
+    compBar('SOT', a.shotsOnTarget || 0, b.shotsOnTarget || 0, 'SOT'),
+    compBar('Passes', a.passes || 0, b.passes || 0, 'Passes'),
+    compBar('Tackles', a.tackles || 0, b.tackles || 0, 'Tackles'),
+    compBar('Fouls', a.fouls || 0, b.fouls || 0, 'Fouls'),
+    compBar('Corners', a.corners || 0, b.corners || 0, 'Corners'),
+  ].join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 2. MATCH FLOW TIMELINE
+   ═══════════════════════════════════════════════════════════ */
+function renderTimeline() {
+  const canvas = $('timelineCanvas');
+  fitCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  if (!D) return;
+
+  const events = D.events || [];
+  const halfDur = D.metadata?.halfDuration || 2700;
+  const totalDur = halfDur * 2;
+  const pad = { l: 40, r: 10, t: 14, b: 22 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  // Time axis
+  ctx.strokeStyle = '#2a3248'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, H - pad.b); ctx.lineTo(W - pad.r, H - pad.b); ctx.stroke();
+  ctx.fillStyle = '#565e72'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  for (let m = 0; m <= 90; m += 15) {
+    const x = pad.l + (m / 90) * gw;
+    ctx.fillText(m + "'", x, H - 4);
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, H - pad.b);
+    ctx.strokeStyle = '#1a1f2e'; ctx.stroke();
+  }
+  // HT line
+  const htX = pad.l + gw / 2;
+  ctx.strokeStyle = '#3a4060'; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(htX, pad.t); ctx.lineTo(htX, H - pad.b); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#565e72'; ctx.fillText('HT', htX, pad.t - 2);
+
+  // Possession area (use shape samples)
+  const shapeA = D.shapeA || [];
+  if (shapeA.length > 2) {
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.moveTo(pad.l, H - pad.b);
+    for (const s of shapeA) {
+      const rawT = s.half === 1 ? s.t : halfDur + s.t;
+      const x = pad.l + (rawT / totalDur) * gw;
+      const poss = clamp(0.3 + (s.compactness || 5) / 20, 0.1, 0.9);
+      ctx.lineTo(x, H - pad.b - poss * gh);
+    }
+    ctx.lineTo(pad.l + gw, H - pad.b);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Event markers
+  const evtToX = (ev) => {
+    const rawT = ev.half === 1 ? ev.t : halfDur + ev.t;
+    return pad.l + (rawT / totalDur) * gw;
+  };
+
+  for (const ev of events) {
+    const x = evtToX(ev);
+    const isA = ev.team === 'A';
+    const baseY = isA ? pad.t + gh * 0.25 : pad.t + gh * 0.65;
+    const r = 3;
+
+    if (ev.type === 'SHOT') {
+      ctx.beginPath(); ctx.arc(x, baseY, r + 1, 0, Math.PI * 2);
+      ctx.fillStyle = ev.detail?.style === 'PENALTY' ? '#f97316' : (isA ? '#3b82f6' : '#e74c5a');
+      ctx.fill();
+    } else if (ev.type === 'TACKLE') {
+      ctx.fillStyle = '#22c55e'; ctx.fillRect(x - 1.5, baseY - 1.5, 3, 3);
+    } else if (ev.type === 'FOUL') {
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath(); ctx.moveTo(x, baseY - 3); ctx.lineTo(x + 2.5, baseY + 2); ctx.lineTo(x - 2.5, baseY + 2); ctx.fill();
+    } else if (ev.type === 'INTERCEPTION') {
+      ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 2, baseY - 2); ctx.lineTo(x + 2, baseY + 2);
+      ctx.moveTo(x + 2, baseY - 2); ctx.lineTo(x - 2, baseY + 2); ctx.stroke();
+    }
+  }
+
+  // Momentum curve
+  if (events.length > 4) {
+    const buckets = 18;
+    const bw = totalDur / buckets;
+    const counts = new Array(buckets).fill(0);
+    for (const ev of events) {
+      const rawT = ev.half === 1 ? ev.t : halfDur + ev.t;
+      const bi = clamp(Math.floor(rawT / bw), 0, buckets - 1);
+      counts[bi] += (ev.team === 'A' ? 1 : -1);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const mid = pad.t + gh / 2;
+    for (let i = 0; i < buckets; i++) {
+      const x = pad.l + (i + 0.5) / buckets * gw;
+      const y = mid - clamp(counts[i] * 3, -gh * 0.3, gh * 0.3);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Legend
+  ctx.font = '9px sans-serif'; ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left';
+  ctx.fillText('Team A ↑', pad.l, pad.t + 8);
+  ctx.textAlign = 'right';
+  ctx.fillText('Team B ↓', W - pad.r, pad.t + gh - 2);
+  // Legend icons
+  const lx = pad.l + 60, ly = pad.t + 5;
+  ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(lx, ly, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left'; ctx.fillText('Shot', lx + 6, ly + 3);
+  ctx.fillStyle = '#22c55e'; ctx.fillRect(lx + 35, ly - 2, 4, 4);
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Tackle', lx + 42, ly + 3);
+  ctx.fillStyle = '#eab308';
+  ctx.beginPath(); ctx.moveTo(lx + 82, ly - 3); ctx.lineTo(lx + 85, ly + 2); ctx.lineTo(lx + 79, ly + 2); ctx.fill();
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Foul', lx + 88, ly + 3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 3. TEAM STYLE
+   ═══════════════════════════════════════════════════════════ */
+function setTeamStyleTab(tab) {
+  activeTeamStyleTab = tab;
+  document.querySelectorAll('#teamStyleTabs button').forEach((b, i) => {
+    b.classList.toggle('active', ['buildup', 'defense', 'transition'][i] === tab);
+  });
+  renderTeamStyle();
+}
+
+function renderTeamStyle() {
+  if (!D) return;
+  const content = $('teamStyleContent');
+  const a = D.teamA, b = D.teamB;
+
+  if (activeTeamStyleTab === 'buildup') {
+    content.innerHTML = `<canvas id="passNetCanvas" height="260"></canvas><div id="buildupStats" class="stat-row" style="margin-top:8px"></div>`;
+    renderPassNetwork();
+    const passMinA = a.passes && D.metadata?.halfDuration ? (a.passes / (D.metadata.halfDuration * 2 / 60)).toFixed(1) : '—';
+    const passMinB = b.passes && D.metadata?.halfDuration ? (b.passes / (D.metadata.halfDuration * 2 / 60)).toFixed(1) : '—';
+    const turnA = a.roleStats ? Object.values(a.roleStats).reduce((s, r) => s + (r.turnovers || 0), 0) : 0;
+    const turnB = b.roleStats ? Object.values(b.roleStats).reduce((s, r) => s + (r.turnovers || 0), 0) : 0;
+    const fwdPassA = (D.events || []).filter(e => e.type === 'PASS' && e.team === 'A' && (e.detail?.dist || 0) > 3).length;
+    const fwdPassB = (D.events || []).filter(e => e.type === 'PASS' && e.team === 'B' && (e.detail?.dist || 0) > 3).length;
+    $('buildupStats').innerHTML = [
+      statCard('Tempo', `${passMinA} — ${passMinB}`, 'passes/min'),
+      statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
+      statCard('Turnovers', `${turnA} — ${turnB}`),
+      statCard('Fwd Pass', `${fwdPassA} — ${fwdPassB}`, 'dist > 3'),
+    ].join('');
+  } else if (activeTeamStyleTab === 'defense') {
+    const shA = D.shapeA || [], shB = D.shapeB || [];
+    const avgLineA = shA.length ? (shA.reduce((s, x) => s + x.highLine, 0) / shA.length).toFixed(1) : '—';
+    const avgLineB = shB.length ? (shB.reduce((s, x) => s + x.highLine, 0) / shB.length).toFixed(1) : '—';
+    const avgWidthA = shA.length ? (shA.reduce((s, x) => s + x.width, 0) / shA.length).toFixed(1) : '—';
+    const avgWidthB = shB.length ? (shB.reduce((s, x) => s + x.width, 0) / shB.length).toFixed(1) : '—';
+    const avgCompA = shA.length ? (shA.reduce((s, x) => s + x.compactness, 0) / shA.length).toFixed(1) : '—';
+    const avgCompB = shB.length ? (shB.reduce((s, x) => s + x.compactness, 0) / shB.length).toFixed(1) : '—';
+    const intA = a.roleStats ? Object.values(a.roleStats).reduce((s, r) => s + (r.interceptions || 0), 0) : 0;
+    const intB = b.roleStats ? Object.values(b.roleStats).reduce((s, r) => s + (r.interceptions || 0), 0) : 0;
+    content.innerHTML = `
+      <canvas id="shapeChart" height="200"></canvas>
+      <div class="stat-row" style="margin-top:8px">
+        ${statCard('Avg Line Height', `${avgLineA} — ${avgLineB}`)}
+        ${statCard('Avg Width', `${avgWidthA} — ${avgWidthB}`)}
+        ${statCard('Compactness', `${avgCompA} — ${avgCompB}`)}
+        ${statCard('Press Intensity', `${(a.tackles||0)+intA} — ${(b.tackles||0)+intB}`, 'T+I')}
+      </div>`;
+    renderShapeChart();
+  } else {
+    const tr = D.transitions || [];
+    const trA = tr.filter(t => t.team === 'A'), trB = tr.filter(t => t.team === 'B');
+    const avgDurA = trA.length ? (trA.reduce((s, t) => s + (t.duration || 0), 0) / trA.length).toFixed(1) : '—';
+    const avgDurB = trB.length ? (trB.reduce((s, t) => s + (t.duration || 0), 0) / trB.length).toFixed(1) : '—';
+    const avgProgA = trA.length ? (trA.reduce((s, t) => s + (t.progressionYards || 0), 0) / trA.length).toFixed(1) : '—';
+    const avgProgB = trB.length ? (trB.reduce((s, t) => s + (t.progressionYards || 0), 0) / trB.length).toFixed(1) : '—';
+    const avgPassTrA = trA.length ? (trA.reduce((s, t) => s + (t.passesInTransition || 0), 0) / trA.length).toFixed(1) : '—';
+    const avgPassTrB = trB.length ? (trB.reduce((s, t) => s + (t.passesInTransition || 0), 0) / trB.length).toFixed(1) : '—';
+    content.innerHTML = `<div class="stat-row">
+      ${statCard('Count', `${trA.length} — ${trB.length}`)}
+      ${statCard('Avg Duration', `${avgDurA}s — ${avgDurB}s`)}
+      ${statCard('Avg Progression', `${avgProgA} — ${avgProgB}`, 'yds')}
+      ${statCard('Passes/Trans', `${avgPassTrA} — ${avgPassTrB}`)}
+    </div>`;
+  }
+}
+
+function renderPassNetwork() {
+  const canvas = $('passNetCanvas');
+  if (!canvas) return;
+  fitCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const netA = D.teamA?.passNetwork || [];
+  const netB = D.teamB?.passNetwork || [];
+  drawPassNet(ctx, netA, 10, 10, W / 2 - 15, H - 20, D.teamA?.name || 'A', '#3b82f6');
+  drawPassNet(ctx, netB, W / 2 + 5, 10, W / 2 - 15, H - 20, D.teamB?.name || 'B', '#e74c5a');
+}
+
+function drawPassNet(ctx, edges, ox, oy, w, h, label, color) {
+  // Collect unique roles
+  const roles = new Set();
+  for (const e of edges) { roles.add(e.from); roles.add(e.to); }
+  const roleArr = [...roles].sort();
+  if (roleArr.length === 0) {
+    ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('No pass data', ox + w / 2, oy + h / 2);
+    return;
+  }
+
+  // Position roles in a circle
+  const cx = ox + w / 2, cy = oy + h / 2 + 8;
+  const r = Math.min(w, h) * 0.38;
+  const pos = {};
+  roleArr.forEach((role, i) => {
+    const angle = -Math.PI / 2 + (i / roleArr.length) * Math.PI * 2;
+    pos[role] = { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r };
+  });
+
+  // Label
+  ctx.fillStyle = color; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(label, cx, oy + 10);
+
+  // Draw edges
+  const maxCount = Math.max(1, ...edges.map(e => e.count));
+  for (const e of edges) {
+    if (!pos[e.from] || !pos[e.to]) continue;
+    const alpha = clamp(e.count / maxCount, 0.15, 1);
+    const lw = clamp(e.count / maxCount * 4, 0.5, 4);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(pos[e.from].x, pos[e.from].y);
+    ctx.lineTo(pos[e.to].x, pos[e.to].y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw nodes
+  for (const role of roleArr) {
+    const p = pos[role];
+    ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+    ctx.fillStyle = '#161b28'; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#d0d4dc'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(role, p.x, p.y);
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+function renderShapeChart() {
+  const canvas = $('shapeChart');
+  if (!canvas) return;
+  fitCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 40, r: 10, t: 12, b: 20 };
+  const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+
+  const shA = D.shapeA || [], shB = D.shapeB || [];
+  if (shA.length < 2 && shB.length < 2) {
+    ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Insufficient shape data', W / 2, H / 2);
+    return;
+  }
+
+  const halfDur = D.metadata?.halfDuration || 2700;
+  const totalDur = halfDur * 2;
+
+  // Draw line height over time for both teams
+  ctx.strokeStyle = '#2a3248'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, H - pad.b); ctx.lineTo(W - pad.r, H - pad.b); ctx.stroke();
+
+  const drawLine = (samples, color) => {
+    if (samples.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i];
+      const rawT = s.half === 1 ? s.t : halfDur + s.t;
+      const x = pad.l + (rawT / totalDur) * gw;
+      const y = pad.t + gh - clamp((s.highLine + 32) / 65 * gh, 0, gh);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+
+  drawLine(shA, '#3b82f6');
+  drawLine(shB, '#e74c5a');
+
+  ctx.fillStyle = '#565e72'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Line Height', pad.l, pad.t + 8);
+  ctx.fillStyle = '#3b82f6'; ctx.fillText('■ A', pad.l + 70, pad.t + 8);
+  ctx.fillStyle = '#e74c5a'; ctx.fillText('■ B', pad.l + 90, pad.t + 8);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 4. ROLE BEHAVIOR
+   ═══════════════════════════════════════════════════════════ */
+function populateRoleSelect() {
+  if (!D) return;
+  const sel = $('roleSelect');
+  const team = $('teamSelect').value;
+  const rs = team === 'A' ? D.teamA?.roleStats : D.teamB?.roleStats;
+  const roles = rs ? Object.keys(rs).sort() : [];
+  const prev = sel.value;
+  sel.innerHTML = roles.map(r => `<option value="${r}" ${r === prev ? 'selected' : ''}>${r}</option>`).join('');
+  if (!sel.value && roles.length) sel.value = roles[0];
+}
+
+function renderRolePanel() {
+  if (!D) return;
+  populateRoleSelect();
+  const team = $('teamSelect').value;
+  const role = $('roleSelect').value;
+  if (!role) { $('roleStatsGrid').innerHTML = '<div style="color:var(--fg3);font-size:.8rem">No role data available</div>'; return; }
+  const rs = (team === 'A' ? D.teamA?.roleStats : D.teamB?.roleStats) || {};
+  const r = rs[role];
+  if (!r) { $('roleStatsGrid').innerHTML = '<div style="color:var(--fg3);font-size:.8rem">No data for ' + role + '</div>'; return; }
+
+  const passAccu = r.passAtt > 0 ? pct(r.passComp, r.passAtt) : '—';
+
+  $('roleStatsGrid').innerHTML = [
+    { l: 'Touches', v: r.touches },
+    { l: 'Poss Frames', v: r.possFrames },
+    { l: 'Pass Att', v: r.passAtt },
+    { l: 'Pass Comp', v: r.passComp },
+    { l: 'Pass %', v: passAccu },
+    { l: 'Shots', v: r.shots },
+    { l: 'SOT', v: r.shotsOnTarget },
+    { l: 'Tackles', v: r.tackles },
+    { l: 'Interceptions', v: r.interceptions },
+    { l: 'Clearances', v: r.clearances },
+    { l: 'Recoveries', v: r.recoveries },
+    { l: 'Turnovers', v: r.turnovers },
+    { l: 'Fouls', v: r.fouls },
+    { l: 'Fouled', v: r.fouled },
+  ].map(s => `<div class="role-stat"><div class="rs-label">${s.l}</div><div class="rs-val">${s.v}</div></div>`).join('');
+
+  // Behavioral flags
+  const flags = [];
+  const totalPoss = D.teamA?.possession || 50;
+  if (r.possFrames > 0 && r.passAtt > 0) {
+    const holdPerPass = r.possFrames / r.passAtt;
+    if (holdPerPass > 60) flags.push({ icon: '⚠️', text: `Holding ball too long (${holdPerPass.toFixed(0)} frames/pass)`, cls: 'warn' });
+  }
+  if (r.passAtt >= 5 && r.passComp / r.passAtt < 0.5) flags.push({ icon: '⚠️', text: `Low pass completion (${pct(r.passComp, r.passAtt)})`, cls: 'warn' });
+  if (r.turnovers > 5) flags.push({ icon: '⚠️', text: `High turnover count (${r.turnovers})`, cls: 'warn' });
+  if (['ST', 'LW', 'RW', 'AM'].includes(role) && r.shots === 0 && r.passAtt > 10) flags.push({ icon: '⚠️', text: 'Attacker with 0 shots', cls: 'warn' });
+  if (['CB', 'RB', 'LB'].includes(role) && r.tackles + r.interceptions + r.clearances === 0 && r.possFrames > 100) flags.push({ icon: '⚠️', text: 'Defender with 0 defensive actions', cls: 'warn' });
+  if (r.passAtt >= 3 && r.passComp / r.passAtt >= 0.8) flags.push({ icon: '✅', text: `Good pass accuracy (${pct(r.passComp, r.passAtt)})`, cls: 'ok' });
+  if (r.tackles + r.interceptions >= 5) flags.push({ icon: '✅', text: `Strong defensive presence (${r.tackles + r.interceptions} T+I)`, cls: 'ok' });
+
+  $('roleFlags').innerHTML = flags.length
+    ? flags.map(f => `<div class="flag ${f.cls}"><span class="flag-icon">${f.icon}</span>${f.text}</div>`).join('')
+    : '<div style="color:var(--fg3);font-size:.75rem;padding:4px">No anomalies detected</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 5. EVENT STREAM
+   ═══════════════════════════════════════════════════════════ */
+function renderEventFilters() {
+  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  $('eventFilters').innerHTML = types.map(t =>
+    `<button class="${activeEventFilters.has(t) ? 'active' : ''}" onclick="toggleEventFilter('${t}')">${t}</button>`
+  ).join('') + `<button onclick="toggleAllEvents()">ALL</button>`;
+}
+
+function toggleEventFilter(type) {
+  if (activeEventFilters.has(type)) activeEventFilters.delete(type);
+  else activeEventFilters.add(type);
+  renderEventFilters();
+  renderEventList();
+}
+
+function toggleAllEvents() {
+  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  if (activeEventFilters.size === all.length) activeEventFilters.clear();
+  else all.forEach(t => activeEventFilters.add(t));
+  renderEventFilters();
+  renderEventList();
+}
+
+function renderEventList() {
+  if (!D) return;
+  const events = (D.events || []).filter(e => activeEventFilters.has(e.type));
+  const sorted = [...events].sort((a, b) => {
+    const aT = a.half === 1 ? a.t : 2700 + a.t;
+    const bT = b.half === 1 ? b.t : 2700 + b.t;
+    return bT - aT;
+  });
+
+  const formatTime = (ev) => {
+    const halfDur = D.metadata?.halfDuration || 2700;
+    const totalSec = ev.half === 1 ? ev.t : halfDur + ev.t;
+    const min = Math.floor(totalSec / 60);
+    const sec = Math.floor(totalSec % 60);
+    return `${min}:${String(sec).padStart(2, '0')}`;
+  };
+
+  $('eventList').innerHTML = sorted.slice(0, 200).map(ev => {
+    const detail = ev.detail || {};
+    const detailStr = Object.entries(detail).map(([k, v]) => `${k}:${v}`).join(' · ');
+    return `<div class="event-item" title="${detailStr}">
+      <span class="ev-time">${formatTime(ev)}</span>
+      <span class="ev-team" style="color:${ev.team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${ev.team}</span>
+      <span class="ev-type ${ev.type}">${ev.type}</span>
+      <span style="color:var(--fg2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.role} ${detailStr ? '— ' + detailStr : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 6. SPATIAL INTELLIGENCE
+   ═══════════════════════════════════════════════════════════ */
+function setSpatialTab(tab) {
+  activeSpatialTab = tab;
+  document.querySelectorAll('#spatialTabs button').forEach((b, i) => {
+    b.classList.toggle('active', ['heatmap', 'shape'][i] === tab);
+  });
+  renderSpatial();
+}
+
+function renderSpatial() {
+  const canvas = $('spatialCanvas');
+  fitCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pitch = drawPitch(ctx, W, H, 20);
+
+  if (activeSpatialTab === 'heatmap') {
+    // Event heatmap
+    const events = D?.events || [];
+    if (events.length === 0) {
+      ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('No event data for heatmap', W / 2, H / 2);
+      return;
+    }
+
+    // Accumulate into grid
+    const gx = 20, gz = 14;
+    const gridA = Array.from({ length: gx }, () => new Float32Array(gz));
+    const gridB = Array.from({ length: gx }, () => new Float32Array(gz));
+    for (const ev of events) {
+      const x = ev.detail?.x, z = ev.detail?.z;
+      if (x == null || z == null) continue;
+      const gi = clamp(Math.floor((x + 32.8) / 65.6 * gx), 0, gx - 1);
+      const gj = clamp(Math.floor((z + 20) / 40 * gz), 0, gz - 1);
+      if (ev.team === 'A') gridA[gi][gj]++;
+      else gridB[gi][gj]++;
+    }
+
+    const maxVal = Math.max(1, ...[...gridA.flat(), ...gridB.flat()]);
+    const cellW = pitch.pw / gx, cellH = pitch.ph / gz;
+
+    // Draw heatmap
+    for (let i = 0; i < gx; i++) {
+      for (let j = 0; j < gz; j++) {
+        const vA = gridA[i][j] / maxVal;
+        const vB = gridB[i][j] / maxVal;
+        if (vA > 0.01) {
+          ctx.fillStyle = `rgba(59,130,246,${clamp(vA * 0.6, 0.02, 0.6)})`;
+          ctx.fillRect(pitch.px + i * cellW, pitch.py + j * cellH, cellW, cellH);
+        }
+        if (vB > 0.01) {
+          ctx.fillStyle = `rgba(231,76,90,${clamp(vB * 0.6, 0.02, 0.6)})`;
+          ctx.fillRect(pitch.px + i * cellW, pitch.py + j * cellH, cellW, cellH);
+        }
+      }
+    }
+
+    ctx.fillStyle = '#8890a0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('Event Heatmap  ■ A (blue)  ■ B (red)', 24, 14);
+  } else {
+    // Shape tracking: draw team centroids over time
+    const shA = D?.shapeA || [], shB = D?.shapeB || [];
+    if (shA.length === 0 && shB.length === 0) {
+      ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('No shape data', W / 2, H / 2);
+      return;
+    }
+
+    // Draw latest shape as ellipses
+    const drawShape = (samples, color) => {
+      if (samples.length === 0) return;
+      const last = samples[samples.length - 1];
+      const cp = pitchToCanvas(last.avgX, last.avgZ, pitch);
+      const rw = (last.width || 10) / 40 * pitch.pw / 2;
+      const rh = (last.depth || 10) / 65.6 * pitch.ph / 2;
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.globalAlpha = 0.4;
+      ctx.beginPath(); ctx.ellipse(cp.cx, cp.cy, Math.max(rw, 4), Math.max(rh, 4), 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(cp.cx, cp.cy, 4, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    };
+
+    drawShape(shA, '#3b82f6');
+    drawShape(shB, '#e74c5a');
+
+    // Draw centroid trail
+    const drawTrail = (samples, color) => {
+      if (samples.length < 2) return;
+      ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      for (let i = 0; i < samples.length; i++) {
+        const cp = pitchToCanvas(samples[i].avgX, samples[i].avgZ, pitch);
+        i === 0 ? ctx.moveTo(cp.cx, cp.cy) : ctx.lineTo(cp.cx, cp.cy);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    };
+
+    drawTrail(shA, '#3b82f6');
+    drawTrail(shB, '#e74c5a');
+
+    ctx.fillStyle = '#8890a0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('Team Shape (centroid + width/depth ellipse)', 24, 14);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 7. KEEPER EXPERIENCE
+   ═══════════════════════════════════════════════════════════ */
+function renderKeeper() {
+  const canvas = $('keeperCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw goal face
+  ctx.strokeStyle = '#3a4060'; ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, W - 20, H - 20);
+  // Crossbar
+  ctx.strokeStyle = '#565e72'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(W - 10, 10); ctx.stroke();
+  // Posts
+  ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(10, H - 10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W - 10, 10); ctx.lineTo(W - 10, H - 10); ctx.stroke();
+
+  const kexp = D?.keeperExperience || [];
+  if (kexp.length === 0) {
+    ctx.fillStyle = '#565e72'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('No keeper data', W / 2, H / 2);
+  } else {
+    // Plot saves
+    for (const exp of kexp.slice(-30)) {
+      const action = exp.action ?? 0;
+      const reward = exp.reward ?? 0;
+      // Action: 0=center, 1=left, 2=right, 3=up, etc.
+      const nx = clamp(0.2 + (action % 3) * 0.3, 0.1, 0.9);
+      const ny = clamp(0.3 + Math.floor(action / 3) * 0.3, 0.1, 0.9);
+      const sx = 10 + nx * (W - 20), sy = 10 + ny * (H - 20);
+      ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fillStyle = reward > 0 ? '#22c55e' : (reward < 0 ? '#e74c5a' : '#eab308');
+      ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+
+  ctx.fillStyle = '#8890a0'; ctx.font = '8px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('● Save  ● Goal  ● Neutral', 14, H - 2);
+
+  // RL Tuples
+  const tupleHtml = kexp.slice(-10).reverse().map(exp => `
+    <div style="font-size:.68rem;padding:3px 0;border-bottom:1px solid var(--bg3);display:flex;gap:8px">
+      <span style="color:var(--fg2)">A:${exp.action ?? '?'}</span>
+      <span style="color:${(exp.reward ?? 0) > 0 ? 'var(--accent-green)' : (exp.reward ?? 0) < 0 ? 'var(--accent-red)' : 'var(--fg3)'}">R:${(exp.reward ?? 0).toFixed(2)}</span>
+      <span style="color:var(--fg3)">${exp.style || ''}</span>
+    </div>
+  `).join('');
+  $('rlTuples').innerHTML = tupleHtml || '<div style="color:var(--fg3);font-size:.7rem">No RL tuples</div>';
+
+  // Keeper flags
+  const flags = [];
+  if (kexp.length >= 5) {
+    const recent = kexp.slice(-10);
+    const saves = recent.filter(e => (e.reward ?? 0) > 0).length;
+    const goals = recent.filter(e => (e.reward ?? 0) < 0).length;
+    if (goals > saves * 2) flags.push({ icon: '⚠️', text: 'Keeper conceding frequently in recent attempts', cls: 'warn' });
+    if (saves >= 7) flags.push({ icon: '✅', text: 'Strong save rate in recent attempts', cls: 'ok' });
+    const actions = recent.map(e => e.action ?? 0);
+    const uniqueActions = new Set(actions).size;
+    if (uniqueActions <= 2 && recent.length >= 5) flags.push({ icon: '⚠️', text: 'Keeper may be over-committed to limited dive directions', cls: 'warn' });
+  }
+  $('keeperFlags').innerHTML = flags.map(f => `<div class="flag ${f.cls}"><span class="flag-icon">${f.icon}</span>${f.text}</div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 9. TUNING INSIGHTS
+   ═══════════════════════════════════════════════════════════ */
+function renderInsights() {
+  if (!D) { $('insightsBody').innerHTML = '<div style="color:var(--fg3);font-size:.8rem">Waiting for data…</div>'; return; }
+  const insights = [];
+  const a = D.teamA, b = D.teamB;
+
+  // MLS baselines
+  const MLS_SHOTS = 13.16, MLS_PASS_PCT = 0.76, MLS_GOALS = 1.89;
+
+  // Goals per game comparison
+  const totalGoals = (a.score || 0) + (b.score || 0);
+  if (totalGoals === 0) insights.push({ cls: 'warn', text: '0 goals scored — check shot quality and finishing tuning.' });
+  else if (totalGoals > 6) insights.push({ cls: 'info', text: `High-scoring match (${totalGoals} goals) — may indicate weak defensive AI or keeper issues.` });
+
+  // Shot volume
+  const avgShots = ((a.shots || 0) + (b.shots || 0)) / 2;
+  if (avgShots < MLS_SHOTS * 0.5) insights.push({ cls: 'bad', text: `Low shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may not be attempting enough shots.` });
+  else if (avgShots > MLS_SHOTS * 1.5) insights.push({ cls: 'warn', text: `High shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may be shooting from poor positions.` });
+
+  // Pass completion
+  for (const [name, team] of [['A', a], ['B', b]]) {
+    if (team.passes > 10) {
+      const pc = team.passesCompleted / team.passes;
+      if (pc < 0.55) insights.push({ cls: 'bad', text: `${team.name || 'Team ' + name} pass completion critically low (${(pc * 100).toFixed(1)}% vs MLS ${(MLS_PASS_PCT * 100).toFixed(0)}%).` });
+      else if (pc < MLS_PASS_PCT * 0.85) insights.push({ cls: 'warn', text: `${team.name || 'Team ' + name} pass completion below baseline (${(pc * 100).toFixed(1)}%).` });
+      else if (pc > 0.88) insights.push({ cls: 'good', text: `${team.name || 'Team ' + name} excellent pass completion (${(pc * 100).toFixed(1)}%).` });
+    }
+  }
+
+  // Possession imbalance
+  if (Math.abs((a.possession || 50) - 50) > 20) insights.push({ cls: 'warn', text: `Major possession imbalance (${a.possession}%–${b.possession}%) — check if one team's AI is too passive.` });
+
+  // Role-specific insights
+  for (const [tLabel, roleMap] of [['A', a.roleStats], ['B', b.roleStats]]) {
+    if (!roleMap) continue;
+    for (const [role, r] of Object.entries(roleMap)) {
+      if (r.possFrames > 200 && r.passAtt > 0 && r.possFrames / r.passAtt > 80) {
+        insights.push({ cls: 'warn', text: `${tLabel}'s ${role} is holding the ball significantly longer than expected.` });
+      }
+      if (['RB', 'LB'].includes(role) && r.passAtt > 5) {
+        const fwdPasses = (D.events || []).filter(e => e.type === 'PASS' && e.team === tLabel && e.role === role && (e.detail?.dist || 0) > 5).length;
+        if (fwdPasses < r.passAtt * 0.2) {
+          insights.push({ cls: 'info', text: `${tLabel}'s ${role} has low forward pass ratio — fullback may not be overlapping.` });
+        }
+      }
+    }
+  }
+
+  // Transition analysis
+  const tr = D.transitions || [];
+  if (tr.length > 10) {
+    const avgDur = tr.reduce((s, t) => s + (t.duration || 0), 0) / tr.length;
+    if (avgDur < 1.5) insights.push({ cls: 'info', text: `Very fast transitions (avg ${avgDur.toFixed(1)}s) — may indicate constant back-and-forth without sustained build-up.` });
+    if (avgDur > 10) insights.push({ cls: 'warn', text: `Slow transitions (avg ${avgDur.toFixed(1)}s) — AI may lack urgency in attack.` });
+  }
+
+  // Shape analysis
+  const shA = D.shapeA || [], shB = D.shapeB || [];
+  if (shA.length > 5) {
+    const recentA = shA.slice(-5);
+    const avgComp = recentA.reduce((s, x) => s + x.compactness, 0) / recentA.length;
+    if (avgComp > 12) insights.push({ cls: 'warn', text: `Team A losing compactness (avg ${avgComp.toFixed(1)}) — defensive shape may be stretched.` });
+  }
+  if (shB.length > 5) {
+    const recentB = shB.slice(-5);
+    const avgComp = recentB.reduce((s, x) => s + x.compactness, 0) / recentB.length;
+    if (avgComp > 12) insights.push({ cls: 'warn', text: `Team B losing compactness (avg ${avgComp.toFixed(1)}) — defensive shape may be stretched.` });
+  }
+
+  // Keeper analysis
+  const kexp = D.keeperExperience || [];
+  if (kexp.length >= 5) {
+    const recent = kexp.slice(-10);
+    const goaledRate = recent.filter(e => (e.reward ?? 0) < 0).length / recent.length;
+    if (goaledRate > 0.6) insights.push({ cls: 'bad', text: 'Keeper conceding on >60% of recent shots — check RL reward structure or positioning.' });
+  }
+
+  if (insights.length === 0) insights.push({ cls: 'good', text: 'No significant anomalies detected. Match appears to be within expected parameters.' });
+
+  $('insightsBody').innerHTML = insights.map(i => `<div class="insight ${i.cls}">${i.text}</div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 8. COMPARISON
+   ═══════════════════════════════════════════════════════════ */
+function renderComparison() {
+  if (!prevD || !D) return;
+  $('panelComparison').style.display = '';
+  const a = D.teamA, b = D.teamB;
+  const pa = prevD.teamA, pb = prevD.teamB;
+
+  const delta = (curr, prev) => {
+    const d = (curr || 0) - (prev || 0);
+    if (d > 0) return `<span class="delta up">+${d}</span>`;
+    if (d < 0) return `<span class="delta down">${d}</span>`;
+    return `<span class="delta flat">—</span>`;
+  };
+
+  const metrics = [
+    ['Goals A', a.score, pa.score],
+    ['Goals B', b.score, pb.score],
+    ['Shots A', a.shots, pa.shots],
+    ['Shots B', b.shots, pb.shots],
+    ['Pass % A', f1((a.passesCompleted || 0) / Math.max(a.passes, 1) * 100), f1((pa.passesCompleted || 0) / Math.max(pa.passes, 1) * 100)],
+    ['Pass % B', f1((b.passesCompleted || 0) / Math.max(b.passes, 1) * 100), f1((pb.passesCompleted || 0) / Math.max(pb.passes, 1) * 100)],
+    ['Tackles A', a.tackles, pa.tackles],
+    ['Tackles B', b.tackles, pb.tackles],
+    ['Possession A', a.possession || 50, pa.possession || 50],
+  ];
+
+  $('compContent').innerHTML = `<div>
+    <div style="font-size:.75rem;color:var(--fg2);font-weight:700;margin-bottom:6px">CURRENT MATCH</div>
+    ${metrics.map(m => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.75rem;border-bottom:1px solid var(--bg3)"><span>${m[0]}</span><span style="font-weight:700">${m[1]}</span></div>`).join('')}
+  </div><div>
+    <div style="font-size:.75rem;color:var(--fg2);font-weight:700;margin-bottom:6px">PREVIOUS MATCH ${delta(0, 0)}</div>
+    ${metrics.map(m => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.75rem;border-bottom:1px solid var(--bg3)"><span>${m[0]}</span><span style="font-weight:700">${m[2]} ${delta(m[1], m[2])}</span></div>`).join('')}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MASTER RENDER
+   ═══════════════════════════════════════════════════════════ */
+function renderAll() {
+  if (!D) return;
+  $('statusText').textContent = `Live — ${D.teamA?.name || '?'} vs ${D.teamB?.name || '?'} — updated ${new Date().toLocaleTimeString()}`;
+  $('liveDot').style.display = '';
+
+  renderOverview();
+  renderTimeline();
+  renderTeamStyle();
+  populateRoleSelect();
+  renderRolePanel();
+  renderEventFilters();
+  renderEventList();
+  renderSpatial();
+  renderKeeper();
+  renderInsights();
+  if (prevD) renderComparison();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILE I/O
+   ═══════════════════════════════════════════════════════════ */
+function saveCurrent() {
+  if (!D) { alert('No data to save.'); return; }
+  const blob = new Blob([JSON.stringify(D, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `psl-tuning-${D.teamA?.name || 'A'}-vs-${D.teamB?.name || 'B'}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function handleFileLoad(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (D) {
+        prevD = data;
+        renderComparison();
+        $('statusText').textContent += ' — comparison loaded';
+      } else {
+        D = data;
+        lastUpdate = Date.now();
+        renderAll();
+      }
+    } catch (err) { alert('Invalid JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function openComparison() {
+  if (!D) { alert('No current match data. Load or play a match first.'); return; }
+  prevD = JSON.parse(JSON.stringify(D));
+  renderComparison();
+  $('statusText').textContent += ' — snapshot taken for comparison';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MATCH HISTORY (localStorage auto-save)
+   ═══════════════════════════════════════════════════════════ */
+function refreshHistorySelect() {
+  const sel = $('historySelect');
+  try {
+    const history = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
+    sel.innerHTML = '<option value="">— Match History (' + history.length + ') —</option>';
+    for (let i = history.length - 1; i >= 0; i--) {
+      const h = history[i];
+      const date = new Date(h.id).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      sel.innerHTML += `<option value="${i}">${h.teamA || 'A'} ${h.scoreA}-${h.scoreB} ${h.teamB || 'B'} (${date})</option>`;
+    }
+  } catch { sel.innerHTML = '<option value="">— No history —</option>'; }
+}
+
+function loadFromHistory() {
+  const sel = $('historySelect');
+  const idx = sel.value;
+  if (idx === '') return;
+  try {
+    const history = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
+    const entry = history[Number(idx)];
+    if (!entry?.bundle) { alert('Invalid history entry.'); return; }
+    if (D) {
+      // Load as comparison
+      prevD = entry.bundle;
+      renderComparison();
+      $('statusText').textContent += ' — loaded history match for comparison';
+    } else {
+      // Load as primary
+      D = entry.bundle;
+      lastUpdate = Date.now();
+      renderAll();
+    }
+  } catch (e) { alert('Error loading history: ' + e.message); }
+  sel.value = '';
+}
+
+// Refresh history dropdown periodically (picks up auto-saves)
+setInterval(refreshHistorySelect, 10000);
+refreshHistorySelect();
+
+/* ═══════════════════════════════════════════════════════════
+   WINDOW RESIZE
+   ═══════════════════════════════════════════════════════════ */
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if (D) renderAll(); }, 200);
+});
+
+// Initial render
+renderEventFilters();
+</script>
+</body>
+</html>

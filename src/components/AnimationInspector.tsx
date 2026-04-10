@@ -266,24 +266,24 @@ const AnimationInspector: React.FC<{ onClose?: () => void; embedded?: boolean }>
             <div className="flex flex-col lg:flex-row gap-8">
                 {/* 3D Viewport */}
                 <div className="w-[400px] h-[400px] bg-zinc-200 rounded-2xl border border-white/5 overflow-hidden relative shadow-inner">
-                    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                    <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
                         <button
                             onClick={() => setIsRotating(!isRotating)}
-                            className="px-3 py-2 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-white transition-all text-xs flex items-center gap-2 shadow-lg"
+                            className="px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-md border border-white/10 text-white transition-all text-[10px] leading-tight flex items-center gap-1 shadow-lg"
                         >
-                            {isRotating ? '⏸ Rotation' : '▶ Rotation'}
+                            {isRotating ? '⏸ Rot' : '▶ Rot'}
                         </button>
                         <button
                             onClick={() => setIsAnimating(!isAnimating)}
-                            className="px-3 py-2 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-white transition-all text-xs flex items-center gap-2 shadow-lg"
+                            className="px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-md border border-white/10 text-white transition-all text-[10px] leading-tight flex items-center gap-1 shadow-lg"
                         >
-                            {isAnimating ? '⏸ Animation' : '▶ Animation'}
+                            {isAnimating ? '⏸ Anim' : '▶ Anim'}
                         </button>
                         <button
                             onClick={() => setShowGrid(!showGrid)}
-                            className={`px-3 py-2 rounded-lg ${showGrid ? 'bg-white text-black' : 'bg-black/70 text-white'} backdrop-blur-md border border-white/10 transition-all text-xs flex items-center gap-2 shadow-lg`}
+                            className={`px-1.5 py-0.5 rounded ${showGrid ? 'bg-white text-black' : 'bg-black/70 text-white'} backdrop-blur-md border border-white/10 transition-all text-[10px] leading-tight flex items-center gap-1 shadow-lg`}
                         >
-                            {showGrid ? 'Hide Grid' : 'Show Grid'}
+                            {showGrid ? 'Grid ✕' : 'Grid'}
                         </button>
                     </div>
 

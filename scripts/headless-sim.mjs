@@ -220,9 +220,18 @@ async function startMatch(page, teamA, teamB, formA, formB, speed) {
 
 async function waitForFullTime(page, timeoutMs = 600000) {
   const start = Date.now()
+  let lastLog = 0
   while (Date.now() - start < timeoutMs) {
-    const phase = await page.evaluate(() => window.__gameRef?.getMatchSnapshot?.()?.phase)
-    if (phase === 'FULL_TIME') return true
+    const snap = await page.evaluate(() => {
+      const s = window.__gameRef?.getMatchSnapshot?.()
+      return s ? { phase: s.phase, half: s.half, elapsedInHalf: s.elapsedInHalf } : null
+    })
+    if (snap?.phase === 'FULL_TIME') return true
+    const now = Date.now()
+    if (now - lastLog > 10000) {
+      console.log(`  [poll] phase=${snap?.phase} half=${snap?.half} clock=${snap?.elapsedInHalf?.toFixed(1)}`)
+      lastLog = now
+    }
     await delay(500)
   }
   return false
@@ -232,6 +241,7 @@ async function captureMatchResult(page) {
   return page.evaluate(() => {
     const snap = window.__gameRef?.getMatchSnapshot?.()
     if (!snap) return null
+    const bundle = window.__gameRef?.getTuningBundle?.() || {}
     return {
       teamA: snap.teamAName,
       teamB: snap.teamBName,
@@ -245,9 +255,35 @@ async function captureMatchResult(page) {
       savesB: snap.savesB,
       headersA: snap.headersA ?? 0,
       headersB: snap.headersB ?? 0,
+      passesA: snap.passesA ?? 0,
+      passesB: snap.passesB ?? 0,
+      passCompA: snap.passesCompletedA ?? 0,
+      passCompB: snap.passesCompletedB ?? 0,
+      tacklesA: snap.tacklesWonA ?? 0,
+      tacklesB: snap.tacklesWonB ?? 0,
+      clearancesA: snap.clearancesA ?? 0,
+      clearancesB: snap.clearancesB ?? 0,
+      foulsA: snap.foulsA ?? 0,
+      foulsB: snap.foulsB ?? 0,
+      cornersA: snap.cornersA ?? 0,
+      cornersB: snap.cornersB ?? 0,
+      possA: snap.possessionA ?? 50,
+      possB: snap.possessionB ?? 50,
       formA: snap.teamAFormation,
       formB: snap.teamBFormation,
       goals: snap.goalLog || [],
+      // Full tuning telemetry channels
+      tuning: {
+        roleStatsA: bundle.teamA?.roleStats || {},
+        roleStatsB: bundle.teamB?.roleStats || {},
+        passNetA: bundle.teamA?.passNetwork || [],
+        passNetB: bundle.teamB?.passNetwork || [],
+        events: bundle.events || [],
+        shapeA: bundle.shapeA || [],
+        shapeB: bundle.shapeB || [],
+        transitions: bundle.transitions || [],
+        metadata: bundle.metadata || {},
+      },
     }
   })
 }
@@ -261,6 +297,8 @@ function printGameSummary(index, result) {
 
   console.log(`Game ${index} | ${result.teamA} ${result.scoreA} - ${result.scoreB} ${result.teamB} | ${winner}`)
   console.log(`  Shots ${result.shotsA}-${result.shotsB} | SOG ${result.sogA}-${result.sogB} | Saves ${result.savesA}-${result.savesB} | Headers ${result.headersA}-${result.headersB}`)
+  console.log(`  Passes ${result.passesA}(${result.passCompA})-${result.passesB}(${result.passCompB}) | Tackles ${result.tacklesA}-${result.tacklesB} | Fouls ${result.foulsA}-${result.foulsB}`)
+  console.log(`  Possession ${result.possA}%-${result.possB}% | Corners ${result.cornersA}-${result.cornersB} | Clearances ${result.clearancesA}-${result.clearancesB}`)
   console.log(`  Formations: ${result.formA} vs ${result.formB}`)
   if (result.goals.length > 0) {
     const goalStr = result.goals.map(g => `${g.matchMinute}' #${g.shirtNumber} ${g.playerName} (${g.team})`).join(', ')
@@ -274,6 +312,10 @@ function printAggregate(results) {
   const totalShots = results.reduce((s, r) => s + r.shotsA + r.shotsB, 0)
   const totalSog = results.reduce((s, r) => s + r.sogA + r.sogB, 0)
   const totalSaves = results.reduce((s, r) => s + r.savesA + r.savesB, 0)
+  const totalPasses = results.reduce((s, r) => s + (r.passesA || 0) + (r.passesB || 0), 0)
+  const totalPassComp = results.reduce((s, r) => s + (r.passCompA || 0) + (r.passCompB || 0), 0)
+  const totalTackles = results.reduce((s, r) => s + (r.tacklesA || 0) + (r.tacklesB || 0), 0)
+  const totalFouls = results.reduce((s, r) => s + (r.foulsA || 0) + (r.foulsB || 0), 0)
   const draws = results.filter(r => r.scoreA === r.scoreB).length
   const cleanSheets = results.filter(r => r.scoreA === 0 || r.scoreB === 0).length
 
@@ -283,6 +325,8 @@ function printAggregate(results) {
   console.log(`  Avg goals/game: ${(totalGoals / n).toFixed(1)} | Range: ${Math.min(...results.map(r => r.scoreA + r.scoreB))}-${Math.max(...results.map(r => r.scoreA + r.scoreB))}`)
   console.log(`  Avg shots/game: ${(totalShots / n).toFixed(1)} | Shot accuracy: ${pct(totalSog, totalShots)}`)
   console.log(`  Avg saves/game: ${(totalSaves / n).toFixed(1)}`)
+  console.log(`  Avg passes/game: ${(totalPasses / n).toFixed(1)} | Pass completion: ${pct(totalPassComp, totalPasses)}`)
+  console.log(`  Avg tackles/game: ${(totalTackles / n).toFixed(1)} | Avg fouls/game: ${(totalFouls / n).toFixed(1)}`)
   console.log(`  Draws: ${draws}/${n} (${pct(draws, n)}) | Clean sheets: ${cleanSheets}/${n}`)
   console.log(`${'═'.repeat(60)}`)
 }
@@ -368,7 +412,7 @@ async function run() {
       await startMatch(page, teamA, teamB, formA, formB, options.speed)
       await delay(500)
 
-      const finished = await waitForFullTime(page, 300000)
+      const finished = await waitForFullTime(page, 600000)
       if (!finished) {
         console.warn(`  ⚠ Game ${i + 1} did not finish (timeout). Skipping.`)
         continue

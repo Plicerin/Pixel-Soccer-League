@@ -152,8 +152,8 @@ const RetroFootball: React.FC = () => {
   const [teamBUniform, setTeamBUniform] = useState(0);
   const [teamAName, setTeamAName] = useState('Inter Miami');
   const [teamBName, setTeamBName] = useState('LA Galaxy');
-  const [teamAFormation, setTeamAFormation] = useState('4-2-3-1');
-  const [teamBFormation, setTeamBFormation] = useState('4-3-3');
+  const [teamAFormation, setTeamAFormation] = useState('3-4-3');
+  const [teamBFormation, setTeamBFormation] = useState('3-4-3');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
@@ -197,6 +197,7 @@ const RetroFootball: React.FC = () => {
   const [isFieldVisible, setIsFieldVisible] = useState(true);
   const [isGrassVisible, setIsGrassVisible] = useState(true);
   const [showAIStateOverlay, setShowAIStateOverlay] = useState(false);
+  const [showPositionLabels, setShowPositionLabels] = useState(false);
   const [showAnimInspector, setShowAnimInspector] = useState(false);
   const [teamAKit, setTeamAKit] = useState<'home' | 'away'>('home');
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
@@ -210,10 +211,11 @@ const RetroFootball: React.FC = () => {
   const [splashAudioStarted, setSplashAudioStarted] = useState(false);
   const splashAdvancedRef = useRef(false);
   const splashAudioStartedRef = useRef(false);
+  const splashSceneStartedRef = useRef(false);
   const [isFullTime, setIsFullTime] = useState(() => {
     try { return sessionStorage.getItem('psl_fullTime') === '1'; } catch { return false; }
   });
-  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number }[] } | null>(() => {
+  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(() => {
     try { const s = sessionStorage.getItem('psl_fullTimeScore'); return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const fullTimeReturnArmedRef = useRef(false);
@@ -250,7 +252,7 @@ const RetroFootball: React.FC = () => {
         return;
       }
       if (!splashAdvancedRef.current) {
-        // Second press: advance to menu
+        // Second press: advance to menu (music continues until match starts)
         splashAdvancedRef.current = true;
         // Snapshot current gamepad state into menuGpPrev so the menu poll
         // (which may run later in this same rAF batch) won't see a false "justPressed".
@@ -414,6 +416,8 @@ const RetroFootball: React.FC = () => {
             sogB: snapshot.shotsOnTargetB,
             savesA: snapshot.savesA,
             savesB: snapshot.savesB,
+            headersA: snapshot.headersA,
+            headersB: snapshot.headersB,
             goals: snapshot.goalLog || [],
             colorA: getTeamColor(snapshot.teamAName || teamAName),
             colorB: getTeamColor(snapshot.teamBName || teamBName),
@@ -450,6 +454,8 @@ const RetroFootball: React.FC = () => {
                 sogB: snapshot.shotsOnTargetB,
                 savesA: snapshot.savesA,
                 savesB: snapshot.savesB,
+                headersA: snapshot.headersA,
+                headersB: snapshot.headersB,
                 goals: snapshot.goalLog || [],
                 colorA: getTeamColor(snapshot.teamAName || teamAName),
                 colorB: getTeamColor(snapshot.teamBName || teamBName),
@@ -525,6 +531,52 @@ const RetroFootball: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // ── Dashboard telemetry bridge (separate effect, always mounts) ──
+  useEffect(() => {
+    let dashChannel: BroadcastChannel | null = null;
+    try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
+    console.log('[PSL] Dashboard bridge useEffect MOUNTED');
+    let prevPhase = '';
+    const dashInterval = setInterval(() => {
+      // Skip broadcasting during splash/menu — only track real matches
+      if (!hasActiveMatchSessionRef.current) return;
+      const g = (window as any).__gameRef;
+      if (!g) return;
+      const bundle = g.getTuningBundle?.();
+      if (!bundle) return;
+      const snap2 = g.getMatchSnapshot?.();
+      const live2 = g.getLiveTelemetry?.();
+      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now() };
+      try { dashChannel?.postMessage(payload); } catch {}
+      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
+      // Auto-save when match reaches FULL_TIME
+      const phase = snap2?.phase || '';
+      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME') {
+        try {
+          const history: any[] = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
+          const entry = {
+            id: Date.now(),
+            teamA: bundle.teamA?.name,
+            teamB: bundle.teamB?.name,
+            scoreA: bundle.teamA?.score ?? 0,
+            scoreB: bundle.teamB?.score ?? 0,
+            bundle,
+          };
+          history.push(entry);
+          // Keep last 50 matches to avoid quota issues
+          while (history.length > 50) history.shift();
+          localStorage.setItem('psl-tuning-history', JSON.stringify(history));
+          console.log('[PSL] Auto-saved match:', entry.teamA, entry.scoreA, '-', entry.scoreB, entry.teamB);
+        } catch (e) { console.warn('[PSL] Auto-save error:', e); }
+      }
+      prevPhase = phase;
+    }, 2000);
+    return () => {
+      clearInterval(dashInterval);
+      try { dashChannel?.close(); } catch {}
+    };
+  }, []);
+
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
       gameRef.current = initGame(containerRef.current);
@@ -542,6 +594,7 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setStadiumCamTiltShift?.(stadiumCamTiltShiftEnabled);
       gameRef.current?.setMenuVisible?.(gameMode === null);
       gameRef.current?.setShowAIStateOverlay?.(showAIStateOverlay);
+      gameRef.current?.setShowPositionLabels?.(showPositionLabels);
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setCpuVsCpu?.(false);
@@ -550,6 +603,21 @@ const RetroFootball: React.FC = () => {
       (window as any).__gameRef = gameRef.current;
       (window as any).__gameRef.setSmokeTestMode = (active: boolean) => {
         smokeTestActiveRef.current = active;
+        // Pause/resume the React telemetry recorder to avoid double-recording
+        // and excessive IDB writes during smoke tests
+        if (active) {
+          // Dismiss splash screen if it's still showing
+          setShowSplash(false);
+          splashAdvancedRef.current = true;
+          setAllowMainMenu(false);
+          setHasActiveMatchSession(true);
+          telemetryRecorderRef.current?.stop();
+        } else if (!telemetryRecorderRef.current?.isRecording()) {
+          const rec = new TelemetryRecorder();
+          rec.setContext({ teamAName, teamBName, teamAFormation, teamBFormation });
+          rec.start(() => gameRef.current, 500);
+          telemetryRecorderRef.current = rec;
+        }
       };
 
       if (!telemetryRecorderRef.current) {
@@ -623,7 +691,9 @@ const RetroFootball: React.FC = () => {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -762,8 +832,57 @@ const RetroFootball: React.FC = () => {
   setSeasonModeActiveRef.current = setSeasonModeActive;
 
   useEffect(() => {
-    gameRef.current?.setMenuVisible?.(allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock);
-  }, [allowMainMenu, hasActiveMatchSession, isFullTime, sessionMenuLock]);
+    gameRef.current?.setMenuVisible?.(allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showSplash);
+  }, [allowMainMenu, hasActiveMatchSession, isFullTime, sessionMenuLock, showSplash]);
+
+  useEffect(() => {
+    if (!gameRef.current) return;
+
+    const nextTeamAName = teamAName;
+    const nextTeamBName = teamBName;
+    const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
+    const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+
+    if (showSplash) {
+      gameRef.current?.setTeamNames?.(nextTeamAName, nextTeamBName);
+      gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[nextTeamAName] ?? '', MLS_TEAM_LOGOS[nextTeamBName] ?? '');
+      gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
+      gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+      gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
+      gameRef.current?.setHotSeatMode?.(false);
+      gameRef.current?.setTestingMode?.(false);
+      gameRef.current?.setCpuVsCpu?.(true);
+      gameRef.current?.setSplashSceneMode?.(true);
+      gameRef.current?.setScoreBugVisible?.(false);
+      gameRef.current?.setMenuVisible?.(false);
+
+      if (!splashSceneStartedRef.current) {
+        splashSceneStartedRef.current = true;
+        gameRef.current?.startKickoffPresentation?.(true);
+      }
+      return;
+    }
+
+    splashSceneStartedRef.current = false;
+    gameRef.current?.setSplashSceneMode?.(false);
+    if (allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock) {
+      gameRef.current?.setCpuVsCpu?.(false);
+      gameRef.current?.setScoreBugVisible?.(false);
+      gameRef.current?.setMenuVisible?.(true);
+    }
+  }, [
+    allowMainMenu,
+    hasActiveMatchSession,
+    isFullTime,
+    sessionMenuLock,
+    showSplash,
+    teamAFormation,
+    teamAName,
+    teamAKit,
+    teamBFormation,
+    teamBName,
+    teamBKit,
+  ]);
 
   const formatPctDelta = (mult?: number) => {
     if (typeof mult !== 'number') return 'n/a';
@@ -1087,11 +1206,8 @@ const RetroFootball: React.FC = () => {
           className="absolute inset-0 z-[100] flex items-center justify-center cursor-pointer"
           style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.75) 100%)' }}
         >
-
           <div className="flex flex-col items-center gap-6 px-8 py-10 relative"
-            style={{
-              animation: 'splashRiseBounce 0.9s ease-out forwards',
-            }}
+            style={{ animation: 'splashRiseBounce 0.9s ease-out forwards' }}
           >
             {/* Logo */}
             <div style={{ animation: 'splashFadeIn 0.6s ease-out 0.5s both' }}>
@@ -1134,7 +1250,6 @@ const RetroFootball: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* Mode Select Screen */}
       {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
@@ -1223,6 +1338,7 @@ const RetroFootball: React.FC = () => {
             <p className="text-white/20 text-[9px] uppercase tracking-widest">Press [ESC] in-game for options</p>
           </div>
         </div>
+
       )}
 
       {/* Season Hub Overlay */}
@@ -1265,22 +1381,42 @@ const RetroFootball: React.FC = () => {
       )}
 
       {/* Full Time / Game Over Overlay */}
-      {isFullTime && fullTimeScore && (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-6 px-8 py-10 bg-zinc-900/90 rounded-2xl border border-white/10 shadow-2xl min-w-[320px]">
-            <div className="text-amber-400 text-3xl font-extrabold tracking-widest uppercase animate-pulse">Full Time</div>
+      {isFullTime && fullTimeScore && (() => {
+        // Ensure team colors have enough contrast against white background
+        const ensureContrast = (hex: string | undefined, fallback: string): string => {
+          const c = hex || fallback;
+          const num = parseInt(c.replace('#', ''), 16);
+          const r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
+          // Relative luminance (sRGB)
+          const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          if (lum > 0.65) {
+            // Too light — darken by 40%
+            const dr = Math.round(r * 0.6), dg = Math.round(g * 0.6), db = Math.round(b * 0.6);
+            return `#${((dr << 16) | (dg << 8) | db).toString(16).padStart(6, '0')}`;
+          }
+          return c;
+        };
+        const safeColorA = ensureContrast(fullTimeScore.colorA, '#38bdf8');
+        const safeColorB = ensureContrast(fullTimeScore.colorB, '#fb7185');
+        // Bar colors: use originals but add outline for visibility
+        const barColorA = fullTimeScore.colorA || '#38bdf8';
+        const barColorB = fullTimeScore.colorB || '#fb7185';
+        return (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 px-8 py-10 bg-white rounded-2xl shadow-2xl min-w-[320px]" style={{ border: '5px solid #000' }}>
+            <div className="text-amber-500 text-3xl font-extrabold tracking-widest uppercase animate-pulse">Full Time</div>
             <div className="flex items-center gap-6">
               <div className="flex flex-col items-center gap-1">
-                <span className="text-white/50 text-[10px] uppercase tracking-wider">{fullTimeScore.teamA}</span>
-                <span className="text-white text-5xl font-black">{fullTimeScore.scoreA}</span>
+                <span className="text-gray-500 text-[10px] uppercase tracking-widest">{fullTimeScore.teamA}</span>
+                <span className="text-gray-900 text-5xl font-black">{fullTimeScore.scoreA}</span>
               </div>
-              <span className="text-white/30 text-2xl font-light">{'-'}</span>
+              <span className="text-gray-300 text-2xl font-light">{'-'}</span>
               <div className="flex flex-col items-center gap-1">
-                <span className="text-white/50 text-[10px] uppercase tracking-wider">{fullTimeScore.teamB}</span>
-                <span className="text-white text-5xl font-black">{fullTimeScore.scoreB}</span>
+                <span className="text-gray-500 text-[10px] uppercase tracking-widest">{fullTimeScore.teamB}</span>
+                <span className="text-gray-900 text-5xl font-black">{fullTimeScore.scoreB}</span>
               </div>
             </div>
-            <div className="text-white/40 text-xs">
+            <div className="text-gray-500 text-xs">
               {fullTimeScore.scoreA > fullTimeScore.scoreB
                 ? `${fullTimeScore.teamA} Wins!`
                 : fullTimeScore.scoreB > fullTimeScore.scoreA
@@ -1288,12 +1424,13 @@ const RetroFootball: React.FC = () => {
                 : 'Draw'}
             </div>
             {(fullTimeScore.shotsA != null || fullTimeScore.shotsB != null) && (
-              <div className="w-full border-t border-white/10 pt-4 flex flex-col gap-2">
-                <div className="text-white/30 text-[9px] uppercase tracking-widest text-center mb-1">Match Stats</div>
+              <div className="w-full border-t border-gray-200 pt-4 flex flex-col gap-2">
+                <div className="text-gray-400 text-[9px] uppercase tracking-widest text-center mb-1">Match Stats</div>
                 {[
                   ['Shots', fullTimeScore.shotsA, fullTimeScore.shotsB],
                   ['On Target', fullTimeScore.sogA, fullTimeScore.sogB],
                   ['Saves', fullTimeScore.savesA, fullTimeScore.savesB],
+                  ['Headers', fullTimeScore.headersA, fullTimeScore.headersB],
                 ] .filter(([, a, b]) => a != null || b != null)
                   .map(([label, valA, valB]) => {
                     const a = Number(valA) || 0;
@@ -1301,25 +1438,25 @@ const RetroFootball: React.FC = () => {
                     const total = a + b || 1;
                     return (
                       <div key={String(label)} className="flex items-center gap-2 text-xs">
-                        <span className="text-white/80 w-8 text-right tabular-nums">{a}</span>
-                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden flex">
-                          <div className="h-full rounded-l-full" style={{ width: `${(a / total) * 100}%`, backgroundColor: fullTimeScore.colorA || '#38bdf8' }} />
-                          <div className="h-full rounded-r-full" style={{ width: `${(b / total) * 100}%`, backgroundColor: fullTimeScore.colorB || '#fb7185' }} />
+                        <span className="text-gray-700 w-8 text-right tabular-nums">{a}</span>
+                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden flex" style={{ outline: '1px solid #d1d5db' }}>
+                          <div className="h-full rounded-l-full" style={{ width: `${(a / total) * 100}%`, backgroundColor: barColorA }} />
+                          <div className="h-full rounded-r-full" style={{ width: `${(b / total) * 100}%`, backgroundColor: barColorB }} />
                         </div>
-                        <span className="text-white/80 w-8 tabular-nums">{b}</span>
-                        <span className="text-white/30 w-16 text-[10px]">{label}</span>
+                        <span className="text-gray-700 w-8 tabular-nums">{b}</span>
+                        <span className="text-gray-400 w-16 text-[10px]">{label}</span>
                       </div>
                     );
                   })}
               </div>
             )}
             {fullTimeScore.goals && fullTimeScore.goals.length > 0 && (
-              <div className="w-full border-t border-white/10 pt-4 flex flex-col gap-1">
-                <div className="text-white/30 text-[9px] uppercase tracking-widest text-center mb-2">Goal Scorers</div>
+              <div className="w-full border-t border-gray-200 pt-4 flex flex-col gap-1">
+                <div className="text-gray-400 text-[9px] uppercase tracking-widest text-center mb-2">Goal Scorers</div>
                 {fullTimeScore.goals.map((g, i) => (
                   <div key={i} className="flex items-center gap-2 text-[11px]">
-                    <span className="text-white/40 w-8 text-right tabular-nums">{g.matchMinute}{"'"}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-white/10" style={{ color: g.team === 'A' ? (fullTimeScore.colorA || '#38bdf8') : (fullTimeScore.colorB || '#fb7185') }}>
+                    <span className="text-gray-400 w-8 text-right tabular-nums">{g.matchMinute}{"'"}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100" style={{ color: g.team === 'A' ? safeColorA : safeColorB }}>
                       {g.shirtNumber > 0 ? `#${g.shirtNumber} ` : ''}{g.playerName}
                     </span>
                   </div>
@@ -1354,13 +1491,13 @@ const RetroFootball: React.FC = () => {
                   gameRef.current?.setMenuVisible?.(true);
                 }
               }}
-              className="mt-2 w-full py-3 border border-white/20 text-white text-xs uppercase tracking-widest rounded hover:bg-white hover:text-black transition-colors"
+              className="mt-2 w-full py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest rounded hover:bg-gray-900 hover:text-white transition-colors"
             >
               {seasonModeActive ? 'Return to Season' : 'Return to Main Menu'}
             </button>
           </div>
         </div>
-      )}
+        ); })()}
 
       {/* Options Menu Overlay */}
       {isOptionsOpen && (
@@ -1572,6 +1709,19 @@ const RetroFootball: React.FC = () => {
                           className="accent-white"
                         />
                         Show AI State Debug Overlay
+                      </label>
+                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showPositionLabels}
+                          onChange={(e) => {
+                            const enabled = e.target.checked;
+                            setShowPositionLabels(enabled);
+                            gameRef.current?.setShowPositionLabels?.(enabled);
+                          }}
+                          className="accent-white"
+                        />
+                        Show Position Labels
                       </label>
                     </div>
                   </div>
@@ -1898,7 +2048,7 @@ const RetroFootball: React.FC = () => {
       )}
 
       {/* Bottom-right toggle buttons */}
-      {!isOptionsOpen && (
+      {!showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
           <button
             onClick={() => {
@@ -1923,7 +2073,7 @@ const RetroFootball: React.FC = () => {
 
 
       {/* Floating Telemetry Window */}
-      {showTelemetry && !isOptionsOpen && (
+      {showTelemetry && !showSplash && !isOptionsOpen && (
         <div className="absolute bottom-12 right-4 z-40 w-72 bg-zinc-950/95 border border-emerald-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-emerald-950/40">
