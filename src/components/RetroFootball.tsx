@@ -537,21 +537,67 @@ const RetroFootball: React.FC = () => {
     try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
     console.log('[PSL] Dashboard bridge useEffect MOUNTED');
     let prevPhase = '';
+    let _dashTick = 0;
     const dashInterval = setInterval(() => {
+      _dashTick++;
       // Skip broadcasting during splash/menu — only track real matches
-      if (!hasActiveMatchSessionRef.current) return;
+      if (!hasActiveMatchSessionRef.current) {
+        if (_dashTick % 5 === 1) console.log('[PSL-Bridge] tick', _dashTick, 'skipped: hasActiveMatchSession=false');
+        return;
+      }
       const g = (window as any).__gameRef;
-      if (!g) return;
+      if (!g) { console.log('[PSL-Bridge] tick', _dashTick, 'skipped: __gameRef missing'); return; }
       const bundle = g.getTuningBundle?.();
-      if (!bundle) return;
+      if (!bundle) { console.log('[PSL-Bridge] tick', _dashTick, 'skipped: getTuningBundle returned null'); return; }
       const snap2 = g.getMatchSnapshot?.();
       const live2 = g.getLiveTelemetry?.();
       const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now() };
-      try { dashChannel?.postMessage(payload); } catch {}
-      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
+      try { dashChannel?.postMessage(payload); } catch (e) { console.error('[PSL-Bridge] BroadcastChannel postMessage error:', e); }
+      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
+        // Quota exceeded — clear stale tuning history to free space then retry
+        try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
+      }
+      // Server relay: bridges across isolated browser contexts (VS Code webview ↔ external browser)
+      try { fetch('/__tuning/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {}); } catch {}
+      if (_dashTick % 5 === 0) console.log('[PSL-Bridge] tick', _dashTick, 'broadcast OK, phase:', snap2?.phase);
       // Auto-save when match reaches FULL_TIME
       const phase = snap2?.phase || '';
       if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME') {
+        // Save to SQLite via server endpoint
+        try {
+          const a = bundle.teamA, b = bundle.teamB;
+          fetch('/__db/match-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: snap2?.sessionId || `ft-${Date.now()}`,
+              timestamp: Date.now(),
+              team_a_name: a?.name || '',
+              team_b_name: b?.name || '',
+              team_a_formation: a?.formation || '',
+              team_b_formation: b?.formation || '',
+              score_a: a?.score ?? 0,
+              score_b: b?.score ?? 0,
+              shots_a: a?.shots ?? 0,
+              shots_b: b?.shots ?? 0,
+              shots_on_target_a: a?.shotsOnTarget ?? 0,
+              shots_on_target_b: b?.shotsOnTarget ?? 0,
+              saves_a: a?.saves ?? 0,
+              saves_b: b?.saves ?? 0,
+              headers_a: 0,
+              headers_b: 0,
+              possession_a: a?.possession ?? 50,
+              phase: 'FULL_TIME',
+              half: 2,
+              elapsed_in_half: snap2?.elapsedInHalf ?? 300,
+              bundle_json: JSON.stringify(bundle),
+            }),
+          }).then(r => {
+            if (r.ok) console.log('[PSL] Match saved to SQLite:', a?.name, a?.score, '-', b?.score, b?.name);
+            else console.warn('[PSL] SQLite save failed:', r.status);
+          }).catch(e => console.warn('[PSL] SQLite save error:', e));
+        } catch (e) { console.warn('[PSL] SQLite save error:', e); }
+        // Legacy localStorage fallback
         try {
           const history: any[] = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
           const entry = {
@@ -563,11 +609,9 @@ const RetroFootball: React.FC = () => {
             bundle,
           };
           history.push(entry);
-          // Keep last 50 matches to avoid quota issues
           while (history.length > 50) history.shift();
           localStorage.setItem('psl-tuning-history', JSON.stringify(history));
-          console.log('[PSL] Auto-saved match:', entry.teamA, entry.scoreA, '-', entry.scoreB, entry.teamB);
-        } catch (e) { console.warn('[PSL] Auto-save error:', e); }
+        } catch {}
       }
       prevPhase = phase;
     }, 2000);

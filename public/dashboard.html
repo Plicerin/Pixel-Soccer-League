@@ -165,6 +165,26 @@ input[type="file"]{display:none}
   </div>
 </div>
 
+<!-- ══════ 3b. PASS INTELLIGENCE ══════ -->
+<div class="panel" id="panelPassIntel">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>PASS INTELLIGENCE</div>
+  <div class="panel-body">
+    <div class="stat-row" id="passIntelStats"></div>
+    <div id="passDirectionBars" style="margin-top:10px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+      <div>
+        <div style="font-size:.72rem;color:var(--fg2);font-weight:700;margin-bottom:4px">COMPLETION BY DIRECTION</div>
+        <table class="rl-table" id="passCompByDir"><tbody></tbody></table>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--fg2);font-weight:700;margin-bottom:4px">INTERCEPTIONS BY ROLE</div>
+        <table class="rl-table" id="interceptByRole"><tbody></tbody></table>
+      </div>
+    </div>
+    <div id="passIntelFlags" class="flags" style="margin-top:8px"></div>
+  </div>
+</div>
+
 <!-- ══════ 4. ROLE BEHAVIOR ══════ -->
 <div class="panel" id="panelRole">
   <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>ROLE BEHAVIOR</div>
@@ -273,7 +293,8 @@ setInterval(() => {
     const raw = localStorage.getItem('psl-tuning');
     if (raw) {
       const payload = JSON.parse(raw);
-      if (payload?.ts && payload.ts !== _lastLSTs) {
+      // Skip stale data older than 10s to avoid showing wrong match
+      if (payload?.ts && payload.ts !== _lastLSTs && (Date.now() - payload.ts) < 10000) {
         _lastLSTs = payload.ts;
         D = payload.bundle;
         snap = payload.snapshot;
@@ -295,6 +316,23 @@ setInterval(() => {
       if (D) { lastUpdate = Date.now(); $('debugText').textContent = 'via window.opener'; renderAll(); return; }
     }
   } catch {}
+  // Fallback 3: server relay (bridges VS Code webview ↔ external browser)
+  try {
+    fetch('/__tuning/pull').then(r => {
+      if (!r.ok || r.status === 204) return;
+      return r.json();
+    }).then(payload => {
+      if (!payload || !payload.bundle) return;
+      if (payload.ts && payload.ts === _lastRelayTs) return;
+      _lastRelayTs = payload.ts || 0;
+      D = payload.bundle;
+      snap = payload.snapshot;
+      live = payload.live;
+      lastUpdate = Date.now();
+      $('debugText').textContent = 'via server relay';
+      renderAll();
+    }).catch(() => {});
+  } catch {}
   // Show waiting status
   if (!D || Date.now() - lastUpdate > 6000) {
     const age = ((Date.now() - _bootTime) / 1000).toFixed(0);
@@ -302,6 +340,7 @@ setInterval(() => {
   }
 }, 2000);
 let _lastLSTs = 0;
+let _lastRelayTs = 0;
 const _bootTime = Date.now();
 
 /* ═══════════════════════════════════════════════════════════
@@ -698,6 +737,136 @@ function renderShapeChart() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   RENDER: 3b. PASS INTELLIGENCE
+   ═══════════════════════════════════════════════════════════ */
+function renderPassIntel() {
+  if (!D) return;
+  const events = D.events || [];
+  const passesA = events.filter(e => e.type === 'PASS' && e.team === 'A');
+  const passesB = events.filter(e => e.type === 'PASS' && e.team === 'B');
+
+  // Classify direction by progress field
+  const classify = (p) => {
+    const prog = p.detail?.progress ?? 0;
+    if (prog > 2) return 'FWD';
+    if (prog < -2) return 'BACK';
+    return 'LAT';
+  };
+
+  const countDir = (arr) => {
+    const c = { FWD: 0, LAT: 0, BACK: 0 };
+    arr.forEach(p => c[classify(p)]++);
+    return c;
+  };
+  const dirA = countDir(passesA), dirB = countDir(passesB);
+  const dirPct = (c, total) => total > 0 ? (c / total * 100).toFixed(0) + '%' : '—';
+
+  // Completion by direction
+  const compByDir = (arr) => {
+    const buckets = { FWD: { att: 0, comp: 0 }, LAT: { att: 0, comp: 0 }, BACK: { att: 0, comp: 0 } };
+    for (const p of arr) {
+      const d = classify(p);
+      buckets[d].att++;
+      if (p.detail?.completed === true) buckets[d].comp++;
+    }
+    return buckets;
+  };
+  const compA = compByDir(passesA), compB = compByDir(passesB);
+
+  // Avg progress
+  const avgProg = (arr) => {
+    if (arr.length === 0) return '—';
+    return (arr.reduce((s, p) => s + (p.detail?.progress ?? 0), 0) / arr.length).toFixed(1);
+  };
+
+  // Penalty-area back passes (passerDistToGoal < 10 && progress < 0)
+  const boxBackA = passesA.filter(p => (p.detail?.passerDistToGoal ?? 99) < 10 && (p.detail?.progress ?? 0) < 0).length;
+  const boxBackB = passesB.filter(p => (p.detail?.passerDistToGoal ?? 99) < 10 && (p.detail?.progress ?? 0) < 0).length;
+
+  // Back pass %
+  const backPctA = passesA.length > 0 ? (dirA.BACK / passesA.length * 100).toFixed(0) : '—';
+  const backPctB = passesB.length > 0 ? (dirB.BACK / passesB.length * 100).toFixed(0) : '—';
+
+  // Overall completion from enriched events
+  const compRateEnriched = (arr) => {
+    const enriched = arr.filter(p => p.detail?.completed !== undefined);
+    if (enriched.length === 0) return '—';
+    const comp = enriched.filter(p => p.detail.completed === true).length;
+    return (comp / enriched.length * 100).toFixed(0) + '%';
+  };
+
+  // Stat cards
+  $('passIntelStats').innerHTML = [
+    statCard('Avg Progress', `${avgProg(passesA)} — ${avgProg(passesB)}`, 'units toward goal'),
+    statCard('Back Pass %', `${backPctA}% — ${backPctB}%`, `target ≤20%`),
+    statCard('Box Back', `${boxBackA} — ${boxBackB}`, 'in penalty area'),
+    statCard('Completion', `${compRateEnriched(passesA)} — ${compRateEnriched(passesB)}`, 'enriched'),
+  ].join('');
+
+  // Direction bars
+  $('passDirectionBars').innerHTML = [
+    compBar('Forward', dirA.FWD, dirB.FWD, 'FWD'),
+    compBar('Lateral', dirA.LAT, dirB.LAT, 'LAT'),
+    compBar('Backward', dirA.BACK, dirB.BACK, 'BACK'),
+  ].join('');
+
+  // Completion by direction table
+  const dirRow = (label, a, b) => {
+    const rateA = a.att > 0 ? (a.comp / a.att * 100).toFixed(0) + '%' : '—';
+    const rateB = b.att > 0 ? (b.comp / b.att * 100).toFixed(0) + '%' : '—';
+    const clsA = a.att > 0 && a.comp / a.att < 0.5 ? 'color:var(--accent-red)' : '';
+    const clsB = b.att > 0 && b.comp / b.att < 0.5 ? 'color:var(--accent-red)' : '';
+    return `<tr><td>${label}</td><td style="${clsA}">${rateA} <span style="color:var(--fg3)">(${a.comp}/${a.att})</span></td><td style="${clsB}">${rateB} <span style="color:var(--fg3)">(${b.comp}/${b.att})</span></td></tr>`;
+  };
+  $('passCompByDir').innerHTML = `<thead><tr><th>Dir</th><th style="color:var(--accent-blue)">A</th><th style="color:var(--accent-red)">B</th></tr></thead><tbody>`
+    + dirRow('Forward', compA.FWD, compB.FWD)
+    + dirRow('Lateral', compA.LAT, compB.LAT)
+    + dirRow('Backward', compA.BACK, compB.BACK)
+    + `</tbody>`;
+
+  // Interceptions by role
+  const allPasses = [...passesA, ...passesB];
+  const intercepted = allPasses.filter(p => p.detail?.completed === false && p.detail?.interceptedByRole);
+  const roleCounts = {};
+  for (const p of intercepted) {
+    const key = p.detail.interceptedByRole;
+    roleCounts[key] = (roleCounts[key] || 0) + 1;
+  }
+  const sortedRoles = Object.entries(roleCounts).sort((a, b) => b[1] - a[1]);
+  if (sortedRoles.length > 0) {
+    $('interceptByRole').innerHTML = `<thead><tr><th>Role</th><th>Count</th><th>%</th></tr></thead><tbody>`
+      + sortedRoles.slice(0, 8).map(([role, count]) => {
+        const rpct = intercepted.length > 0 ? (count / intercepted.length * 100).toFixed(0) + '%' : '—';
+        return `<tr><td>${role}</td><td>${count}</td><td>${rpct}</td></tr>`;
+      }).join('')
+      + `</tbody>`;
+  } else {
+    $('interceptByRole').innerHTML = '<tr><td colspan="3" style="color:var(--fg3)">No enrichment data yet</td></tr>';
+  }
+
+  // Flags
+  const flags = [];
+  if (boxBackA > 0) flags.push({ icon: '⚠️', text: `Team A: ${boxBackA} backward pass(es) inside penalty area`, cls: 'warn' });
+  if (boxBackB > 0) flags.push({ icon: '⚠️', text: `Team B: ${boxBackB} backward pass(es) inside penalty area`, cls: 'warn' });
+
+  const failedFwdA = passesA.filter(p => (p.detail?.progress ?? 0) > 5 && p.detail?.completed === false).length;
+  const failedFwdB = passesB.filter(p => (p.detail?.progress ?? 0) > 5 && p.detail?.completed === false).length;
+  const fwdA = passesA.filter(p => (p.detail?.progress ?? 0) > 5).length;
+  const fwdB = passesB.filter(p => (p.detail?.progress ?? 0) > 5).length;
+  if (fwdA > 3 && failedFwdA / fwdA > 0.6) flags.push({ icon: '⚠️', text: `Team A: ${failedFwdA}/${fwdA} long forward passes failed (${(failedFwdA/fwdA*100).toFixed(0)}%)`, cls: 'warn' });
+  if (fwdB > 3 && failedFwdB / fwdB > 0.6) flags.push({ icon: '⚠️', text: `Team B: ${failedFwdB}/${fwdB} long forward passes failed (${(failedFwdB/fwdB*100).toFixed(0)}%)`, cls: 'warn' });
+
+  const backPctANum = passesA.length > 0 ? dirA.BACK / passesA.length * 100 : 0;
+  const backPctBNum = passesB.length > 0 ? dirB.BACK / passesB.length * 100 : 0;
+  if (backPctANum <= 20 && passesA.length > 10) flags.push({ icon: '✅', text: `Team A back-pass rate on target (${backPctANum.toFixed(0)}%)`, cls: 'ok' });
+  if (backPctBNum <= 20 && passesB.length > 10) flags.push({ icon: '✅', text: `Team B back-pass rate on target (${backPctBNum.toFixed(0)}%)`, cls: 'ok' });
+
+  $('passIntelFlags').innerHTML = flags.length
+    ? flags.map(f => `<div class="flag ${f.cls}"><span class="flag-icon">${f.icon}</span>${f.text}</div>`).join('')
+    : '<div style="color:var(--fg3);font-size:.75rem;padding:4px">No pass anomalies detected</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════
    RENDER: 4. ROLE BEHAVIOR
    ═══════════════════════════════════════════════════════════ */
 function populateRoleSelect() {
@@ -855,7 +1024,8 @@ function renderSpatial() {
       else gridB[gi][gj]++;
     }
 
-    const maxVal = Math.max(1, ...[...gridA.flat(), ...gridB.flat()]);
+    let maxVal = 1;
+    for (let i = 0; i < gx; i++) for (let j = 0; j < gz; j++) { maxVal = Math.max(maxVal, gridA[i][j], gridB[i][j]); }
     const cellW = pitch.pw / gx, cellH = pitch.ph / gz;
 
     // Draw heatmap
@@ -1041,6 +1211,28 @@ function renderInsights() {
 
   // Transition analysis
   const tr = D.transitions || [];
+
+  // Pass intelligence insights
+  const passEvA = (D.events || []).filter(e => e.type === 'PASS' && e.team === 'A');
+  const passEvB = (D.events || []).filter(e => e.type === 'PASS' && e.team === 'B');
+  for (const [label, passArr] of [['A', passEvA], ['B', passEvB]]) {
+    if (passArr.length < 5) continue;
+    const backCount = passArr.filter(p => (p.detail?.progress ?? 0) < -2).length;
+    const backRate = backCount / passArr.length;
+    if (backRate > 0.35) insights.push({ cls: 'bad', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} back-pass rate is very high (${(backRate*100).toFixed(0)}% vs ≤20% target).` });
+
+    const boxBack = passArr.filter(p => (p.detail?.passerDistToGoal ?? 99) < 10 && (p.detail?.progress ?? 0) < 0).length;
+    if (boxBack > 0) insights.push({ cls: 'bad', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} made ${boxBack} backward pass(es) inside the penalty area — should be prohibited.` });
+
+    const enriched = passArr.filter(p => p.detail?.completed !== undefined);
+    const fwd = enriched.filter(p => (p.detail?.progress ?? 0) > 5);
+    if (fwd.length > 3) {
+      const fwdComp = fwd.filter(p => p.detail.completed === true).length;
+      const fwdRate = fwdComp / fwd.length;
+      if (fwdRate < 0.4) insights.push({ cls: 'warn', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} long forward passes completing at just ${(fwdRate*100).toFixed(0)}% — passes may be aimed into coverage.` });
+    }
+  }
+
   if (tr.length > 10) {
     const avgDur = tr.reduce((s, t) => s + (t.duration || 0), 0) / tr.length;
     if (avgDur < 1.5) insights.push({ cls: 'info', text: `Very fast transitions (avg ${avgDur.toFixed(1)}s) — may indicate constant back-and-forth without sustained build-up.` });
@@ -1121,6 +1313,7 @@ function renderAll() {
   renderOverview();
   renderTimeline();
   renderTeamStyle();
+  renderPassIntel();
   populateRoleSelect();
   renderRolePanel();
   renderEventFilters();
@@ -1175,17 +1368,21 @@ function openComparison() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MATCH HISTORY (localStorage auto-save)
+   MATCH HISTORY (SQLite via server API)
    ═══════════════════════════════════════════════════════════ */
-function refreshHistorySelect() {
+let _matchHistoryCache = [];
+async function refreshHistorySelect() {
   const sel = $('historySelect');
   try {
-    const history = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
+    const res = await fetch('/__db/matches?limit=50');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    _matchHistoryCache = await res.json();
+    const history = _matchHistoryCache;
     sel.innerHTML = '<option value="">— Match History (' + history.length + ') —</option>';
-    for (let i = history.length - 1; i >= 0; i--) {
+    for (let i = 0; i < history.length; i++) {
       const h = history[i];
-      const date = new Date(h.id).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      sel.innerHTML += `<option value="${i}">${h.teamA || 'A'} ${h.scoreA}-${h.scoreB} ${h.teamB || 'B'} (${date})</option>`;
+      const date = new Date(h.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      sel.innerHTML += `<option value="${i}">${h.team_a_name || 'A'} ${h.score_a}-${h.score_b} ${h.team_b_name || 'B'} (${date})</option>`;
     }
   } catch { sel.innerHTML = '<option value="">— No history —</option>'; }
 }
@@ -1195,17 +1392,17 @@ function loadFromHistory() {
   const idx = sel.value;
   if (idx === '') return;
   try {
-    const history = JSON.parse(localStorage.getItem('psl-tuning-history') || '[]');
-    const entry = history[Number(idx)];
-    if (!entry?.bundle) { alert('Invalid history entry.'); return; }
+    const entry = _matchHistoryCache[Number(idx)];
+    if (!entry?.bundle_json) { alert('Invalid history entry.'); return; }
+    const bundle = typeof entry.bundle_json === 'string' ? JSON.parse(entry.bundle_json) : entry.bundle_json;
     if (D) {
       // Load as comparison
-      prevD = entry.bundle;
+      prevD = bundle;
       renderComparison();
       $('statusText').textContent += ' — loaded history match for comparison';
     } else {
       // Load as primary
-      D = entry.bundle;
+      D = bundle;
       lastUpdate = Date.now();
       renderAll();
     }

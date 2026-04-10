@@ -284,10 +284,85 @@ function telemetryMirrorPlugin(): Plugin {
   };
 }
 
+/** SQLite-backed tuning relay + match history. Works across any browser/port/webview. */
+function tuningRelayPlugin(): Plugin {
+  let db: typeof import('./src/server/psl-db') | null = null;
+  const getDbModule = async () => {
+    if (!db) db = await import('./src/server/psl-db');
+    return db;
+  };
+
+  const readBody = (req: any): Promise<string> => new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    req.on('error', reject);
+  });
+
+  return {
+    name: 'tuning-relay',
+    configureServer(server) {
+      // Game POSTs live tuning payload
+      server.middlewares.use('/__tuning/push', async (req: any, res: any) => {
+        if (req.method !== 'POST') { res.writeHead(405).end(); return; }
+        try {
+          const body = await readBody(req);
+          const parsed = JSON.parse(body);
+          const mod = await getDbModule();
+          mod.upsertLiveTuning(parsed.ts || Date.now(), body);
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
+        } catch (err) {
+          res.writeHead(400).end(String(err));
+        }
+      });
+
+      // Dashboard GETs latest tuning payload
+      server.middlewares.use('/__tuning/pull', async (req: any, res: any) => {
+        if (req.method !== 'GET') { res.writeHead(405).end(); return; }
+        try {
+          const mod = await getDbModule();
+          const row = mod.getLiveTuning();
+          if (!row) { res.writeHead(204).end(); return; }
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(row.payload_json);
+        } catch (err) {
+          res.writeHead(500).end(String(err));
+        }
+      });
+
+      // Game POSTs completed match result
+      server.middlewares.use('/__db/match-result', async (req: any, res: any) => {
+        if (req.method !== 'POST') { res.writeHead(405).end(); return; }
+        try {
+          const body = JSON.parse(await readBody(req));
+          const mod = await getDbModule();
+          mod.insertMatchResult(body);
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
+        } catch (err) {
+          res.writeHead(400).end(String(err));
+        }
+      });
+
+      // Dashboard / MatchHistory GETs recent matches
+      server.middlewares.use('/__db/matches', async (req: any, res: any) => {
+        if (req.method !== 'GET') { res.writeHead(405).end(); return; }
+        try {
+          const mod = await getDbModule();
+          const url = new URL(req.url || '/', 'http://localhost');
+          const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+          const rows = mod.getRecentMatches(limit);
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(rows));
+        } catch (err) {
+          res.writeHead(500).end(String(err));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [react(), tailwindcss(), telemetryMirrorPlugin()],
+    plugins: [react(), tailwindcss(), telemetryMirrorPlugin(), tuningRelayPlugin()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
@@ -300,7 +375,7 @@ export default defineConfig(({mode}) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',      allowedHosts: ['gakeen'],      watch: {
-        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**'],
+        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**'],
       },
     },
   };

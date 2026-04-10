@@ -28,6 +28,26 @@ type MatchSnapshotLike = {
   savesB?: number;
   headersA?: number;
   headersB?: number;
+  passesA?: number;
+  passesB?: number;
+  passesCompletedA?: number;
+  passesCompletedB?: number;
+  foulsA?: number;
+  foulsB?: number;
+  cornersA?: number;
+  cornersB?: number;
+  throwInsA?: number;
+  throwInsB?: number;
+  tacklesWonA?: number;
+  tacklesWonB?: number;
+  clearancesA?: number;
+  clearancesB?: number;
+  possessionA?: number;
+  possessionB?: number;
+  gkDistributionsA?: number;
+  gkDistributionsB?: number;
+  gkDistCompletedA?: number;
+  gkDistCompletedB?: number;
   offensiveTeam?: 'A' | 'B';
   isLive?: boolean;
   weather?: string;
@@ -287,6 +307,26 @@ export class TelemetryRecorder {
             savesB: match.savesB ?? 0,
             headersA: match.headersA ?? 0,
             headersB: match.headersB ?? 0,
+            passesA: match.passesA ?? 0,
+            passesB: match.passesB ?? 0,
+            passesCompletedA: match.passesCompletedA ?? 0,
+            passesCompletedB: match.passesCompletedB ?? 0,
+            foulsA: match.foulsA ?? 0,
+            foulsB: match.foulsB ?? 0,
+            cornersA: match.cornersA ?? 0,
+            cornersB: match.cornersB ?? 0,
+            throwInsA: match.throwInsA ?? 0,
+            throwInsB: match.throwInsB ?? 0,
+            tacklesWonA: match.tacklesWonA ?? 0,
+            tacklesWonB: match.tacklesWonB ?? 0,
+            clearancesA: match.clearancesA ?? 0,
+            clearancesB: match.clearancesB ?? 0,
+            possessionA: match.possessionA ?? 50,
+            possessionB: match.possessionB ?? 50,
+            gkDistributionsA: match.gkDistributionsA ?? 0,
+            gkDistributionsB: match.gkDistributionsB ?? 0,
+            gkDistCompletedA: match.gkDistCompletedA ?? 0,
+            gkDistCompletedB: match.gkDistCompletedB ?? 0,
             offensiveTeam: match.offensiveTeam ?? 'A',
             isLive: !!match.isLive,
             weather: match.weather,

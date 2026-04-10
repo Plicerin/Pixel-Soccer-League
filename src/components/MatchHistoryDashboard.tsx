@@ -1,14 +1,36 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { findRecentCompletedMatches, type TelemetrySessionSummary } from '../telemetry';
+
+interface MatchRow {
+  session_id: string;
+  timestamp: number;
+  team_a_name: string;
+  team_b_name: string;
+  team_a_formation: string;
+  team_b_formation: string;
+  score_a: number;
+  score_b: number;
+  shots_a: number;
+  shots_b: number;
+  shots_on_target_a: number;
+  shots_on_target_b: number;
+  saves_a: number;
+  saves_b: number;
+  possession_a: number;
+}
 
 const MatchHistoryDashboard: React.FC = () => {
-  const [matches, setMatches] = useState<TelemetrySessionSummary[]>([]);
+  const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const data = await findRecentCompletedMatches({ limit: 50 });
-    setMatches(data);
+    try {
+      const res = await fetch('/__db/matches?limit=50');
+      if (res.ok) {
+        const rows: MatchRow[] = await res.json();
+        setMatches(rows);
+      }
+    } catch (e) { console.warn('[MatchHistory] fetch error:', e); }
     setLoading(false);
   }, []);
 
@@ -16,23 +38,23 @@ const MatchHistoryDashboard: React.FC = () => {
 
   // Aggregate stats
   const totalGames = matches.length;
-  const totalGoals = matches.reduce((s, m) => s + m.finalScoreA + m.finalScoreB, 0);
+  const totalGoals = matches.reduce((s, m) => s + m.score_a + m.score_b, 0);
   const avgGoals = totalGames > 0 ? (totalGoals / totalGames).toFixed(1) : '–';
-  const totalShots = matches.reduce((s, m) => s + m.shotsA + m.shotsB, 0);
-  const totalSOG = matches.reduce((s, m) => s + m.shotsOnTargetA + m.shotsOnTargetB, 0);
-  const totalSaves = matches.reduce((s, m) => s + m.savesA + m.savesB, 0);
+  const totalShots = matches.reduce((s, m) => s + m.shots_a + m.shots_b, 0);
+  const totalSOG = matches.reduce((s, m) => s + m.shots_on_target_a + m.shots_on_target_b, 0);
+  const totalSaves = matches.reduce((s, m) => s + m.saves_a + m.saves_b, 0);
   const avgShots = totalGames > 0 ? (totalShots / totalGames).toFixed(1) : '–';
   const shotAccPct = totalShots > 0 ? ((totalSOG / totalShots) * 100).toFixed(1) : '–';
-  const draws = matches.filter(m => m.finalScoreA === m.finalScoreB).length;
+  const draws = matches.filter(m => m.score_a === m.score_b).length;
   const drawPct = totalGames > 0 ? ((draws / totalGames) * 100).toFixed(0) : '–';
-  const maxGoals = totalGames > 0 ? Math.max(...matches.map(m => m.finalScoreA + m.finalScoreB)) : 0;
-  const minGoals = totalGames > 0 ? Math.min(...matches.map(m => m.finalScoreA + m.finalScoreB)) : 0;
-  const cleanSheets = matches.filter(m => m.finalScoreA === 0 || m.finalScoreB === 0).length;
+  const maxGoals = totalGames > 0 ? Math.max(...matches.map(m => m.score_a + m.score_b)) : 0;
+  const minGoals = totalGames > 0 ? Math.min(...matches.map(m => m.score_a + m.score_b)) : 0;
+  const cleanSheets = matches.filter(m => m.score_a === 0 || m.score_b === 0).length;
 
   // Goal distribution
   const goalBuckets: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5+': 0 };
   matches.forEach(m => {
-    const g = m.finalScoreA + m.finalScoreB;
+    const g = m.score_a + m.score_b;
     if (g >= 5) goalBuckets['5+']++;
     else goalBuckets[String(g)]++;
   });
@@ -40,7 +62,7 @@ const MatchHistoryDashboard: React.FC = () => {
   // Score distribution for each team's goals
   const homeGoalDist: number[] = [];
   const awayGoalDist: number[] = [];
-  matches.forEach(m => { homeGoalDist.push(m.finalScoreA); awayGoalDist.push(m.finalScoreB); });
+  matches.forEach(m => { homeGoalDist.push(m.score_a); awayGoalDist.push(m.score_b); });
 
   const statBox = (label: string, value: string | number, sub?: string) => (
     <div className="bg-black/30 rounded-lg p-3 border border-white/5">
@@ -124,31 +146,31 @@ const MatchHistoryDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {matches.map((m, i) => {
-                    const isDraw = m.finalScoreA === m.finalScoreB;
-                    const homeWin = m.finalScoreA > m.finalScoreB;
+                    const isDraw = m.score_a === m.score_b;
+                    const homeWin = m.score_a > m.score_b;
                     return (
-                      <tr key={m.sessionId} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={m.session_id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                         <td className="px-3 py-2 text-white/30 font-mono">{i + 1}</td>
                         <td className={`text-right px-2 py-2 ${homeWin ? 'text-emerald-400 font-bold' : isDraw ? 'text-yellow-300' : 'text-white/60'}`}>
-                          {m.teamAName || 'Team A'}
+                          {m.team_a_name || 'Team A'}
                         </td>
                         <td className="text-center px-2 py-2 font-mono font-bold">
-                          {m.finalScoreA} – {m.finalScoreB}
+                          {m.score_a} – {m.score_b}
                         </td>
                         <td className={`text-left px-2 py-2 ${!homeWin && !isDraw ? 'text-emerald-400 font-bold' : isDraw ? 'text-yellow-300' : 'text-white/60'}`}>
-                          {m.teamBName || 'Team B'}
+                          {m.team_b_name || 'Team B'}
                         </td>
                         <td className="text-center px-2 py-2 text-white/50 font-mono">
-                          {m.shotsA}–{m.shotsB}
+                          {m.shots_a}–{m.shots_b}
                         </td>
                         <td className="text-center px-2 py-2 text-white/50 font-mono">
-                          {m.shotsOnTargetA}–{m.shotsOnTargetB}
+                          {m.shots_on_target_a}–{m.shots_on_target_b}
                         </td>
                         <td className="text-center px-2 py-2 text-white/50 font-mono">
-                          {m.savesA}–{m.savesB}
+                          {m.saves_a}–{m.saves_b}
                         </td>
                         <td className="text-center px-2 py-2 text-white/30 font-mono text-[9px]">
-                          {m.teamAFormation || '—'} / {m.teamBFormation || '—'}
+                          {m.team_a_formation || '—'} / {m.team_b_formation || '—'}
                         </td>
                       </tr>
                     );
