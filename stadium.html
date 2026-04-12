@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voxel Baseball Stadium – Instanced</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #101018; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.module.js";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x101018);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 2000);
+camera.position.set(220, 220, 220);
+camera.lookAt(64, 0, 40);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Palette
+const palette = {
+  GRASS_LIGHT: 0x4CAF50,
+  GRASS_DARK:  0x388E3C,
+  DIRT_INFIELD: 0xC49A6C,
+  DIRT_MOUND: 0xA67C52,
+  TRACK: 0x5D4037,
+  BASE_WHITE: 0xFFFFFF,
+  WALL_GREEN: 0x1B5E20,
+  SEAT_PRIMARY: 0x1E88E5,
+  SEAT_SECONDARY: 0x1565C0,
+  CONCRETE: 0xBDBDBD,
+  ROOF: 0xCFD8DC,
+  METAL: 0x9E9E9E,
+  LIGHT: 0xFFFFFF,
+  SCOREBOARD_BG: 0x212121,
+  SCOREBOARD_ACCENT: 0xFFEB3B
+};
+
+// Voxel store: materialKey -> array of {x,y,z}
+const voxelsByMat = {};
+for (const key of Object.keys(palette)) voxelsByMat[key] = [];
+
+// Helpers
+function addVoxel(mat, x, y, z) {
+  if (!voxelsByMat[mat]) voxelsByMat[mat] = [];
+  voxelsByMat[mat].push({ x, y, z });
+}
+
+function addRect(mat, x1, x2, y1, y2, z) {
+  for (let x = x1; x <= x2; x++) {
+    for (let y = y1; y <= y2; y++) {
+      addVoxel(mat, x, y, z);
+    }
+  }
+}
+
+function addRing(mat, x1, x2, y1, y2, z) {
+  for (let x = x1; x <= x2; x++) {
+    addVoxel(mat, x, y1, z);
+    addVoxel(mat, x, y2, z);
+  }
+  for (let y = y1; y <= y2; y++) {
+    addVoxel(mat, x1, y, z);
+    addVoxel(mat, x2, y, z);
+  }
+}
+
+// Origin / canvas
+const HOME = { x: 64, y: 20, z: 0 };
+
+// ---------- FIELD ----------
+(function buildField() {
+  // Outfield grass with stripes
+  for (let x = 40; x <= 88; x++) {
+    for (let y = 10; y <= 90; y++) {
+      const stripe = (Math.floor(x / 4) % 2 === 0) ? 'GRASS_LIGHT' : 'GRASS_DARK';
+      addVoxel(stripe, x, y, 0);
+    }
+  }
+
+  // Infield dirt (diamond-ish via bounding box)
+  for (let x = 46; x <= 82; x++) {
+    for (let y = 26; y <= 54; y++) {
+      addVoxel('DIRT_INFIELD', x, y, 0);
+    }
+  }
+
+  // Bases
+  addVoxel('BASE_WHITE', 64, 20, 0); // home
+  addVoxel('BASE_WHITE', 84, 40, 0); // first
+  addVoxel('BASE_WHITE', 64, 60, 0); // second
+  addVoxel('BASE_WHITE', 44, 40, 0); // third
+
+  // Foul lines
+  for (let y = 20; y <= 90; y++) addVoxel('BASE_WHITE', 64, y, 0);
+  for (let x = 20; x <= 108; x++) addVoxel('BASE_WHITE', x, 20, 0);
+
+  // Pitcher’s mound (small raised disc)
+  for (let x = 61; x <= 67; x++) {
+    for (let y = 37; y <= 43; y++) {
+      const dx = x - 64;
+      const dy = y - 40;
+      if (dx*dx + dy*dy <= 3*3) addVoxel('DIRT_MOUND', x, y, 1);
+    }
+  }
+
+  // Warning track ring
+  for (let x = 42; x <= 86; x++) {
+    for (let y = 12; y <= 88; y++) {
+      const onEdge = (x === 42 || x === 86 || y === 12 || y === 88);
+      if (onEdge) addVoxel('TRACK', x, y, 0);
+    }
+  }
+})();
+
+// ---------- OUTFIELD WALL (asymmetric) ----------
+(function buildWall() {
+  const cx = HOME.x;
+  const cy = 40;
+  for (let x = 40; x <= 88; x++) {
+    for (let y = 20; y <= 100; y++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      // Rough asymmetry: shorter in right, deeper in left, deepest center
+      let target = 0;
+      if (x < cx) target = 34 + (cx - x) * 0.3;      // left deeper
+      else if (x > cx) target = 30 - (x - cx) * 0.2; // right shorter
+      else target = 38;                              // center deepest
+
+      if (Math.abs(dist - target) < 0.7) {
+        const height =
+          x < cx ? 4 :
+          x > cx ? 3 : 6;
+        for (let z = 1; z <= height; z++) {
+          addVoxel('WALL_GREEN', x, y, z);
+        }
+      }
+    }
+  }
+
+  // Foul poles at intersections
+  const poles = [
+    { x: 40, y: 20 },
+    { x: 88, y: 20 }
+  ];
+  for (const p of poles) {
+    for (let z = 1; z <= 10; z++) {
+      addVoxel('BASE_WHITE', p.x, p.y, z);
+    }
+  }
+})();
+
+// ---------- SEATING BOWL ----------
+(function buildLowerBowl() {
+  // Horseshoe around home plate
+  const rows = 14;
+  for (let r = 0; r < rows; r++) {
+    const z = 1 + r;
+    const inset = 4 + r;
+    const yStart = 10 + r;
+    const yEnd = 70 + r * 0.3;
+
+    for (let x = 30 + inset; x <= 98 - inset; x++) {
+      const y = yStart;
+      const mat = (x + r) % 3 === 0 ? 'SEAT_SECONDARY' : 'SEAT_PRIMARY';
+      addVoxel(mat, x, y, z);
+    }
+  }
+})();
+
+(function buildUpperDeck() {
+  // Arc behind home plate only
+  const baseZ = 14;
+  const rows = 10;
+  for (let r = 0; r < rows; r++) {
+    const z = baseZ + r;
+    const inset = 8 + r;
+    const y = 4 + r; // closer to home
+    for (let x = 40 + inset; x <= 88 - inset; x++) {
+      const mat = (x + r) % 4 === 0 ? 'SEAT_SECONDARY' : 'SEAT_PRIMARY';
+      addVoxel(mat, x, y, z);
+    }
+  }
+})();
+
+// ---------- CONCOURSE + EXTERIOR ----------
+(function buildConcourseAndShell() {
+  // Concourse ring behind lower bowl
+  const z = 8;
+  addRing('CONCRETE', 28, 100, 8, 72, z);
+
+  // Exterior shell walls
+  const shellZMax = 6;
+  for (let z = 0; z <= shellZMax; z++) {
+    addRing('CONCRETE', 24, 104, 4, 76, z);
+  }
+
+  // Entrances (gaps) – we just don't place voxels there
+  // (visual only; shell ring already suggests structure)
+})();
+
+// ---------- SCOREBOARD + BATTER'S EYE ----------
+(function buildScoreboard() {
+  const baseY = 96;
+  // Batter's eye slab
+  for (let x = 54; x <= 74; x++) {
+    for (let z = 1; z <= 6; z++) {
+      addVoxel('WALL_GREEN', x, baseY - 4, z);
+    }
+  }
+
+  // Scoreboard
+  for (let x = 55; x <= 73; x++) {
+    for (let z = 7; z <= 18; z++) {
+      addVoxel('SCOREBOARD_BG', x, baseY, z);
+    }
+  }
+
+  // Simple accent row
+  for (let x = 57; x <= 71; x++) {
+    addVoxel('SCOREBOARD_ACCENT', x, baseY, 17);
+  }
+})();
+
+// ---------- ROOF ----------
+(function buildRoof() {
+  // Roof over upper deck behind home plate
+  const zMin = 22;
+  const zMax = 24;
+  for (let x = 40; x <= 88; x++) {
+    for (let y = 0; y <= 20; y++) {
+      for (let z = zMin; z <= zMax; z++) {
+        addVoxel('ROOF', x, y, z);
+      }
+    }
+  }
+
+  // Supports
+  for (let x = 44; x <= 84; x += 8) {
+    for (let z = 14; z <= 22; z++) {
+      addVoxel('METAL', x, 20, z);
+    }
+  }
+})();
+
+// ---------- LIGHT TOWERS ----------
+(function buildLightTowers() {
+  const towers = [
+    { x: 40, y: 10 },
+    { x: 88, y: 10 },
+    { x: 40, y: 80 },
+    { x: 88, y: 80 }
+  ];
+  for (const t of towers) {
+    // Shaft
+    for (let z = 6; z <= 34; z++) {
+      addVoxel('METAL', t.x, t.y, z);
+    }
+    // Light cluster
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        addVoxel('LIGHT', t.x + dx, t.y + dy, 35);
+      }
+    }
+  }
+})();
+
+// ---------- BUILD INSTANCED MESHES ----------
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+
+for (const matKey of Object.keys(voxelsByMat)) {
+  const list = voxelsByMat[matKey];
+  if (!list.length) continue;
+
+  const material = new THREE.MeshStandardMaterial({ color: palette[matKey] });
+  const mesh = new THREE.InstancedMesh(boxGeo, material, list.length);
+  const dummy = new THREE.Object3D();
+
+  list.forEach((v, i) => {
+    dummy.position.set(v.x, v.z, v.y); // map (x,y,z) -> (x,z,y)
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  });
+
+  mesh.instanceMatrix.needsUpdate = true;
+  scene.add(mesh);
+}
+
+// Lights
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+dirLight.position.set(200, 300, 150);
+scene.add(dirLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+// Ground shadow-ish base
+const baseGeo = new THREE.PlaneGeometry(200, 200);
+const baseMat = new THREE.MeshStandardMaterial({ color: 0x202030, side: THREE.DoubleSide });
+const base = new THREE.Mesh(baseGeo, baseMat);
+base.rotation.x = -Math.PI / 2;
+base.position.set(64, -0.51, 40);
+scene.add(base);
+
+// Animation
+function animate() {
+  requestAnimationFrame(animate);
+  scene.rotation.y += 0.002;
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

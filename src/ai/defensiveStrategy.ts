@@ -177,7 +177,7 @@ export function shouldDefenderPress(params: PressDecisionParams) {
   return false;
 }
 
-export function predictInterceptionOpportunity(playerPos: THREE.Vector3, passerPos: THREE.Vector3, targetPos: THREE.Vector3, interceptionRadius = 2.5) {
+export function predictInterceptionOpportunity(playerPos: THREE.Vector3, passerPos: THREE.Vector3, targetPos: THREE.Vector3, interceptionRadius = 1.7) {
   const laneDist = distancePointToSegment(playerPos, passerPos, targetPos);
   return laneDist < interceptionRadius;
 }

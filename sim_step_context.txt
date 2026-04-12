@@ -1,0 +1,213 @@
+
+  src\gameEngine.ts:10216:  function animate(now: number) {
+  src\gameEngine.ts:10217:    if (document.hidden) {
+  src\gameEngine.ts:10218:      _isAnimating = false;
+  src\gameEngine.ts:10219:      return;
+  src\gameEngine.ts:10220:    }
+  src\gameEngine.ts:10221:    _isAnimating = true;
+  src\gameEngine.ts:10222:    _simulateStep(now);
+  src\gameEngine.ts:10223:    requestAnimationFrame(animate);
+  src\gameEngine.ts:10224:  }
+  src\gameEngine.ts:10225:
+> src\gameEngine.ts:10226:  function _simulateStep(nowFromRaf?: number) {
+  src\gameEngine.ts:10227:    pollGamepad();
+  src\gameEngine.ts:10228:        const now = nowFromRaf ?? performance.now();
+  src\gameEngine.ts:10229:    const bannerNow = now / 1000;
+  src\gameEngine.ts:10230:    
+  src\gameEngine.ts:10231:    // Animate Banners
+  src\gameEngine.ts:10232:    bannerTexts.forEach((t: any) => {
+  src\gameEngine.ts:10233:      if (!t.tickerPhase) {
+  src\gameEngine.ts:10234:        t.tickerPhase = 'scroll';
+  src\gameEngine.ts:10235:        t.tickerOffset = 0;
+  src\gameEngine.ts:10236:        t.tickerSteps = 0;
+  src\gameEngine.ts:10237:        t.tickerBlinkToggles = 0;
+  src\gameEngine.ts:10238:        t.tickerNextAt = bannerNow + 0.1;
+  src\gameEngine.ts:10239:      }
+  src\gameEngine.ts:10240:
+  src\gameEngine.ts:10241:      if (bannerNow >= (t.tickerNextAt || 0)) {
+  src\gameEngine.ts:10242:        if (t.tickerPhase === 'scroll') {
+  src\gameEngine.ts:10243:          const tickerSource = t.tickerSource || 'PIXEL SOCCER LEAGUE • ';
+  src\gameEngine.ts:10244:          const tickerLoop = t.tickerLoop || tickerSource.repeat(10);
+  src\gameEngine.ts:10245:          t.tickerOffset = (t.tickerOffset + 1) % tickerSource.length;
+  src\gameEngine.ts:10246:          const tickerWindowChars = typeof t.tickerWindowChars === 'number' ? t.tickerWindowChars : bannerTickerWindowChars;
+  src\gameEngine.ts:10247:          const doubled = tickerLoop + tickerLoop;
+  src\gameEngine.ts:10248:          const textSlice = doubled.slice(t.tickerOffset, t.tickerOffset + tickerWindowChars);
+  src\gameEngine.ts:10249:          if (t._tickerText !== textSlice) {
+  src\gameEngine.ts:10250:            t._tickerText = textSlice;
+  src\gameEngine.ts:10251:            t.text = textSlice;
+  src\gameEngine.ts:10252:            t.sync();
+  src\gameEngine.ts:10253:          }
+  src\gameEngine.ts:10254:          t.visible = true;
+  src\gameEngine.ts:10255:          t.tickerSteps = (t.tickerSteps || 0) + 1;
+  src\gameEngine.ts:10256:          if (t.tickerSteps >= 18) {
+  src\gameEngine.ts:10257:            t.tickerSteps = 0;
+  src\gameEngine.ts:10258:            t.tickerPhase = 'stop';
+  src\gameEngine.ts:10259:            t.tickerNextAt = bannerNow + 0.8;
+  src\gameEngine.ts:10260:          } else {
+  src\gameEngine.ts:10261:            t.tickerNextAt = bannerNow + 0.11;
+  src\gameEngine.ts:10262:          }
+  src\gameEngine.ts:10263:        } else if (t.tickerPhase === 'stop') {
+  src\gameEngine.ts:10264:          t.visible = true;
+  src\gameEngine.ts:10265:          t.tickerPhase = 'blink';
+  src\gameEngine.ts:10266:          t.tickerBlinkToggles = 0;
+  src\gameEngine.ts:10267:          t.tickerNextAt = bannerNow + 0.12;
+  src\gameEngine.ts:10268:        } else {
+  src\gameEngine.ts:10269:          t.visible = !t.visible;
+  src\gameEngine.ts:10270:          t.tickerBlinkToggles = (t.tickerBlinkToggles || 0) + 1;
+  src\gameEngine.ts:10271:          if (t.tickerBlinkToggles >= 4) {
+  src\gameEngine.ts:10272:            t.visible = true;
+  src\gameEngine.ts:10273:            t.tickerPhase = 'scroll';
+  src\gameEngine.ts:10274:            t.tickerNextAt = bannerNow + 0.11;
+  src\gameEngine.ts:10275:          } else {
+  src\gameEngine.ts:10276:            t.tickerNextAt = bannerNow + 0.12;
+  src\gameEngine.ts:10277:          }
+  src\gameEngine.ts:10278:        }
+  src\gameEngine.ts:10279:      }
+  src\gameEngine.ts:10280:
+  src\gameEngine.ts:10281:      // Ensure visible
+  src\gameEngine.ts:10282:      if (t.tickerPhase !== 'blink') t.visible = true;
+  src\gameEngine.ts:10283:      
+  src\gameEngine.ts:10284:      // Soft Neon Glow
+  src\gameEngine.ts:10285:      t.outlineWidth = 0.05;
+  src\gameEngine.ts:10286:      t.outlineColor = t.color;
+  src\gameEngine.ts:10287:      t.outlineBlur = 0.15;
+  src\gameEngine.ts:10288:    });
+  src\gameEngine.ts:10289:
+  src\gameEngine.ts:10290:    // Snapshot possession team before any AI writes it this frame
+  src\gameEngine.ts:10291:    const prevHolderTeam: 'A' | 'B' | null = (ballState.heldBy?.team as 'A' | 'B') ?? null;
+  src\gameEngine.ts:10292:
+  src\gameEngine.ts:10293:    if (!gameState.isLive && !gameState.isKickoff && !gameState.hintDismissed && gameState.down >= 2) {
+  src\gameEngine.ts:10294:      if (hintOverlay.style.opacity === '0') {
+  src\gameEngine.ts:10295:        hintOverlay.style.opacity = '1';
+  src\gameEngine.ts:10296:      }
+  src\gameEngine.ts:10297:    } else {
+  src\gameEngine.ts:10298:      hintOverlay.style.opacity = '0';
+  src\gameEngine.ts:10299:    }
+  src\gameEngine.ts:10300:
+  src\gameEngine.ts:10301:// COMMENTED: // REMOVED DUPE:         const now = nowFromRaf ?? performance.now();
+  src\gameEngine.ts:10302:    const rawDt = Math.min(Math.max((now - lastTime) / 1000, 0.001), 0.1);
+  src\gameEngine.ts:10303:    lastTime = now;
+  src\gameEngine.ts:10304:    const elapsed = now / 1000;
+  src\gameEngine.ts:10305:    goalNetMaterials.forEach((material) => {
+  src\gameEngine.ts:10306:      material.uniforms.uTime.value = elapsed;
+  src\gameEngine.ts:10307:    });
+  src\gameEngine.ts:10308:    if (isManualPause) {
+  src\gameEngine.ts:10309:      // Must poll gamepad Start button even while paused so it can unpause
+  src\gameEngine.ts:10310:      if (gamepad.connected && gpJustPressed(9) && !gameState.menuVisible) {
+  src\gameEngine.ts:10311:        setManualPause(false);
+  src\gameEngine.ts:10312:      }
+  src\gameEngine.ts:10313:      players.forEach((p: any) => { p.mesh.position.copy(p.pos); });
+  src\gameEngine.ts:10314:      ballGroup.position.copy(ballState.pos);
+  src\gameEngine.ts:10315:      updateBallShadowVisual();
+  src\gameEngine.ts:10316:      renderMainCamera();
+  src\gameEngine.ts:10317:      return;
+  src\gameEngine.ts:10318:    }
+  src\gameEngine.ts:10319:    if (gameState.crossAssistTeam && elapsed > gameState.crossAssistUntil) {
+  src\gameEngine.ts:10320:      gameState.crossAssistTeam = '';
+  src\gameEngine.ts:10321:      gameState.crossAssistUntil = 0;
+  src\gameEngine.ts:10322:    }
+  src\gameEngine.ts:10323:    if (playPatternHideAt > 0 && elapsed >= playPatternHideAt) {
+  src\gameEngine.ts:10324:      playPatternOverlay.style.opacity = '0';
+  src\gameEngine.ts:10325:      playPatternHideAt = 0;
+  src\gameEngine.ts:10326:    }
+  src\gameEngine.ts:10327:
+  src\gameEngine.ts:10328:    // ── FULL TIME ENFORCER ──────────────────────────────────────────────
+  src\gameEngine.ts:10329:    // Nuclear guard: every single frame, if the match is over, force all
+  src\gameEngine.ts:10330:    // gameplay-resuming state off so no timer, callback, or race condition
+  src\gameEngine.ts:10331:    // can restart play.
+  src\gameEngine.ts:10332:    if (matchClock.phase === 'FULL_TIME') {
+  src\gameEngine.ts:10333:      gameState.status = 'START';
+  src\gameEngine.ts:10334:      gameState.isLive = false;
+  src\gameEngine.ts:10335:      gameState.isKickoff = false;
+  src\gameEngine.ts:10336:      gameState.kickoffState = 'NONE';
+  src\gameEngine.ts:10337:      gameState.goalKickInProgress = false;
+  src\gameEngine.ts:10338:      gameState.cornerKickInProgress = false;
+  src\gameEngine.ts:10339:      delayedRestartState.active = false;
+  src\gameEngine.ts:10340:      kickoffPresentation.active = false;
+  src\gameEngine.ts:10341:      freeKickPresentation.active = false;
+  src\gameEngine.ts:10342:      freeKickPresentation.humanWaiting = false;
+  src\gameEngine.ts:10343:      throwInPresentation.active = false;
+  src\gameEngine.ts:10344:      cornerPresentation.active = false;
+  src\gameEngine.ts:10345:      penaltyPresentation.active = false;
+  src\gameEngine.ts:10346:      if (restartAutoStartTimer) { clearTimeout(restartAutoStartTimer); restartAutoStartTimer = null; }
+  src\gameEngine.ts:10347:      clearStuckRestartTimer();
+  src\gameEngine.ts:10348:    }
+  src\gameEngine.ts:10349:    // ────────────────────────────────────────────────────────────────────
+  src\gameEngine.ts:10350:
+  src\gameEngine.ts:10351:    const instantFPS = rawDt > 0 ? (1 / rawDt) : smoothedFPS;
+  src\gameEngine.ts:10352:    smoothedFPS = smoothedFPS * 0.9 + instantFPS * 0.1;
+  src\gameEngine.ts:10353:    // Corner bunch detector disabled
+  src\gameEngine.ts:10354:    // updateCornerBunchDetector(rawDt);
+  src\gameEngine.ts:10355:    if (showFPSDisplay && now - lastFPSUiUpdate >= 120) {
+  src\gameEngine.ts:10356:      fpsDisplay.textContent = `FPS ${Math.round(smoothedFPS)}`;
+  src\gameEngine.ts:10357:      lastFPSUiUpdate = now;
+  src\gameEngine.ts:10358:    }
+  src\gameEngine.ts:10359:    if (showAIStateOverlay && now - lastAIStateUiUpdate >= 180) {
+  src\gameEngine.ts:10360:      const teamA = players.filter((p: any) => p.team === 'A');
+  src\gameEngine.ts:10361:      const teamB = players.filter((p: any) => p.team === 'B');
+  src\gameEngine.ts:10362:      const teamAName = (activeTeams.A.scoreName || 'TEAM A').toUpperCase();
+  src\gameEngine.ts:10363:      const teamBName = (activeTeams.B.scoreName || 'TEAM B').toUpperCase();
+  src\gameEngine.ts:10364:      const holderName = ballState.heldBy ? `${ballState.heldBy.team}:${ballState.heldBy.name}` : 'LOOSE';
+  src\gameEngine.ts:10365:      const formatLine = (p: any) => {
+  src\gameEngine.ts:10366:        const role = (p.displayRole || p.role || 'P').padEnd(2, ' ');
+  src\gameEngine.ts:10367:        const state = (p.aiState || 'IDLE').padEnd(18, ' ');
+  src\gameEngine.ts:10368:        return `${role} ${p.name.slice(0, 12).padEnd(12, ' ')} ${state}`;
+  src\gameEngine.ts:10369:      };
+  src\gameEngine.ts:10370:      aiStateOverlay.textContent = [
+  src\gameEngine.ts:10371:        'AI STATE DEBUG',
+  src\gameEngine.ts:10372:        `BALL: ${holderName}`,
+  src\gameEngine.ts:10373:        `FPS: ${Math.round(smoothedFPS)}`,
+  src\gameEngine.ts:10374:        `CORNER BUNCH ${teamAName}: now ${cornerBunchTracker.A.current} • events ${cornerBunchTracker.A.events} • peak ${cornerBunchTracker.A.peak}`,
+  src\gameEngine.ts:10375:        `CORNER BUNCH ${teamBName}: now ${cornerBunchTracker.B.current} • events ${cornerBunchTracker.B.events} • peak ${cornerBunchTracker.B.peak}`,
+  src\gameEngine.ts:10376:        `CORNER MIXED: now ${cornerBunchTracker.MIXED.current} • events ${cornerBunchTracker.MIXED.events} • peak ${cornerBunchTracker.MIXED.peak}`,
+  src\gameEngine.ts:10377:        '',
+  src\gameEngine.ts:10378:        teamAName,
+  src\gameEngine.ts:10379:        ...teamA.map(formatLine),
+  src\gameEngine.ts:10380:        '',
+  src\gameEngine.ts:10381:        teamBName,
+  src\gameEngine.ts:10382:        ...teamB.map(formatLine),
+  src\gameEngine.ts:10383:      ].join('\n');
+  src\gameEngine.ts:10384:      lastAIStateUiUpdate = now;
+  src\gameEngine.ts:10385:    }
+  src\gameEngine.ts:10386:    const saveSlowmoActive = elapsed < gameState.saveSlowmoUntil;
+  src\gameEngine.ts:10387:    const dt = rawDt * (saveSlowmoActive ? SAVE_SLOWMO_SCALE : 1.0);
+  src\gameEngine.ts:10388:    updateWeatherEffects(dt, elapsed);
+  src\gameEngine.ts:10389:    if (ballState.heldBy && (ballState.heldBy.team === 'A' || ballState.heldBy.team === 'B')) {
+  src\gameEngine.ts:10390:      gameState.offensiveTeam = ballState.heldBy.team;
+  src\gameEngine.ts:10391:    } else if (ballState.lastHeldBy && (ballState.lastHeldBy.team === 'A' || ballState.lastHeldBy.team === 'B')) {
+  src\gameEngine.ts:10392:      gameState.offensiveTeam = ballState.lastHeldBy.team;
+  src\gameEngine.ts:10393:    }
+  src\gameEngine.ts:10394:    const currentKeeperHolder = ballState.heldBy && isGoalkeeper(ballState.heldBy) ? ballState.heldBy : null;
+  src\gameEngine.ts:10395:    if (gameState.keeperHoldPlayer !== currentKeeperHolder) {
+  src\gameEngine.ts:10396:      gameState.keeperHoldPlayer = currentKeeperHolder;
+  src\gameEngine.ts:10397:      gameState.keeperHoldStartedAt = currentKeeperHolder ? elapsed : 0;
+  src\gameEngine.ts:10398:    }
+  src\gameEngine.ts:10399:    refreshDynamicTeamShape(elapsed);
+  src\gameEngine.ts:10400:
+  src\gameEngine.ts:10401:    gameState.cpuDecisionCooldownA = Math.max(0, gameState.cpuDecisionCooldownA - dt);
+  src\gameEngine.ts:10402:    gameState.cpuDecisionCooldownB = Math.max(0, gameState.cpuDecisionCooldownB - dt);
+  src\gameEngine.ts:10403:
+  src\gameEngine.ts:10404:    // In CPU vs CPU, automatically trigger restarts and kickoff touch with no user input.
+  src\gameEngine.ts:10405:    if (gameState.cpuVsCpu && !kickoffPresentation.active && !freeKickPresentation.active && !gameState.menuVisible && !gameState.isResetting && !gameState.isLive && !delayedRestartState.active && gameState.status === 'PLAYING') {
+  src\gameEngine.ts:10406:      // Clear stale HALFTIME message if the clock has moved past halftime.
+  src\gameEngine.ts:10407:      if (gameState.message === 'HALFTIME' && matchClock.phase !== 'HALFTIME') {
+  src\gameEngine.ts:10408:        gameState.message = '';
+  src\gameEngine.ts:10409:      }
+  src\gameEngine.ts:10410:      beginCurrentRestart();
+  src\gameEngine.ts:10411:    }
+  src\gameEngine.ts:10412:
+  src\gameEngine.ts:10413:    // CPU vs CPU / CPU kicker: execute kickoff touch when live and ready
+  src\gameEngine.ts:10414:    if (!kickoffPresentation.active && !gameState.menuVisible && gameState.isKickoff && gameState.kickoffState === 'READY' && gameState.isLive && elapsed >= kickoffLawState.kickoffAllowedAt) {
+  src\gameEngine.ts:10415:      if (gameState.cpuVsCpu) {
+  src\gameEngine.ts:10416:        executeKickoffTouch();
+  src\gameEngine.ts:10417:      } else {
+  src\gameEngine.ts:10418:        const kickerTeam = kickoffLawState.kicker?.team;
+  src\gameEngine.ts:10419:        const { controlA: ka, controlB: kb } = getHumanControlFlags();
+  src\gameEngine.ts:10420:        const kickerIsHuman = (kickerTeam === 'A' && ka) || (kickerTeam === 'B' && kb);
+  src\gameEngine.ts:10421:        if (!kickerIsHuman) {
+  src\gameEngine.ts:10422:          executeKickoffTouch();
+  src\gameEngine.ts:10423:        }
+  src\gameEngine.ts:10424:      }
+  src\gameEngine.ts:10425:    }
+  src\gameEngine.ts:10426:
+

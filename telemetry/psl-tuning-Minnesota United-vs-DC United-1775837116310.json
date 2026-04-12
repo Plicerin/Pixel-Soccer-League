@@ -1,0 +1,5351 @@
+{
+  "teamA": {
+    "name": "Minnesota United",
+    "formation": "3-4-3",
+    "score": 1,
+    "shots": 14,
+    "shotsOnTarget": 9,
+    "saves": 1,
+    "passes": 50,
+    "passesCompleted": 37,
+    "tackles": 22,
+    "clearances": 0,
+    "fouls": 5,
+    "corners": 1,
+    "throwIns": 2,
+    "possession": 52,
+    "gkDist": 1,
+    "gkDistComp": 0,
+    "roleStats": {
+      "ST": {
+        "touches": 5,
+        "passAtt": 6,
+        "passComp": 3,
+        "shots": 5,
+        "shotsOnTarget": 1,
+        "tackles": 0,
+        "interceptions": 3,
+        "clearances": 0,
+        "possFrames": 1912,
+        "turnovers": 1,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "CM": {
+        "touches": 10,
+        "passAtt": 10,
+        "passComp": 8,
+        "shots": 4,
+        "shotsOnTarget": 0,
+        "tackles": 1,
+        "interceptions": 2,
+        "clearances": 0,
+        "possFrames": 2183,
+        "turnovers": 0,
+        "recoveries": 1,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "LM": {
+        "touches": 6,
+        "passAtt": 13,
+        "passComp": 12,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 2862,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "RM": {
+        "touches": 11,
+        "passAtt": 12,
+        "passComp": 7,
+        "shots": 4,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 2,
+        "clearances": 0,
+        "possFrames": 2929,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "CB": {
+        "touches": 5,
+        "passAtt": 9,
+        "passComp": 7,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 1,
+        "clearances": 0,
+        "possFrames": 1545,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "GK": {
+        "touches": 0,
+        "passAtt": 0,
+        "passComp": 0,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 165,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      }
+    },
+    "passNetwork": [
+      {
+        "from": "ST",
+        "to": "CM",
+        "count": 4,
+        "completed": 2
+      },
+      {
+        "from": "CM",
+        "to": "CM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "CM",
+        "to": "RM",
+        "count": 4,
+        "completed": 2
+      },
+      {
+        "from": "LM",
+        "to": "RM",
+        "count": 10,
+        "completed": 3
+      },
+      {
+        "from": "RM",
+        "to": "RM",
+        "count": 10,
+        "completed": 3
+      },
+      {
+        "from": "CM",
+        "to": "ST",
+        "count": 6,
+        "completed": 2
+      },
+      {
+        "from": "CM",
+        "to": "CB",
+        "count": 2,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "LM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "CM",
+        "to": "LM",
+        "count": 8,
+        "completed": 2
+      },
+      {
+        "from": "LM",
+        "to": "CM",
+        "count": 7,
+        "completed": 4
+      },
+      {
+        "from": "LM",
+        "to": "ST",
+        "count": 3,
+        "completed": 3
+      },
+      {
+        "from": "ST",
+        "to": "RM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "ST",
+        "count": 2,
+        "completed": 0
+      },
+      {
+        "from": "CB",
+        "to": "CM",
+        "count": 5,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "RM",
+        "count": 5,
+        "completed": 2
+      },
+      {
+        "from": "ST",
+        "to": "LM",
+        "count": 4,
+        "completed": 0
+      },
+      {
+        "from": "RM",
+        "to": "CM",
+        "count": 5,
+        "completed": 2
+      },
+      {
+        "from": "RM",
+        "to": "CB",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "LM",
+        "count": 6,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "ST",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CB",
+        "to": "CB",
+        "count": 2,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "UNK",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "LM",
+        "to": "LM",
+        "count": 6,
+        "completed": 2
+      }
+    ]
+  },
+  "teamB": {
+    "name": "DC United",
+    "formation": "3-4-3",
+    "score": 0,
+    "shots": 2,
+    "shotsOnTarget": 1,
+    "saves": 8,
+    "passes": 46,
+    "passesCompleted": 40,
+    "tackles": 16,
+    "clearances": 17,
+    "fouls": 0,
+    "corners": 0,
+    "throwIns": 3,
+    "possession": 48,
+    "gkDist": 11,
+    "gkDistComp": 4,
+    "roleStats": {
+      "CM": {
+        "touches": 8,
+        "passAtt": 9,
+        "passComp": 9,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 1691,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 1
+      },
+      "ST": {
+        "touches": 6,
+        "passAtt": 5,
+        "passComp": 5,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 2,
+        "clearances": 0,
+        "possFrames": 1146,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "RM": {
+        "touches": 8,
+        "passAtt": 7,
+        "passComp": 5,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 1,
+        "clearances": 0,
+        "possFrames": 1516,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "GK": {
+        "touches": 0,
+        "passAtt": 5,
+        "passComp": 3,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 1620,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "CB": {
+        "touches": 10,
+        "passAtt": 16,
+        "passComp": 14,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 2,
+        "clearances": 17,
+        "possFrames": 3588,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 3
+      },
+      "LM": {
+        "touches": 8,
+        "passAtt": 4,
+        "passComp": 4,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 1,
+        "interceptions": 1,
+        "clearances": 0,
+        "possFrames": 1064,
+        "turnovers": 1,
+        "recoveries": 1,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 1
+      }
+    },
+    "passNetwork": [
+      {
+        "from": "CM",
+        "to": "CM",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "ST",
+        "to": "CM",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "RM",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "ST",
+        "count": 2,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "CM",
+        "count": 5,
+        "completed": 3
+      },
+      {
+        "from": "CM",
+        "to": "RM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "CB",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "ST",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "ST",
+        "to": "LM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "ST",
+        "count": 5,
+        "completed": 2
+      },
+      {
+        "from": "CB",
+        "to": "RM",
+        "count": 6,
+        "completed": 3
+      },
+      {
+        "from": "CB",
+        "to": "LM",
+        "count": 9,
+        "completed": 4
+      },
+      {
+        "from": "CM",
+        "to": "CB",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "CB",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "CB",
+        "to": "CB",
+        "count": 5,
+        "completed": 3
+      },
+      {
+        "from": "RM",
+        "to": "CM",
+        "count": 6,
+        "completed": 2
+      },
+      {
+        "from": "ST",
+        "to": "RM",
+        "count": 4,
+        "completed": 0
+      },
+      {
+        "from": "RM",
+        "to": "LM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "GK",
+        "to": "CM",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "LM",
+        "to": "RM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "CM",
+        "to": "ST",
+        "count": 2,
+        "completed": 2
+      },
+      {
+        "from": "CM",
+        "to": "LM",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "ST",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "RM",
+        "to": "RM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "LM",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "ST",
+        "to": "CB",
+        "count": 2,
+        "completed": 1
+      }
+    ]
+  },
+  "events": [
+    {
+      "t": 9.1,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 0,
+        "z": 0,
+        "targetX": -8.7,
+        "targetZ": -3.3,
+        "dist": 9.3,
+        "progress": -8.7,
+        "passerDistToGoal": 32.8
+      }
+    },
+    {
+      "t": 13.76,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": -8.3,
+        "z": 0.9,
+        "targetX": -1.8,
+        "targetZ": -5.6,
+        "dist": 9.2,
+        "progress": 6.6,
+        "passerDistToGoal": 41.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 17.86,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": 1.8,
+        "z": -5.5,
+        "targetX": -2.1,
+        "targetZ": -1.6,
+        "dist": 5.5,
+        "progress": 4,
+        "passerDistToGoal": 34.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 20.21,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Jefferson Díaz",
+        "toRole": "RM",
+        "x": 9.3,
+        "z": 6.7,
+        "targetX": 4.5,
+        "targetZ": 5.8,
+        "dist": 4.9,
+        "progress": -4.8,
+        "passerDistToGoal": 23.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 17.01,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "AUTO",
+        "x": 27.1,
+        "z": 5.1,
+        "distToGoal": 5.7,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 28.12,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 30.8,
+        "z": 2,
+        "targetX": 14.6,
+        "targetZ": 6.6,
+        "dist": 16.7,
+        "progress": 16.1,
+        "passerDistToGoal": 63.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 30.75,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Christian Benteke",
+        "toRole": "ST",
+        "x": 14.1,
+        "z": 10.2,
+        "targetX": -3.6,
+        "targetZ": -1.8,
+        "dist": 21.3,
+        "progress": 17.6,
+        "passerDistToGoal": 46.9,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 32.19,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": 3.6,
+        "z": 3.5
+      }
+    },
+    {
+      "t": 24.61,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": 13.7,
+        "z": 2,
+        "distToGoal": 19.1
+      }
+    },
+    {
+      "t": 34.05,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 16.2,
+        "z": -0.6
+      }
+    },
+    {
+      "t": 35.63,
+      "half": 1,
+      "type": "TACKLE",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "vs": "Caden Clark",
+        "vsRole": "LM",
+        "x": 4.3,
+        "z": -7.2
+      }
+    },
+    {
+      "t": 35.63,
+      "half": 1,
+      "type": "RECOVERY",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "x": 4.3,
+        "z": -7.2
+      }
+    },
+    {
+      "t": 35.63,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Ho Yeon Jung",
+        "toRole": "CB",
+        "x": 4.3,
+        "z": -7.2,
+        "targetX": -3.1,
+        "targetZ": -5,
+        "dist": 7.7,
+        "progress": -7.4,
+        "passerDistToGoal": 28.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 39.5,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": 16.6,
+        "z": -12.9,
+        "targetX": 12,
+        "targetZ": -0.6,
+        "dist": 13.1,
+        "progress": -4.6,
+        "passerDistToGoal": 16.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 49.09,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 28.4,
+        "z": -8.9,
+        "targetX": 15.9,
+        "targetZ": 1.8,
+        "dist": 16.5,
+        "progress": 12.5,
+        "passerDistToGoal": 61.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 49.7,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "LONG CLEARANCE",
+        "x": 22.2,
+        "z": -3.3
+      }
+    },
+    {
+      "t": 50.71,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "reason": "Tripping",
+        "fromBehind": false,
+        "penalty": false,
+        "x": 7.4,
+        "z": -9.4
+      }
+    },
+    {
+      "t": 55.22,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "WALL",
+        "to": "Kye Rowles",
+        "toRole": "CB",
+        "x": 7.8,
+        "z": -9.4,
+        "targetX": 25.9,
+        "targetZ": -4.9,
+        "dist": 18.7,
+        "progress": -18.1,
+        "passerDistToGoal": 40.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 57.18,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Christian Benteke",
+        "toRole": "ST",
+        "x": 15.5,
+        "z": -3.1,
+        "targetX": 3.1,
+        "targetZ": -5.2,
+        "dist": 12.6,
+        "progress": 12.4,
+        "passerDistToGoal": 48.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 58.91,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Randall Leal",
+        "toRole": "LM",
+        "x": 3.8,
+        "z": -1,
+        "targetX": 1,
+        "targetZ": -11.8,
+        "dist": 11.2,
+        "progress": 2.8,
+        "passerDistToGoal": 36.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 60.27,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kelvin Yeboah",
+        "toRole": "ST",
+        "x": -0.6,
+        "z": -7.8,
+        "targetX": 4.8,
+        "targetZ": -10.3,
+        "dist": 6,
+        "progress": 5.5,
+        "passerDistToGoal": 33.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 61.12,
+      "half": 1,
+      "type": "TACKLE",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "vs": "Kelvin Yeboah",
+        "vsRole": "ST",
+        "x": 7.4,
+        "z": -11.9
+      }
+    },
+    {
+      "t": 61.12,
+      "half": 1,
+      "type": "RECOVERY",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "x": 7.4,
+        "z": -11.9
+      }
+    },
+    {
+      "t": 67.05,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 18.6,
+        "z": -2.9
+      }
+    },
+    {
+      "t": 68.25,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 18.2,
+        "z": -2.4,
+        "targetX": 6.4,
+        "targetZ": 8.3,
+        "dist": 15.9,
+        "progress": 11.8,
+        "passerDistToGoal": 51,
+        "completed": false,
+        "interceptedByRole": "RM",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 69.15,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "aerial": false,
+        "x": 12,
+        "z": 4.5
+      }
+    },
+    {
+      "t": 58.39,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 23.2,
+        "z": 6.6,
+        "distToGoal": 9.6
+      }
+    },
+    {
+      "t": 76.56,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Randall Leal",
+        "toRole": "LM",
+        "x": 22.1,
+        "z": -16.9,
+        "targetX": 6.9,
+        "targetZ": -11.3,
+        "dist": 16.1,
+        "progress": 15.1,
+        "passerDistToGoal": 54.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 78.19,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "WALL",
+        "to": "Christian Benteke",
+        "toRole": "ST",
+        "x": 9.6,
+        "z": -11.2,
+        "targetX": -0.8,
+        "targetZ": -3.4,
+        "dist": 13,
+        "progress": 10.3,
+        "passerDistToGoal": 42.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 79.98,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Gabriel Pirani",
+        "toRole": "CM",
+        "x": -1.6,
+        "z": -9,
+        "targetX": 3.4,
+        "targetZ": -4.5,
+        "dist": 6.7,
+        "progress": -5,
+        "passerDistToGoal": 31.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 81,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "reason": "Reckless Challenge",
+        "fromBehind": false,
+        "penalty": false,
+        "x": 0.7,
+        "z": -7.3
+      }
+    },
+    {
+      "t": 85.51,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "WALL",
+        "to": "Aarón Herrera",
+        "toRole": "CB",
+        "x": 1.2,
+        "z": -7.3,
+        "targetX": 20.2,
+        "targetZ": -7.2,
+        "dist": 19,
+        "progress": -19,
+        "passerDistToGoal": 34,
+        "completed": true
+      }
+    },
+    {
+      "t": 87.8,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 9.7,
+        "z": -9.6,
+        "targetX": 2.2,
+        "targetZ": 3.3,
+        "dist": 15,
+        "progress": 7.5,
+        "passerDistToGoal": 42.5,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 88.48,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": 5.4,
+        "z": -2.9
+      }
+    },
+    {
+      "t": 89.42,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": 8.6,
+        "z": 1.1,
+        "targetX": 2,
+        "targetZ": -1.9,
+        "dist": 7.2,
+        "progress": -6.5,
+        "passerDistToGoal": 24.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 90.78,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Kelvin Yeboah",
+        "toRole": "ST",
+        "x": 5.9,
+        "z": 1.2,
+        "targetX": 11,
+        "targetZ": 0.7,
+        "dist": 5.1,
+        "progress": 5,
+        "passerDistToGoal": 26.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 81.06,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 25.6,
+        "z": 2.2,
+        "distToGoal": 7.2,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 98.47,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "David Schnegg",
+        "toRole": "CB",
+        "x": 29.8,
+        "z": 0.8,
+        "targetX": 16,
+        "targetZ": 3.3,
+        "dist": 14,
+        "progress": 13.8,
+        "passerDistToGoal": 62.6,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 98.83,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": 25.1,
+        "z": 1.9
+      }
+    },
+    {
+      "t": 84.23,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 27,
+        "z": -0.2,
+        "distToGoal": 5.8,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 101.69,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "Aarón Herrera",
+        "toRole": "CB",
+        "x": 30.5,
+        "z": 0.1,
+        "targetX": 19.4,
+        "targetZ": -0.8,
+        "dist": 11.1,
+        "progress": 11.1,
+        "passerDistToGoal": 63.3,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 102.05,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": 26.4,
+        "z": -0.2
+      }
+    },
+    {
+      "t": 87.38,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 28,
+        "z": -2,
+        "distToGoal": 4.8,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 106.68,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": 32.8,
+        "z": -21.9,
+        "targetX": 27.1,
+        "targetZ": -3,
+        "dist": 19.7,
+        "progress": -5.7,
+        "passerDistToGoal": 0,
+        "completed": true
+      }
+    },
+    {
+      "t": 92.38,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "HEADER",
+        "x": 28.4,
+        "z": -6.1,
+        "distToGoal": 4.4
+      }
+    },
+    {
+      "t": 107.87,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "aerial": true,
+        "x": 27.6,
+        "z": -5.3
+      }
+    },
+    {
+      "t": 107.87,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "HEADER",
+        "x": 27.6,
+        "z": -5.3
+      }
+    },
+    {
+      "t": 114.47,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": 6.7,
+        "z": -16.3,
+        "targetX": 16.7,
+        "targetZ": -4.7,
+        "dist": 15.4,
+        "progress": -10,
+        "passerDistToGoal": 39.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 116.22,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "David Schnegg",
+        "toRole": "CB",
+        "x": 11.3,
+        "z": -6.2,
+        "targetX": 7.8,
+        "targetZ": -15.1,
+        "dist": 9.6,
+        "progress": 3.5,
+        "passerDistToGoal": 44.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 117.46,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "reason": "Push in the Back",
+        "fromBehind": true,
+        "penalty": false,
+        "x": 7.3,
+        "z": -14.2
+      }
+    },
+    {
+      "t": 121.96,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "WALL",
+        "to": "Aarón Herrera",
+        "toRole": "CB",
+        "x": 7.7,
+        "z": -14.2,
+        "targetX": 23.4,
+        "targetZ": -7.4,
+        "dist": 17.1,
+        "progress": -15.7,
+        "passerDistToGoal": 40.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 124.29,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 16.6,
+        "z": -4.8,
+        "targetX": 3.4,
+        "targetZ": 2.1,
+        "dist": 15,
+        "progress": 13.3,
+        "passerDistToGoal": 49.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 130.17,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 7,
+        "z": 6.7,
+        "targetX": -1.2,
+        "targetZ": 2.5,
+        "dist": 9.2,
+        "progress": -8.2,
+        "passerDistToGoal": 25.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 131.53,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Bongokuhle Hlongwane",
+        "toRole": "CB",
+        "x": 6.2,
+        "z": 9.3,
+        "targetX": 3.3,
+        "targetZ": 0.9,
+        "dist": 8.9,
+        "progress": -2.9,
+        "passerDistToGoal": 26.6,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 131.99,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": 5,
+        "z": 5.5
+      }
+    },
+    {
+      "t": 144.63,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 18.5,
+        "z": -0.5
+      }
+    },
+    {
+      "t": 144.77,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "aerial": true,
+        "x": 17.3,
+        "z": 0.1
+      }
+    },
+    {
+      "t": 127.43,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": 19.1,
+        "z": 0.9,
+        "distToGoal": 13.7
+      }
+    },
+    {
+      "t": 146.54,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 23.4,
+        "z": -0.4
+      }
+    },
+    {
+      "t": 147.74,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 21.2,
+        "z": 2.1
+      }
+    },
+    {
+      "t": 148.95,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 15.7,
+        "z": 7.4
+      }
+    },
+    {
+      "t": 149.74,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": 16.5,
+        "z": 10.5,
+        "targetX": 18.2,
+        "targetZ": 2.3,
+        "dist": 8.3,
+        "progress": 1.7,
+        "passerDistToGoal": 16.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 132.84,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": 18.5,
+        "z": 3.8,
+        "distToGoal": 14.3,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 152.9,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "Gabriel Pirani",
+        "toRole": "CM",
+        "x": 30.5,
+        "z": 0.6,
+        "targetX": 13.5,
+        "targetZ": -0.3,
+        "dist": 17.1,
+        "progress": 17.1,
+        "passerDistToGoal": 63.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 153.8,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 21.3,
+        "z": 0.7
+      }
+    },
+    {
+      "t": 155.4,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Caden Clark",
+        "toRole": "LM",
+        "x": 16.9,
+        "z": -4,
+        "targetX": 5.4,
+        "targetZ": -10.1,
+        "dist": 13,
+        "progress": 11.5,
+        "passerDistToGoal": 49.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 159.11,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Jared Stroud",
+        "toRole": "RM",
+        "x": 1.1,
+        "z": -9.2,
+        "targetX": -1.6,
+        "targetZ": 4.4,
+        "dist": 13.8,
+        "progress": 2.7,
+        "passerDistToGoal": 33.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 164.06,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": -7.7,
+        "z": 7,
+        "targetX": 9.6,
+        "targetZ": -0.6,
+        "dist": 18.9,
+        "progress": 17.3,
+        "passerDistToGoal": 40.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 166.15,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Michael Boxall",
+        "toRole": "CB",
+        "x": 7.5,
+        "z": 6.1,
+        "targetX": 1.3,
+        "targetZ": 6.2,
+        "dist": 6.3,
+        "progress": -6.3,
+        "passerDistToGoal": 25.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 171.45,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 18.7,
+        "z": 3
+      }
+    },
+    {
+      "t": 172.43,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Jefferson Díaz",
+        "toRole": "RM",
+        "x": 16.6,
+        "z": 6.7,
+        "targetX": 6.6,
+        "targetZ": 9.7,
+        "dist": 10.4,
+        "progress": -10,
+        "passerDistToGoal": 16.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 174,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": 13,
+        "z": 12.6,
+        "targetX": 19.5,
+        "targetZ": 9,
+        "dist": 7.5,
+        "progress": 6.6,
+        "passerDistToGoal": 19.8
+      }
+    },
+    {
+      "t": 180.42,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Randall Leal",
+        "toRole": "LM",
+        "x": 22.9,
+        "z": 4,
+        "targetX": 15.4,
+        "targetZ": -6.4,
+        "dist": 12.8,
+        "progress": 7.5,
+        "passerDistToGoal": 55.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 181.93,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Christian Benteke",
+        "toRole": "ST",
+        "x": 14.5,
+        "z": -7.4,
+        "targetX": 5.8,
+        "targetZ": 1.2,
+        "dist": 12.3,
+        "progress": 8.7,
+        "passerDistToGoal": 47.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 183.51,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Gabriel Pirani",
+        "toRole": "CM",
+        "x": 4.8,
+        "z": -3.5,
+        "targetX": 7.3,
+        "targetZ": 4.4,
+        "dist": 8.3,
+        "progress": -2.5,
+        "passerDistToGoal": 37.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 188.65,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Gabriel Pirani",
+        "toRole": "CM",
+        "x": -11.2,
+        "z": 1.8,
+        "targetX": -1.4,
+        "targetZ": 3.6,
+        "dist": 9.9,
+        "progress": -9.8,
+        "passerDistToGoal": 21.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 171.41,
+      "half": 1,
+      "type": "SHOT",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": -13.3,
+        "z": 2.2,
+        "distToGoal": 19.5
+      }
+    },
+    {
+      "t": 197.2,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 12.6,
+        "z": -9.3,
+        "targetX": -3.7,
+        "targetZ": -9.5,
+        "dist": 16.3,
+        "progress": -16.3,
+        "passerDistToGoal": 20.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 201.32,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "reason": "Push in the Back",
+        "fromBehind": true,
+        "penalty": false,
+        "x": 11.4,
+        "z": -2.6
+      }
+    },
+    {
+      "t": 205.83,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "WALL",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": 11.9,
+        "z": -2.6,
+        "targetX": 9.1,
+        "targetZ": 0.8,
+        "dist": 4.4,
+        "progress": 2.7,
+        "passerDistToGoal": 44.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 207.07,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Caden Clark",
+        "toRole": "LM",
+        "x": 6.5,
+        "z": 4.9,
+        "targetX": 8.2,
+        "targetZ": -5.3,
+        "dist": 10.4,
+        "progress": -1.7,
+        "passerDistToGoal": 39.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 209.89,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 14.1,
+        "z": -1.3
+      }
+    },
+    {
+      "t": 210.89,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 13,
+        "z": -2.6,
+        "targetX": 8.5,
+        "targetZ": 6.2,
+        "dist": 9.8,
+        "progress": 4.5,
+        "passerDistToGoal": 45.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 214.02,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kelvin Yeboah",
+        "toRole": "ST",
+        "x": -4.2,
+        "z": 8.1,
+        "targetX": -0.3,
+        "targetZ": 4.7,
+        "dist": 5.2,
+        "progress": 3.9,
+        "passerDistToGoal": 37,
+        "completed": true
+      }
+    },
+    {
+      "t": 215.03,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Randall Leal",
+        "toRole": "LM",
+        "x": 1,
+        "z": 8.6,
+        "targetX": 3.3,
+        "targetZ": -9.1,
+        "dist": 17.9,
+        "progress": -2.3,
+        "passerDistToGoal": 33.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 219.22,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 8.8,
+        "z": -5.6,
+        "targetX": -3,
+        "targetZ": -8.8,
+        "dist": 12.1,
+        "progress": -11.7,
+        "passerDistToGoal": 24,
+        "completed": true
+      }
+    },
+    {
+      "t": 220.83,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": 4,
+        "z": -11.8,
+        "targetX": 11.5,
+        "targetZ": -8.2,
+        "dist": 8.2,
+        "progress": 7.4,
+        "passerDistToGoal": 28.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 224.74,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": 22.9,
+        "z": -6.8,
+        "targetX": 18,
+        "targetZ": 6.6,
+        "dist": 14.3,
+        "progress": -4.9,
+        "passerDistToGoal": 9.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 205.09,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "AUTO",
+        "x": 24.2,
+        "z": 8.2,
+        "distToGoal": 8.6,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 230.97,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 14.2,
+        "z": 7.4,
+        "targetX": 1.5,
+        "targetZ": 11.4,
+        "dist": 13.3,
+        "progress": 12.7,
+        "passerDistToGoal": 47,
+        "completed": true
+      }
+    },
+    {
+      "t": 234.11,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": -6.1,
+        "z": 13.2,
+        "targetX": 3.5,
+        "targetZ": 0.5,
+        "dist": 15.9,
+        "progress": -9.6,
+        "passerDistToGoal": 26.7,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 235,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": -1.5,
+        "z": 7.5
+      }
+    },
+    {
+      "t": 239.38,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": -1.5,
+        "z": 3.8,
+        "targetX": 8.5,
+        "targetZ": 9.2,
+        "dist": 11.4,
+        "progress": 10,
+        "passerDistToGoal": 34.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 243.59,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "LONG CLEARANCE",
+        "x": 17.2,
+        "z": 6.3
+      }
+    },
+    {
+      "t": 256.07,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Caden Clark",
+        "toRole": "LM",
+        "x": -4,
+        "z": -2.8,
+        "targetX": -2,
+        "targetZ": -7.5,
+        "dist": 5.1,
+        "progress": -2,
+        "passerDistToGoal": 28.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 256.92,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Ho Yeon Jung",
+        "toRole": "CB",
+        "x": -4.4,
+        "z": -10.2,
+        "targetX": -14.1,
+        "targetZ": -1.8,
+        "dist": 12.8,
+        "progress": -9.6,
+        "passerDistToGoal": 37.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 258.61,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Michael Boxall",
+        "toRole": "CB",
+        "x": -11.6,
+        "z": -6.4,
+        "targetX": -3.1,
+        "targetZ": -9,
+        "dist": 8.9,
+        "progress": 8.5,
+        "passerDistToGoal": 44.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 264.14,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": 17.8,
+        "z": -11.4,
+        "targetX": 15.9,
+        "targetZ": 6.8,
+        "dist": 18.3,
+        "progress": -1.9,
+        "passerDistToGoal": 15,
+        "completed": true
+      }
+    },
+    {
+      "t": 266.39,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": 20.4,
+        "z": 5,
+        "targetX": 21,
+        "targetZ": -9.1,
+        "dist": 14.1,
+        "progress": 0.7,
+        "passerDistToGoal": 12.4
+      }
+    },
+    {
+      "t": 275.04,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": 20.7,
+        "z": -12.3,
+        "targetX": 21.9,
+        "targetZ": 2.7,
+        "dist": 15.1,
+        "progress": 1.3,
+        "passerDistToGoal": 12.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 254.51,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "VOLLEY",
+        "x": 23.3,
+        "z": 2.7,
+        "distToGoal": 9.5,
+        "onTarget": true,
+        "goal": true
+      }
+    },
+    {
+      "t": 290.1,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 19.2,
+        "z": 8.7,
+        "targetX": 11.2,
+        "targetZ": 1.9,
+        "dist": 10.5,
+        "progress": -8,
+        "passerDistToGoal": 13.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 269.26,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": 13.6,
+        "z": 4.1,
+        "distToGoal": 19.2,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 293.24,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "Kye Rowles",
+        "toRole": "CB",
+        "x": 30.2,
+        "z": 0.3,
+        "targetX": 17,
+        "targetZ": -4.4,
+        "dist": 14,
+        "progress": 13.2,
+        "passerDistToGoal": 63,
+        "completed": true
+      }
+    },
+    {
+      "t": 295.74,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Gabriel Martins Peglow",
+        "toRole": "RM",
+        "x": 16.1,
+        "z": -8.9,
+        "targetX": 0.2,
+        "targetZ": 7.5,
+        "dist": 22.8,
+        "progress": 15.9,
+        "passerDistToGoal": 48.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 297.43,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Christian Benteke",
+        "toRole": "ST",
+        "x": 5.9,
+        "z": -5.4,
+        "targetX": -9.9,
+        "targetZ": -3.4,
+        "dist": 15.9,
+        "progress": 15.7,
+        "passerDistToGoal": 38.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 302.56,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Jefferson Díaz",
+        "toRole": "RM",
+        "x": 7.9,
+        "z": -13.2,
+        "targetX": 6.5,
+        "targetZ": -5.5,
+        "dist": 7.8,
+        "progress": -1.4,
+        "passerDistToGoal": 24.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 307.9,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": 21.8,
+        "z": -6.2,
+        "targetX": 22.6,
+        "targetZ": 10.9,
+        "dist": 17.2,
+        "progress": 0.8,
+        "passerDistToGoal": 11
+      }
+    },
+    {
+      "t": 314.57,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "reason": "Tripping",
+        "fromBehind": false,
+        "penalty": false,
+        "x": 16.3,
+        "z": 8
+      }
+    },
+    {
+      "t": 319.08,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "WALL",
+        "to": "Kye Rowles",
+        "toRole": "CB",
+        "x": 16.7,
+        "z": 8,
+        "targetX": 22.9,
+        "targetZ": 7.7,
+        "dist": 6.2,
+        "progress": -6.2,
+        "passerDistToGoal": 49.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 321.03,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Caden Clark",
+        "toRole": "LM",
+        "x": 18.8,
+        "z": 3.7,
+        "targetX": 12.6,
+        "targetZ": -4.2,
+        "dist": 10,
+        "progress": 6.2,
+        "passerDistToGoal": 51.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 325.76,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Jefferson Díaz",
+        "toRole": "RM",
+        "x": -5.5,
+        "z": -7,
+        "targetX": 6.7,
+        "targetZ": 10.6,
+        "dist": 21.4,
+        "progress": 12.2,
+        "passerDistToGoal": 38.3
+      }
+    },
+    {
+      "t": 339.13,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Jared Stroud",
+        "toRole": "RM",
+        "x": 7.2,
+        "z": -0.5,
+        "targetX": 9.8,
+        "targetZ": -4,
+        "dist": 4.4,
+        "progress": 2.6,
+        "passerDistToGoal": 25.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 341.97,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Jared Stroud",
+        "toRole": "RM",
+        "x": 20.5,
+        "z": 10,
+        "targetX": 16,
+        "targetZ": 3.9,
+        "dist": 7.6,
+        "progress": -4.5,
+        "passerDistToGoal": 12.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 343.31,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": 20,
+        "z": 8.2,
+        "targetX": 14.2,
+        "targetZ": 2.3,
+        "dist": 8.2,
+        "progress": -5.7,
+        "passerDistToGoal": 12.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 12.23,
+      "half": 2,
+      "type": "SHOT",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": 15.5,
+        "z": 3.7,
+        "distToGoal": 17.3,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 351.76,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kelvin Yeboah",
+        "toRole": "ST",
+        "x": 8.1,
+        "z": 4.1,
+        "targetX": 4.9,
+        "targetZ": 1.1,
+        "dist": 4.3,
+        "progress": 3.2,
+        "passerDistToGoal": 40.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 358.66,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Randall Leal",
+        "toRole": "LM",
+        "x": 3.2,
+        "z": 3.8,
+        "targetX": 1.1,
+        "targetZ": -0.3,
+        "dist": 4.5,
+        "progress": -2.1,
+        "passerDistToGoal": 29.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 361.42,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": -7.2,
+        "z": 3.5,
+        "targetX": 1.2,
+        "targetZ": -2.2,
+        "dist": 10.1,
+        "progress": -8.3,
+        "passerDistToGoal": 25.6,
+        "completed": false,
+        "interceptedByRole": "LM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 362.17,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "aerial": false,
+        "x": -2.5,
+        "z": 0.2
+      }
+    },
+    {
+      "t": 372.32,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Matti Peltola",
+        "toRole": "CM",
+        "x": -21.6,
+        "z": 4.7,
+        "targetX": -12.4,
+        "targetZ": -8.5,
+        "dist": 16,
+        "progress": 9.1,
+        "passerDistToGoal": 54.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 381.18,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": -21.6,
+        "z": -8.1,
+        "targetX": -17.6,
+        "targetZ": -11.1,
+        "dist": 5,
+        "progress": -4,
+        "passerDistToGoal": 11.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 383.27,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": -24.7,
+        "z": -13.2,
+        "targetX": -22.9,
+        "targetZ": -4.5,
+        "dist": 8.9,
+        "progress": -1.8,
+        "passerDistToGoal": 8.1,
+        "completed": false,
+        "interceptedByRole": "RM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 384.57,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "aerial": false,
+        "x": -22.2,
+        "z": 1
+      }
+    },
+    {
+      "t": 384.59,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": -21.8,
+        "z": 2,
+        "targetX": -15.3,
+        "targetZ": -2.3,
+        "dist": 7.8,
+        "progress": -6.5,
+        "passerDistToGoal": 11,
+        "completed": true
+      }
+    },
+    {
+      "t": 53.2,
+      "half": 2,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": -16.7,
+        "z": -2.5,
+        "distToGoal": 16.1
+      }
+    },
+    {
+      "t": 385.21,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "aerial": true,
+        "x": -19.8,
+        "z": -2.5
+      }
+    },
+    {
+      "t": 385.21,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Aarón Herrera",
+        "toRole": "CB",
+        "x": -19.8,
+        "z": -2.5,
+        "targetX": -14.2,
+        "targetZ": 3.8,
+        "dist": 8.4,
+        "progress": 5.6,
+        "passerDistToGoal": 52.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 385.83,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "LONG CLEARANCE",
+        "x": -16.2,
+        "z": 3.6
+      }
+    },
+    {
+      "t": 391.3,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": 4.9,
+        "z": 15.3,
+        "targetX": -3.9,
+        "targetZ": 3.1,
+        "dist": 15,
+        "progress": 8.8,
+        "passerDistToGoal": 37.7,
+        "completed": false,
+        "interceptedByRole": "CB",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 392.31,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "aerial": false,
+        "x": -1,
+        "z": 8.2
+      }
+    },
+    {
+      "t": 394.48,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": 3.7,
+        "z": -0.8,
+        "targetX": -10.1,
+        "targetZ": -5.1,
+        "dist": 14.4,
+        "progress": 13.8,
+        "passerDistToGoal": 36.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 396.27,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": -9.2,
+        "z": -2.8,
+        "targetX": -14.4,
+        "targetZ": -11,
+        "dist": 9.7,
+        "progress": 5.3,
+        "passerDistToGoal": 23.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 397.89,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": -18.2,
+        "z": -13,
+        "targetX": -12.2,
+        "targetZ": -6,
+        "dist": 9.2,
+        "progress": -6.1,
+        "passerDistToGoal": 14.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 402.99,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "David Justin Taylor",
+        "toRole": "RM",
+        "x": -28.4,
+        "z": -5.5,
+        "targetX": -23.5,
+        "targetZ": 8.9,
+        "dist": 15.2,
+        "progress": -4.9,
+        "passerDistToGoal": 4.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 405.04,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": -28.1,
+        "z": 12.3,
+        "targetX": -29.2,
+        "targetZ": -8.8,
+        "dist": 21.2,
+        "progress": 1.1,
+        "passerDistToGoal": 4.7
+      }
+    },
+    {
+      "t": 413.62,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "WIDE CLEARANCE",
+        "x": -25.6,
+        "z": -16.2
+      }
+    },
+    {
+      "t": 420.55,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -30.7,
+        "z": -14.9
+      }
+    },
+    {
+      "t": 421.53,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": -25.4,
+        "z": -12.3,
+        "targetX": -24,
+        "targetZ": -17.3,
+        "dist": 5.2,
+        "progress": -1.4,
+        "passerDistToGoal": 7.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 423.27,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Julian Gressel",
+        "toRole": "CM",
+        "x": -28.3,
+        "z": -16.1,
+        "targetX": -21.6,
+        "targetZ": -8.6,
+        "dist": 10.1,
+        "progress": -6.7,
+        "passerDistToGoal": 4.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 425.25,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": -22.7,
+        "z": -2.2,
+        "targetX": -29.8,
+        "targetZ": -10.9,
+        "dist": 11.3,
+        "progress": 7.1,
+        "passerDistToGoal": 10.1
+      }
+    },
+    {
+      "t": 431.17,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -31.4,
+        "z": -13.6
+      }
+    },
+    {
+      "t": 438.17,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Robin Lod",
+        "toRole": "CM",
+        "x": -21.5,
+        "z": -13.8,
+        "targetX": -16.7,
+        "targetZ": -14.3,
+        "dist": 4.8,
+        "progress": -4.8,
+        "passerDistToGoal": 11.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 439.53,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": -20.8,
+        "z": -9.2,
+        "targetX": -21.9,
+        "targetZ": -13.1,
+        "dist": 4,
+        "progress": 1.1,
+        "passerDistToGoal": 12
+      }
+    },
+    {
+      "t": 447.01,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Joseph Rosales",
+        "toRole": "LM",
+        "x": -5.3,
+        "z": 2,
+        "targetX": -7.5,
+        "targetZ": -12.7,
+        "dist": 14.8,
+        "progress": 2.3,
+        "passerDistToGoal": 27.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 449.81,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -16.9,
+        "z": 2
+      }
+    },
+    {
+      "t": 449.82,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "aerial": true,
+        "x": -15.2,
+        "z": 3.1
+      }
+    },
+    {
+      "t": 452.75,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Joaquín Pereyra",
+        "toRole": "LM",
+        "x": -27.6,
+        "z": 9.7,
+        "targetX": -21.1,
+        "targetZ": -10.6,
+        "dist": 21.3,
+        "progress": -6.5,
+        "passerDistToGoal": 5.2
+      }
+    },
+    {
+      "t": 461.38,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Caden Clark",
+        "toRole": "LM",
+        "x": -18.1,
+        "z": -14.8,
+        "targetX": -3.7,
+        "targetZ": -15.5,
+        "dist": 14.5,
+        "progress": 14.5,
+        "passerDistToGoal": 50.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 464.81,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Aarón Herrera",
+        "toRole": "CB",
+        "x": -12,
+        "z": -8.8,
+        "targetX": -18,
+        "targetZ": -13,
+        "dist": 7.3,
+        "progress": -5.9,
+        "passerDistToGoal": 44.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 465.7,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Jefferson Díaz",
+        "toRole": "RM",
+        "x": -12.6,
+        "z": -8,
+        "targetX": -11.9,
+        "targetZ": 2.9,
+        "dist": 10.9,
+        "progress": -0.8,
+        "passerDistToGoal": 20.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 130.67,
+      "half": 2,
+      "type": "SHOT",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": -11.3,
+        "z": 0.5,
+        "distToGoal": 21.5,
+        "onTarget": true
+      }
+    }
+  ],
+  "shapeA": [
+    {
+      "t": 5,
+      "half": 1,
+      "team": "A",
+      "avgX": -6.2,
+      "avgZ": 0.8,
+      "width": 11,
+      "depth": 29.4,
+      "compactness": 8.6,
+      "highLine": 11,
+      "lowLine": -18.4
+    },
+    {
+      "t": 10,
+      "half": 1,
+      "team": "A",
+      "avgX": -2.8,
+      "avgZ": -0.4,
+      "width": 14,
+      "depth": 24,
+      "compactness": 8.1,
+      "highLine": 10.9,
+      "lowLine": -13.1
+    },
+    {
+      "t": 15,
+      "half": 1,
+      "team": "A",
+      "avgX": 6.6,
+      "avgZ": 1.8,
+      "width": 16.9,
+      "depth": 28.1,
+      "compactness": 10.6,
+      "highLine": 21.9,
+      "lowLine": -6.2
+    },
+    {
+      "t": 20,
+      "half": 1,
+      "team": "A",
+      "avgX": 7.8,
+      "avgZ": 0.7,
+      "width": 15,
+      "depth": 30,
+      "compactness": 10.5,
+      "highLine": 24.4,
+      "lowLine": -5.6
+    },
+    {
+      "t": 25,
+      "half": 1,
+      "team": "A",
+      "avgX": 3.6,
+      "avgZ": 0.7,
+      "width": 19.4,
+      "depth": 27,
+      "compactness": 9.9,
+      "highLine": 16.4,
+      "lowLine": -10.6
+    },
+    {
+      "t": 30,
+      "half": 1,
+      "team": "A",
+      "avgX": 7.7,
+      "avgZ": -3.9,
+      "width": 21.4,
+      "depth": 25.1,
+      "compactness": 10.5,
+      "highLine": 17.3,
+      "lowLine": -7.8
+    },
+    {
+      "t": 36.8,
+      "half": 1,
+      "team": "A",
+      "avgX": 13.6,
+      "avgZ": -5.1,
+      "width": 15.8,
+      "depth": 16.6,
+      "compactness": 6.9,
+      "highLine": 21.1,
+      "lowLine": 4.5
+    },
+    {
+      "t": 42,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.5,
+      "avgZ": -7.9,
+      "width": 9.2,
+      "depth": 13.4,
+      "compactness": 5.1,
+      "highLine": 9,
+      "lowLine": -4.4
+    },
+    {
+      "t": 47,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.2,
+      "avgZ": -3.2,
+      "width": 17.3,
+      "depth": 19.5,
+      "compactness": 7.9,
+      "highLine": 9.9,
+      "lowLine": -9.6
+    },
+    {
+      "t": 52,
+      "half": 1,
+      "team": "A",
+      "avgX": 1.7,
+      "avgZ": -3.7,
+      "width": 17.2,
+      "depth": 28.3,
+      "compactness": 11,
+      "highLine": 16,
+      "lowLine": -12.3
+    },
+    {
+      "t": 57,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.2,
+      "avgZ": -0.5,
+      "width": 16.8,
+      "depth": 28.5,
+      "compactness": 10.8,
+      "highLine": 17.6,
+      "lowLine": -10.9
+    },
+    {
+      "t": 62,
+      "half": 1,
+      "team": "A",
+      "avgX": 5.9,
+      "avgZ": -2.8,
+      "width": 25.6,
+      "depth": 37.1,
+      "compactness": 14.3,
+      "highLine": 24.5,
+      "lowLine": -12.6
+    },
+    {
+      "t": 67,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.4,
+      "avgZ": -3.8,
+      "width": 19,
+      "depth": 24,
+      "compactness": 9,
+      "highLine": 13.3,
+      "lowLine": -10.7
+    },
+    {
+      "t": 72,
+      "half": 1,
+      "team": "A",
+      "avgX": -2.2,
+      "avgZ": -4.6,
+      "width": 14.6,
+      "depth": 14.4,
+      "compactness": 5.8,
+      "highLine": 8,
+      "lowLine": -6.5
+    },
+    {
+      "t": 77,
+      "half": 1,
+      "team": "A",
+      "avgX": 4.7,
+      "avgZ": -1,
+      "width": 17.1,
+      "depth": 17.9,
+      "compactness": 6.9,
+      "highLine": 14.9,
+      "lowLine": -3
+    },
+    {
+      "t": 82.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 13.2,
+      "avgZ": -0.5,
+      "width": 18.9,
+      "depth": 22.8,
+      "compactness": 8.8,
+      "highLine": 26.4,
+      "lowLine": 3.6
+    },
+    {
+      "t": 87.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 12.8,
+      "avgZ": -0.6,
+      "width": 19.7,
+      "depth": 23.8,
+      "compactness": 9.2,
+      "highLine": 27.2,
+      "lowLine": 3.4
+    },
+    {
+      "t": 92.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 26.1,
+      "avgZ": -4.1,
+      "width": 28.8,
+      "depth": 15.6,
+      "compactness": 7.7,
+      "highLine": 30.8,
+      "lowLine": 15.2
+    },
+    {
+      "t": 97.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 13.4,
+      "avgZ": -7,
+      "width": 16.7,
+      "depth": 7.3,
+      "compactness": 4.5,
+      "highLine": 18.5,
+      "lowLine": 11.2
+    },
+    {
+      "t": 104.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -0.7,
+      "avgZ": -7.4,
+      "width": 21.7,
+      "depth": 9.3,
+      "compactness": 6,
+      "highLine": 4.1,
+      "lowLine": -5.1
+    },
+    {
+      "t": 109.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.2,
+      "avgZ": -2.4,
+      "width": 18.4,
+      "depth": 10,
+      "compactness": 6.2,
+      "highLine": 4.5,
+      "lowLine": -5.6
+    },
+    {
+      "t": 114.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.8,
+      "avgZ": 1.5,
+      "width": 22.5,
+      "depth": 17.8,
+      "compactness": 7,
+      "highLine": 7.7,
+      "lowLine": -10.1
+    },
+    {
+      "t": 119.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -3,
+      "avgZ": 1.4,
+      "width": 14.7,
+      "depth": 14.8,
+      "compactness": 6.6,
+      "highLine": 4.6,
+      "lowLine": -10.2
+    },
+    {
+      "t": 124.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 6.5,
+      "avgZ": 0.9,
+      "width": 15.3,
+      "depth": 22.6,
+      "compactness": 7.3,
+      "highLine": 16.5,
+      "lowLine": -6.1
+    },
+    {
+      "t": 129.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 12,
+      "avgZ": -1.7,
+      "width": 15.2,
+      "depth": 24.6,
+      "compactness": 8.1,
+      "highLine": 24,
+      "lowLine": -0.6
+    },
+    {
+      "t": 134.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 11.3,
+      "avgZ": 0.2,
+      "width": 21.2,
+      "depth": 20.4,
+      "compactness": 8.5,
+      "highLine": 20.9,
+      "lowLine": 0.5
+    },
+    {
+      "t": 139.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.6,
+      "avgZ": -1.6,
+      "width": 22.3,
+      "depth": 21.3,
+      "compactness": 9.2,
+      "highLine": 12.1,
+      "lowLine": -9.2
+    },
+    {
+      "t": 144.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -4.6,
+      "avgZ": -1.3,
+      "width": 14.1,
+      "depth": 24,
+      "compactness": 6.4,
+      "highLine": 9.8,
+      "lowLine": -14.2
+    },
+    {
+      "t": 149.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.7,
+      "avgZ": 1.6,
+      "width": 18,
+      "depth": 21.8,
+      "compactness": 7.5,
+      "highLine": 9.6,
+      "lowLine": -12.2
+    },
+    {
+      "t": 154.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 9.1,
+      "avgZ": 0.8,
+      "width": 16.5,
+      "depth": 21.9,
+      "compactness": 7.7,
+      "highLine": 18.5,
+      "lowLine": -3.3
+    },
+    {
+      "t": 159.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 9,
+      "avgZ": 5.1,
+      "width": 16.8,
+      "depth": 14.1,
+      "compactness": 7,
+      "highLine": 15.7,
+      "lowLine": 1.6
+    },
+    {
+      "t": 164.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.3,
+      "avgZ": 3.3,
+      "width": 18.1,
+      "depth": 17.5,
+      "compactness": 7.2,
+      "highLine": 7.8,
+      "lowLine": -9.6
+    },
+    {
+      "t": 169.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -6.1,
+      "avgZ": 1.5,
+      "width": 17.5,
+      "depth": 21,
+      "compactness": 8.3,
+      "highLine": 4.6,
+      "lowLine": -16.4
+    },
+    {
+      "t": 174.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -8.2,
+      "avgZ": -0.1,
+      "width": 17.7,
+      "depth": 22.9,
+      "compactness": 8.3,
+      "highLine": 3.5,
+      "lowLine": -19.4
+    },
+    {
+      "t": 179.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 1.5,
+      "avgZ": -2.7,
+      "width": 22.6,
+      "depth": 27.3,
+      "compactness": 10.3,
+      "highLine": 15.1,
+      "lowLine": -12.2
+    },
+    {
+      "t": 184.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.2,
+      "avgZ": -2.4,
+      "width": 17.1,
+      "depth": 10.8,
+      "compactness": 6.1,
+      "highLine": 6.3,
+      "lowLine": -4.5
+    },
+    {
+      "t": 189.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 3.2,
+      "avgZ": -1,
+      "width": 15.8,
+      "depth": 21,
+      "compactness": 6.6,
+      "highLine": 13.9,
+      "lowLine": -7.1
+    },
+    {
+      "t": 194.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.8,
+      "avgZ": 1.9,
+      "width": 16.1,
+      "depth": 21.6,
+      "compactness": 7.7,
+      "highLine": 11.7,
+      "lowLine": -10
+    },
+    {
+      "t": 199.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.4,
+      "avgZ": -1.2,
+      "width": 20.2,
+      "depth": 23.2,
+      "compactness": 8.4,
+      "highLine": 12.4,
+      "lowLine": -10.8
+    },
+    {
+      "t": 204.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 11.8,
+      "avgZ": -2.1,
+      "width": 18.4,
+      "depth": 26.2,
+      "compactness": 9,
+      "highLine": 24.3,
+      "lowLine": -1.9
+    },
+    {
+      "t": 209.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 6.2,
+      "avgZ": 0.1,
+      "width": 16.8,
+      "depth": 23.5,
+      "compactness": 8.3,
+      "highLine": 17.3,
+      "lowLine": -6.2
+    },
+    {
+      "t": 214.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -0.9,
+      "avgZ": 2.1,
+      "width": 18.7,
+      "depth": 22.1,
+      "compactness": 8.5,
+      "highLine": 9.2,
+      "lowLine": -12.9
+    },
+    {
+      "t": 219.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.2,
+      "avgZ": 2.4,
+      "width": 19.1,
+      "depth": 22.3,
+      "compactness": 8.6,
+      "highLine": 11.1,
+      "lowLine": -11.2
+    },
+    {
+      "t": 224.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.7,
+      "avgZ": 9.4,
+      "width": 12.1,
+      "depth": 15.5,
+      "compactness": 5.9,
+      "highLine": 6.8,
+      "lowLine": -8.7
+    },
+    {
+      "t": 229.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -5.7,
+      "avgZ": 7.5,
+      "width": 20.3,
+      "depth": 27.6,
+      "compactness": 8.1,
+      "highLine": 9.6,
+      "lowLine": -18
+    },
+    {
+      "t": 234.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -5.7,
+      "avgZ": 3.8,
+      "width": 18.7,
+      "depth": 23.3,
+      "compactness": 7.9,
+      "highLine": 7.8,
+      "lowLine": -15.5
+    },
+    {
+      "t": 239.5,
+      "half": 1,
+      "team": "A",
+      "avgX": -0.6,
+      "avgZ": -0.8,
+      "width": 17.7,
+      "depth": 26.3,
+      "compactness": 8.9,
+      "highLine": 13.1,
+      "lowLine": -13.2
+    },
+    {
+      "t": 244.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 8.6,
+      "avgZ": -2.3,
+      "width": 20.6,
+      "depth": 24.7,
+      "compactness": 9.4,
+      "highLine": 20.7,
+      "lowLine": -4
+    },
+    {
+      "t": 249.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 15.4,
+      "avgZ": -3.5,
+      "width": 24.6,
+      "depth": 22.7,
+      "compactness": 9.4,
+      "highLine": 26.5,
+      "lowLine": 3.8
+    },
+    {
+      "t": 254.5,
+      "half": 1,
+      "team": "A",
+      "avgX": 16.8,
+      "avgZ": -6.1,
+      "width": 15.7,
+      "depth": 16.1,
+      "compactness": 6.5,
+      "highLine": 24.7,
+      "lowLine": 8.6
+    },
+    {
+      "t": 261,
+      "half": 1,
+      "team": "A",
+      "avgX": -9.8,
+      "avgZ": 0,
+      "width": 32.8,
+      "depth": 7.7,
+      "compactness": 10.3,
+      "highLine": -6.6,
+      "lowLine": -14.2
+    },
+    {
+      "t": 266,
+      "half": 1,
+      "team": "A",
+      "avgX": -4.3,
+      "avgZ": 0.2,
+      "width": 15.7,
+      "depth": 25,
+      "compactness": 9.9,
+      "highLine": 8.6,
+      "lowLine": -16.3
+    },
+    {
+      "t": 271,
+      "half": 1,
+      "team": "A",
+      "avgX": 4.2,
+      "avgZ": 0.5,
+      "width": 15.5,
+      "depth": 32.2,
+      "compactness": 11,
+      "highLine": 23,
+      "lowLine": -9.2
+    },
+    {
+      "t": 276.1,
+      "half": 1,
+      "team": "A",
+      "avgX": -3.8,
+      "avgZ": -2,
+      "width": 14.4,
+      "depth": 29,
+      "compactness": 10.3,
+      "highLine": 12.4,
+      "lowLine": -16.5
+    },
+    {
+      "t": 281.1,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.8,
+      "avgZ": -4.3,
+      "width": 22.1,
+      "depth": 28.6,
+      "compactness": 10,
+      "highLine": 14,
+      "lowLine": -14.6
+    },
+    {
+      "t": 286.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 8.4,
+      "avgZ": -4.3,
+      "width": 21.1,
+      "depth": 29,
+      "compactness": 11.4,
+      "highLine": 22.5,
+      "lowLine": -6.5
+    },
+    {
+      "t": 293.3,
+      "half": 1,
+      "team": "A",
+      "avgX": 4.1,
+      "avgZ": 3.1,
+      "width": 9,
+      "depth": 13,
+      "compactness": 5.2,
+      "highLine": 10.5,
+      "lowLine": -2.5
+    },
+    {
+      "t": 298.3,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.8,
+      "avgZ": 1.5,
+      "width": 17.8,
+      "depth": 17.2,
+      "compactness": 7.5,
+      "highLine": 10.8,
+      "lowLine": -6.4
+    },
+    {
+      "t": 5,
+      "half": 2,
+      "team": "A",
+      "avgX": -5.5,
+      "avgZ": -0.4,
+      "width": 14.7,
+      "depth": 26,
+      "compactness": 8.9,
+      "highLine": 10.3,
+      "lowLine": -15.7
+    },
+    {
+      "t": 10,
+      "half": 2,
+      "team": "A",
+      "avgX": -8.6,
+      "avgZ": 0.7,
+      "width": 11.1,
+      "depth": 21,
+      "compactness": 7,
+      "highLine": 3.3,
+      "lowLine": -17.7
+    },
+    {
+      "t": 15,
+      "half": 2,
+      "team": "A",
+      "avgX": -15.6,
+      "avgZ": 1.1,
+      "width": 12,
+      "depth": 19,
+      "compactness": 6.2,
+      "highLine": -4.3,
+      "lowLine": -23.2
+    },
+    {
+      "t": 20,
+      "half": 2,
+      "team": "A",
+      "avgX": -11.2,
+      "avgZ": 0.9,
+      "width": 12.4,
+      "depth": 16.6,
+      "compactness": 6.1,
+      "highLine": -1.4,
+      "lowLine": -18
+    },
+    {
+      "t": 25,
+      "half": 2,
+      "team": "A",
+      "avgX": -3.5,
+      "avgZ": 0.2,
+      "width": 11.6,
+      "depth": 16.9,
+      "compactness": 6.9,
+      "highLine": 5.5,
+      "lowLine": -11.4
+    },
+    {
+      "t": 30,
+      "half": 2,
+      "team": "A",
+      "avgX": -1.6,
+      "avgZ": 0.9,
+      "width": 15.2,
+      "depth": 19.4,
+      "compactness": 6.8,
+      "highLine": 8.7,
+      "lowLine": -10.7
+    },
+    {
+      "t": 35,
+      "half": 2,
+      "team": "A",
+      "avgX": -1,
+      "avgZ": 1.7,
+      "width": 15.6,
+      "depth": 19.2,
+      "compactness": 6.8,
+      "highLine": 8.7,
+      "lowLine": -10.5
+    },
+    {
+      "t": 40,
+      "half": 2,
+      "team": "A",
+      "avgX": 6.1,
+      "avgZ": 1.8,
+      "width": 15.6,
+      "depth": 26.5,
+      "compactness": 8.8,
+      "highLine": 20.1,
+      "lowLine": -6.4
+    },
+    {
+      "t": 45,
+      "half": 2,
+      "team": "A",
+      "avgX": 6.3,
+      "avgZ": -1,
+      "width": 16.2,
+      "depth": 20.7,
+      "compactness": 8.5,
+      "highLine": 15.7,
+      "lowLine": -5
+    },
+    {
+      "t": 50,
+      "half": 2,
+      "team": "A",
+      "avgX": 11.1,
+      "avgZ": -2.6,
+      "width": 21.1,
+      "depth": 22.7,
+      "compactness": 9.4,
+      "highLine": 22.4,
+      "lowLine": -0.3
+    },
+    {
+      "t": 55,
+      "half": 2,
+      "team": "A",
+      "avgX": 12.1,
+      "avgZ": 1.1,
+      "width": 16.9,
+      "depth": 19.7,
+      "compactness": 7.3,
+      "highLine": 22.4,
+      "lowLine": 2.6
+    },
+    {
+      "t": 60,
+      "half": 2,
+      "team": "A",
+      "avgX": 4.4,
+      "avgZ": 3.7,
+      "width": 22.3,
+      "depth": 20.4,
+      "compactness": 8.7,
+      "highLine": 14.5,
+      "lowLine": -5.9
+    },
+    {
+      "t": 65,
+      "half": 2,
+      "team": "A",
+      "avgX": 5.4,
+      "avgZ": 0.9,
+      "width": 18.6,
+      "depth": 20.7,
+      "compactness": 9,
+      "highLine": 14.2,
+      "lowLine": -6.5
+    },
+    {
+      "t": 70,
+      "half": 2,
+      "team": "A",
+      "avgX": 14.9,
+      "avgZ": -1.2,
+      "width": 18.7,
+      "depth": 26.2,
+      "compactness": 11.5,
+      "highLine": 26.1,
+      "lowLine": -0.1
+    },
+    {
+      "t": 75,
+      "half": 2,
+      "team": "A",
+      "avgX": 21.7,
+      "avgZ": 0,
+      "width": 20,
+      "depth": 23,
+      "compactness": 10.8,
+      "highLine": 30.1,
+      "lowLine": 7.1
+    },
+    {
+      "t": 80,
+      "half": 2,
+      "team": "A",
+      "avgX": 19.4,
+      "avgZ": -2.7,
+      "width": 23.2,
+      "depth": 20.2,
+      "compactness": 9.6,
+      "highLine": 27.7,
+      "lowLine": 7.6
+    },
+    {
+      "t": 85,
+      "half": 2,
+      "team": "A",
+      "avgX": 17.6,
+      "avgZ": -10.3,
+      "width": 18.2,
+      "depth": 12.9,
+      "compactness": 6.1,
+      "highLine": 23.6,
+      "lowLine": 10.7
+    },
+    {
+      "t": 90,
+      "half": 2,
+      "team": "A",
+      "avgX": 17.4,
+      "avgZ": -8.8,
+      "width": 15.7,
+      "depth": 21.4,
+      "compactness": 7.6,
+      "highLine": 29,
+      "lowLine": 7.6
+    },
+    {
+      "t": 96.8,
+      "half": 2,
+      "team": "A",
+      "avgX": 17.9,
+      "avgZ": -6.7,
+      "width": 17.4,
+      "depth": 18.3,
+      "compactness": 6.2,
+      "highLine": 23.2,
+      "lowLine": 4.9
+    },
+    {
+      "t": 101.8,
+      "half": 2,
+      "team": "A",
+      "avgX": 10,
+      "avgZ": -11.2,
+      "width": 21.9,
+      "depth": 14.3,
+      "compactness": 6.2,
+      "highLine": 18.6,
+      "lowLine": 4.3
+    },
+    {
+      "t": 108.5,
+      "half": 2,
+      "team": "A",
+      "avgX": 9.9,
+      "avgZ": -9.3,
+      "width": 13.5,
+      "depth": 13.4,
+      "compactness": 5.3,
+      "highLine": 15.7,
+      "lowLine": 2.3
+    },
+    {
+      "t": 113.5,
+      "half": 2,
+      "team": "A",
+      "avgX": 8.1,
+      "avgZ": -4.5,
+      "width": 14.3,
+      "depth": 18.1,
+      "compactness": 7.2,
+      "highLine": 15.4,
+      "lowLine": -2.7
+    },
+    {
+      "t": 118.5,
+      "half": 2,
+      "team": "A",
+      "avgX": 16.3,
+      "avgZ": -1.8,
+      "width": 20.5,
+      "depth": 26.5,
+      "compactness": 9.2,
+      "highLine": 29.2,
+      "lowLine": 2.7
+    },
+    {
+      "t": 123.5,
+      "half": 2,
+      "team": "A",
+      "avgX": 16.2,
+      "avgZ": -5.3,
+      "width": 28.8,
+      "depth": 25.4,
+      "compactness": 11.3,
+      "highLine": 29.4,
+      "lowLine": 4
+    },
+    {
+      "t": 128.5,
+      "half": 2,
+      "team": "A",
+      "avgX": 9,
+      "avgZ": -7,
+      "width": 17.2,
+      "depth": 19.7,
+      "compactness": 7.8,
+      "highLine": 17.3,
+      "lowLine": -2.3
+    }
+  ],
+  "shapeB": [
+    {
+      "t": 5,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.7,
+      "avgZ": 0.2,
+      "width": 13.2,
+      "depth": 19.5,
+      "compactness": 6.8,
+      "highLine": 6.4,
+      "lowLine": -13.1
+    },
+    {
+      "t": 10,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.4,
+      "avgZ": -0.9,
+      "width": 13.6,
+      "depth": 16.6,
+      "compactness": 6.5,
+      "highLine": 1.7,
+      "lowLine": -14.9
+    },
+    {
+      "t": 15,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.3,
+      "avgZ": 1.5,
+      "width": 11.9,
+      "depth": 18.2,
+      "compactness": 6.2,
+      "highLine": -1.2,
+      "lowLine": -19.4
+    },
+    {
+      "t": 20,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.9,
+      "avgZ": 0.6,
+      "width": 10.1,
+      "depth": 22.3,
+      "compactness": 7.6,
+      "highLine": 0.9,
+      "lowLine": -21.4
+    },
+    {
+      "t": 25,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.1,
+      "avgZ": 0.7,
+      "width": 14.9,
+      "depth": 18.8,
+      "compactness": 6.1,
+      "highLine": -0.7,
+      "lowLine": -19.5
+    },
+    {
+      "t": 30,
+      "half": 1,
+      "team": "B",
+      "avgX": -10,
+      "avgZ": -1,
+      "width": 15,
+      "depth": 19.7,
+      "compactness": 6.9,
+      "highLine": 2.4,
+      "lowLine": -17.3
+    },
+    {
+      "t": 36.8,
+      "half": 1,
+      "team": "B",
+      "avgX": -18.8,
+      "avgZ": -4,
+      "width": 14,
+      "depth": 22.1,
+      "compactness": 7.2,
+      "highLine": -6.3,
+      "lowLine": -28.5
+    },
+    {
+      "t": 42,
+      "half": 1,
+      "team": "B",
+      "avgX": -16.6,
+      "avgZ": -6.2,
+      "width": 11.9,
+      "depth": 19.6,
+      "compactness": 6.1,
+      "highLine": -6.3,
+      "lowLine": -25.9
+    },
+    {
+      "t": 47,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.5,
+      "avgZ": -4.1,
+      "width": 14.3,
+      "depth": 19.1,
+      "compactness": 7.5,
+      "highLine": -0.6,
+      "lowLine": -19.7
+    },
+    {
+      "t": 52,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.4,
+      "avgZ": -3.6,
+      "width": 18.6,
+      "depth": 16.1,
+      "compactness": 7,
+      "highLine": -1.4,
+      "lowLine": -17.5
+    },
+    {
+      "t": 57,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.2,
+      "avgZ": -1.5,
+      "width": 17.2,
+      "depth": 22.3,
+      "compactness": 7.8,
+      "highLine": 3.4,
+      "lowLine": -18.9
+    },
+    {
+      "t": 62,
+      "half": 1,
+      "team": "B",
+      "avgX": -15.2,
+      "avgZ": -4.8,
+      "width": 19.9,
+      "depth": 21.1,
+      "compactness": 8.1,
+      "highLine": -2.7,
+      "lowLine": -23.8
+    },
+    {
+      "t": 67,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.1,
+      "avgZ": -5.7,
+      "width": 22.3,
+      "depth": 19.5,
+      "compactness": 8.9,
+      "highLine": 1.2,
+      "lowLine": -18.2
+    },
+    {
+      "t": 72,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.6,
+      "avgZ": -6.4,
+      "width": 18.3,
+      "depth": 14.5,
+      "compactness": 6.7,
+      "highLine": 1,
+      "lowLine": -13.5
+    },
+    {
+      "t": 77,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.2,
+      "avgZ": -1.6,
+      "width": 18.4,
+      "depth": 16,
+      "compactness": 6.1,
+      "highLine": 0.6,
+      "lowLine": -15.4
+    },
+    {
+      "t": 82.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -12.5,
+      "avgZ": 0,
+      "width": 17.9,
+      "depth": 21.2,
+      "compactness": 7.6,
+      "highLine": -1.8,
+      "lowLine": -23
+    },
+    {
+      "t": 87.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -12.6,
+      "avgZ": -0.3,
+      "width": 20.6,
+      "depth": 20.6,
+      "compactness": 8.1,
+      "highLine": -3.2,
+      "lowLine": -23.8
+    },
+    {
+      "t": 92.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -25.6,
+      "avgZ": -3.7,
+      "width": 13.8,
+      "depth": 12,
+      "compactness": 4.4,
+      "highLine": -17.9,
+      "lowLine": -29.8
+    },
+    {
+      "t": 97.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -19,
+      "avgZ": -4.5,
+      "width": 17.5,
+      "depth": 15.2,
+      "compactness": 6,
+      "highLine": -12.1,
+      "lowLine": -27.3
+    },
+    {
+      "t": 104.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -14.7,
+      "avgZ": -7.1,
+      "width": 14.4,
+      "depth": 16.4,
+      "compactness": 5.6,
+      "highLine": -7.1,
+      "lowLine": -23.5
+    },
+    {
+      "t": 109.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.4,
+      "avgZ": -4,
+      "width": 17.3,
+      "depth": 17.3,
+      "compactness": 7.1,
+      "highLine": -0.9,
+      "lowLine": -18.2
+    },
+    {
+      "t": 114.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -7.3,
+      "avgZ": 0.9,
+      "width": 16.9,
+      "depth": 13.5,
+      "compactness": 6.4,
+      "highLine": 0.4,
+      "lowLine": -13.2
+    },
+    {
+      "t": 119.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -2.3,
+      "avgZ": 2,
+      "width": 15.4,
+      "depth": 15.5,
+      "compactness": 6.9,
+      "highLine": 5.5,
+      "lowLine": -10
+    },
+    {
+      "t": 124.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.3,
+      "avgZ": 1.6,
+      "width": 17.1,
+      "depth": 12.9,
+      "compactness": 6,
+      "highLine": -3,
+      "lowLine": -15.9
+    },
+    {
+      "t": 129.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -16.1,
+      "avgZ": 0.5,
+      "width": 12.7,
+      "depth": 12.8,
+      "compactness": 4.9,
+      "highLine": -10.1,
+      "lowLine": -22.9
+    },
+    {
+      "t": 134.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -14.2,
+      "avgZ": 1.1,
+      "width": 15.8,
+      "depth": 15,
+      "compactness": 6.3,
+      "highLine": -8.2,
+      "lowLine": -23.2
+    },
+    {
+      "t": 139.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.9,
+      "avgZ": -0.7,
+      "width": 21.1,
+      "depth": 20.4,
+      "compactness": 8.6,
+      "highLine": -0.1,
+      "lowLine": -20.5
+    },
+    {
+      "t": 144.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -1.6,
+      "avgZ": -1.6,
+      "width": 18.3,
+      "depth": 19,
+      "compactness": 8.1,
+      "highLine": 7.1,
+      "lowLine": -11.9
+    },
+    {
+      "t": 149.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.5,
+      "avgZ": 1,
+      "width": 14,
+      "depth": 16.6,
+      "compactness": 6.4,
+      "highLine": 3.7,
+      "lowLine": -12.9
+    },
+    {
+      "t": 154.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.2,
+      "avgZ": 1.1,
+      "width": 16.7,
+      "depth": 18.5,
+      "compactness": 6.7,
+      "highLine": 0.1,
+      "lowLine": -18.4
+    },
+    {
+      "t": 159.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -16.8,
+      "avgZ": 4.6,
+      "width": 18.4,
+      "depth": 14.4,
+      "compactness": 6.1,
+      "highLine": -9.1,
+      "lowLine": -23.4
+    },
+    {
+      "t": 164.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.8,
+      "avgZ": 1,
+      "width": 19.4,
+      "depth": 20.8,
+      "compactness": 8.1,
+      "highLine": 1,
+      "lowLine": -19.8
+    },
+    {
+      "t": 169.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -1.4,
+      "avgZ": 0.7,
+      "width": 20.5,
+      "depth": 24.9,
+      "compactness": 8.6,
+      "highLine": 12,
+      "lowLine": -12.9
+    },
+    {
+      "t": 174.5,
+      "half": 1,
+      "team": "B",
+      "avgX": 1.6,
+      "avgZ": -0.5,
+      "width": 17.1,
+      "depth": 17.5,
+      "compactness": 7.7,
+      "highLine": 10.5,
+      "lowLine": -7
+    },
+    {
+      "t": 179.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.1,
+      "avgZ": -1.9,
+      "width": 17.3,
+      "depth": 13,
+      "compactness": 6.5,
+      "highLine": -0.1,
+      "lowLine": -13.1
+    },
+    {
+      "t": 184.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.5,
+      "avgZ": -1.8,
+      "width": 12.1,
+      "depth": 9.9,
+      "compactness": 3.9,
+      "highLine": -7.1,
+      "lowLine": -17
+    },
+    {
+      "t": 189.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.1,
+      "avgZ": -0.6,
+      "width": 14.3,
+      "depth": 14.2,
+      "compactness": 5.8,
+      "highLine": -2.3,
+      "lowLine": -16.5
+    },
+    {
+      "t": 194.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -4.4,
+      "avgZ": 1.7,
+      "width": 15.3,
+      "depth": 18.5,
+      "compactness": 7.5,
+      "highLine": 3.1,
+      "lowLine": -15.4
+    },
+    {
+      "t": 199.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.7,
+      "avgZ": -0.7,
+      "width": 17.9,
+      "depth": 15.6,
+      "compactness": 7.1,
+      "highLine": 0.9,
+      "lowLine": -14.6
+    },
+    {
+      "t": 204.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.7,
+      "avgZ": -0.5,
+      "width": 18.6,
+      "depth": 19.6,
+      "compactness": 8.4,
+      "highLine": -0.8,
+      "lowLine": -20.4
+    },
+    {
+      "t": 209.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.9,
+      "avgZ": 0.9,
+      "width": 20.8,
+      "depth": 21.6,
+      "compactness": 9.1,
+      "highLine": 1.4,
+      "lowLine": -20.2
+    },
+    {
+      "t": 214.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -3.3,
+      "avgZ": 2.6,
+      "width": 21.1,
+      "depth": 19.5,
+      "compactness": 8.6,
+      "highLine": 5.7,
+      "lowLine": -13.9
+    },
+    {
+      "t": 219.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -3.3,
+      "avgZ": 3.3,
+      "width": 16.8,
+      "depth": 15.2,
+      "compactness": 7.1,
+      "highLine": 3.9,
+      "lowLine": -11.3
+    },
+    {
+      "t": 224.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -3.7,
+      "avgZ": 3.4,
+      "width": 22.1,
+      "depth": 21.9,
+      "compactness": 9.3,
+      "highLine": 6.2,
+      "lowLine": -15.7
+    },
+    {
+      "t": 229.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -0.6,
+      "avgZ": 4.9,
+      "width": 22.5,
+      "depth": 21.5,
+      "compactness": 9.2,
+      "highLine": 10.6,
+      "lowLine": -11
+    },
+    {
+      "t": 234.5,
+      "half": 1,
+      "team": "B",
+      "avgX": 0.1,
+      "avgZ": 2.7,
+      "width": 19.5,
+      "depth": 21.8,
+      "compactness": 8.2,
+      "highLine": 10.2,
+      "lowLine": -11.6
+    },
+    {
+      "t": 239.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -3.5,
+      "avgZ": -0.4,
+      "width": 15.6,
+      "depth": 15.3,
+      "compactness": 7.6,
+      "highLine": 3.1,
+      "lowLine": -12.3
+    },
+    {
+      "t": 244.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -10,
+      "avgZ": -0.7,
+      "width": 14.6,
+      "depth": 18.4,
+      "compactness": 6.8,
+      "highLine": 0.7,
+      "lowLine": -17.7
+    },
+    {
+      "t": 249.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -15.8,
+      "avgZ": -5.4,
+      "width": 17.5,
+      "depth": 13.9,
+      "compactness": 6.7,
+      "highLine": -10.7,
+      "lowLine": -24.7
+    },
+    {
+      "t": 254.5,
+      "half": 1,
+      "team": "B",
+      "avgX": -19.9,
+      "avgZ": -5.6,
+      "width": 15.6,
+      "depth": 9.3,
+      "compactness": 4.9,
+      "highLine": -15.7,
+      "lowLine": -25
+    },
+    {
+      "t": 261,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.9,
+      "avgZ": 0,
+      "width": 26.2,
+      "depth": 18.6,
+      "compactness": 9.6,
+      "highLine": 0,
+      "lowLine": -18.6
+    },
+    {
+      "t": 266,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.4,
+      "avgZ": 0,
+      "width": 14.6,
+      "depth": 24.6,
+      "compactness": 8.1,
+      "highLine": 9.5,
+      "lowLine": -15.1
+    },
+    {
+      "t": 271,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.1,
+      "avgZ": 0.6,
+      "width": 8.4,
+      "depth": 20.7,
+      "compactness": 5.9,
+      "highLine": 1.9,
+      "lowLine": -18.8
+    },
+    {
+      "t": 276.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.8,
+      "avgZ": -1.9,
+      "width": 16.7,
+      "depth": 24.5,
+      "compactness": 8.3,
+      "highLine": 7.2,
+      "lowLine": -17.3
+    },
+    {
+      "t": 281.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.2,
+      "avgZ": -2.7,
+      "width": 18.5,
+      "depth": 16.2,
+      "compactness": 7.3,
+      "highLine": 2.8,
+      "lowLine": -13.4
+    },
+    {
+      "t": 286.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -11,
+      "avgZ": -3,
+      "width": 16.1,
+      "depth": 17.8,
+      "compactness": 7.1,
+      "highLine": -2,
+      "lowLine": -19.9
+    },
+    {
+      "t": 293.3,
+      "half": 1,
+      "team": "B",
+      "avgX": -19,
+      "avgZ": 4.6,
+      "width": 13,
+      "depth": 15.1,
+      "compactness": 5.6,
+      "highLine": -12,
+      "lowLine": -27.1
+    },
+    {
+      "t": 298.3,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.2,
+      "avgZ": 1.4,
+      "width": 16.1,
+      "depth": 20.1,
+      "compactness": 7.7,
+      "highLine": -1.4,
+      "lowLine": -21.5
+    },
+    {
+      "t": 5,
+      "half": 2,
+      "team": "B",
+      "avgX": -4.5,
+      "avgZ": 0.1,
+      "width": 17.3,
+      "depth": 26.4,
+      "compactness": 10.2,
+      "highLine": 9.5,
+      "lowLine": -16.8
+    },
+    {
+      "t": 10,
+      "half": 2,
+      "team": "B",
+      "avgX": 2.2,
+      "avgZ": 0,
+      "width": 17.8,
+      "depth": 30.7,
+      "compactness": 10.8,
+      "highLine": 19.7,
+      "lowLine": -11.1
+    },
+    {
+      "t": 15,
+      "half": 2,
+      "team": "B",
+      "avgX": 9.6,
+      "avgZ": 0.3,
+      "width": 11.4,
+      "depth": 30.8,
+      "compactness": 10.9,
+      "highLine": 27,
+      "lowLine": -3.8
+    },
+    {
+      "t": 20,
+      "half": 2,
+      "team": "B",
+      "avgX": 4.6,
+      "avgZ": 1.1,
+      "width": 14,
+      "depth": 9.8,
+      "compactness": 5.3,
+      "highLine": 9.2,
+      "lowLine": -0.6
+    },
+    {
+      "t": 25,
+      "half": 2,
+      "team": "B",
+      "avgX": -4,
+      "avgZ": 1.4,
+      "width": 17,
+      "depth": 13.2,
+      "compactness": 6.2,
+      "highLine": 2.1,
+      "lowLine": -11.1
+    },
+    {
+      "t": 30,
+      "half": 2,
+      "team": "B",
+      "avgX": -5.4,
+      "avgZ": 1.1,
+      "width": 20,
+      "depth": 13.8,
+      "compactness": 6.8,
+      "highLine": 0.4,
+      "lowLine": -13.4
+    },
+    {
+      "t": 35,
+      "half": 2,
+      "team": "B",
+      "avgX": -4.8,
+      "avgZ": 1.4,
+      "width": 20.5,
+      "depth": 16.3,
+      "compactness": 7.2,
+      "highLine": 2.1,
+      "lowLine": -14.2
+    },
+    {
+      "t": 40,
+      "half": 2,
+      "team": "B",
+      "avgX": -11.3,
+      "avgZ": 1.6,
+      "width": 21,
+      "depth": 17.4,
+      "compactness": 8,
+      "highLine": -3.6,
+      "lowLine": -21
+    },
+    {
+      "t": 45,
+      "half": 2,
+      "team": "B",
+      "avgX": -10.8,
+      "avgZ": -0.3,
+      "width": 21,
+      "depth": 14.6,
+      "compactness": 8.1,
+      "highLine": -4.5,
+      "lowLine": -19.1
+    },
+    {
+      "t": 50,
+      "half": 2,
+      "team": "B",
+      "avgX": -14.2,
+      "avgZ": -0.8,
+      "width": 21.6,
+      "depth": 13.9,
+      "compactness": 8.2,
+      "highLine": -7.5,
+      "lowLine": -21.4
+    },
+    {
+      "t": 55,
+      "half": 2,
+      "team": "B",
+      "avgX": -15.7,
+      "avgZ": -0.1,
+      "width": 17.6,
+      "depth": 10,
+      "compactness": 6.1,
+      "highLine": -11.4,
+      "lowLine": -21.3
+    },
+    {
+      "t": 60,
+      "half": 2,
+      "team": "B",
+      "avgX": -8.9,
+      "avgZ": 2,
+      "width": 21.8,
+      "depth": 17.8,
+      "compactness": 8.8,
+      "highLine": -0.3,
+      "lowLine": -18.1
+    },
+    {
+      "t": 65,
+      "half": 2,
+      "team": "B",
+      "avgX": -10.1,
+      "avgZ": 0.1,
+      "width": 20.9,
+      "depth": 16.4,
+      "compactness": 8.2,
+      "highLine": -1.9,
+      "lowLine": -18.3
+    },
+    {
+      "t": 70,
+      "half": 2,
+      "team": "B",
+      "avgX": -16.6,
+      "avgZ": -0.3,
+      "width": 20.1,
+      "depth": 15.6,
+      "compactness": 8,
+      "highLine": -8.8,
+      "lowLine": -24.4
+    },
+    {
+      "t": 75,
+      "half": 2,
+      "team": "B",
+      "avgX": -24.1,
+      "avgZ": -1.2,
+      "width": 13.1,
+      "depth": 8.2,
+      "compactness": 5,
+      "highLine": -19.7,
+      "lowLine": -27.9
+    },
+    {
+      "t": 80,
+      "half": 2,
+      "team": "B",
+      "avgX": -21.4,
+      "avgZ": -8.5,
+      "width": 21.6,
+      "depth": 16.5,
+      "compactness": 7.6,
+      "highLine": -14,
+      "lowLine": -30.4
+    },
+    {
+      "t": 85,
+      "half": 2,
+      "team": "B",
+      "avgX": -16.5,
+      "avgZ": -8.5,
+      "width": 21.5,
+      "depth": 13.7,
+      "compactness": 7.3,
+      "highLine": -10,
+      "lowLine": -23.7
+    },
+    {
+      "t": 90,
+      "half": 2,
+      "team": "B",
+      "avgX": -17.6,
+      "avgZ": -5.7,
+      "width": 19.5,
+      "depth": 22.8,
+      "compactness": 8.7,
+      "highLine": -5.1,
+      "lowLine": -27.8
+    },
+    {
+      "t": 96.8,
+      "half": 2,
+      "team": "B",
+      "avgX": -22.5,
+      "avgZ": -4.5,
+      "width": 13.5,
+      "depth": 21.2,
+      "compactness": 7.2,
+      "highLine": -9.3,
+      "lowLine": -30.5
+    },
+    {
+      "t": 101.8,
+      "half": 2,
+      "team": "B",
+      "avgX": -16.2,
+      "avgZ": -7.8,
+      "width": 24.4,
+      "depth": 17.1,
+      "compactness": 8.9,
+      "highLine": -6.9,
+      "lowLine": -24.1
+    },
+    {
+      "t": 108.5,
+      "half": 2,
+      "team": "B",
+      "avgX": -20,
+      "avgZ": -6.6,
+      "width": 11.6,
+      "depth": 13.7,
+      "compactness": 5.2,
+      "highLine": -11.6,
+      "lowLine": -25.3
+    },
+    {
+      "t": 113.5,
+      "half": 2,
+      "team": "B",
+      "avgX": -13.4,
+      "avgZ": -2.9,
+      "width": 11.6,
+      "depth": 13.9,
+      "compactness": 5.2,
+      "highLine": -6.6,
+      "lowLine": -20.5
+    },
+    {
+      "t": 118.5,
+      "half": 2,
+      "team": "B",
+      "avgX": -18.2,
+      "avgZ": -3.3,
+      "width": 9,
+      "depth": 17.2,
+      "compactness": 5.9,
+      "highLine": -5.6,
+      "lowLine": -22.8
+    },
+    {
+      "t": 123.5,
+      "half": 2,
+      "team": "B",
+      "avgX": -15.2,
+      "avgZ": -16.2,
+      "width": 10.5,
+      "depth": 13.7,
+      "compactness": 4.9,
+      "highLine": -7.6,
+      "lowLine": -21.3
+    },
+    {
+      "t": 128.5,
+      "half": 2,
+      "team": "B",
+      "avgX": -12.8,
+      "avgZ": -10,
+      "width": 10.8,
+      "depth": 21.7,
+      "compactness": 6.6,
+      "highLine": -1.7,
+      "lowLine": -23.4
+    }
+  ],
+  "transitions": [
+    {
+      "t": 35.63,
+      "half": 1,
+      "team": "A",
+      "direction": "ATK",
+      "triggerX": 6.4,
+      "triggerZ": -6.5,
+      "duration": 25.49,
+      "passesInTransition": 3,
+      "progressionYards": 1.3
+    }
+  ],
+  "goalLog": [
+    {
+      "team": "A",
+      "playerName": "Bongokuhle Hlongwane",
+      "shirtNumber": 2,
+      "matchMinute": 40,
+      "attackersInBox": 0,
+      "defendersInBox": 2,
+      "outfieldBoxCrowd": 2,
+      "isBreakaway": false
+    }
+  ],
+  "keeperExperience": [
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836490373
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836560580
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836563809
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836567039
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836615111
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836691192
+    },
+    {
+      "state": [
+        0.9279994368553162,
+        0.06274128705263138,
+        0.9206823706626892,
+        0.06274128705263138,
+        0.20000000298023224,
+        0,
+        0,
+        0.9234303832054138,
+        0,
+        0,
+        -1,
+        -0.9319277405738831,
+        -0.028902556747198105,
+        0.5154009461402893,
+        -0.31937235593795776,
+        0.11464107781648636,
+        0.4283539652824402,
+        -0.32982495427131653,
+        -0.014852304942905903,
+        0.3831741213798523,
+        -0.46770957112312317,
+        -0.300169438123703,
+        0.3749970495700836,
+        0.42548152804374695,
+        0.5154009461402893
+      ],
+      "action": 5,
+      "reward": 1,
+      "style": "GOAL_KICK",
+      "timestamp": 1775836692511
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836755841
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836809789
+    },
+    {
+      "state": [
+        0.9333333373069763,
+        0,
+        0.9174796938896179,
+        0,
+        0,
+        0,
+        0.3333333432674408,
+        0.9942949414253235,
+        1,
+        1,
+        -1,
+        -0.19806165993213654,
+        -0.4408684968948364,
+        0.5281121730804443,
+        -0.19815649092197418,
+        0.4202999770641327,
+        0.5169340968132019,
+        -0.3994831144809723,
+        -0.5958549380302429,
+        0.43664097785949707,
+        -0.26312509179115295,
+        -0.1380992978811264,
+        0.39230915904045105,
+        0.468499094247818,
+        0.5281121730804443
+      ],
+      "action": 4,
+      "reward": -1,
+      "style": "PUNT",
+      "timestamp": 1775836811338
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775836931615
+    }
+  ],
+  "metadata": {
+    "engineVersion": "1.0.0",
+    "teamAName": "Minnesota United",
+    "teamBName": "DC United",
+    "formationA": "3-4-3",
+    "formationB": "3-4-3",
+    "weather": "SUNNY",
+    "lighting": "NOON",
+    "aiStyle": "BALANCED",
+    "halfDuration": 300,
+    "gameSpeedScale": 0.7,
+    "timestamp": 1775836933209
+  }
+}

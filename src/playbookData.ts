@@ -284,6 +284,68 @@ export const PASS_PLAYBOOK = {
       { role: 'RB', index: 0, points: [{ x: 2, z: -3 }, { x: 5, z: -5 }] },
     ]
   },
+  'mesh-wheel': {
+    label: 'Mesh Wheel',
+    formation: 'shotgun',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 5, z: 0.5 }, { x: 10, z: -2 }] },
+      { role: 'WR', index: 1, points: [{ x: 5, z: -0.5 }, { x: 10, z: 2 }] },
+      { role: 'TE', index: 0, points: [{ x: 6, z: 3 }, { x: 12, z: 5.5 }] },
+      { role: 'RB', index: 0, points: [{ x: 1.5, z: 2.5 }, { x: 6, z: 7.5 }] },
+    ]
+  },
+  'dagger-drive': {
+    label: 'Dagger Drive',
+    formation: 'spread',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 18, z: 8.5 }] },
+      { role: 'WR', index: 1, points: [{ x: 12, z: -6 }, { x: 16, z: -3 }] },
+      { role: 'WR', index: 2, points: [{ x: 8, z: 1 }, { x: 14, z: 0 }] },
+      { role: 'WR', index: 3, points: [{ x: 6, z: -1.5 }, { x: 13, z: 2 }] },
+    ]
+  },
+  'levels-cross': {
+    label: 'Levels Cross',
+    formation: 'pro',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 14, z: 7.5 }] },
+      { role: 'WR', index: 1, points: [{ x: 6, z: 0.5 }, { x: 12, z: 3.5 }] },
+      { role: 'TE', index: 0, points: [{ x: 4, z: 1.5 }, { x: 8, z: -1.5 }] },
+      { role: 'RB', index: 0, points: [{ x: 2.5, z: -3 }, { x: 7, z: -5.5 }] },
+    ]
+  },
+  'smash-seam': {
+    label: 'Smash Seam',
+    formation: 'shotgun',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 6, z: 5 }, { x: 9, z: 7.2 }] },
+      { role: 'WR', index: 1, points: [{ x: 16, z: -5.5 }] },
+      { role: 'TE', index: 0, points: [{ x: 14, z: 2.2 }] },
+      { role: 'RB', index: 0, points: [{ x: 2.5, z: -2.5 }, { x: 7.5, z: -0.5 }] },
+    ]
+  },
+  'switch-drag': {
+    label: 'Switch Drag',
+    formation: 'trips',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 8, z: 6 }, { x: 14, z: 2 }] },
+      { role: 'WR', index: 1, points: [{ x: 7, z: 3 }, { x: 13, z: 6.5 }] },
+      { role: 'WR', index: 2, points: [{ x: 4, z: 1 }, { x: 9, z: -1.5 }] },
+      { role: 'WR', index: 3, points: [{ x: 10, z: -8.5 }] },
+      { role: 'RB', index: 0, points: [{ x: 2, z: -2 }, { x: 6, z: -4 }] },
+    ]
+  },
+  'flood-return': {
+    label: 'Flood Return',
+    formation: 'empty',
+    routes: [
+      { role: 'WR', index: 0, points: [{ x: 6, z: 7.5 }, { x: 11, z: 5.5 }] },
+      { role: 'WR', index: 1, points: [{ x: 16, z: -8.5 }] },
+      { role: 'WR', index: 2, points: [{ x: 11, z: 3.5 }] },
+      { role: 'WR', index: 3, points: [{ x: 5, z: -3.5 }, { x: 10, z: -1 }] },
+      { role: 'WR', index: 4, points: [{ x: 4.5, z: 0 }, { x: 8.5, z: -2 }] },
+    ]
+  },
   'kickoff': {
     label: 'Kickoff',
     formation: 'kickoff',

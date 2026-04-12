@@ -1,0 +1,13 @@
+
+> src\gameEngine.ts:10226:  function _simulateStep(nowFromRaf?: number) {
+  src\gameEngine.ts:10227:    pollGamepad();
+  src\gameEngine.ts:10228:        const now = nowFromRaf ?? performance.now();
+  src\gameEngine.ts:10229:    const bannerNow = now / 1000;
+  src\gameEngine.ts:10230:    
+  src\gameEngine.ts:10231:    // Animate Banners
+  src\gameEngine.ts:10232:    bannerTexts.forEach((t: any) => {
+  src\gameEngine.ts:10233:      if (!t.tickerPhase) {
+  src\gameEngine.ts:10234:        t.tickerPhase = 'scroll';
+  src\gameEngine.ts:10235:        t.tickerOffset = 0;
+  src\gameEngine.ts:10236:        t.tickerSteps = 0;
+

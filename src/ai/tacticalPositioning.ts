@@ -50,34 +50,41 @@ export function computeIdealTacticalPosition(params: TacticalPositionParams) {
   } = params;
 
   const normalizedRole = normalizeRole(role);
-  const ideal = homePos.clone();
+  // Work entirely in scalars to avoid per-call heap allocations
+  let ix = homePos.x;
+  let iy = homePos.y;
+  let iz = homePos.z;
 
   // Ball support shift: everybody leans toward the active play while preserving shape.
-  const support = ballPos.clone().sub(ideal).multiplyScalar(0.18);
-  support.y = 0;
-  ideal.add(support);
+  ix += (ballPos.x - ix) * 0.18;
+  iz += (ballPos.z - iz) * 0.18;
 
   // Teammate spacing: avoid bunching so passing triangles form naturally.
   for (const teammatePos of teammatePositions) {
-    const away = playerPos.clone().sub(teammatePos);
-    away.y = 0;
-    const d = away.length();
+    const dx = playerPos.x - teammatePos.x;
+    const dz = playerPos.z - teammatePos.z;
+    const d = Math.sqrt(dx * dx + dz * dz);
     if (d > 0.0001 && d < 6.8) {
-      away.normalize().multiplyScalar((6.8 - d) * 0.42);
-      ideal.add(away);
+      const scale = (6.8 - d) * 0.42 / d;
+      ix += dx * scale;
+      iz += dz * scale;
     }
   }
 
   // Opponent pressure: nudge into nearby pockets instead of standing in coverage.
   for (const opponentPos of opponentPositions) {
-    const away = ideal.clone().sub(opponentPos);
-    away.y = 0;
-    const d = away.length();
+    const dx = ix - opponentPos.x;
+    const dz = iz - opponentPos.z;
+    const d = Math.sqrt(dx * dx + dz * dz);
     if (d > 0.0001 && d < 5.4) {
-      away.normalize().multiplyScalar((5.4 - d) * 0.56);
-      ideal.add(away);
+      const scale = (5.4 - d) * 0.56 / d;
+      ix += dx * scale;
+      iz += dz * scale;
     }
   }
+
+  // Box the result back into a Vector3 — one allocation per call (the return value)
+  const ideal = new THREE.Vector3(ix, iy, iz);
 
   if (normalizedRole === 'LW' || normalizedRole === 'RW') {
     ideal.z *= 1.22;

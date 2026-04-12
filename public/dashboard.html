@@ -111,6 +111,12 @@ input[type="file"]{display:none}
 .top-bar .controls{display:flex;gap:6px;align-items:center}
 .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse 1.5s infinite}
 .status{font-size:.75rem;color:var(--fg2)}
+.copy-btn{margin-left:auto;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:4px;border:1px solid var(--bg3);background:var(--bg2);color:var(--fg2);cursor:pointer;transition:border-color .15s,color .15s;flex-shrink:0}
+.copy-btn:hover{border-color:var(--fg2);color:#fff}
+.copy-btn.ok{color:var(--accent-green);border-color:var(--accent-green)}
+/* ── Team logos ── */
+.team-logo{width:20px;height:20px;object-fit:contain;vertical-align:middle;flex-shrink:0}
+.team-logo-lg{width:40px;height:40px;object-fit:contain;flex-shrink:0;image-rendering:auto}
 </style>
 </head>
 <body>
@@ -133,9 +139,9 @@ input[type="file"]{display:none}
 
 <!-- ══════ 1. MATCH OVERVIEW ══════ -->
 <div class="panel full-width" id="panelOverview">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-red)"></span>MATCH OVERVIEW</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-red)"></span>MATCH OVERVIEW<button class="copy-btn" onclick="copySection('overview')">Copy</button></div>
   <div class="panel-body">
-    <div id="scoreline" style="text-align:center;font-size:1.6rem;font-weight:800;margin:6px 0;letter-spacing:.02em">— vs —</div>
+    <div id="scoreline" style="display:flex;align-items:center;justify-content:center;gap:16px;font-size:1.6rem;font-weight:800;margin:6px 0;letter-spacing:.02em">— vs —</div>
     <div class="stat-row" id="overviewStats"></div>
     <div id="overviewBars" style="margin-top:8px"></div>
   </div>
@@ -143,7 +149,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 2. MATCH FLOW TIMELINE ══════ -->
 <div class="panel full-width" id="panelTimeline">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH FLOW TIMELINE</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH FLOW TIMELINE<button class="copy-btn" onclick="copySection('timeline')">Copy</button></div>
   <div class="panel-body" style="padding:6px">
     <canvas id="timelineCanvas" height="140"></canvas>
   </div>
@@ -151,7 +157,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 3. TEAM STYLE ══════ -->
 <div class="panel" id="panelTeamStyle">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TEAM STYLE</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TEAM STYLE<button class="copy-btn" onclick="copySection('teamstyle')">Copy</button></div>
   <div class="panel-body">
     <div class="tabs" id="teamStyleTabs">
       <button class="active" onclick="setTeamStyleTab('buildup')">Build‑Up</button>
@@ -167,7 +173,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 3b. PASS INTELLIGENCE ══════ -->
 <div class="panel" id="panelPassIntel">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>PASS INTELLIGENCE</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>PASS INTELLIGENCE<button class="copy-btn" onclick="copySection('passintel')">Copy</button></div>
   <div class="panel-body">
     <div class="stat-row" id="passIntelStats"></div>
     <div id="passDirectionBars" style="margin-top:10px"></div>
@@ -187,7 +193,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 4. ROLE BEHAVIOR ══════ -->
 <div class="panel" id="panelRole">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>ROLE BEHAVIOR</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>ROLE BEHAVIOR<button class="copy-btn" onclick="copySection('role')">Copy</button></div>
   <div class="panel-body">
     <div class="role-select">
       <select id="teamSelect" onchange="renderRolePanel()"><option value="A">Team A</option><option value="B">Team B</option></select>
@@ -200,7 +206,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 5. EVENT STREAM ══════ -->
 <div class="panel full-width" id="panelEvents">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-purple)"></span>EVENT STREAM ANALYZER</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-purple)"></span>EVENT STREAM ANALYZER<button class="copy-btn" onclick="copySection('events')">Copy</button></div>
   <div class="panel-body">
     <div class="event-filters" id="eventFilters"></div>
     <div class="event-list" id="eventList"></div>
@@ -209,7 +215,7 @@ input[type="file"]{display:none}
 
 <!-- ══════ 6. SPATIAL INTELLIGENCE ══════ -->
 <div class="panel" id="panelSpatial">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-brown)"></span>SPATIAL INTELLIGENCE</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-brown)"></span>SPATIAL INTELLIGENCE<button class="copy-btn" onclick="copySection('spatial')">Copy</button></div>
   <div class="panel-body">
     <div class="tabs" id="spatialTabs">
       <button class="active" onclick="setSpatialTab('heatmap')">Heatmap</button>
@@ -219,9 +225,23 @@ input[type="file"]{display:none}
   </div>
 </div>
 
-<!-- ══════ 7. KEEPER EXPERIENCE ══════ -->
+<!-- ══════ 7. POSITIONING ANALYTICS ══════ -->
+<div class="panel full-width" id="panelPositioning">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>POSITIONING ANALYTICS<button class="copy-btn" onclick="copySection('positioning')">Copy</button></div>
+  <div class="panel-body">
+    <div class="tabs" id="positioningTabs">
+      <button class="active" onclick="setPosTab('homeError')">Home Error</button>
+      <button onclick="setPosTab('compactness')">Compactness</button>
+      <button onclick="setPosTab('defensive')">Defensive Shape</button>
+      <button onclick="setPosTab('support')">Support Spacing</button>
+    </div>
+    <div id="posContent"></div>
+  </div>
+</div>
+
+<!-- ══════ 8. KEEPER EXPERIENCE ══════ -->
 <div class="panel" id="panelKeeper">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-orange)"></span>KEEPER EXPERIENCE</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-orange)"></span>KEEPER EXPERIENCE<button class="copy-btn" onclick="copySection('keeper')">Copy</button></div>
   <div class="panel-body">
     <div class="keeper-grid">
       <div><canvas id="keeperCanvas" width="240" height="160"></canvas></div>
@@ -234,7 +254,7 @@ input[type="file"]{display:none}
   </div>
 </div>
 
-<!-- ══════ 8. MATCH COMPARISON ══════ -->
+<!-- ══════ 9. MATCH COMPARISON ══════ -->
 <div class="panel" id="panelComparison" style="display:none">
   <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH COMPARISON</div>
   <div class="panel-body">
@@ -242,9 +262,9 @@ input[type="file"]{display:none}
   </div>
 </div>
 
-<!-- ══════ 9. TUNING INSIGHTS ══════ -->
+<!-- ══════ 10. TUNING INSIGHTS ══════ -->
 <div class="panel full-width" id="panelInsights">
-  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TUNING INSIGHTS</div>
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>TUNING INSIGHTS<button class="copy-btn" onclick="copySection('insights')">Copy</button></div>
   <div class="panel-body" id="insightsBody"></div>
 </div>
 
@@ -254,6 +274,265 @@ input[type="file"]{display:none}
 /* ═══════════════════════════════════════════════════════════
    DATA LAYER
    ═══════════════════════════════════════════════════════════ */
+/* ─── Copy section helper ─── */
+function copySection(key) {
+  if (!D) return;
+  const a = D.teamA, b = D.teamB;
+  const nameA = a?.name || 'Team A', nameB = b?.name || 'Team B';
+  let text = '';
+
+  if (key === 'overview') {
+    const xgA = ((a.shotsOnTarget||0)*0.35+((a.shots||0)-(a.shotsOnTarget||0))*0.05).toFixed(2);
+    const xgB = ((b.shotsOnTarget||0)*0.35+((b.shots||0)-(b.shotsOnTarget||0))*0.05).toFixed(2);
+    const intA = a.roleStats ? Object.values(a.roleStats).reduce((s,r)=>s+(r.interceptions||0),0) : 0;
+    const intB = b.roleStats ? Object.values(b.roleStats).reduce((s,r)=>s+(r.interceptions||0),0) : 0;
+    const transA = (D.transitions||[]).filter(t=>t.team==='A').length;
+    const transB = (D.transitions||[]).filter(t=>t.team==='B').length;
+    text = [
+      `MATCH OVERVIEW — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
+      `xG: ${xgA} – ${xgB}`,
+      `Possession: ${a.possession??50}% – ${b.possession??50}%`,
+      `Shots / SOT: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
+      `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
+      `Def Actions: ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
+      `Transitions: ${a.transitions||0} \u2013 ${b.transitions||0}`,
+      `Saves: ${a.saves} – ${b.saves}`,
+      `Shots bar: ${a.shots||0} – ${b.shots||0}`,
+      `SOT bar: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
+      `Passes bar: ${a.passes||0} – ${b.passes||0}`,
+      `Tackles bar: ${a.tackles||0} – ${b.tackles||0}`,
+      `Fouls bar: ${a.fouls||0} – ${b.fouls||0}`,
+      `Transitions bar: ${a.transitions||0} – ${b.transitions||0}`,
+      `Offsides bar: ${a.offsides||0} – ${b.offsides||0}`,
+      `Corners bar: ${a.corners||0} – ${b.corners||0}`,
+    ].join('\n');
+  } else if (key === 'timeline') {
+    const evs = D.events || [];
+    const shots = evs.filter(e=>e.type==='SHOT');
+    const tackles = evs.filter(e=>e.type==='TACKLE');
+    const fouls = evs.filter(e=>e.type==='FOUL');
+    const shotA = shots.filter(e=>e.team==='A'), shotB = shots.filter(e=>e.team==='B');
+    text = [
+      `MATCH FLOW TIMELINE — ${nameA} vs ${nameB}`,
+      `Total events: ${evs.length}`,
+      `Shots: ${shotA.length} (A) / ${shotB.length} (B)`,
+      `Tackles: ${tackles.filter(e=>e.team==='A').length} (A) / ${tackles.filter(e=>e.team==='B').length} (B)`,
+      `Fouls: ${fouls.filter(e=>e.team==='A').length} (A) / ${fouls.filter(e=>e.team==='B').length} (B)`,
+      ...shots.map(s=>`  Shot @${s.minute ?? '?'}' [${s.team}] ${s.detail?.onTarget ? 'ON TARGET' : 'off target'}${s.detail?.isGoal ? ' GOAL' : ''}`),
+    ].join('\n');
+  } else if (key === 'teamstyle') {
+    const tab = activeTeamStyleTab;
+    if (tab === 'buildup') {
+      const netA = a.passNetwork||[], netB = b.passNetwork||[];
+      const halfDur = D.metadata?.halfDuration || 2700;
+      const turnA = a.roleStats ? Object.values(a.roleStats).reduce((s,r)=>s+(r.turnovers||0),0) : 0;
+      const turnB = b.roleStats ? Object.values(b.roleStats).reduce((s,r)=>s+(r.turnovers||0),0) : 0;
+      const fwdPassA = (D.events||[]).filter(e=>e.type==='PASS'&&e.team==='A'&&(e.detail?.dist||0)>3).length;
+      const fwdPassB = (D.events||[]).filter(e=>e.type==='PASS'&&e.team==='B'&&(e.detail?.dist||0)>3).length;
+      const passMinA = a.passes && halfDur ? (a.passes/(halfDur*2/60)).toFixed(1) : '—';
+      const passMinB = b.passes && halfDur ? (b.passes/(halfDur*2/60)).toFixed(1) : '—';
+      text = [
+        `TEAM STYLE (Build-Up) — ${nameA} vs ${nameB}`,
+        `Tempo: ${passMinA} – ${passMinB} passes/min`,
+        `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
+        `Turnovers: ${turnA} – ${turnB}`,
+        `Fwd Pass: ${fwdPassA} – ${fwdPassB}`,
+        ``,
+        `Pass Network A (${nameA}):`,
+        ...netA.map(e=>`  ${e.from} → ${e.to}: ${e.count}`),
+        `Pass Network B (${nameB}):`,
+        ...netB.map(e=>`  ${e.from} → ${e.to}: ${e.count}`),
+      ].join('\n');
+    } else if (tab === 'defense') {
+      const shA=D.shapeA||[], shB=D.shapeB||[];
+      const avg=(arr,k)=>arr.length?(arr.reduce((s,x)=>s+x[k],0)/arr.length).toFixed(1):'—';
+      const intA=a.roleStats?Object.values(a.roleStats).reduce((s,r)=>s+(r.interceptions||0),0):0;
+      const intB=b.roleStats?Object.values(b.roleStats).reduce((s,r)=>s+(r.interceptions||0),0):0;
+      text = [
+        `TEAM STYLE (Defensive) — ${nameA} vs ${nameB}`,
+        `Avg Line Height: ${avg(shA,'highLine')} – ${avg(shB,'highLine')}`,
+        `Avg Width: ${avg(shA,'width')} – ${avg(shB,'width')}`,
+        `Compactness: ${avg(shA,'compactness')} – ${avg(shB,'compactness')}`,
+        `Press Intensity (T+I): ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
+      ].join('\n');
+    } else {
+      const tr=D.transitions||[], trA=tr.filter(t=>t.team==='A'), trB=tr.filter(t=>t.team==='B');
+      const tavg=(arr,k)=>arr.length?(arr.reduce((s,t)=>s+(t[k]||0),0)/arr.length).toFixed(1):'—';
+      text = [
+        `TEAM STYLE (Transitions) — ${nameA} vs ${nameB}`,
+        `Count: ${trA.length} – ${trB.length}`,
+        `Avg Duration: ${tavg(trA,'duration')}s – ${tavg(trB,'duration')}s`,
+        `Avg Progression: ${tavg(trA,'progressionYards')} – ${tavg(trB,'progressionYards')} yds`,
+        `Passes/Trans: ${tavg(trA,'passesInTransition')} – ${tavg(trB,'passesInTransition')}`,
+      ].join('\n');
+    }
+  } else if (key === 'passintel') {
+    const evs=D.events||[];
+    const pA=evs.filter(e=>e.type==='PASS'&&e.team==='A'), pB=evs.filter(e=>e.type==='PASS'&&e.team==='B');
+    const cls=p=>{const g=p.detail?.progress??0;return g>2?'FWD':g<-2?'BACK':'LAT';};
+    const cntDir=arr=>{const c={FWD:0,LAT:0,BACK:0};arr.forEach(p=>c[cls(p)]++);return c;};
+    const dA=cntDir(pA), dB=cntDir(pB);
+    const avgProg=arr=>arr.length?(arr.reduce((s,p)=>s+(p.detail?.progress??0),0)/arr.length).toFixed(1):'—';
+    const boxBkA=pA.filter(p=>(p.detail?.passerDistToGoal??99)<10&&(p.detail?.progress??0)<0).length;
+    const boxBkB=pB.filter(p=>(p.detail?.passerDistToGoal??99)<10&&(p.detail?.progress??0)<0).length;
+    const compDir=(arr,d)=>{let att=0,comp=0;arr.forEach(p=>{if(cls(p)===d){att++;if(p.detail?.completed===true)comp++;}});return att>0?`${(comp/att*100).toFixed(0)}% (${comp}/${att})`:'—';};
+    const allP=[...pA,...pB];
+    const intByRole={};
+    allP.filter(p=>p.detail?.completed===false&&p.detail?.interceptedByRole).forEach(p=>{const k=p.detail.interceptedByRole;intByRole[k]=(intByRole[k]||0)+1;});
+    const sortedInt=Object.entries(intByRole).sort((x,y)=>y[1]-x[1]);
+    text = [
+      `PASS INTELLIGENCE — ${nameA} vs ${nameB}`,
+      `Avg Progress: ${avgProg(pA)} – ${avgProg(pB)}`,
+      `Back Pass %: ${pA.length>0?(dA.BACK/pA.length*100).toFixed(0):0}% – ${pB.length>0?(dB.BACK/pB.length*100).toFixed(0):0}%`,
+      `Box Back Passes: ${boxBkA} – ${boxBkB}`,
+      `FWD completion A/B: ${compDir(pA,'FWD')} / ${compDir(pB,'FWD')}`,
+      `LAT completion A/B: ${compDir(pA,'LAT')} / ${compDir(pB,'LAT')}`,
+      `BACK completion A/B: ${compDir(pA,'BACK')} / ${compDir(pB,'BACK')}`,
+      `Interceptions by role: ${sortedInt.map(([r,c])=>r+':'+c).join(', ')||'none'}`,
+    ].join('\n');
+  } else if (key === 'role') {
+    const team = $('teamSelect').value;
+    const role = $('roleSelect').value;
+    const rs = (team==='A'?a?.roleStats:b?.roleStats)||{};
+    const r = rs[role];
+    if (!r) { text = 'No role data'; }
+    else {
+      const tName = team==='A'?nameA:nameB;
+      text = [
+        `ROLE BEHAVIOR — ${tName} / ${role}`,
+        `Touches: ${r.touches}  Poss Frames: ${r.possFrames}`,
+        `Pass Att: ${r.passAtt}  Pass Comp: ${r.passComp}  Pass %: ${r.passAtt>0?pct(r.passComp,r.passAtt):'—'}`,
+        `Shots: ${r.shots}  SOT: ${r.shotsOnTarget}`,
+        `Tackles: ${r.tackles}  Interceptions: ${r.interceptions}  Clearances: ${r.clearances}`,
+        `Recoveries: ${r.recoveries}  Turnovers: ${r.turnovers}`,
+        `Fouls: ${r.fouls}  Fouled: ${r.fouled}`,
+      ].join('\n');
+    }
+  } else if (key === 'events') {
+    const evs = D.events || [];
+    const visible = evs.filter(e=>activeEventFilters.has(e.type));
+    text = [
+      `EVENT STREAM — ${nameA} vs ${nameB} (${visible.length} events shown)`,
+      ...visible.slice(0,200).map(e=>`${String(e.minute??'?').padStart(3,'\u00a0')}'  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
+    ].join('\n');
+  } else if (key === 'spatial') {
+    text = `SPATIAL INTELLIGENCE — ${nameA} vs ${nameB}\n(Heatmap/shape data is visual; see shapeA/shapeB arrays in saved JSON)`;
+  } else if (key === 'positioning') {
+    const pp = D.playerPositioning || [];
+    const posHeader = `POSITIONING ANALYTICS (${activePosTab.toUpperCase()}) — ${nameA} vs ${nameB}`;
+    if (activePosTab === 'homeError') {
+      if (pp.length === 0) { text = `${posHeader}\nNo data yet.`; }
+      else {
+        const roles = [...new Set(pp.map(s => s.role))].sort();
+        const byRoleTeam = {};
+        for (const s of pp) {
+          const k2 = `${s.team}|${s.role}`;
+          if (!byRoleTeam[k2]) byRoleTeam[k2] = { homeErr:0, n:0 };
+          byRoleTeam[k2].homeErr += s.homeErr;
+          byRoleTeam[k2].n++;
+        }
+        const avgHE = (team, role) => { const k = byRoleTeam[`${team}|${role}`]; return k ? (k.homeErr/k.n).toFixed(1) : '—'; };
+        const cols = `Role | HomeErr ${nameA} | HomeErr ${nameB}`;
+        const rows = roles.map(r => `${r} | ${avgHE('A',r)} | ${avgHE('B',r)}`);
+        text = [posHeader, cols, ...rows].join('\n');
+      }
+    } else if (activePosTab === 'compactness') {
+      const shapeA = D.shapeA || [], shapeB = D.shapeB || [];
+      if (shapeA.length === 0 && shapeB.length === 0) { text = `${posHeader}\nNo data yet.`; }
+      else {
+        const halfDur = D.metadata?.halfDuration || 2700;
+        // Bucket into 30-second intervals and average depth+width per team
+        const bucket = (samples) => {
+          const buckets = {};
+          for (const s of samples) {
+            const tAbs = s.t + (s.half > 1 ? halfDur : 0);
+            const b = Math.floor(tAbs / 30) * 30;
+            if (!buckets[b]) buckets[b] = { depth:0, width:0, n:0 };
+            buckets[b].depth += s.depth; buckets[b].width += s.width; buckets[b].n++;
+          }
+          return Object.entries(buckets).sort((a,b)=>+a[0]-+b[0])
+            .map(([t,v]) => ({ t:+t, depth:(v.depth/v.n).toFixed(1), width:(v.width/v.n).toFixed(1) }));
+        };
+        const bA = bucket(shapeA), bB = bucket(shapeB);
+        const allT = [...new Set([...bA.map(r=>r.t), ...bB.map(r=>r.t)])].sort((a,b)=>a-b);
+        const mapA = Object.fromEntries(bA.map(r=>[r.t,r]));
+        const mapB = Object.fromEntries(bB.map(r=>[r.t,r]));
+        const cols = `Time | ${nameA} Depth | ${nameA} Width | ${nameB} Depth | ${nameB} Width`;
+        const rows = allT.map(t => {
+          const min = Math.floor(t/60), sec = t%60;
+          const label = `${min}:${String(sec).padStart(2,'0')}`;
+          const a = mapA[t], b = mapB[t];
+          return `${label} | ${a?a.depth:'—'} | ${a?a.width:'—'} | ${b?b.depth:'—'} | ${b?b.width:'—'}`;
+        });
+        text = [posHeader, cols, ...rows].join('\n');
+      }
+    } else if (activePosTab === 'defensive') {
+      if (pp.length === 0) { text = `${posHeader}\nNo data yet.`; }
+      else {
+        const ROLE_ORDER = ['CB','LB','RB','DM','CM','LM','RM','ST'];
+        const rolesInData = new Set(pp.map(s => s.role));
+        const defRoles = ROLE_ORDER.filter(r => rolesInData.has(r));
+        const byRoleTeam = {};
+        for (const s of pp) {
+          if (!defRoles.includes(s.role)) continue;
+          const k2 = `${s.team}|${s.role}`;
+          if (!byRoleTeam[k2]) byRoleTeam[k2] = { oppSum:0, deltaSum:0, n:0 };
+          if (s.nearOppDist >= 0) byRoleTeam[k2].oppSum += s.nearOppDist;
+          byRoleTeam[k2].deltaSum += s.compDelta;
+          byRoleTeam[k2].n++;
+        }
+        const fmt = (team, role) => {
+          const d = byRoleTeam[`${team}|${role}`];
+          return d ? `${(d.oppSum/d.n).toFixed(1)}m / ${d.deltaSum/d.n>=0?'+':''}${(d.deltaSum/d.n).toFixed(1)}m` : '—';
+        };
+        const cols = `Role | ${nameA} (OppDist/CompΔ) | ${nameB} (OppDist/CompΔ)`;
+        const rows = defRoles.map(r => `${r} | ${fmt('A',r)} | ${fmt('B',r)}`);
+        text = [posHeader, cols, ...rows].join('\n');
+      }
+    } else if (activePosTab === 'support') {
+      if (pp.length === 0) { text = `${posHeader}\nNo data yet.`; }
+      else {
+        const IDEAL_MIN = 6, IDEAL_MAX = 14;
+        const byRoleTeam = {};
+        for (const s of pp) {
+          if (s.role === 'GK' || s.nearTmDist < 0) continue;
+          const k2 = `${s.team}|${s.role}`;
+          if (!byRoleTeam[k2]) byRoleTeam[k2] = { sum:0, tooClose:0, tooFar:0, n:0 };
+          byRoleTeam[k2].sum += s.nearTmDist;
+          if (s.nearTmDist < IDEAL_MIN) byRoleTeam[k2].tooClose++;
+          else if (s.nearTmDist > IDEAL_MAX) byRoleTeam[k2].tooFar++;
+          byRoleTeam[k2].n++;
+        }
+        const roles = [...new Set(pp.filter(s=>s.role!=='GK').map(s=>s.role))].sort();
+        const fmt = (team, role) => {
+          const d = byRoleTeam[`${team}|${role}`];
+          if (!d || d.n === 0) return '—';
+          const avg = (d.sum/d.n).toFixed(1);
+          const pct = Math.round(((d.n-d.tooClose-d.tooFar)/d.n)*100);
+          return `${avg}m / ${pct}%OK`;
+        };
+        const cols = `Role | ${nameA} (Avg/%%OK) | ${nameB} (Avg/%%OK)`;
+        const rows = roles.map(r => `${r} | ${fmt('A',r)} | ${fmt('B',r)}`);
+        text = [posHeader, `Ideal range: ${IDEAL_MIN}-${IDEAL_MAX}m`, cols, ...rows].join('\n');
+      }
+    }
+  } else if (key === 'keeper') {
+    const ke = D.keeperExperience || [];
+    text = [
+      `KEEPER EXPERIENCE — ${nameA} vs ${nameB}`,
+      ...ke.slice(0,80).map(t=>`[${t.team||'?'}] s:${JSON.stringify(t.state||{})} a:${t.action||'?'} r:${t.reward??'?'}`),
+    ].join('\n');
+  } else if (key === 'insights') {
+    text = $('insightsBody').innerText || 'No insights';
+  }
+
+  if (!text) return;
+  navigator.clipboard.writeText(text).catch(()=>{});
+  // Flash the button
+  const btn = document.querySelector(`[onclick="copySection('${key}')"]`);
+  if (btn) { btn.textContent='✓'; btn.classList.add('ok'); setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('ok');},2000); }
+}
+
 let D = null;        // current tuning bundle
 let snap = null;     // current match snapshot
 let live = null;     // current live telemetry
@@ -262,8 +541,28 @@ let lastUpdate = 0;
 let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
 let activeTeamStyleTab = 'buildup';
 let activeSpatialTab = 'heatmap';
+let activePosTab = 'homeError';
 let selectedRole = '';
 let selectedTeam = 'A';
+
+function hasMeaningfulMatchState(bundle, snapshot, livePayload) {
+  if (!bundle) return false;
+  if (snapshot?.isLive || livePayload?.isLive) return true;
+  if ((snapshot?.elapsedInHalf || 0) > 0.5) return true;
+  if ((snapshot?.scoreA || 0) !== 0 || (snapshot?.scoreB || 0) !== 0) return true;
+  if (snapshot?.phase === 'SECOND_HALF' || snapshot?.phase === 'HALF_TIME' || snapshot?.phase === 'FULL_TIME') return true;
+  if ((Array.isArray(bundle.events) ? bundle.events.length : 0) > 0) return true;
+  if ((Array.isArray(bundle.transitions) ? bundle.transitions.length : 0) > 0) return true;
+  if ((Array.isArray(bundle.goalLog) ? bundle.goalLog.length : 0) > 0) return true;
+  return false;
+}
+
+function shouldAcceptLivePayload(payload) {
+  if (!payload?.bundle) return false;
+  // New bridge packets include explicit sessionActive. If false, this is splash/background telemetry.
+  if (payload.sessionActive === false) return false;
+  return hasMeaningfulMatchState(payload.bundle, payload.snapshot, payload.live);
+}
 
 // BroadcastChannel listener
 let _msgCount = 0;
@@ -273,6 +572,7 @@ ch.onmessage = (e) => {
   _msgCount++;
   console.log('[PSL-Dashboard] Received message #' + _msgCount, e.data?.type);
   if (e.data?.type === 'tuning') {
+    if (!shouldAcceptLivePayload(e.data)) return;
     D = e.data.bundle;
     snap = e.data.snapshot;
     live = e.data.live;
@@ -295,6 +595,7 @@ setInterval(() => {
       const payload = JSON.parse(raw);
       // Skip stale data older than 10s to avoid showing wrong match
       if (payload?.ts && payload.ts !== _lastLSTs && (Date.now() - payload.ts) < 10000) {
+        if (!shouldAcceptLivePayload(payload)) return;
         _lastLSTs = payload.ts;
         D = payload.bundle;
         snap = payload.snapshot;
@@ -310,10 +611,18 @@ setInterval(() => {
   try {
     const g = window.opener?.__gameRef;
     if (g) {
-      D = g.getTuningBundle?.();
-      snap = g.getMatchSnapshot?.();
-      live = g.getLiveTelemetry?.();
-      if (D) { lastUpdate = Date.now(); $('debugText').textContent = 'via window.opener'; renderAll(); return; }
+      const nextD = g.getTuningBundle?.();
+      const nextSnap = g.getMatchSnapshot?.();
+      const nextLive = g.getLiveTelemetry?.();
+      if (hasMeaningfulMatchState(nextD, nextSnap, nextLive)) {
+        D = nextD;
+        snap = nextSnap;
+        live = nextLive;
+        lastUpdate = Date.now();
+        $('debugText').textContent = 'via window.opener';
+        renderAll();
+        return;
+      }
     }
   } catch {}
   // Fallback 3: server relay (bridges VS Code webview ↔ external browser)
@@ -324,6 +633,7 @@ setInterval(() => {
     }).then(payload => {
       if (!payload || !payload.bundle) return;
       if (payload.ts && payload.ts === _lastRelayTs) return;
+      if (!shouldAcceptLivePayload(payload)) return;
       _lastRelayTs = payload.ts || 0;
       D = payload.bundle;
       snap = payload.snapshot;
@@ -351,6 +661,30 @@ const pct = (n, d) => d ? (n / d * 100).toFixed(1) + '%' : '0%';
 const f1 = n => Number(n || 0).toFixed(1);
 const f0 = n => Math.round(n || 0);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+const LOGO_MAP = {
+  'Atlanta United':'atlanta-united','Austin FC':'austin-fc',
+  'CF Montreal':'cf-montreal','CF Montr\u00e9al':'cf-montreal',
+  'Charlotte FC':'charlotte-fc','Chicago Fire':'chicago-fire',
+  'Colorado Rapids':'colorado-rapids','Columbus Crew':'columbus-crew',
+  'DC United':'dc-united','FC Cincinnati':'fc-cincinnati',
+  'FC Dallas':'fc-dallas','Houston Dynamo':'houston-dynamo',
+  'Inter Miami':'inter-miami','LA Galaxy':'la-galaxy','LAFC':'lafc',
+  'Minnesota United':'minnesota-united','Nashville SC':'nashville-sc',
+  'New England Revolution':'new-england-revolution',
+  'New York City FC':'new-york-city-fc','New York Red Bulls':'new-york-red-bulls',
+  'Orlando City':'orlando-city','Philadelphia Union':'philadelphia-union',
+  'Portland Timbers':'portland-timbers','Real Salt Lake':'real-salt-lake',
+  'San Diego FC':'san-diego-fc','San Jose Earthquakes':'san-jose-earthquakes',
+  'Seattle Sounders':'seattle-sounders','Sporting Kansas City':'sporting-kc',
+  'Sporting KC':'sporting-kc','St. Louis City SC':'st-louis-city',
+  'St. Louis City':'st-louis-city','Toronto FC':'toronto-fc',
+  'Vancouver Whitecaps':'vancouver-whitecaps',
+};
+function teamLogo(name, cls) {
+  const slug = LOGO_MAP[name];
+  return slug ? `<img src="assets/logos/${slug}.png" class="${cls || 'team-logo'}" alt="">` : '';
+}
 
 function statCard(label, value, sub) {
   return `<div class="stat-card"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
@@ -404,7 +738,11 @@ function pitchToCanvas(x, z, pitch) {
 function renderOverview() {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
-  $('scoreline').textContent = `${a.name || 'Team A'}  ${a.score ?? 0} — ${b.score ?? 0}  ${b.name || 'Team B'}`;
+  const nameA = a.name || 'Team A', nameB = b.name || 'Team B';
+  $('scoreline').innerHTML =
+    `<span style="display:flex;align-items:center;gap:8px">${teamLogo(nameA,'team-logo-lg')}<span>${nameA}</span></span>` +
+    `<span style="padding:0 20px;font-variant-numeric:tabular-nums">${a.score ?? 0}&thinsp;—&thinsp;${b.score ?? 0}</span>` +
+    `<span style="display:flex;align-items:center;gap:8px"><span>${nameB}</span>${teamLogo(nameB,'team-logo-lg')}</span>`;
 
   // xG estimate: SOG * 0.35 + (shots-SOG) * 0.05
   const xgA = ((a.shotsOnTarget || 0) * 0.35 + ((a.shots || 0) - (a.shotsOnTarget || 0)) * 0.05).toFixed(2);
@@ -425,7 +763,7 @@ function renderOverview() {
     statCard('Shots / SOT', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`),
     statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
     statCard('Def Actions', `${(a.tackles||0)+intA+recA} — ${(b.tackles||0)+intB+recB}`, `T/I/R`),
-    statCard('Transitions', `${transA} — ${transB}`),
+    statCard('Transitions', `${a.transitions || 0} — ${b.transitions || 0}`),
     statCard('Saves', `${a.saves} — ${b.saves}`),
   ].join('');
 
@@ -435,6 +773,8 @@ function renderOverview() {
     compBar('Passes', a.passes || 0, b.passes || 0, 'Passes'),
     compBar('Tackles', a.tackles || 0, b.tackles || 0, 'Tackles'),
     compBar('Fouls', a.fouls || 0, b.fouls || 0, 'Fouls'),
+    compBar('Transitions', a.transitions || 0, b.transitions || 0, 'Transitions'),
+    compBar('Offsides', a.offsides || 0, b.offsides || 0, 'Offsides'),
     compBar('Corners', a.corners || 0, b.corners || 0, 'Corners'),
   ].join('');
 }
@@ -741,6 +1081,7 @@ function renderShapeChart() {
    ═══════════════════════════════════════════════════════════ */
 function renderPassIntel() {
   if (!D) return;
+  const nameA = D.teamA?.name || 'Team A', nameB = D.teamB?.name || 'Team B';
   const events = D.events || [];
   const passesA = events.filter(e => e.type === 'PASS' && e.team === 'A');
   const passesB = events.filter(e => e.type === 'PASS' && e.team === 'B');
@@ -798,7 +1139,7 @@ function renderPassIntel() {
   // Stat cards
   $('passIntelStats').innerHTML = [
     statCard('Avg Progress', `${avgProg(passesA)} — ${avgProg(passesB)}`, 'units toward goal'),
-    statCard('Back Pass %', `${backPctA}% — ${backPctB}%`, `target ≤20%`),
+    statCard('Back Pass %', `${backPctA}% — ${backPctB}%`, `target ≤25%`),
     statCard('Box Back', `${boxBackA} — ${boxBackB}`, 'in penalty area'),
     statCard('Completion', `${compRateEnriched(passesA)} — ${compRateEnriched(passesB)}`, 'enriched'),
   ].join('');
@@ -818,7 +1159,7 @@ function renderPassIntel() {
     const clsB = b.att > 0 && b.comp / b.att < 0.5 ? 'color:var(--accent-red)' : '';
     return `<tr><td>${label}</td><td style="${clsA}">${rateA} <span style="color:var(--fg3)">(${a.comp}/${a.att})</span></td><td style="${clsB}">${rateB} <span style="color:var(--fg3)">(${b.comp}/${b.att})</span></td></tr>`;
   };
-  $('passCompByDir').innerHTML = `<thead><tr><th>Dir</th><th style="color:var(--accent-blue)">A</th><th style="color:var(--accent-red)">B</th></tr></thead><tbody>`
+  $('passCompByDir').innerHTML = `<thead><tr><th>Dir</th><th style="color:var(--accent-blue)">${teamLogo(nameA)} ${nameA}</th><th style="color:var(--accent-red)">${teamLogo(nameB)} ${nameB}</th></tr></thead><tbody>`
     + dirRow('Forward', compA.FWD, compB.FWD)
     + dirRow('Lateral', compA.LAT, compB.LAT)
     + dirRow('Backward', compA.BACK, compB.BACK)
@@ -858,8 +1199,8 @@ function renderPassIntel() {
 
   const backPctANum = passesA.length > 0 ? dirA.BACK / passesA.length * 100 : 0;
   const backPctBNum = passesB.length > 0 ? dirB.BACK / passesB.length * 100 : 0;
-  if (backPctANum <= 20 && passesA.length > 10) flags.push({ icon: '✅', text: `Team A back-pass rate on target (${backPctANum.toFixed(0)}%)`, cls: 'ok' });
-  if (backPctBNum <= 20 && passesB.length > 10) flags.push({ icon: '✅', text: `Team B back-pass rate on target (${backPctBNum.toFixed(0)}%)`, cls: 'ok' });
+  if (backPctANum <= 25 && passesA.length > 10) flags.push({ icon: '✅', text: `Team A back-pass rate on target (${backPctANum.toFixed(0)}%)`, cls: 'ok' });
+  if (backPctBNum <= 25 && passesB.length > 10) flags.push({ icon: '✅', text: `Team B back-pass rate on target (${backPctBNum.toFixed(0)}%)`, cls: 'ok' });
 
   $('passIntelFlags').innerHTML = flags.length
     ? flags.map(f => `<div class="flag ${f.cls}"><span class="flag-icon">${f.icon}</span>${f.text}</div>`).join('')
@@ -956,9 +1297,10 @@ function toggleAllEvents() {
 function renderEventList() {
   if (!D) return;
   const events = (D.events || []).filter(e => activeEventFilters.has(e.type));
+  const _evHalfDur = D.metadata?.halfDuration || 2700;
   const sorted = [...events].sort((a, b) => {
-    const aT = a.half === 1 ? a.t : 2700 + a.t;
-    const bT = b.half === 1 ? b.t : 2700 + b.t;
+    const aT = a.half === 1 ? a.t : _evHalfDur + a.t;
+    const bT = b.half === 1 ? b.t : _evHalfDur + b.t;
     return bT - aT;
   });
 
@@ -1093,7 +1435,219 @@ function renderSpatial() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   RENDER: 7. KEEPER EXPERIENCE
+   RENDER: 7. POSITIONING ANALYTICS
+   ═══════════════════════════════════════════════════════════ */
+function setPosTab(tab) {
+  activePosTab = tab;
+  document.querySelectorAll('#positioningTabs button').forEach((b, i) => {
+    b.classList.toggle('active', ['homeError','compactness','defensive','support'][i] === tab);
+  });
+  renderPositioning();
+}
+
+function renderPositioning() {
+  const el = $('posContent');
+  if (!el) return;
+  const pp = D?.playerPositioning || [];
+  const nameA = D?.teamA?.name || 'Team A';
+  const nameB = D?.teamB?.name || 'Team B';
+
+  if (activePosTab === 'homeError') {
+    // ── Per-role avg home_position_error ──
+    if (pp.length === 0) { el.innerHTML = '<p class="dim">No data yet — play a few minutes.</p>'; return; }
+    const roles = ['GK','CB','LB','RB','DM','CM','LM','RM','ST'];
+    const byRoleTeam = {};
+    for (const s of pp) {
+      const key = `${s.team}|${s.role}`;
+      if (!byRoleTeam[key]) byRoleTeam[key] = { sum: 0, n: 0 };
+      byRoleTeam[key].sum += s.homeErr;
+      byRoleTeam[key].n++;
+    }
+    const avgHomeErr = (team, role) => {
+      const k = byRoleTeam[`${team}|${role}`];
+      return k ? k.sum / k.n : null;
+    };
+    const allRoles = [...new Set(pp.map(s => s.role))].sort();
+    const maxErr = Math.max(1, ...allRoles.flatMap(r => {
+      const a = avgHomeErr('A', r); const b = avgHomeErr('B', r);
+      return [a ?? 0, b ?? 0];
+    }));
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 6px;color:var(--fg2)">Role</th>
+        <th style="text-align:left;padding:4px 6px;color:#3b82f6">${nameA}</th>
+        <th style="text-align:left;padding:4px 6px;color:#e74c5a">${nameB}</th>
+      </tr></thead><tbody>`;
+    for (const role of allRoles) {
+      const aVal = avgHomeErr('A', role);
+      const bVal = avgHomeErr('B', role);
+      const aW = aVal != null ? Math.round((aVal / maxErr) * 100) : 0;
+      const bW = bVal != null ? Math.round((bVal / maxErr) * 100) : 0;
+      const aWarn = aVal != null && aVal > 8 ? 'color:var(--accent-red)' : '';
+      const bWarn = bVal != null && bVal > 8 ? 'color:var(--accent-red)' : '';
+      html += `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:4px 6px;font-weight:600">${role}</td>
+        <td style="padding:4px 6px">
+          ${aVal != null ? `<div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:6px;background:var(--card);border-radius:3px;overflow:hidden">
+              <div style="width:${aW}%;height:100%;background:#3b82f6;border-radius:3px"></div></div>
+            <span style="${aWarn}">${f1(aVal)}m</span></div>` : '<span class="dim">—</span>'}
+        </td>
+        <td style="padding:4px 6px">
+          ${bVal != null ? `<div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:6px;background:var(--card);border-radius:3px;overflow:hidden">
+              <div style="width:${bW}%;height:100%;background:#e74c5a;border-radius:3px"></div></div>
+            <span style="${bWarn}">${f1(bVal)}m</span></div>` : '<span class="dim">—</span>'}
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    html += `<p style="font-size:.72rem;color:var(--fg3);margin-top:6px">Avg distance from home/formation position. <span style="color:var(--accent-red)">Red</span> = &gt;8m drift.</p>`;
+    el.innerHTML = html;
+
+  } else if (activePosTab === 'compactness') {
+    // ── Compactness time series (uses shapeA/shapeB which already have width + depth) ──
+    const shapeA = D?.shapeA || [];
+    const shapeB = D?.shapeB || [];
+    if (shapeA.length === 0 && shapeB.length === 0) { el.innerHTML = '<p class="dim">No data yet — play a few minutes.</p>'; return; }
+
+    const canvasId = 'posCompactnessCanvas';
+    el.innerHTML = `<canvas id="${canvasId}" height="200" style="width:100%"></canvas>
+      <div style="font-size:.72rem;color:var(--fg3);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:10px;height:3px;background:#3b82f6;vertical-align:middle;margin-right:3px"></span>${nameA} Horiz (depth)</span>
+        <span><span style="display:inline-block;width:10px;height:3px;background:#3b82f6;vertical-align:middle;margin-right:3px;opacity:.45;border-top:2px dashed #3b82f6"></span>${nameA} Vert (width)</span>
+        <span><span style="display:inline-block;width:10px;height:3px;background:#e74c5a;vertical-align:middle;margin-right:3px"></span>${nameB} Horiz (depth)</span>
+        <span><span style="display:inline-block;width:10px;height:3px;background:#e74c5a;vertical-align:middle;margin-right:3px;opacity:.45;border-top:2px dashed #e74c5a"></span>${nameB} Vert (width)</span>
+      </div>`;
+
+    requestAnimationFrame(() => {
+      const canvas = $(canvasId);
+      if (!canvas) return;
+      fitCanvas(canvas);
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const pad = { l:36, r:12, t:12, b:24 };
+      const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+      ctx.clearRect(0, 0, W, H);
+
+      const allVals = [...shapeA.map(s=>s.depth), ...shapeA.map(s=>s.width),
+                       ...shapeB.map(s=>s.depth), ...shapeB.map(s=>s.width)];
+      const _shapeHalfDur = D?.metadata?.halfDuration || 2700;
+      const maxT = Math.max(...[...shapeA, ...shapeB].map(s => s.t + (s.half > 1 ? _shapeHalfDur : 0)), 1);
+      const maxV = Math.max(...allVals, 1);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+      for (let i = 1; i <= 4; i++) {
+        const y = pad.t + ph - (i/4) * ph;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(f1(maxV * i/4) + 'm', pad.l - 3, y + 3);
+      }
+
+      const tX = (s) => pad.l + ((s.t + (s.half > 1 ? _shapeHalfDur : 0)) / maxT) * pw;
+      const vY = (v) => pad.t + ph - (v / maxV) * ph;
+
+      const drawLine = (data, key, color, dashed) => {
+        if (data.length < 2) return;
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+        if (dashed) ctx.setLineDash([4,3]); else ctx.setLineDash([]);
+        data.forEach((s, i) => {
+          if (i === 0) ctx.moveTo(tX(s), vY(s[key]));
+          else ctx.lineTo(tX(s), vY(s[key]));
+        });
+        ctx.stroke(); ctx.setLineDash([]);
+      };
+
+      drawLine(shapeA, 'depth', '#3b82f6', false);
+      drawLine(shapeA, 'width', '#3b82f6', true);
+      drawLine(shapeB, 'depth', '#e74c5a', false);
+      drawLine(shapeB, 'width', '#e74c5a', true);
+    });
+
+  } else if (activePosTab === 'defensive') {
+    // ── Defensive shape: per-role avg nearOppDist + compactness delta ──
+    if (pp.length === 0) { el.innerHTML = '<p class="dim">No data yet — play a few minutes.</p>'; return; }
+    const ROLE_ORDER_DEF = ['CB','LB','RB','DM','CM','LM','RM','ST'];
+    const rolesInDataDef = new Set(pp.map(s => s.role));
+    const defRoles = ROLE_ORDER_DEF.filter(r => rolesInDataDef.has(r));
+    const byRoleTeam = {};
+    for (const s of pp) {
+      if (!defRoles.includes(s.role)) continue;
+      const key = `${s.team}|${s.role}`;
+      if (!byRoleTeam[key]) byRoleTeam[key] = { oppSum: 0, deltaSum: 0, n: 0 };
+      if (s.nearOppDist >= 0) byRoleTeam[key].oppSum += s.nearOppDist;
+      byRoleTeam[key].deltaSum += s.compDelta;
+      byRoleTeam[key].n++;
+    }
+    const get = (team, role) => byRoleTeam[`${team}|${role}`] || null;
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 6px;color:var(--fg2)">Role</th>
+        <th style="padding:4px 6px;color:#3b82f6;text-align:center">${nameA}<br><span style="font-weight:400;font-size:.7rem">opp dist / compΔ</span></th>
+        <th style="padding:4px 6px;color:#e74c5a;text-align:center">${nameB}<br><span style="font-weight:400;font-size:.7rem">opp dist / compΔ</span></th>
+      </tr></thead><tbody>`;
+    for (const role of defRoles) {
+      const a = get('A', role), b = get('B', role);
+      const fmt = (d) => d ? `${f1(d.oppSum/d.n)}m / ${d.deltaSum/d.n >= 0 ? '+' : ''}${f1(d.deltaSum/d.n)}m` : '—';
+      const aWarn = a && (a.oppSum/a.n) < 4 ? 'color:var(--accent-red)' : '';
+      const bWarn = b && (b.oppSum/b.n) < 4 ? 'color:var(--accent-red)' : '';
+      html += `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:4px 6px;font-weight:600">${role}</td>
+        <td style="padding:4px 6px;text-align:center;${aWarn}">${a ? fmt(a) : '<span class="dim">—</span>'}</td>
+        <td style="padding:4px 6px;text-align:center;${bWarn}">${b ? fmt(b) : '<span class="dim">—</span>'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    html += `<p style="font-size:.72rem;color:var(--fg3);margin-top:6px">Avg nearest-opponent distance / compactness delta from team centroid. <span style="color:var(--accent-red)">Red</span> = opponent within 4m (too close).</p>`;
+    el.innerHTML = html;
+
+  } else if (activePosTab === 'support') {
+    // ── Support spacing: per-role avg nearest-teammate distance ──
+    if (pp.length === 0) { el.innerHTML = '<p class="dim">No data yet — play a few minutes.</p>'; return; }
+    const IDEAL_MIN = 6, IDEAL_MAX = 14;
+    const byRoleTeam = {};
+    for (const s of pp) {
+      if (s.role === 'GK') continue;
+      const key = `${s.team}|${s.role}`;
+      if (!byRoleTeam[key]) byRoleTeam[key] = { sum: 0, tooClose: 0, tooFar: 0, n: 0 };
+      if (s.nearTmDist >= 0) {
+        byRoleTeam[key].sum += s.nearTmDist;
+        if (s.nearTmDist < IDEAL_MIN) byRoleTeam[key].tooClose++;
+        else if (s.nearTmDist > IDEAL_MAX) byRoleTeam[key].tooFar++;
+        byRoleTeam[key].n++;
+      }
+    }
+    const allRoles = [...new Set(pp.filter(s=>s.role!=='GK').map(s=>s.role))].sort();
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 6px;color:var(--fg2)">Role</th>
+        <th style="padding:4px 6px;color:#3b82f6;text-align:center">${nameA}<br><span style="font-weight:400;font-size:.7rem">avg / %OK</span></th>
+        <th style="padding:4px 6px;color:#e74c5a;text-align:center">${nameB}<br><span style="font-weight:400;font-size:.7rem">avg / %OK</span></th>
+      </tr></thead><tbody>`;
+    for (const role of allRoles) {
+      const fmtSupport = (d) => {
+        if (!d || d.n === 0) return '<span class="dim">—</span>';
+        const avg = d.sum / d.n;
+        const pctOk = Math.round(((d.n - d.tooClose - d.tooFar) / d.n) * 100);
+        const warn = pctOk < 50 ? 'color:var(--accent-red)' : pctOk > 75 ? 'color:var(--accent-green)' : '';
+        return `<span style="${warn}">${f1(avg)}m / ${pctOk}%</span>`;
+      };
+      const a = byRoleTeam[`A|${role}`], b = byRoleTeam[`B|${role}`];
+      html += `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:4px 6px;font-weight:600">${role}</td>
+        <td style="padding:4px 6px;text-align:center">${fmtSupport(a)}</td>
+        <td style="padding:4px 6px;text-align:center">${fmtSupport(b)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    html += `<p style="font-size:.72rem;color:var(--fg3);margin-top:6px">Avg nearest-teammate distance. Ideal range: ${IDEAL_MIN}–${IDEAL_MAX}m. %OK = samples within ideal. <span style="color:var(--accent-green)">Green</span> &gt;75% | <span style="color:var(--accent-red)">Red</span> &lt;50%.</p>`;
+    el.innerHTML = html;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 8. KEEPER EXPERIENCE
    ═══════════════════════════════════════════════════════════ */
 function renderKeeper() {
   const canvas = $('keeperCanvas');
@@ -1219,7 +1773,7 @@ function renderInsights() {
     if (passArr.length < 5) continue;
     const backCount = passArr.filter(p => (p.detail?.progress ?? 0) < -2).length;
     const backRate = backCount / passArr.length;
-    if (backRate > 0.35) insights.push({ cls: 'bad', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} back-pass rate is very high (${(backRate*100).toFixed(0)}% vs ≤20% target).` });
+    if (backRate > 0.35) insights.push({ cls: 'bad', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} back-pass rate is very high (${(backRate*100).toFixed(0)}% vs ≤25% target).` });
 
     const boxBack = passArr.filter(p => (p.detail?.passerDistToGoal ?? 99) < 10 && (p.detail?.progress ?? 0) < 0).length;
     if (boxBack > 0) insights.push({ cls: 'bad', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} made ${boxBack} backward pass(es) inside the penalty area — should be prohibited.` });
@@ -1230,6 +1784,37 @@ function renderInsights() {
       const fwdComp = fwd.filter(p => p.detail.completed === true).length;
       const fwdRate = fwdComp / fwd.length;
       if (fwdRate < 0.4) insights.push({ cls: 'warn', text: `${D[label === 'A' ? 'teamA' : 'teamB']?.name || 'Team '+label} long forward passes completing at just ${(fwdRate*100).toFixed(0)}% — passes may be aimed into coverage.` });
+    }
+  }
+
+  // Avg progress disparity
+  if (passEvA.length >= 5 && passEvB.length >= 5) {
+    const progA = passEvA.reduce((s, p) => s + (p.detail?.progress ?? 0), 0) / passEvA.length;
+    const progB = passEvB.reduce((s, p) => s + (p.detail?.progress ?? 0), 0) / passEvB.length;
+    if (Math.abs(progA - progB) > 1.5) {
+      const passiveName = progA < progB ? (D.teamA?.name || 'Team A') : (D.teamB?.name || 'Team B');
+      const passiveVal = Math.min(progA, progB).toFixed(1);
+      const activeVal = Math.max(progA, progB).toFixed(1);
+      insights.push({ cls: 'warn', text: `${passiveName} avg pass progress is only ${passiveVal} units (vs ${activeVal}) — formation passivity or press trap holding them deep.` });
+    }
+  }
+
+  // Interception role distribution
+  const allPassEvs = [...passEvA, ...passEvB];
+  const intRoleMap = {};
+  allPassEvs.filter(p => p.detail?.completed === false && p.detail?.interceptedByRole).forEach(p => {
+    const r = p.detail.interceptedByRole;
+    intRoleMap[r] = (intRoleMap[r] || 0) + 1;
+  });
+  const totalInt = Object.values(intRoleMap).reduce((s, v) => s + v, 0);
+  if (totalInt > 10) {
+    const topEntry = Object.entries(intRoleMap).sort((a, b) => b[1] - a[1])[0];
+    if (topEntry[1] / totalInt > 0.30) {
+      insights.push({ cls: 'warn', text: `${topEntry[0]} accounts for ${topEntry[1]}/${totalInt} interceptions (${(topEntry[1]/totalInt*100).toFixed(0)}%) — passing lanes through that zone are being read.` });
+    }
+    const lm = intRoleMap['LM'] || 0, rm = intRoleMap['RM'] || 0;
+    if (lm + rm > 6 && Math.max(lm, rm) > 0 && Math.abs(lm - rm) / Math.max(lm, rm) > 0.6) {
+      insights.push({ cls: 'info', text: `Wing interception imbalance: LM:${lm} vs RM:${rm} — attacking team may be over-playing one flank.` });
     }
   }
 
@@ -1307,8 +1892,9 @@ function renderComparison() {
    ═══════════════════════════════════════════════════════════ */
 function renderAll() {
   if (!D) return;
-  $('statusText').textContent = `Live — ${D.teamA?.name || '?'} vs ${D.teamB?.name || '?'} — updated ${new Date().toLocaleTimeString()}`;
-  $('liveDot').style.display = '';
+  const isLiveNow = !!(snap?.isLive ?? live?.isLive);
+  $('statusText').textContent = `${isLiveNow ? 'Live' : 'Snapshot'} — ${D.teamA?.name || '?'} vs ${D.teamB?.name || '?'} — updated ${new Date().toLocaleTimeString()}`;
+  $('liveDot').style.display = isLiveNow ? '' : 'none';
 
   renderOverview();
   renderTimeline();
@@ -1319,6 +1905,7 @@ function renderAll() {
   renderEventFilters();
   renderEventList();
   renderSpatial();
+  renderPositioning();
   renderKeeper();
   renderInsights();
   if (prevD) renderComparison();

@@ -1,5 +1,6 @@
 # Bug Tracker
 
+- [ ] **Ball Randomly Snaps To Kickoff Spot**: During active play and restarts, the ball can still teleport to center circle and trigger an unexpected kickoff sequence. Repro seen in CPU-vs-CPU after goals and occasionally during restart transitions. Suspect remaining race between `stuckRestartTimer`, `restartAutoStartTimer`, and restart state flags.
 - [ ] **WR Naming Issue**: Dolphins Wide Receivers are all being named "Tyreek Hill" regardless of the roster list.
 - [ ] **Kit Color Toggle Not Working**: Home/Away kit toggle buttons in the options panel call `setTeamColors` with correct hex values, but player voxels on the field don't visually update. Root cause: voxel meshes may not reference the shared `M.teamAShirt`/`M.teamBShirt` material instances. Even after reassigning materials in `setTeamColors`, the change doesn't render. Needs deeper investigation into the Three.js material/render pipeline.
 - [x] **Gamepad Pause Won't Unpause**: Start button pauses the game but pressing it again does not unpause. **Fixed**: Gamepad Start button check was inside the main loop which is skipped during pause. Added gpJustPressed(9) check before the early return.

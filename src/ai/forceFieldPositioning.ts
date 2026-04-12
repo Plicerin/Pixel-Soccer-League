@@ -45,11 +45,11 @@ function normalizeRole(role: string) {
 /** 0 = fully defensive, 1 = fully offensive */
 function getMindset(role: string): number {
   const map: Record<string, number> = {
-    GK: 0, CB: 0.1, LB: 0.25, RB: 0.25, DM: 0.3,
-    CM: 0.5, LW: 0.55, RW: 0.55, LM: 0.55, RM: 0.55,
-    AM: 0.7, ST: 0.9,
+    GK: 0, CB: 0.3, LB: 0.45, RB: 0.45, DM: 0.5,
+    CM: 0.7, LW: 0.80, RW: 0.80, LM: 0.80, RM: 0.80,
+    AM: 0.88, ST: 0.95,
   };
-  return map[(role || '').toUpperCase()] ?? 0.5;
+  return map[(role || '').toUpperCase()] ?? 0.7;
 }
 
 /**
@@ -100,8 +100,8 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // ── FORCE 1: Formation pull ───────────────────────────────────────────
   // Defenders pulled harder, attackers freer to roam.
   const homePull = hasPossession
-    ? (0.25 - mindset * 0.15)
-    : (0.8 - mindset * 0.2);
+    ? (0.20 - mindset * 0.12)
+    : (0.7 - mindset * 0.2);
   const toHomeX = homePos.x - playerPos.x;
   const toHomeZ = homePos.z - playerPos.z;
   const homeDist = Math.sqrt(toHomeX * toHomeX + toHomeZ * toHomeZ);
@@ -112,35 +112,40 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   }
 
   // ── FORCE 1b: Possession depth shift ──────────────────────────────────
-  // Compress the whole team upfield when in possession.
+  // Nudge the whole team upfield when in possession.
   if (hasPossession) {
-    const depthShift = 8 + mindset * 18;
+    const depthShift = 5 + mindset * 12;
     fx += attackSign * depthShift;
   }
 
   // ── FORCE 2: Ball attraction ──────────────────────────────────────────
   // Support the play. Wide players: depth only (hold width).
+  // Reduced multiplier (5→3) to stop midfielders collapsing into a tight ball-adjacent cluster.
   if (hasPossession) {
     const toBallX = ballPos.x - playerPos.x;
     const toBallZ = ballPos.z - playerPos.z;
     const ballDist = Math.sqrt(toBallX * toBallX + toBallZ * toBallZ);
     if (ballDist > 5 && ballDist < 25) {
       const attract = 0.18 + mindset * 0.25;
-      fx += (toBallX / ballDist) * attract * 5;
+      fx += (toBallX / ballDist) * attract * 3;
       if (!isWideRole(role)) {
-        fz += (toBallZ / ballDist) * attract * 5;
+        fz += (toBallZ / ballDist) * attract * 3;
       }
     }
   }
 
   // ── FORCE 3: Teammate repulsion ───────────────────────────────────────
-  const spacingRadius = 12; // wider detection range
+  const spacingRadius = 14; // wider detection range
+  const spacingIdealMin = 9; // below this = extra hard kick to reach 6 m ideal floor
   for (const mate of teammatePositions) {
     const dx = playerPos.x - mate.x;
     const dz = playerPos.z - mate.z;
     const d = Math.sqrt(dx * dx + dz * dz);
     if (d > 0.05 && d < spacingRadius) {
-      const repel = Math.pow((spacingRadius - d) / spacingRadius, 1.3) * 6.5;
+      // Baseline repulsion + steep inner kick below the ideal-floor threshold (9 m buffer → 6 m ideal).
+      const base = Math.pow((spacingRadius - d) / spacingRadius, 1.3) * 10.5;
+      const innerKick = d < spacingIdealMin ? (spacingIdealMin - d) * 4.5 : 0;
+      const repel = base + innerKick;
       fx += (dx / d) * repel;
       fz += (dz / d) * repel;
     }
@@ -186,8 +191,8 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   }
 
   // ── FORCE 6: Forward attacking runs ───────────────────────────────────
-  if (hasPossession && mindset > 0.35) {
-    const runStrength = (mindset - 0.3) * 14;
+  if (hasPossession && mindset > 0.2) {
+    const runStrength = (mindset - 0.1) * 22;
     fx += attackSign * runStrength;
   }
 

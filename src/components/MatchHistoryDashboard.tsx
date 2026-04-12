@@ -21,6 +21,7 @@ interface MatchRow {
 const MatchHistoryDashboard: React.FC = () => {
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -77,6 +78,12 @@ const MatchHistoryDashboard: React.FC = () => {
     return `${Math.max(4, (count / max) * 100)}%`;
   };
 
+  const copySection = (key: string, text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   return (
     <div className="flex flex-col gap-4 text-white">
       <div className="flex items-center justify-between">
@@ -99,18 +106,45 @@ const MatchHistoryDashboard: React.FC = () => {
       ) : (
         <>
           {/* Aggregate Stats */}
-          <div className="grid grid-cols-3 gap-2">
-            {statBox('Games', totalGames)}
-            {statBox('Avg Goals', avgGoals, `${minGoals}–${maxGoals} range`)}
-            {statBox('Avg Shots', avgShots, `${shotAccPct}% on target`)}
-            {statBox('Clean Sheets', cleanSheets, `${totalGames > 0 ? ((cleanSheets / totalGames) * 100).toFixed(0) : 0}% of games`)}
-            {statBox('Draws', draws, `${drawPct}%`)}
-            {statBox('Total Saves', totalSaves, `${totalGames > 0 ? (totalSaves / totalGames).toFixed(1) : 0} per game`)}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Aggregate Stats</div>
+              <button
+                onClick={() => copySection('agg', [
+                  'Aggregate Stats',
+                  `Games: ${totalGames}`,
+                  `Avg Goals: ${avgGoals} (${minGoals}–${maxGoals} range)`,
+                  `Avg Shots: ${avgShots} (${shotAccPct}% on target)`,
+                  `Clean Sheets: ${cleanSheets} (${totalGames > 0 ? ((cleanSheets / totalGames) * 100).toFixed(0) : 0}% of games)`,
+                  `Draws: ${draws} (${drawPct}%)`,
+                  `Total Saves: ${totalSaves} (${totalGames > 0 ? (totalSaves / totalGames).toFixed(1) : 0} per game)`,
+                ].join('\n'))}
+                className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border border-white/20 hover:border-white/60 text-white/40 hover:text-white/80 transition-all"
+              >
+                {copiedKey === 'agg' ? '✓' : 'Copy'}
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {statBox('Games', totalGames)}
+              {statBox('Avg Goals', avgGoals, `${minGoals}–${maxGoals} range`)}
+              {statBox('Avg Shots', avgShots, `${shotAccPct}% on target`)}
+              {statBox('Clean Sheets', cleanSheets, `${totalGames > 0 ? ((cleanSheets / totalGames) * 100).toFixed(0) : 0}% of games`)}
+              {statBox('Draws', draws, `${drawPct}%`)}
+              {statBox('Total Saves', totalSaves, `${totalGames > 0 ? (totalSaves / totalGames).toFixed(1) : 0} per game`)}
+            </div>
           </div>
 
           {/* Goals Per Game Distribution */}
           <div className="bg-black/20 rounded-lg p-3 border border-white/5">
-            <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-3">Goals Per Game Distribution</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Goals Per Game Distribution</div>
+              <button
+                onClick={() => copySection('dist', 'Goals Per Game Distribution\n' + Object.entries(goalBuckets).map(([b, c]) => `${b}: ${c}`).join('\n'))}
+                className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border border-white/20 hover:border-white/60 text-white/40 hover:text-white/80 transition-all"
+              >
+                {copiedKey === 'dist' ? '✓' : 'Copy'}
+              </button>
+            </div>
             <div className="flex flex-col gap-1">
               {Object.entries(goalBuckets).map(([bucket, count]) => (
                 <div key={bucket} className="flex items-center gap-2 text-[11px]">
@@ -129,7 +163,15 @@ const MatchHistoryDashboard: React.FC = () => {
 
           {/* Match Results Table */}
           <div className="bg-black/20 rounded-lg border border-white/5 overflow-hidden">
-            <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold p-3 pb-2">Match Results</div>
+            <div className="flex items-center justify-between p-3 pb-2">
+              <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Match Results</div>
+              <button
+                onClick={() => copySection('results', '#,Home,Score,Away,Shots,SOG,Saves,Formation\n' + matches.map((m, i) => `${i + 1},${m.team_a_name || 'Team A'},${m.score_a}-${m.score_b},${m.team_b_name || 'Team B'},${m.shots_a}-${m.shots_b},${m.shots_on_target_a}-${m.shots_on_target_b},${m.saves_a}-${m.saves_b},${m.team_a_formation || '?'}/${m.team_b_formation || '?'}`).join('\n'))}
+                className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border border-white/20 hover:border-white/60 text-white/40 hover:text-white/80 transition-all"
+              >
+                {copiedKey === 'results' ? '✓' : 'Copy'}
+              </button>
+            </div>
             <div className="max-h-[360px] overflow-y-auto">
               <table className="w-full text-[11px]">
                 <thead className="sticky top-0 bg-zinc-800/90 backdrop-blur-sm">

@@ -1,0 +1,5301 @@
+{
+  "teamA": {
+    "name": "CF Montreal",
+    "formation": "3-4-3",
+    "score": 0,
+    "shots": 4,
+    "shotsOnTarget": 2,
+    "saves": 2,
+    "passes": 45,
+    "passesCompleted": 35,
+    "tackles": 17,
+    "clearances": 8,
+    "fouls": 1,
+    "corners": 0,
+    "throwIns": 1,
+    "possession": 51,
+    "gkDist": 3,
+    "gkDistComp": 1,
+    "roleStats": {
+      "RM": {
+        "touches": 7,
+        "passAtt": 9,
+        "passComp": 5,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 1545,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "CM": {
+        "touches": 7,
+        "passAtt": 5,
+        "passComp": 5,
+        "shots": 2,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 1,
+        "clearances": 1,
+        "possFrames": 1257,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "LM": {
+        "touches": 9,
+        "passAtt": 14,
+        "passComp": 12,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 2,
+        "clearances": 0,
+        "possFrames": 3332,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 1
+      },
+      "ST": {
+        "touches": 3,
+        "passAtt": 6,
+        "passComp": 4,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 2,
+        "clearances": 0,
+        "possFrames": 1353,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "CB": {
+        "touches": 9,
+        "passAtt": 11,
+        "passComp": 9,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 2,
+        "interceptions": 4,
+        "clearances": 7,
+        "possFrames": 2096,
+        "turnovers": 0,
+        "recoveries": 2,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "GK": {
+        "touches": 0,
+        "passAtt": 0,
+        "passComp": 0,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 675,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      }
+    },
+    "passNetwork": [
+      {
+        "from": "RM",
+        "to": "RM",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "CM",
+        "to": "LM",
+        "count": 6,
+        "completed": 5
+      },
+      {
+        "from": "LM",
+        "to": "RM",
+        "count": 8,
+        "completed": 3
+      },
+      {
+        "from": "RM",
+        "to": "ST",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "ST",
+        "to": "RM",
+        "count": 6,
+        "completed": 2
+      },
+      {
+        "from": "ST",
+        "to": "CM",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "CM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "CM",
+        "count": 4,
+        "completed": 3
+      },
+      {
+        "from": "GK",
+        "to": "CB",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "RM",
+        "to": "CB",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CB",
+        "to": "ST",
+        "count": 5,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "LM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "CB",
+        "count": 6,
+        "completed": 6
+      },
+      {
+        "from": "RM",
+        "to": "CM",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "ST",
+        "to": "LM",
+        "count": 2,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "RM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "CM",
+        "to": "ST",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CB",
+        "to": "CB",
+        "count": 4,
+        "completed": 3
+      },
+      {
+        "from": "CB",
+        "to": "LM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "ST",
+        "to": "CB",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "LM",
+        "to": "ST",
+        "count": 4,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "LM",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CM",
+        "to": "RM",
+        "count": 2,
+        "completed": 0
+      },
+      {
+        "from": "GK",
+        "to": "UNK",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "GK",
+        "to": "LM",
+        "count": 1,
+        "completed": 0
+      }
+    ]
+  },
+  "teamB": {
+    "name": "St. Louis City SC",
+    "formation": "3-4-3",
+    "score": 0,
+    "shots": 3,
+    "shotsOnTarget": 2,
+    "saves": 2,
+    "passes": 58,
+    "passesCompleted": 47,
+    "tackles": 14,
+    "clearances": 7,
+    "fouls": 1,
+    "corners": 1,
+    "throwIns": 0,
+    "possession": 49,
+    "gkDist": 5,
+    "gkDistComp": 3,
+    "roleStats": {
+      "ST": {
+        "touches": 9,
+        "passAtt": 8,
+        "passComp": 5,
+        "shots": 1,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 1,
+        "clearances": 1,
+        "possFrames": 1100,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "RM": {
+        "touches": 15,
+        "passAtt": 22,
+        "passComp": 18,
+        "shots": 2,
+        "shotsOnTarget": 1,
+        "tackles": 0,
+        "interceptions": 3,
+        "clearances": 0,
+        "possFrames": 3584,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 1
+      },
+      "CB": {
+        "touches": 5,
+        "passAtt": 9,
+        "passComp": 7,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 1,
+        "clearances": 6,
+        "possFrames": 1511,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "LM": {
+        "touches": 12,
+        "passAtt": 10,
+        "passComp": 8,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 2129,
+        "turnovers": 2,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 1,
+        "fouled": 0
+      },
+      "GK": {
+        "touches": 0,
+        "passAtt": 1,
+        "passComp": 1,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "clearances": 0,
+        "possFrames": 451,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      },
+      "CM": {
+        "touches": 6,
+        "passAtt": 8,
+        "passComp": 8,
+        "shots": 0,
+        "shotsOnTarget": 0,
+        "tackles": 0,
+        "interceptions": 4,
+        "clearances": 0,
+        "possFrames": 1235,
+        "turnovers": 0,
+        "recoveries": 0,
+        "aerialWon": 0,
+        "aerialLost": 0,
+        "fouls": 0,
+        "fouled": 0
+      }
+    },
+    "passNetwork": [
+      {
+        "from": "ST",
+        "to": "CM",
+        "count": 3,
+        "completed": 0
+      },
+      {
+        "from": "CB",
+        "to": "RM",
+        "count": 5,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "ST",
+        "count": 6,
+        "completed": 5
+      },
+      {
+        "from": "ST",
+        "to": "RM",
+        "count": 8,
+        "completed": 3
+      },
+      {
+        "from": "RM",
+        "to": "RM",
+        "count": 11,
+        "completed": 4
+      },
+      {
+        "from": "CB",
+        "to": "CB",
+        "count": 2,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "LM",
+        "count": 9,
+        "completed": 5
+      },
+      {
+        "from": "LM",
+        "to": "RM",
+        "count": 8,
+        "completed": 3
+      },
+      {
+        "from": "GK",
+        "to": "CB",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "GK",
+        "to": "RM",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CM",
+        "to": "RM",
+        "count": 7,
+        "completed": 4
+      },
+      {
+        "from": "CB",
+        "to": "CM",
+        "count": 3,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "ST",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CM",
+        "to": "LM",
+        "count": 5,
+        "completed": 2
+      },
+      {
+        "from": "LM",
+        "to": "LM",
+        "count": 5,
+        "completed": 1
+      },
+      {
+        "from": "CB",
+        "to": "LM",
+        "count": 3,
+        "completed": 1
+      },
+      {
+        "from": "ST",
+        "to": "LM",
+        "count": 2,
+        "completed": 2
+      },
+      {
+        "from": "RM",
+        "to": "CM",
+        "count": 4,
+        "completed": 3
+      },
+      {
+        "from": "CB",
+        "to": "ST",
+        "count": 2,
+        "completed": 1
+      },
+      {
+        "from": "RM",
+        "to": "CB",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "ST",
+        "count": 2,
+        "completed": 2
+      },
+      {
+        "from": "GK",
+        "to": "UNK",
+        "count": 1,
+        "completed": 0
+      },
+      {
+        "from": "CM",
+        "to": "CB",
+        "count": 1,
+        "completed": 1
+      },
+      {
+        "from": "LM",
+        "to": "CM",
+        "count": 1,
+        "completed": 0
+      }
+    ]
+  },
+  "events": [
+    {
+      "t": 8.14,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Alfredo Morales",
+        "toRole": "CM",
+        "x": 0,
+        "z": 0,
+        "targetX": 8.7,
+        "targetZ": -3.3,
+        "dist": 9.3,
+        "progress": -8.8,
+        "passerDistToGoal": 32.8
+      }
+    },
+    {
+      "t": 15.45,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 14.6,
+        "z": -0.4,
+        "targetX": -5.3,
+        "targetZ": 7.5,
+        "dist": 21.4,
+        "progress": 19.9,
+        "passerDistToGoal": 47.4,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 16.4,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": 4.2,
+        "z": 3.2
+      }
+    },
+    {
+      "t": 17.11,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Fabian Herbers",
+        "toRole": "LM",
+        "x": 6.6,
+        "z": 5.8,
+        "targetX": -5.5,
+        "targetZ": 6,
+        "dist": 12.1,
+        "progress": -12.1,
+        "passerDistToGoal": 26.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 18.61,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": -0.3,
+        "z": 7.6,
+        "targetX": -6.5,
+        "targetZ": 1.1,
+        "dist": 9,
+        "progress": 6.2,
+        "passerDistToGoal": 32.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 22.41,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -19,
+        "z": 10,
+        "targetX": 2.3,
+        "targetZ": 5.1,
+        "dist": 21.9,
+        "progress": -21.3,
+        "passerDistToGoal": 13.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 24.96,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": -11.4,
+        "z": 12.3,
+        "targetX": -23.5,
+        "targetZ": 11.4,
+        "dist": 12.1,
+        "progress": 12.1,
+        "passerDistToGoal": 21.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 26.09,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Dante Sealy",
+        "toRole": "RM",
+        "x": -22.7,
+        "z": 11.6,
+        "targetX": 3.6,
+        "targetZ": 9.3,
+        "dist": 26.5,
+        "progress": 26.4,
+        "passerDistToGoal": 55.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 27.85,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Dante Sealy",
+        "toRole": "RM",
+        "x": -9.1,
+        "z": 11.1,
+        "targetX": 1.9,
+        "targetZ": 11.1,
+        "dist": 11,
+        "progress": 11,
+        "passerDistToGoal": 41.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 29.32,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 2.8,
+        "z": 13.9,
+        "targetX": 3.7,
+        "targetZ": 1.2,
+        "dist": 12.7,
+        "progress": 0.9,
+        "passerDistToGoal": 30,
+        "completed": true
+      }
+    },
+    {
+      "t": 36.21,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 16.1,
+        "z": 5.9,
+        "targetX": 1.3,
+        "targetZ": 4.9,
+        "dist": 14.9,
+        "progress": 14.8,
+        "passerDistToGoal": 48.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 43.14,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Dante Sealy",
+        "toRole": "RM",
+        "x": 6.5,
+        "z": 7.8,
+        "targetX": 12.8,
+        "targetZ": 11.4,
+        "dist": 7.3,
+        "progress": 6.3,
+        "passerDistToGoal": 26.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 45.16,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 18.3,
+        "z": 11.2,
+        "targetX": 18.6,
+        "targetZ": 2.5,
+        "dist": 8.8,
+        "progress": 0.4,
+        "passerDistToGoal": 14.5
+      }
+    },
+    {
+      "t": 52.97,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": 4.2,
+        "z": 12.3,
+        "targetX": 5.9,
+        "targetZ": -3.1,
+        "dist": 15.5,
+        "progress": -1.8,
+        "passerDistToGoal": 37,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 54.07,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": 4.9,
+        "z": 3.9
+      }
+    },
+    {
+      "t": 54.88,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Bryce Duke",
+        "toRole": "CM",
+        "x": 7.5,
+        "z": -0.2,
+        "targetX": -0.5,
+        "targetZ": -4.8,
+        "dist": 9.2,
+        "progress": -8,
+        "passerDistToGoal": 25.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 56.26,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": 4.8,
+        "z": -5.6,
+        "targetX": 6.3,
+        "targetZ": 4.4,
+        "dist": 10.1,
+        "progress": -1.4,
+        "passerDistToGoal": 37.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 57.09,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Matty Longstaff",
+        "toRole": "LM",
+        "x": 1.8,
+        "z": -5.3,
+        "targetX": 8.1,
+        "targetZ": -11.2,
+        "dist": 8.6,
+        "progress": 6.3,
+        "passerDistToGoal": 31,
+        "completed": true
+      }
+    },
+    {
+      "t": 51.38,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "AUTO",
+        "x": 21.5,
+        "z": -10.2,
+        "distToGoal": 11.3,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 64.16,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "GK",
+      "detail": {
+        "style": "SHORT",
+        "to": "Henry Kessler",
+        "toRole": "CB",
+        "x": 31.3,
+        "z": -3.4,
+        "targetX": 21.5,
+        "targetZ": -1.2,
+        "dist": 10.1,
+        "progress": 9.8,
+        "passerDistToGoal": 64.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 64.88,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "LONG CLEARANCE",
+        "x": 23.5,
+        "z": -1.7
+      }
+    },
+    {
+      "t": 66.52,
+      "half": 1,
+      "type": "TACKLE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "vs": "Kyle Hiebert",
+        "vsRole": "LM",
+        "x": 7.6,
+        "z": -10.8
+      }
+    },
+    {
+      "t": 66.52,
+      "half": 1,
+      "type": "RECOVERY",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "x": 7.6,
+        "z": -10.8
+      }
+    },
+    {
+      "t": 66.54,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "WALL",
+        "to": "Bryce Duke",
+        "toRole": "CM",
+        "x": 7.6,
+        "z": -10.8,
+        "targetX": 17.5,
+        "targetZ": -7.8,
+        "dist": 10.3,
+        "progress": 9.9,
+        "passerDistToGoal": 25.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 68.2,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Matty Longstaff",
+        "toRole": "LM",
+        "x": 18.5,
+        "z": -12.8,
+        "targetX": 19.1,
+        "targetZ": -7.7,
+        "dist": 5.1,
+        "progress": 0.6,
+        "passerDistToGoal": 14.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 69.3,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Bryce Duke",
+        "toRole": "CM",
+        "x": 22.1,
+        "z": -7,
+        "targetX": 20.4,
+        "targetZ": -11.2,
+        "dist": 4.6,
+        "progress": -1.7,
+        "passerDistToGoal": 10.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 60.43,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "AUTO",
+        "x": 25.6,
+        "z": -13.7,
+        "distToGoal": 7.2,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 74.96,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 3.5,
+        "z": 12.1,
+        "targetX": 2.8,
+        "targetZ": 1.6,
+        "dist": 10.6,
+        "progress": 0.6,
+        "passerDistToGoal": 36.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 76.37,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "SHORT",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 0.1,
+        "z": 6.2,
+        "targetX": 0.7,
+        "targetZ": 13.5,
+        "dist": 7.3,
+        "progress": -0.5,
+        "passerDistToGoal": 32.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 81.38,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -16.4,
+        "z": 5.2,
+        "targetX": -15,
+        "targetZ": 10.8,
+        "dist": 5.8,
+        "progress": -1.4,
+        "passerDistToGoal": 16.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 74.74,
+      "half": 1,
+      "type": "SHOT",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "AUTO",
+        "x": -26.9,
+        "z": 6.1,
+        "distToGoal": 5.9,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 89.09,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -19.2,
+        "z": -12.4,
+        "targetX": -24.4,
+        "targetZ": 2.8,
+        "dist": 16,
+        "progress": 5.3,
+        "passerDistToGoal": 13.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 96.39,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": -25.9,
+        "z": 10.6,
+        "targetX": -13.2,
+        "targetZ": 2.9,
+        "dist": 14.9,
+        "progress": 12.8,
+        "passerDistToGoal": 58.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 99.69,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -2.5,
+        "z": 7.1,
+        "targetX": -9.6,
+        "targetZ": 2.3,
+        "dist": 8.6,
+        "progress": 7.1,
+        "passerDistToGoal": 30.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 89.61,
+      "half": 1,
+      "type": "SHOT",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "HALF_VOLLEY",
+        "x": -16.1,
+        "z": 2.6,
+        "distToGoal": 16.7,
+        "onTarget": true
+      }
+    },
+    {
+      "t": 106.29,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Alfredo Morales",
+        "toRole": "CM",
+        "x": -32.8,
+        "z": -21.9,
+        "targetX": -27.6,
+        "targetZ": 2.5,
+        "dist": 24.9,
+        "progress": -5.2,
+        "passerDistToGoal": 0,
+        "completed": true
+      }
+    },
+    {
+      "t": 107.81,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -25.8,
+        "z": -0.2
+      }
+    },
+    {
+      "t": 113.52,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Tom Pearce",
+        "toRole": "CB",
+        "x": 2.8,
+        "z": -12.6,
+        "targetX": -17.4,
+        "targetZ": -9.6,
+        "dist": 20.4,
+        "progress": -20.2,
+        "passerDistToGoal": 30,
+        "completed": true
+      }
+    },
+    {
+      "t": 119.51,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Tom Pearce",
+        "toRole": "CB",
+        "x": 7.8,
+        "z": -11.5,
+        "targetX": -5.8,
+        "targetZ": -13.9,
+        "dist": 13.9,
+        "progress": -13.7,
+        "passerDistToGoal": 25,
+        "completed": true
+      }
+    },
+    {
+      "t": 126.58,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 19.6,
+        "z": -4.1
+      }
+    },
+    {
+      "t": 127.58,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 19.9,
+        "z": -3.5
+      }
+    },
+    {
+      "t": 133.65,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": 2.6,
+        "z": 2.6,
+        "targetX": -2.1,
+        "targetZ": 9.1,
+        "dist": 8,
+        "progress": 4.7,
+        "passerDistToGoal": 35.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 138.44,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": -20.6,
+        "z": 11.6,
+        "targetX": -2.7,
+        "targetZ": -9,
+        "dist": 27.3,
+        "progress": -17.9,
+        "passerDistToGoal": 12.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 141.78,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -15.1,
+        "z": -6,
+        "targetX": -26,
+        "targetZ": 12.5,
+        "dist": 21.4,
+        "progress": 10.9,
+        "passerDistToGoal": 17.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 149.09,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Kwadwo Opoku",
+        "toRole": "CM",
+        "x": -23.1,
+        "z": 5.1,
+        "targetX": -20.9,
+        "targetZ": -0.5,
+        "dist": 6,
+        "progress": 2.2,
+        "passerDistToGoal": 55.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 150.35,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Fabian Herbers",
+        "toRole": "LM",
+        "x": -17.7,
+        "z": -4.4,
+        "targetX": -7,
+        "targetZ": 0.9,
+        "dist": 11.9,
+        "progress": 10.7,
+        "passerDistToGoal": 50.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 151.78,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -6.9,
+        "z": -3.6,
+        "targetX": -11.5,
+        "targetZ": 9.5,
+        "dist": 13.9,
+        "progress": 4.7,
+        "passerDistToGoal": 25.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 153,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": -12.1,
+        "z": -1.7,
+        "targetX": -8.8,
+        "targetZ": -5,
+        "dist": 4.7,
+        "progress": -3.3,
+        "passerDistToGoal": 20.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 157.77,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -19.4,
+        "z": -10.8
+      }
+    },
+    {
+      "t": 162.43,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Alfredo Morales",
+        "toRole": "CM",
+        "x": 0.1,
+        "z": -14.3,
+        "targetX": -9.5,
+        "targetZ": -3.5,
+        "dist": 14.4,
+        "progress": 9.7,
+        "passerDistToGoal": 32.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 166.44,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Jalen Neal",
+        "toRole": "CB",
+        "x": -19.1,
+        "z": -1.4,
+        "targetX": -7.8,
+        "targetZ": 3.6,
+        "dist": 12.4,
+        "progress": 11.3,
+        "passerDistToGoal": 51.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 172.14,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": 10.4,
+        "z": 4,
+        "targetX": -4.3,
+        "targetZ": -0.4,
+        "dist": 15.4,
+        "progress": 14.7,
+        "passerDistToGoal": 43.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 173.83,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": -3.6,
+        "z": 4,
+        "targetX": -3.5,
+        "targetZ": -7.7,
+        "dist": 11.7,
+        "progress": -0.1,
+        "passerDistToGoal": 29.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 177.36,
+      "half": 1,
+      "type": "TACKLE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "vs": "Kyle Hiebert",
+        "vsRole": "LM",
+        "x": -16.8,
+        "z": -11.1
+      }
+    },
+    {
+      "t": 177.36,
+      "half": 1,
+      "type": "RECOVERY",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "x": -16.8,
+        "z": -11.1
+      }
+    },
+    {
+      "t": 177.38,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "FIRST-TIME CLEARANCE",
+        "x": -16.8,
+        "z": -11.1
+      }
+    },
+    {
+      "t": 182.41,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": 4.3,
+        "z": -15.1,
+        "targetX": -5.6,
+        "targetZ": -10.8,
+        "dist": 10.7,
+        "progress": 9.9,
+        "passerDistToGoal": 37.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 185.36,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "FIRST-TIME CLEARANCE",
+        "x": -14.7,
+        "z": -14.1
+      }
+    },
+    {
+      "t": 186.56,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Jalen Neal",
+        "toRole": "CB",
+        "x": -12.5,
+        "z": -15.3,
+        "targetX": -7.4,
+        "targetZ": -14.2,
+        "dist": 5.2,
+        "progress": 5,
+        "passerDistToGoal": 45.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 189.49,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Jalen Neal",
+        "toRole": "CB",
+        "x": 6.7,
+        "z": -14.2,
+        "targetX": 0.9,
+        "targetZ": -15.3,
+        "dist": 5.9,
+        "progress": -5.8,
+        "passerDistToGoal": 26.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 190.57,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 4.3,
+        "z": -17.7,
+        "targetX": 0.9,
+        "targetZ": -4.6,
+        "dist": 13.5,
+        "progress": -3.4,
+        "passerDistToGoal": 28.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 192.23,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": 4.3,
+        "z": -10.8,
+        "targetX": -0.4,
+        "targetZ": -8.8,
+        "dist": 5.1,
+        "progress": 4.7,
+        "passerDistToGoal": 37.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 193.54,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": -3.9,
+        "z": -12.5,
+        "targetX": 0.8,
+        "targetZ": -13.9,
+        "dist": 4.9,
+        "progress": -4.7,
+        "passerDistToGoal": 28.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 195.93,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Samuel Piette",
+        "toRole": "CB",
+        "x": -12.9,
+        "z": -14.3,
+        "targetX": -3.1,
+        "targetZ": 1.4,
+        "dist": 18.5,
+        "progress": 9.8,
+        "passerDistToGoal": 45.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 197.61,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Cedric Teuchert",
+        "toRole": "CM",
+        "x": -2.2,
+        "z": 4.4,
+        "targetX": -3,
+        "targetZ": -0.7,
+        "dist": 5.1,
+        "progress": 0.8,
+        "passerDistToGoal": 30.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 198.62,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": -4.6,
+        "z": 2.5,
+        "targetX": -7.8,
+        "targetZ": -10.1,
+        "dist": 13.1,
+        "progress": 3.3,
+        "passerDistToGoal": 28.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 204.93,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "SHORT",
+        "to": "Jalen Neal",
+        "toRole": "CB",
+        "x": -5.1,
+        "z": 1,
+        "targetX": -5.4,
+        "targetZ": -11.6,
+        "dist": 12.6,
+        "progress": -0.3,
+        "passerDistToGoal": 37.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 208.49,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 5.1,
+        "z": -1.2,
+        "targetX": -5.5,
+        "targetZ": -2,
+        "dist": 10.6,
+        "progress": 10.6,
+        "passerDistToGoal": 37.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 212.79,
+      "half": 1,
+      "type": "FOUL",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "reason": "Holding",
+        "fromBehind": false,
+        "penalty": false,
+        "x": -15.6,
+        "z": 6.9
+      }
+    },
+    {
+      "t": 217.29,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "WALL",
+        "to": "Eduard Löwen",
+        "toRole": "CB",
+        "x": -15.2,
+        "z": 6.9,
+        "targetX": 4.2,
+        "targetZ": 5.8,
+        "dist": 19.4,
+        "progress": -19.4,
+        "passerDistToGoal": 17.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 219.68,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "SHORT",
+        "to": "Alfredo Morales",
+        "toRole": "CM",
+        "x": -3.9,
+        "z": 8.6,
+        "targetX": -12.3,
+        "targetZ": 2.4,
+        "dist": 10.4,
+        "progress": 8.4,
+        "passerDistToGoal": 28.9,
+        "completed": false,
+        "interceptedByRole": "ST",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 220.5,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "aerial": false,
+        "x": -9.2,
+        "z": 4.4
+      }
+    },
+    {
+      "t": 221.43,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Dante Sealy",
+        "toRole": "RM",
+        "x": -6,
+        "z": -0.5,
+        "targetX": -8.3,
+        "targetZ": 9.6,
+        "dist": 10.3,
+        "progress": -2.3,
+        "passerDistToGoal": 38.8,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 222.1,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": -6.2,
+        "z": 4.5
+      }
+    },
+    {
+      "t": 223.59,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kwadwo Opoku",
+        "toRole": "CM",
+        "x": -12.1,
+        "z": 5.3,
+        "targetX": -4.4,
+        "targetZ": -1.1,
+        "dist": 10,
+        "progress": 7.7,
+        "passerDistToGoal": 44.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 224.74,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": -6.6,
+        "z": -0.7,
+        "targetX": -5.9,
+        "targetZ": -7.7,
+        "dist": 7,
+        "progress": -0.7,
+        "passerDistToGoal": 26.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 226.16,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "SHORT",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": -9.4,
+        "z": -11.2,
+        "targetX": -9.3,
+        "targetZ": -1.5,
+        "dist": 9.7,
+        "progress": -0.1,
+        "passerDistToGoal": 23.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 229.49,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": 0.4,
+        "z": -4.5,
+        "targetX": -6.8,
+        "targetZ": 10.4,
+        "dist": 16.5,
+        "progress": -7.2,
+        "passerDistToGoal": 32.4,
+        "completed": false,
+        "interceptedByRole": "RM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 230.92,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "aerial": false,
+        "x": -3.5,
+        "z": 4.5
+      }
+    },
+    {
+      "t": 231.52,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "DRIVEN",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": -5.3,
+        "z": 6.1,
+        "targetX": -5.7,
+        "targetZ": -10,
+        "dist": 16.2,
+        "progress": 0.4,
+        "passerDistToGoal": 27.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 236.34,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Rasmus Alm",
+        "toRole": "RM",
+        "x": -22.9,
+        "z": 9.9,
+        "targetX": -14.8,
+        "targetZ": 8.7,
+        "dist": 8.2,
+        "progress": -8.1,
+        "passerDistToGoal": 9.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 237.63,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": -19.6,
+        "z": 11.7,
+        "targetX": -24.9,
+        "targetZ": 10.6,
+        "dist": 5.4,
+        "progress": 5.3,
+        "passerDistToGoal": 13.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 238.88,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Cedric Teuchert",
+        "toRole": "CM",
+        "x": -28.1,
+        "z": 13.3,
+        "targetX": -21.3,
+        "targetZ": 5.4,
+        "dist": 10.4,
+        "progress": -6.8,
+        "passerDistToGoal": 4.7,
+        "completed": false,
+        "interceptedByRole": "CB",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 240.2,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "aerial": false,
+        "x": -18.3,
+        "z": 2.4
+      }
+    },
+    {
+      "t": 240.94,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": -15.7,
+        "z": 5.1
+      }
+    },
+    {
+      "t": 245.57,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": -0.1,
+        "z": 11.4,
+        "targetX": -6.6,
+        "targetZ": 2.3,
+        "dist": 11.1,
+        "progress": 6.4,
+        "passerDistToGoal": 32.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 247.12,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": -8,
+        "z": 1.4,
+        "targetX": -16.7,
+        "targetZ": 12.8,
+        "dist": 14.3,
+        "progress": 8.7,
+        "passerDistToGoal": 24.8,
+        "completed": false,
+        "interceptedByRole": "CB",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 247.85,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "aerial": false,
+        "x": -13,
+        "z": 7.3
+      }
+    },
+    {
+      "t": 248.65,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": -10.3,
+        "z": 10.8,
+        "targetX": -6.8,
+        "targetZ": 7.6,
+        "dist": 4.7,
+        "progress": 3.5,
+        "passerDistToGoal": 43.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 249.82,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Dante Sealy",
+        "toRole": "RM",
+        "x": -2.6,
+        "z": 12.3,
+        "targetX": -0.3,
+        "targetZ": 0.8,
+        "dist": 11.8,
+        "progress": 2.3,
+        "passerDistToGoal": 35.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 251.23,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Fabian Herbers",
+        "toRole": "LM",
+        "x": 2.5,
+        "z": 3.5,
+        "targetX": 7.1,
+        "targetZ": 1.6,
+        "dist": 5,
+        "progress": 4.6,
+        "passerDistToGoal": 30.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 256.94,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": 14.6,
+        "z": 4.5,
+        "targetX": 13.8,
+        "targetZ": 9.4,
+        "dist": 5,
+        "progress": -0.8,
+        "passerDistToGoal": 18.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 258.02,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Fabian Herbers",
+        "toRole": "LM",
+        "x": 16.1,
+        "z": 11.6,
+        "targetX": 15.6,
+        "targetZ": 3,
+        "dist": 8.6,
+        "progress": -0.5,
+        "passerDistToGoal": 16.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 263.37,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": 27.2,
+        "z": -3.6,
+        "targetX": 27.6,
+        "targetZ": 11.6,
+        "dist": 15.2,
+        "progress": 0.4,
+        "passerDistToGoal": 5.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 269.45,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "FIRST-TIME CLEARANCE",
+        "x": 23.2,
+        "z": 8.7
+      }
+    },
+    {
+      "t": 270.45,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "FIRST-TIME CLEARANCE",
+        "x": 20.9,
+        "z": 10.2
+      }
+    },
+    {
+      "t": 275.23,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": 11.1,
+        "z": 18.1,
+        "targetX": 9,
+        "targetZ": 11,
+        "dist": 7.4,
+        "progress": -2.1,
+        "passerDistToGoal": 21.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 261.08,
+      "half": 1,
+      "type": "SHOT",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 24,
+        "z": 8.3,
+        "distToGoal": 8.8
+      }
+    },
+    {
+      "t": 285.42,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 29,
+        "z": -12.2,
+        "targetX": 21.6,
+        "targetZ": 3.6,
+        "dist": 17.5,
+        "progress": -7.3,
+        "passerDistToGoal": 3.8,
+        "completed": false,
+        "interceptedByRole": "CB",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 286.48,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "aerial": false,
+        "x": 22.7,
+        "z": 1.8
+      }
+    },
+    {
+      "t": 286.55,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": 21.9,
+        "z": 2.7,
+        "targetX": 20.8,
+        "targetZ": 8.1,
+        "dist": 5.6,
+        "progress": -1.1,
+        "passerDistToGoal": 10.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 287.69,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Matty Longstaff",
+        "toRole": "LM",
+        "x": 24,
+        "z": 9.5,
+        "targetX": 27.7,
+        "targetZ": -11.8,
+        "dist": 21.6,
+        "progress": 3.7,
+        "passerDistToGoal": 8.8
+      }
+    },
+    {
+      "t": 293.74,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "RM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Kwadwo Opoku",
+        "toRole": "CM",
+        "x": 0.4,
+        "z": -1.1,
+        "targetX": 6.4,
+        "targetZ": 5.2,
+        "dist": 8.7,
+        "progress": 5.9,
+        "passerDistToGoal": 32.4,
+        "completed": false,
+        "interceptedByRole": "RM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 294.1,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "aerial": false,
+        "x": 3.5,
+        "z": 1.8
+      }
+    },
+    {
+      "t": 295.55,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Alfredo Morales",
+        "toRole": "CM",
+        "x": -2.6,
+        "z": 9.9,
+        "targetX": 12.7,
+        "targetZ": 7.5,
+        "dist": 15.6,
+        "progress": -15.4,
+        "passerDistToGoal": 30.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 297.65,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "BACK",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": 3.1,
+        "z": 11.8,
+        "targetX": 6.8,
+        "targetZ": -1.6,
+        "dist": 13.9,
+        "progress": -3.7,
+        "passerDistToGoal": 35.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 299.36,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Tom Pearce",
+        "toRole": "CB",
+        "x": 3.3,
+        "z": 3.5,
+        "targetX": -3.5,
+        "targetZ": -7,
+        "dist": 12.5,
+        "progress": -6.9,
+        "passerDistToGoal": 29.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 304.26,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Tom Pearce",
+        "toRole": "CB",
+        "x": 16,
+        "z": -11.2,
+        "targetX": 9.6,
+        "targetZ": -9.9,
+        "dist": 6.5,
+        "progress": -6.4,
+        "passerDistToGoal": 16.8,
+        "completed": true
+      }
+    },
+    {
+      "t": 305.79,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "BACK",
+        "to": "Bryce Duke",
+        "toRole": "CM",
+        "x": 12.5,
+        "z": -13.9,
+        "targetX": 3.8,
+        "targetZ": -8.4,
+        "dist": 10.3,
+        "progress": -8.7,
+        "passerDistToGoal": 20.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 309.73,
+      "half": 1,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 16.1,
+        "z": -3.7
+      }
+    },
+    {
+      "t": 309.82,
+      "half": 1,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "aerial": true,
+        "x": 16.7,
+        "z": -5.2
+      }
+    },
+    {
+      "t": 309.83,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "BACK",
+        "to": "Tom Pearce",
+        "toRole": "CB",
+        "x": 16.7,
+        "z": -5.2,
+        "targetX": 9.2,
+        "targetZ": -15.2,
+        "dist": 12.5,
+        "progress": -7.6,
+        "passerDistToGoal": 16.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 311.53,
+      "half": 1,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Matty Longstaff",
+        "toRole": "LM",
+        "x": 11.5,
+        "z": -14.5,
+        "targetX": 19,
+        "targetZ": -6.9,
+        "dist": 10.6,
+        "progress": 7.5,
+        "passerDistToGoal": 21.3
+      }
+    },
+    {
+      "t": 318.01,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 12.8,
+        "z": -4.9,
+        "targetX": 6.4,
+        "targetZ": 0.9,
+        "dist": 8.6,
+        "progress": 6.3,
+        "passerDistToGoal": 45.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 319.26,
+      "half": 1,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 4.9,
+        "z": 2.3,
+        "targetX": 8.6,
+        "targetZ": 0.6,
+        "dist": 4.1,
+        "progress": -3.7,
+        "passerDistToGoal": 37.7,
+        "completed": true
+      }
+    },
+    {
+      "t": 332.97,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Cedric Teuchert",
+        "toRole": "CM",
+        "x": 8.2,
+        "z": -0.8,
+        "targetX": -5.6,
+        "targetZ": -0.2,
+        "dist": 13.9,
+        "progress": -13.8,
+        "passerDistToGoal": 24.6,
+        "completed": false,
+        "interceptedByRole": "LM",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 333.58,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "aerial": false,
+        "x": 2.5,
+        "z": -0.1
+      }
+    },
+    {
+      "t": 334.24,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 0.7,
+        "z": 0.9,
+        "targetX": -8.9,
+        "targetZ": -1.1,
+        "dist": 9.8,
+        "progress": 9.6,
+        "passerDistToGoal": 33.5,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 334.6,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": -3.4,
+        "z": 0.5
+      }
+    },
+    {
+      "t": 335.22,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": -1.8,
+        "z": 2.8,
+        "targetX": 8.3,
+        "targetZ": 10.1,
+        "dist": 12.4,
+        "progress": 10,
+        "passerDistToGoal": 34.6,
+        "completed": true
+      }
+    },
+    {
+      "t": 337.1,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 10.4,
+        "z": 12.8,
+        "targetX": 12.1,
+        "targetZ": 2.7,
+        "dist": 10.2,
+        "progress": 1.7,
+        "passerDistToGoal": 22.4,
+        "completed": true
+      }
+    },
+    {
+      "t": 340.26,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 23.7,
+        "z": 12.8,
+        "targetX": 19.6,
+        "targetZ": 7.2,
+        "dist": 6.9,
+        "progress": -4,
+        "passerDistToGoal": 9.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 15.24,
+      "half": 2,
+      "type": "SHOT",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "AUTO",
+        "x": 23.6,
+        "z": 3.9,
+        "distToGoal": 9.2
+      }
+    },
+    {
+      "t": 345.91,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "FIRST-TIME CLEARANCE",
+        "x": 23.6,
+        "z": -12.5
+      }
+    },
+    {
+      "t": 350.63,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 9.6,
+        "z": -17.8,
+        "targetX": 13.6,
+        "targetZ": 7.5,
+        "dist": 25.6,
+        "progress": 4,
+        "passerDistToGoal": 23.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 355.55,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "EMERGENCY CLEARANCE",
+        "x": 20,
+        "z": -10.2
+      }
+    },
+    {
+      "t": 359.79,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 0.3,
+        "z": -18.4,
+        "targetX": -5.1,
+        "targetZ": -6.3,
+        "dist": 13.2,
+        "progress": 5.3,
+        "passerDistToGoal": 33.1,
+        "completed": true
+      }
+    },
+    {
+      "t": 361.64,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "ST",
+      "detail": {
+        "style": "BACK",
+        "to": "Sunusi Ibrahim",
+        "toRole": "RM",
+        "x": -8.6,
+        "z": -12.6,
+        "targetX": -3.8,
+        "targetZ": 7.4,
+        "dist": 20.6,
+        "progress": -4.8,
+        "passerDistToGoal": 24.2,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 363.07,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": -6.3,
+        "z": -2.4
+      }
+    },
+    {
+      "t": 363.86,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": -3.5,
+        "z": 1.8,
+        "targetX": 4.2,
+        "targetZ": 4.8,
+        "dist": 8.3,
+        "progress": 7.7,
+        "passerDistToGoal": 36.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 365.36,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": 6.9,
+        "z": 9.3,
+        "targetX": 2.7,
+        "targetZ": -4.8,
+        "dist": 14.7,
+        "progress": -4.3,
+        "passerDistToGoal": 25.9,
+        "completed": true
+      }
+    },
+    {
+      "t": 368.72,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "BACK",
+        "to": "Kyle Hiebert",
+        "toRole": "LM",
+        "x": 15.7,
+        "z": 8.6,
+        "targetX": 8.8,
+        "targetZ": 0.2,
+        "dist": 10.9,
+        "progress": -6.9,
+        "passerDistToGoal": 17.1,
+        "completed": false,
+        "interceptedByRole": "CB",
+        "interceptedByTeam": "A"
+      }
+    },
+    {
+      "t": 369.59,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "aerial": false,
+        "x": 12.3,
+        "z": 3.4
+      }
+    },
+    {
+      "t": 370.49,
+      "half": 2,
+      "type": "PASS",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "DIAGONAL",
+        "to": "Giacomo Vrioni",
+        "toRole": "ST",
+        "x": 10.4,
+        "z": 6.7,
+        "targetX": 2.8,
+        "targetZ": -4.7,
+        "dist": 13.7,
+        "progress": 7.6,
+        "passerDistToGoal": 43.2,
+        "completed": false,
+        "interceptedByRole": "CM",
+        "interceptedByTeam": "B"
+      }
+    },
+    {
+      "t": 371.24,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "aerial": false,
+        "x": 5.3,
+        "z": 0.9
+      }
+    },
+    {
+      "t": 377.84,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "João Klauss de Mello",
+        "toRole": "ST",
+        "x": 26.1,
+        "z": 7.6,
+        "targetX": 22.2,
+        "targetZ": 2,
+        "dist": 6.9,
+        "progress": -4,
+        "passerDistToGoal": 6.7
+      }
+    },
+    {
+      "t": 378.96,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "aerial": true,
+        "x": 19.2,
+        "z": -0.2
+      }
+    },
+    {
+      "t": 378.96,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "A",
+      "role": "CB",
+      "detail": {
+        "style": "HEADER",
+        "x": 19.2,
+        "z": -0.2
+      }
+    },
+    {
+      "t": 379.1,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "aerial": true,
+        "x": 18.2,
+        "z": -1
+      }
+    },
+    {
+      "t": 379.86,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": 20.3,
+        "z": -2.2,
+        "targetX": 19.2,
+        "targetZ": -9,
+        "dist": 6.8,
+        "progress": -1,
+        "passerDistToGoal": 12.5,
+        "completed": true
+      }
+    },
+    {
+      "t": 381.12,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 23.6,
+        "z": -11.4,
+        "targetX": 25.8,
+        "targetZ": 10.6,
+        "dist": 22,
+        "progress": 2.2,
+        "passerDistToGoal": 9.2
+      }
+    },
+    {
+      "t": 389.35,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Marcel Hartel",
+        "toRole": "LM",
+        "x": 26.6,
+        "z": 15.8,
+        "targetX": 27.1,
+        "targetZ": -2.5,
+        "dist": 18.3,
+        "progress": 0.5,
+        "passerDistToGoal": 6.2,
+        "completed": true
+      }
+    },
+    {
+      "t": 391.39,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "style": "LONG_LOFTED",
+        "to": "Chris Durkin",
+        "toRole": "RM",
+        "x": 28.8,
+        "z": -6.8,
+        "targetX": 30.1,
+        "targetZ": 12,
+        "dist": 18.9,
+        "progress": 1.4,
+        "passerDistToGoal": 4
+      }
+    },
+    {
+      "t": 397.72,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "RM",
+      "detail": {
+        "style": "OUTSIDE",
+        "to": "Cedric Teuchert",
+        "toRole": "CM",
+        "x": 0.5,
+        "z": -0.6,
+        "targetX": 6.4,
+        "targetZ": 5.5,
+        "dist": 8.5,
+        "progress": 5.9,
+        "passerDistToGoal": 32.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 399.03,
+      "half": 2,
+      "type": "PASS",
+      "team": "B",
+      "role": "CM",
+      "detail": {
+        "style": "SHORT",
+        "to": "Conrad Wallem",
+        "toRole": "CB",
+        "x": 8.5,
+        "z": 7.9,
+        "targetX": 7.4,
+        "targetZ": -3.6,
+        "dist": 11.6,
+        "progress": -1.1,
+        "passerDistToGoal": 24.3,
+        "completed": true
+      }
+    },
+    {
+      "t": 420.47,
+      "half": 2,
+      "type": "FOUL",
+      "team": "B",
+      "role": "LM",
+      "detail": {
+        "reason": "Reckless Challenge",
+        "fromBehind": true,
+        "penalty": false,
+        "x": -31.1,
+        "z": -14.5
+      }
+    },
+    {
+      "t": 96.35,
+      "half": 2,
+      "type": "SHOT",
+      "team": "A",
+      "role": "LM",
+      "detail": {
+        "style": "CURLED",
+        "x": -30.7,
+        "z": -14.5,
+        "distToGoal": 2.1
+      }
+    },
+    {
+      "t": 425.18,
+      "half": 2,
+      "type": "INTERCEPTION",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "aerial": true,
+        "x": -32.4,
+        "z": -9.6
+      }
+    },
+    {
+      "t": 425.18,
+      "half": 2,
+      "type": "CLEARANCE",
+      "team": "B",
+      "role": "ST",
+      "detail": {
+        "style": "HEADER",
+        "x": -32.4,
+        "z": -9.6
+      }
+    }
+  ],
+  "shapeA": [
+    {
+      "t": 5,
+      "half": 1,
+      "team": "A",
+      "avgX": -4.5,
+      "avgZ": 0.4,
+      "width": 17.3,
+      "depth": 26.4,
+      "compactness": 10.2,
+      "highLine": 9.6,
+      "lowLine": -16.8
+    },
+    {
+      "t": 10,
+      "half": 1,
+      "team": "A",
+      "avgX": -2.1,
+      "avgZ": 1.4,
+      "width": 16.8,
+      "depth": 26.7,
+      "compactness": 10.5,
+      "highLine": 11.4,
+      "lowLine": -15.4
+    },
+    {
+      "t": 15,
+      "half": 1,
+      "team": "A",
+      "avgX": -8.2,
+      "avgZ": 3.6,
+      "width": 13.8,
+      "depth": 28.3,
+      "compactness": 9.5,
+      "highLine": 8,
+      "lowLine": -20.3
+    },
+    {
+      "t": 20,
+      "half": 1,
+      "team": "A",
+      "avgX": -9.7,
+      "avgZ": 5.6,
+      "width": 16.4,
+      "depth": 23.6,
+      "compactness": 9.3,
+      "highLine": 2.9,
+      "lowLine": -20.7
+    },
+    {
+      "t": 25,
+      "half": 1,
+      "team": "A",
+      "avgX": -1,
+      "avgZ": 3.5,
+      "width": 16.3,
+      "depth": 24.2,
+      "compactness": 9.3,
+      "highLine": 11.6,
+      "lowLine": -12.6
+    },
+    {
+      "t": 30,
+      "half": 1,
+      "team": "A",
+      "avgX": 0.2,
+      "avgZ": 2.9,
+      "width": 18.1,
+      "depth": 23.6,
+      "compactness": 9.2,
+      "highLine": 13.7,
+      "lowLine": -9.9
+    },
+    {
+      "t": 35,
+      "half": 1,
+      "team": "A",
+      "avgX": -0.5,
+      "avgZ": 3.5,
+      "width": 19,
+      "depth": 30.2,
+      "compactness": 10.1,
+      "highLine": 15.7,
+      "lowLine": -14.5
+    },
+    {
+      "t": 40.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 4.5,
+      "avgZ": 4.3,
+      "width": 17,
+      "depth": 16.4,
+      "compactness": 6.1,
+      "highLine": 13.3,
+      "lowLine": -3.1
+    },
+    {
+      "t": 45.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 2.1,
+      "avgZ": 2.7,
+      "width": 23.1,
+      "depth": 13.9,
+      "compactness": 7,
+      "highLine": 9,
+      "lowLine": -5
+    },
+    {
+      "t": 50.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 6.8,
+      "avgZ": -0.6,
+      "width": 22.2,
+      "depth": 20.1,
+      "compactness": 8.5,
+      "highLine": 16.7,
+      "lowLine": -3.3
+    },
+    {
+      "t": 55.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 9.1,
+      "avgZ": -1.7,
+      "width": 17.5,
+      "depth": 22.8,
+      "compactness": 8.4,
+      "highLine": 22,
+      "lowLine": -0.8
+    },
+    {
+      "t": 60.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 14.1,
+      "avgZ": -5.9,
+      "width": 21.6,
+      "depth": 21.3,
+      "compactness": 8.4,
+      "highLine": 24,
+      "lowLine": 2.6
+    },
+    {
+      "t": 65.1,
+      "half": 1,
+      "team": "A",
+      "avgX": 8.3,
+      "avgZ": -0.6,
+      "width": 18.3,
+      "depth": 18.5,
+      "compactness": 7.4,
+      "highLine": 16.9,
+      "lowLine": -1.6
+    },
+    {
+      "t": 70.1,
+      "half": 1,
+      "team": "A",
+      "avgX": -5.2,
+      "avgZ": 2.6,
+      "width": 22.7,
+      "depth": 21.7,
+      "compactness": 8.3,
+      "highLine": 8.6,
+      "lowLine": -13.1
+    },
+    {
+      "t": 75.1,
+      "half": 1,
+      "team": "A",
+      "avgX": -14.1,
+      "avgZ": 1.6,
+      "width": 20,
+      "depth": 28.3,
+      "compactness": 9.9,
+      "highLine": 3.3,
+      "lowLine": -25
+    },
+    {
+      "t": 82.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -21.8,
+      "avgZ": 1.5,
+      "width": 13.4,
+      "depth": 23.2,
+      "compactness": 7.1,
+      "highLine": -8,
+      "lowLine": -31.1
+    },
+    {
+      "t": 87.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -15.5,
+      "avgZ": 4.5,
+      "width": 15.3,
+      "depth": 18.5,
+      "compactness": 7.2,
+      "highLine": -4.1,
+      "lowLine": -22.6
+    },
+    {
+      "t": 92.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -26,
+      "avgZ": -2.4,
+      "width": 22.1,
+      "depth": 17.8,
+      "compactness": 7.1,
+      "highLine": -13.8,
+      "lowLine": -31.6
+    },
+    {
+      "t": 97.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -20.9,
+      "avgZ": -2.6,
+      "width": 9.5,
+      "depth": 15.4,
+      "compactness": 5.8,
+      "highLine": -12.2,
+      "lowLine": -27.6
+    },
+    {
+      "t": 102.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -11.5,
+      "avgZ": -4.3,
+      "width": 16.1,
+      "depth": 23.2,
+      "compactness": 7.6,
+      "highLine": 3.5,
+      "lowLine": -19.6
+    },
+    {
+      "t": 107.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -3.7,
+      "avgZ": -4.9,
+      "width": 17.6,
+      "depth": 22.5,
+      "compactness": 8.2,
+      "highLine": 9,
+      "lowLine": -13.5
+    },
+    {
+      "t": 112.6,
+      "half": 1,
+      "team": "A",
+      "avgX": 4.1,
+      "avgZ": -5.3,
+      "width": 21.8,
+      "depth": 26.4,
+      "compactness": 9.8,
+      "highLine": 17.8,
+      "lowLine": -8.7
+    },
+    {
+      "t": 117.6,
+      "half": 1,
+      "team": "A",
+      "avgX": 8.9,
+      "avgZ": -2.6,
+      "width": 16.5,
+      "depth": 26,
+      "compactness": 9.7,
+      "highLine": 22.7,
+      "lowLine": -3.3
+    },
+    {
+      "t": 122.6,
+      "half": 1,
+      "team": "A",
+      "avgX": 1,
+      "avgZ": -0.6,
+      "width": 15.2,
+      "depth": 24.4,
+      "compactness": 8.7,
+      "highLine": 15.6,
+      "lowLine": -8.8
+    },
+    {
+      "t": 127.6,
+      "half": 1,
+      "team": "A",
+      "avgX": -7.5,
+      "avgZ": 2.6,
+      "width": 20.4,
+      "depth": 30.9,
+      "compactness": 9.6,
+      "highLine": 9.7,
+      "lowLine": -21.2
+    },
+    {
+      "t": 133.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -19.3,
+      "avgZ": 6.1,
+      "width": 13.1,
+      "depth": 22.6,
+      "compactness": 7.9,
+      "highLine": -5,
+      "lowLine": -27.6
+    },
+    {
+      "t": 138.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -13.1,
+      "avgZ": 2.6,
+      "width": 14,
+      "depth": 19.4,
+      "compactness": 6.2,
+      "highLine": -1.7,
+      "lowLine": -21.1
+    },
+    {
+      "t": 143.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -15.6,
+      "avgZ": -0.2,
+      "width": 21.1,
+      "depth": 15.2,
+      "compactness": 7.5,
+      "highLine": -6.3,
+      "lowLine": -21.5
+    },
+    {
+      "t": 148.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -10,
+      "avgZ": -3.1,
+      "width": 21.1,
+      "depth": 14.9,
+      "compactness": 7.9,
+      "highLine": -2.9,
+      "lowLine": -17.8
+    },
+    {
+      "t": 153.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -11.8,
+      "avgZ": -1.6,
+      "width": 21,
+      "depth": 13.8,
+      "compactness": 7.6,
+      "highLine": -4.2,
+      "lowLine": -18
+    },
+    {
+      "t": 158.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -3.4,
+      "avgZ": 0.5,
+      "width": 18.9,
+      "depth": 19.4,
+      "compactness": 8.8,
+      "highLine": 7.4,
+      "lowLine": -12
+    },
+    {
+      "t": 163.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -10.3,
+      "avgZ": 0.1,
+      "width": 21.2,
+      "depth": 14.5,
+      "compactness": 7.6,
+      "highLine": -3.3,
+      "lowLine": -17.8
+    },
+    {
+      "t": 168.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -6.6,
+      "avgZ": -4.3,
+      "width": 20.9,
+      "depth": 13.8,
+      "compactness": 7.7,
+      "highLine": 1.4,
+      "lowLine": -12.4
+    },
+    {
+      "t": 173.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -7.4,
+      "avgZ": -4.9,
+      "width": 24.2,
+      "depth": 13.9,
+      "compactness": 8.3,
+      "highLine": -0.9,
+      "lowLine": -14.8
+    },
+    {
+      "t": 178.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -1.4,
+      "avgZ": -4.6,
+      "width": 24.3,
+      "depth": 12.3,
+      "compactness": 8.5,
+      "highLine": 3.7,
+      "lowLine": -8.6
+    },
+    {
+      "t": 183.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -6.8,
+      "avgZ": -3.4,
+      "width": 23.3,
+      "depth": 10.3,
+      "compactness": 8,
+      "highLine": -1.6,
+      "lowLine": -11.9
+    },
+    {
+      "t": 188.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -13.3,
+      "avgZ": -1,
+      "width": 20.3,
+      "depth": 11,
+      "compactness": 7.1,
+      "highLine": -7.1,
+      "lowLine": -18
+    },
+    {
+      "t": 193.4,
+      "half": 1,
+      "team": "A",
+      "avgX": -4.9,
+      "avgZ": -2.3,
+      "width": 23.1,
+      "depth": 14.8,
+      "compactness": 8.5,
+      "highLine": 4.1,
+      "lowLine": -10.7
+    },
+    {
+      "t": 200.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -16.9,
+      "avgZ": 1.5,
+      "width": 11.6,
+      "depth": 12.4,
+      "compactness": 6,
+      "highLine": -10.7,
+      "lowLine": -23.2
+    },
+    {
+      "t": 205.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -11,
+      "avgZ": 1.2,
+      "width": 22.6,
+      "depth": 14.5,
+      "compactness": 6.9,
+      "highLine": -4.4,
+      "lowLine": -18.9
+    },
+    {
+      "t": 210.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -9.7,
+      "avgZ": 0,
+      "width": 18.6,
+      "depth": 22.1,
+      "compactness": 8.1,
+      "highLine": 3.1,
+      "lowLine": -19
+    },
+    {
+      "t": 215.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -6.8,
+      "avgZ": -0.5,
+      "width": 17.1,
+      "depth": 19.3,
+      "compactness": 7.9,
+      "highLine": 4.2,
+      "lowLine": -15.1
+    },
+    {
+      "t": 220.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -13,
+      "avgZ": 2.3,
+      "width": 18,
+      "depth": 27.1,
+      "compactness": 9.5,
+      "highLine": 3.5,
+      "lowLine": -23.6
+    },
+    {
+      "t": 225.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -12.9,
+      "avgZ": 3.2,
+      "width": 12.2,
+      "depth": 20.4,
+      "compactness": 6.8,
+      "highLine": -1.7,
+      "lowLine": -22.1
+    },
+    {
+      "t": 230.8,
+      "half": 1,
+      "team": "A",
+      "avgX": -10.7,
+      "avgZ": 4.5,
+      "width": 16.3,
+      "depth": 24.9,
+      "compactness": 9,
+      "highLine": 4.1,
+      "lowLine": -20.8
+    },
+    {
+      "t": 235.9,
+      "half": 1,
+      "team": "A",
+      "avgX": -3.6,
+      "avgZ": 3.4,
+      "width": 20.3,
+      "depth": 22.4,
+      "compactness": 9.3,
+      "highLine": 9.1,
+      "lowLine": -13.3
+    },
+    {
+      "t": 240.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 3,
+      "avgZ": 3.2,
+      "width": 16.4,
+      "depth": 23,
+      "compactness": 9.3,
+      "highLine": 15,
+      "lowLine": -8
+    },
+    {
+      "t": 245.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 12.7,
+      "avgZ": 0.6,
+      "width": 18.9,
+      "depth": 27.4,
+      "compactness": 11.1,
+      "highLine": 25.4,
+      "lowLine": -1.9
+    },
+    {
+      "t": 250.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 15.1,
+      "avgZ": 3.6,
+      "width": 13.5,
+      "depth": 14.8,
+      "compactness": 6.3,
+      "highLine": 21.4,
+      "lowLine": 6.5
+    },
+    {
+      "t": 255.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 5.3,
+      "avgZ": 5.2,
+      "width": 20.5,
+      "depth": 6.6,
+      "compactness": 7.1,
+      "highLine": 8.1,
+      "lowLine": 1.5
+    },
+    {
+      "t": 260.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 13.7,
+      "avgZ": 3.1,
+      "width": 21.9,
+      "depth": 16.5,
+      "compactness": 9.4,
+      "highLine": 23.3,
+      "lowLine": 6.8
+    },
+    {
+      "t": 265.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 14.1,
+      "avgZ": -1.2,
+      "width": 30.1,
+      "depth": 19.2,
+      "compactness": 12.8,
+      "highLine": 26.5,
+      "lowLine": 7.3
+    },
+    {
+      "t": 270.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 20.8,
+      "avgZ": -0.3,
+      "width": 20.4,
+      "depth": 17.7,
+      "compactness": 10.3,
+      "highLine": 30.3,
+      "lowLine": 12.6
+    },
+    {
+      "t": 275.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 5.4,
+      "avgZ": -0.6,
+      "width": 11.9,
+      "depth": 11.4,
+      "compactness": 5,
+      "highLine": 11.3,
+      "lowLine": -0.1
+    },
+    {
+      "t": 280.9,
+      "half": 1,
+      "team": "A",
+      "avgX": -5.1,
+      "avgZ": 1.6,
+      "width": 16.6,
+      "depth": 17.1,
+      "compactness": 7.2,
+      "highLine": 3.8,
+      "lowLine": -13.2
+    },
+    {
+      "t": 285.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 4,
+      "avgZ": -1,
+      "width": 20.8,
+      "depth": 20.9,
+      "compactness": 8.6,
+      "highLine": 16.1,
+      "lowLine": -4.8
+    },
+    {
+      "t": 290.9,
+      "half": 1,
+      "team": "A",
+      "avgX": 10,
+      "avgZ": -2.5,
+      "width": 22.1,
+      "depth": 11.9,
+      "compactness": 6.9,
+      "highLine": 16.6,
+      "lowLine": 4.7
+    },
+    {
+      "t": 296.4,
+      "half": 1,
+      "team": "A",
+      "avgX": 8.3,
+      "avgZ": -5.6,
+      "width": 19.7,
+      "depth": 14,
+      "compactness": 7,
+      "highLine": 14.1,
+      "lowLine": 0.2
+    },
+    {
+      "t": 5,
+      "half": 2,
+      "team": "A",
+      "avgX": -5.6,
+      "avgZ": -0.3,
+      "width": 14.4,
+      "depth": 26.3,
+      "compactness": 9.2,
+      "highLine": 10.4,
+      "lowLine": -15.9
+    },
+    {
+      "t": 10,
+      "half": 2,
+      "team": "A",
+      "avgX": -6.2,
+      "avgZ": 1.4,
+      "width": 10,
+      "depth": 20,
+      "compactness": 6.9,
+      "highLine": 5.4,
+      "lowLine": -14.5
+    },
+    {
+      "t": 15,
+      "half": 2,
+      "team": "A",
+      "avgX": -11,
+      "avgZ": 2.6,
+      "width": 12.2,
+      "depth": 20.5,
+      "compactness": 6.7,
+      "highLine": 2,
+      "lowLine": -18.5
+    },
+    {
+      "t": 20,
+      "half": 2,
+      "team": "A",
+      "avgX": -14.1,
+      "avgZ": -3.2,
+      "width": 20.3,
+      "depth": 17.1,
+      "compactness": 7.8,
+      "highLine": -3.7,
+      "lowLine": -20.8
+    },
+    {
+      "t": 25,
+      "half": 2,
+      "team": "A",
+      "avgX": -9.9,
+      "avgZ": -4.8,
+      "width": 21,
+      "depth": 17.8,
+      "compactness": 7.5,
+      "highLine": -0.6,
+      "lowLine": -18.4
+    },
+    {
+      "t": 30,
+      "half": 2,
+      "team": "A",
+      "avgX": -9.9,
+      "avgZ": -4.9,
+      "width": 20.6,
+      "depth": 21.4,
+      "compactness": 8,
+      "highLine": 1,
+      "lowLine": -20.5
+    },
+    {
+      "t": 35,
+      "half": 2,
+      "team": "A",
+      "avgX": -2.5,
+      "avgZ": -6.7,
+      "width": 24.8,
+      "depth": 24.3,
+      "compactness": 10.5,
+      "highLine": 8.5,
+      "lowLine": -15.8
+    },
+    {
+      "t": 40,
+      "half": 2,
+      "team": "A",
+      "avgX": -5.6,
+      "avgZ": -2.6,
+      "width": 15.3,
+      "depth": 16.5,
+      "compactness": 6.9,
+      "highLine": 1.6,
+      "lowLine": -15
+    },
+    {
+      "t": 45,
+      "half": 2,
+      "team": "A",
+      "avgX": -7.3,
+      "avgZ": 0,
+      "width": 17.1,
+      "depth": 12.3,
+      "compactness": 6.3,
+      "highLine": -2.1,
+      "lowLine": -14.4
+    },
+    {
+      "t": 50,
+      "half": 2,
+      "team": "A",
+      "avgX": -12,
+      "avgZ": -0.3,
+      "width": 14,
+      "depth": 14.4,
+      "compactness": 6.3,
+      "highLine": -6.1,
+      "lowLine": -20.5
+    },
+    {
+      "t": 55,
+      "half": 2,
+      "team": "A",
+      "avgX": -17.9,
+      "avgZ": -1.8,
+      "width": 9,
+      "depth": 10.1,
+      "compactness": 4.7,
+      "highLine": -12.6,
+      "lowLine": -22.7
+    },
+    {
+      "t": 60,
+      "half": 2,
+      "team": "A",
+      "avgX": -18.4,
+      "avgZ": 6.3,
+      "width": 23.2,
+      "depth": 16.8,
+      "compactness": 6,
+      "highLine": -14.3,
+      "lowLine": -31.1
+    },
+    {
+      "t": 65,
+      "half": 2,
+      "team": "A",
+      "avgX": -23.7,
+      "avgZ": 2.5,
+      "width": 12.5,
+      "depth": 8,
+      "compactness": 4.3,
+      "highLine": -20.4,
+      "lowLine": -28.4
+    },
+    {
+      "t": 70,
+      "half": 2,
+      "team": "A",
+      "avgX": -16.9,
+      "avgZ": -0.2,
+      "width": 21.4,
+      "depth": 20,
+      "compactness": 8.3,
+      "highLine": -5.2,
+      "lowLine": -25.2
+    },
+    {
+      "t": 75,
+      "half": 2,
+      "team": "A",
+      "avgX": -11.7,
+      "avgZ": -0.1,
+      "width": 13.2,
+      "depth": 11.4,
+      "compactness": 5.7,
+      "highLine": -5.6,
+      "lowLine": -17
+    },
+    {
+      "t": 80,
+      "half": 2,
+      "team": "A",
+      "avgX": -13.7,
+      "avgZ": 0.2,
+      "width": 16.8,
+      "depth": 14.3,
+      "compactness": 6.7,
+      "highLine": -7.9,
+      "lowLine": -22.2
+    },
+    {
+      "t": 85,
+      "half": 2,
+      "team": "A",
+      "avgX": -8.9,
+      "avgZ": -1.5,
+      "width": 22.5,
+      "depth": 16.6,
+      "compactness": 8.5,
+      "highLine": -1.2,
+      "lowLine": -17.8
+    },
+    {
+      "t": 90,
+      "half": 2,
+      "team": "A",
+      "avgX": 0.8,
+      "avgZ": -2.8,
+      "width": 26.6,
+      "depth": 29.8,
+      "compactness": 10.7,
+      "highLine": 19.2,
+      "lowLine": -10.5
+    },
+    {
+      "t": 96.4,
+      "half": 2,
+      "team": "A",
+      "avgX": 11.7,
+      "avgZ": -5,
+      "width": 19.6,
+      "depth": 29.3,
+      "compactness": 8.5,
+      "highLine": 30.7,
+      "lowLine": 1.4
+    }
+  ],
+  "shapeB": [
+    {
+      "t": 5,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.9,
+      "avgZ": -0.2,
+      "width": 14.8,
+      "depth": 26.4,
+      "compactness": 9,
+      "highLine": 10.2,
+      "lowLine": -16.2
+    },
+    {
+      "t": 10,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.1,
+      "avgZ": 1.2,
+      "width": 11.8,
+      "depth": 22.4,
+      "compactness": 6.9,
+      "highLine": 7.5,
+      "lowLine": -14.9
+    },
+    {
+      "t": 15,
+      "half": 1,
+      "team": "B",
+      "avgX": 2.7,
+      "avgZ": 2.8,
+      "width": 12.5,
+      "depth": 28.8,
+      "compactness": 8.3,
+      "highLine": 20.8,
+      "lowLine": -8.1
+    },
+    {
+      "t": 20,
+      "half": 1,
+      "team": "B",
+      "avgX": 3.4,
+      "avgZ": 3.9,
+      "width": 13.7,
+      "depth": 25,
+      "compactness": 8.4,
+      "highLine": 17.9,
+      "lowLine": -7.2
+    },
+    {
+      "t": 25,
+      "half": 1,
+      "team": "B",
+      "avgX": -4.8,
+      "avgZ": 3,
+      "width": 12.4,
+      "depth": 16.8,
+      "compactness": 6.2,
+      "highLine": 4.5,
+      "lowLine": -12.3
+    },
+    {
+      "t": 30,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.3,
+      "avgZ": 2.7,
+      "width": 15.6,
+      "depth": 16.6,
+      "compactness": 7,
+      "highLine": 0.3,
+      "lowLine": -16.3
+    },
+    {
+      "t": 35,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.5,
+      "avgZ": 3.4,
+      "width": 13.9,
+      "depth": 16.6,
+      "compactness": 6.4,
+      "highLine": 2.6,
+      "lowLine": -13.9
+    },
+    {
+      "t": 40.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -14.7,
+      "avgZ": 3.8,
+      "width": 8.7,
+      "depth": 13.6,
+      "compactness": 4.8,
+      "highLine": -8.6,
+      "lowLine": -22.2
+    },
+    {
+      "t": 45.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.4,
+      "avgZ": 3,
+      "width": 16,
+      "depth": 14.4,
+      "compactness": 5.9,
+      "highLine": -3.8,
+      "lowLine": -18.2
+    },
+    {
+      "t": 50.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.1,
+      "avgZ": -0.2,
+      "width": 16.8,
+      "depth": 10.7,
+      "compactness": 6.4,
+      "highLine": -4.9,
+      "lowLine": -15.6
+    },
+    {
+      "t": 55.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -11.3,
+      "avgZ": -0.8,
+      "width": 18.6,
+      "depth": 17.9,
+      "compactness": 7.9,
+      "highLine": -4.7,
+      "lowLine": -22.5
+    },
+    {
+      "t": 60.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -12.5,
+      "avgZ": -2.3,
+      "width": 17.7,
+      "depth": 18.4,
+      "compactness": 7.5,
+      "highLine": -3.2,
+      "lowLine": -21.5
+    },
+    {
+      "t": 65.1,
+      "half": 1,
+      "team": "B",
+      "avgX": -9.7,
+      "avgZ": 0.5,
+      "width": 23.3,
+      "depth": 18.1,
+      "compactness": 8.6,
+      "highLine": -2.1,
+      "lowLine": -20.1
+    },
+    {
+      "t": 70.1,
+      "half": 1,
+      "team": "B",
+      "avgX": 0.5,
+      "avgZ": 2.5,
+      "width": 21.4,
+      "depth": 26.5,
+      "compactness": 10.9,
+      "highLine": 13.2,
+      "lowLine": -13.3
+    },
+    {
+      "t": 75.1,
+      "half": 1,
+      "team": "B",
+      "avgX": 11,
+      "avgZ": 1.6,
+      "width": 19.9,
+      "depth": 31.9,
+      "compactness": 12.4,
+      "highLine": 27.4,
+      "lowLine": -4.5
+    },
+    {
+      "t": 82.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 13,
+      "avgZ": 0.3,
+      "width": 10.6,
+      "depth": 18,
+      "compactness": 6.9,
+      "highLine": 20.1,
+      "lowLine": 2.1
+    },
+    {
+      "t": 87.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 3.6,
+      "avgZ": 2.2,
+      "width": 9.9,
+      "depth": 15.1,
+      "compactness": 5.7,
+      "highLine": 11.2,
+      "lowLine": -3.9
+    },
+    {
+      "t": 92.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 25.9,
+      "avgZ": -3.2,
+      "width": 33.6,
+      "depth": 20.4,
+      "compactness": 10,
+      "highLine": 32.8,
+      "lowLine": 12.4
+    },
+    {
+      "t": 97.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 19.1,
+      "avgZ": -4.3,
+      "width": 17.5,
+      "depth": 11.5,
+      "compactness": 5.2,
+      "highLine": 23.8,
+      "lowLine": 12.3
+    },
+    {
+      "t": 102.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 4.8,
+      "avgZ": -4.5,
+      "width": 12.2,
+      "depth": 12.9,
+      "compactness": 5.2,
+      "highLine": 10.5,
+      "lowLine": -2.4
+    },
+    {
+      "t": 107.6,
+      "half": 1,
+      "team": "B",
+      "avgX": -2.9,
+      "avgZ": -3.6,
+      "width": 16.6,
+      "depth": 12.5,
+      "compactness": 5.6,
+      "highLine": 3.4,
+      "lowLine": -9.1
+    },
+    {
+      "t": 112.6,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.3,
+      "avgZ": -3,
+      "width": 18.1,
+      "depth": 18.7,
+      "compactness": 7.5,
+      "highLine": 1.3,
+      "lowLine": -17.4
+    },
+    {
+      "t": 117.6,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.6,
+      "avgZ": -0.6,
+      "width": 19.3,
+      "depth": 24,
+      "compactness": 8.3,
+      "highLine": 0.8,
+      "lowLine": -23.3
+    },
+    {
+      "t": 122.6,
+      "half": 1,
+      "team": "B",
+      "avgX": -5.3,
+      "avgZ": 0.2,
+      "width": 21.2,
+      "depth": 24.3,
+      "compactness": 9.3,
+      "highLine": 5.3,
+      "lowLine": -19
+    },
+    {
+      "t": 127.6,
+      "half": 1,
+      "team": "B",
+      "avgX": 5.3,
+      "avgZ": 1.6,
+      "width": 22.1,
+      "depth": 34.8,
+      "compactness": 10.6,
+      "highLine": 24,
+      "lowLine": -10.8
+    },
+    {
+      "t": 133.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 11.1,
+      "avgZ": 4.1,
+      "width": 18.9,
+      "depth": 23,
+      "compactness": 7.3,
+      "highLine": 21.8,
+      "lowLine": -1.2
+    },
+    {
+      "t": 138.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 3.9,
+      "avgZ": 1.1,
+      "width": 13.4,
+      "depth": 17.3,
+      "compactness": 7,
+      "highLine": 12,
+      "lowLine": -5.3
+    },
+    {
+      "t": 143.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 10.4,
+      "avgZ": -0.8,
+      "width": 16.9,
+      "depth": 21.9,
+      "compactness": 9.1,
+      "highLine": 19.9,
+      "lowLine": -2
+    },
+    {
+      "t": 148.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 3.6,
+      "avgZ": -5.5,
+      "width": 19,
+      "depth": 15,
+      "compactness": 7.3,
+      "highLine": 9.4,
+      "lowLine": -5.6
+    },
+    {
+      "t": 153.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 5.7,
+      "avgZ": -3.3,
+      "width": 14.4,
+      "depth": 19.3,
+      "compactness": 7.2,
+      "highLine": 14.5,
+      "lowLine": -4.8
+    },
+    {
+      "t": 158.4,
+      "half": 1,
+      "team": "B",
+      "avgX": -2.8,
+      "avgZ": -0.7,
+      "width": 17.1,
+      "depth": 13.1,
+      "compactness": 6.4,
+      "highLine": 2,
+      "lowLine": -11.1
+    },
+    {
+      "t": 163.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 4.4,
+      "avgZ": -2.6,
+      "width": 18.7,
+      "depth": 21.8,
+      "compactness": 8.1,
+      "highLine": 14.3,
+      "lowLine": -7.5
+    },
+    {
+      "t": 168.4,
+      "half": 1,
+      "team": "B",
+      "avgX": -0.5,
+      "avgZ": -5.8,
+      "width": 18.6,
+      "depth": 12.4,
+      "compactness": 7,
+      "highLine": 4.5,
+      "lowLine": -7.9
+    },
+    {
+      "t": 173.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 1.4,
+      "avgZ": -5.8,
+      "width": 17.6,
+      "depth": 16.6,
+      "compactness": 7.1,
+      "highLine": 9.6,
+      "lowLine": -7
+    },
+    {
+      "t": 178.4,
+      "half": 1,
+      "team": "B",
+      "avgX": -4.2,
+      "avgZ": -4.3,
+      "width": 18.8,
+      "depth": 9.8,
+      "compactness": 6.3,
+      "highLine": 0.1,
+      "lowLine": -9.7
+    },
+    {
+      "t": 183.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 2.1,
+      "avgZ": -1.7,
+      "width": 13.9,
+      "depth": 13.4,
+      "compactness": 5.6,
+      "highLine": 8.9,
+      "lowLine": -4.5
+    },
+    {
+      "t": 188.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 9.4,
+      "avgZ": -0.9,
+      "width": 18.7,
+      "depth": 19.3,
+      "compactness": 8.3,
+      "highLine": 16.8,
+      "lowLine": -2.5
+    },
+    {
+      "t": 193.4,
+      "half": 1,
+      "team": "B",
+      "avgX": 0.4,
+      "avgZ": -1.8,
+      "width": 13.7,
+      "depth": 15,
+      "compactness": 5.7,
+      "highLine": 9,
+      "lowLine": -6
+    },
+    {
+      "t": 200.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 5.6,
+      "avgZ": 2.2,
+      "width": 12.2,
+      "depth": 19.4,
+      "compactness": 6,
+      "highLine": 15.2,
+      "lowLine": -4.2
+    },
+    {
+      "t": 205.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 6.2,
+      "avgZ": 2,
+      "width": 16.9,
+      "depth": 18.5,
+      "compactness": 7.1,
+      "highLine": 13.7,
+      "lowLine": -4.8
+    },
+    {
+      "t": 210.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 6.6,
+      "avgZ": 0.3,
+      "width": 23.1,
+      "depth": 18.5,
+      "compactness": 8.5,
+      "highLine": 14.1,
+      "lowLine": -4.4
+    },
+    {
+      "t": 215.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 2.2,
+      "avgZ": 0.8,
+      "width": 16.1,
+      "depth": 14,
+      "compactness": 7.1,
+      "highLine": 7.5,
+      "lowLine": -6.6
+    },
+    {
+      "t": 220.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 11.7,
+      "avgZ": 1.6,
+      "width": 19.2,
+      "depth": 24.6,
+      "compactness": 10,
+      "highLine": 24.4,
+      "lowLine": -0.2
+    },
+    {
+      "t": 225.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 11.6,
+      "avgZ": 3.7,
+      "width": 17.2,
+      "depth": 20.7,
+      "compactness": 7.3,
+      "highLine": 23.4,
+      "lowLine": 2.7
+    },
+    {
+      "t": 230.8,
+      "half": 1,
+      "team": "B",
+      "avgX": 7.2,
+      "avgZ": 3.7,
+      "width": 19.8,
+      "depth": 18.9,
+      "compactness": 8.6,
+      "highLine": 16.2,
+      "lowLine": -2.7
+    },
+    {
+      "t": 235.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -2.2,
+      "avgZ": 1.9,
+      "width": 16.8,
+      "depth": 14.4,
+      "compactness": 6.4,
+      "highLine": 4,
+      "lowLine": -10.4
+    },
+    {
+      "t": 240.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -7.7,
+      "avgZ": 2.1,
+      "width": 14.5,
+      "depth": 15.9,
+      "compactness": 6.8,
+      "highLine": -0.3,
+      "lowLine": -16.2
+    },
+    {
+      "t": 245.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -12.9,
+      "avgZ": 0.1,
+      "width": 14.8,
+      "depth": 18.9,
+      "compactness": 8,
+      "highLine": -5.3,
+      "lowLine": -24.2
+    },
+    {
+      "t": 250.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -21.9,
+      "avgZ": 5.1,
+      "width": 9.3,
+      "depth": 16.3,
+      "compactness": 5.9,
+      "highLine": -14.7,
+      "lowLine": -31
+    },
+    {
+      "t": 255.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -14.2,
+      "avgZ": 5.8,
+      "width": 21.5,
+      "depth": 15.8,
+      "compactness": 7.6,
+      "highLine": -6,
+      "lowLine": -21.8
+    },
+    {
+      "t": 260.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -13.9,
+      "avgZ": 4,
+      "width": 13.8,
+      "depth": 11.4,
+      "compactness": 6,
+      "highLine": -8.7,
+      "lowLine": -20.1
+    },
+    {
+      "t": 265.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -17,
+      "avgZ": -3.3,
+      "width": 18.7,
+      "depth": 14.8,
+      "compactness": 7.3,
+      "highLine": -9.6,
+      "lowLine": -24.4
+    },
+    {
+      "t": 270.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -23.8,
+      "avgZ": -3.3,
+      "width": 9.3,
+      "depth": 11,
+      "compactness": 4.5,
+      "highLine": -17.9,
+      "lowLine": -28.9
+    },
+    {
+      "t": 275.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -13.6,
+      "avgZ": 0.1,
+      "width": 15.8,
+      "depth": 19,
+      "compactness": 7.1,
+      "highLine": -2.8,
+      "lowLine": -21.8
+    },
+    {
+      "t": 280.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -6.3,
+      "avgZ": 2.4,
+      "width": 15.1,
+      "depth": 23,
+      "compactness": 8.3,
+      "highLine": 6.3,
+      "lowLine": -16.8
+    },
+    {
+      "t": 285.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -8.6,
+      "avgZ": -1,
+      "width": 15.5,
+      "depth": 15.3,
+      "compactness": 6.4,
+      "highLine": 1.2,
+      "lowLine": -14.1
+    },
+    {
+      "t": 290.9,
+      "half": 1,
+      "team": "B",
+      "avgX": -10.1,
+      "avgZ": -1.5,
+      "width": 17,
+      "depth": 14.5,
+      "compactness": 6.1,
+      "highLine": -1.2,
+      "lowLine": -15.8
+    },
+    {
+      "t": 296.4,
+      "half": 1,
+      "team": "B",
+      "avgX": -16.1,
+      "avgZ": -4.8,
+      "width": 16.1,
+      "depth": 14.8,
+      "compactness": 5.6,
+      "highLine": -8,
+      "lowLine": -22.8
+    },
+    {
+      "t": 5,
+      "half": 2,
+      "team": "B",
+      "avgX": -4.6,
+      "avgZ": 0.1,
+      "width": 17.6,
+      "depth": 26.2,
+      "compactness": 10.2,
+      "highLine": 9.3,
+      "lowLine": -16.9
+    },
+    {
+      "t": 10,
+      "half": 2,
+      "team": "B",
+      "avgX": -1.5,
+      "avgZ": 1,
+      "width": 18,
+      "depth": 27.1,
+      "compactness": 9.7,
+      "highLine": 11.3,
+      "lowLine": -15.8
+    },
+    {
+      "t": 15,
+      "half": 2,
+      "team": "B",
+      "avgX": 8.1,
+      "avgZ": 2.3,
+      "width": 15.8,
+      "depth": 30.9,
+      "compactness": 10.4,
+      "highLine": 24.2,
+      "lowLine": -6.7
+    },
+    {
+      "t": 20,
+      "half": 2,
+      "team": "B",
+      "avgX": 7.3,
+      "avgZ": -4,
+      "width": 20.5,
+      "depth": 30,
+      "compactness": 10.6,
+      "highLine": 21.5,
+      "lowLine": -8.6
+    },
+    {
+      "t": 25,
+      "half": 2,
+      "team": "B",
+      "avgX": 4.7,
+      "avgZ": -5.7,
+      "width": 21.7,
+      "depth": 24.3,
+      "compactness": 10.3,
+      "highLine": 15.3,
+      "lowLine": -9
+    },
+    {
+      "t": 30,
+      "half": 2,
+      "team": "B",
+      "avgX": 7.6,
+      "avgZ": -7.8,
+      "width": 16.3,
+      "depth": 20.1,
+      "compactness": 8.3,
+      "highLine": 16.4,
+      "lowLine": -3.7
+    },
+    {
+      "t": 35,
+      "half": 2,
+      "team": "B",
+      "avgX": -3.1,
+      "avgZ": -5.7,
+      "width": 19.5,
+      "depth": 26.3,
+      "compactness": 9.5,
+      "highLine": 11.9,
+      "lowLine": -14.4
+    },
+    {
+      "t": 40,
+      "half": 2,
+      "team": "B",
+      "avgX": 0.7,
+      "avgZ": -0.7,
+      "width": 21.6,
+      "depth": 29.8,
+      "compactness": 10.4,
+      "highLine": 16.6,
+      "lowLine": -13.3
+    },
+    {
+      "t": 45,
+      "half": 2,
+      "team": "B",
+      "avgX": 2.6,
+      "avgZ": 0.2,
+      "width": 20.8,
+      "depth": 21.9,
+      "compactness": 9.1,
+      "highLine": 13.5,
+      "lowLine": -8.4
+    },
+    {
+      "t": 50,
+      "half": 2,
+      "team": "B",
+      "avgX": 9.2,
+      "avgZ": -1.5,
+      "width": 16.2,
+      "depth": 26,
+      "compactness": 9.1,
+      "highLine": 22,
+      "lowLine": -4
+    },
+    {
+      "t": 55,
+      "half": 2,
+      "team": "B",
+      "avgX": 16.3,
+      "avgZ": -3.1,
+      "width": 21.8,
+      "depth": 25.1,
+      "compactness": 10.2,
+      "highLine": 27,
+      "lowLine": 2
+    },
+    {
+      "t": 60,
+      "half": 2,
+      "team": "B",
+      "avgX": 19.7,
+      "avgZ": 0.7,
+      "width": 25.6,
+      "depth": 22.9,
+      "compactness": 10.4,
+      "highLine": 29.8,
+      "lowLine": 6.9
+    },
+    {
+      "t": 65,
+      "half": 2,
+      "team": "B",
+      "avgX": 22.7,
+      "avgZ": 2,
+      "width": 18.9,
+      "depth": 18.3,
+      "compactness": 8.5,
+      "highLine": 30.7,
+      "lowLine": 12.5
+    },
+    {
+      "t": 70,
+      "half": 2,
+      "team": "B",
+      "avgX": 7,
+      "avgZ": 0,
+      "width": 12.9,
+      "depth": 14.2,
+      "compactness": 5.9,
+      "highLine": 14.5,
+      "lowLine": 0.3
+    },
+    {
+      "t": 75,
+      "half": 2,
+      "team": "B",
+      "avgX": 10.1,
+      "avgZ": 0.1,
+      "width": 18.9,
+      "depth": 9.7,
+      "compactness": 6.3,
+      "highLine": 15.3,
+      "lowLine": 5.6
+    },
+    {
+      "t": 80,
+      "half": 2,
+      "team": "B",
+      "avgX": 16.4,
+      "avgZ": -0.6,
+      "width": 18.5,
+      "depth": 13.5,
+      "compactness": 7.1,
+      "highLine": 24,
+      "lowLine": 10.6
+    },
+    {
+      "t": 85,
+      "half": 2,
+      "team": "B",
+      "avgX": 6.8,
+      "avgZ": -5.8,
+      "width": 11.3,
+      "depth": 11.5,
+      "compactness": 5,
+      "highLine": 14.1,
+      "lowLine": 2.5
+    },
+    {
+      "t": 90,
+      "half": 2,
+      "team": "B",
+      "avgX": -8,
+      "avgZ": -4.9,
+      "width": 20.5,
+      "depth": 17.5,
+      "compactness": 7.5,
+      "highLine": -0.2,
+      "lowLine": -17.6
+    },
+    {
+      "t": 96.4,
+      "half": 2,
+      "team": "B",
+      "avgX": -23.3,
+      "avgZ": -5.5,
+      "width": 12.6,
+      "depth": 21.9,
+      "compactness": 9.4,
+      "highLine": -11.1,
+      "lowLine": -33
+    }
+  ],
+  "transitions": [
+    {
+      "t": 66.52,
+      "half": 1,
+      "team": "A",
+      "direction": "ATK",
+      "triggerX": 6.9,
+      "triggerZ": -12.3,
+      "duration": 110.84,
+      "passesInTransition": 9,
+      "progressionYards": -42.1
+    }
+  ],
+  "goalLog": [],
+  "keeperExperience": [
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775837937603
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775837946603
+    },
+    {
+      "state": [
+        0.9762352705001831,
+        -0.17412348091602325,
+        0.9689182043075562,
+        -0.17412348091602325,
+        0.20000000298023224,
+        0,
+        0,
+        0.9769725799560547,
+        0,
+        0,
+        -1,
+        -0.8069547414779663,
+        0.6507924795150757,
+        0.4599159359931946,
+        -0.41190630197525024,
+        0.18849624693393707,
+        0.38696715235710144,
+        -0.8996009826660156,
+        0.1702420860528946,
+        0.37190085649490356,
+        -0.6343775391578674,
+        0.20881813764572144,
+        0.3452571928501129,
+        0.3910102844238281,
+        0.4599159359931946
+      ],
+      "action": 5,
+      "reward": 1,
+      "style": "GOAL_KICK",
+      "timestamp": 1775837947916
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775837960687
+    },
+    {
+      "state": [
+        -0.9169723391532898,
+        0.12409024685621262,
+        -0.9096552729606628,
+        0.12409024685621262,
+        0.4000000059604645,
+        0.5,
+        0,
+        0.971613883972168,
+        0,
+        0,
+        1,
+        0.18850643932819366,
+        -0.22178326547145844,
+        0.4949949085712433,
+        0.6004735231399536,
+        0.0862809494137764,
+        0.3924838900566101,
+        0.7305843830108643,
+        -0.7036188244819641,
+        0.2945425510406494,
+        0.3007870614528656,
+        0.27146050333976746,
+        0.31814175844192505,
+        0.37504076957702637,
+        0.4949949085712433
+      ],
+      "action": 5,
+      "reward": -1,
+      "style": "GOAL_KICK",
+      "timestamp": 1775837962459
+    },
+    {
+      "state": [],
+      "action": -1,
+      "reward": 1,
+      "style": "SAVE",
+      "timestamp": 1775837978070
+    },
+    {
+      "state": [
+        0.8392415642738342,
+        -0.02493210695683956,
+        0.831332266330719,
+        -0.023636246100068092,
+        0.6000000238418579,
+        0.75,
+        0,
+        0.9560306072235107,
+        0,
+        0,
+        -1,
+        -0.4326232075691223,
+        -0.08968523144721985,
+        0.3664366602897644,
+        -0.5980878472328186,
+        0.20600946247577667,
+        0.2439430207014084,
+        -0.6727866530418396,
+        -0.140797957777977,
+        0.24954496324062347,
+        -0.8251618146896362,
+        0.5310440063476562,
+        0.1927105039358139,
+        0.26315879821777344,
+        0.3664366602897644
+      ],
+      "action": 5,
+      "reward": 1,
+      "style": "GOAL_KICK",
+      "timestamp": 1775838006615
+    },
+    {
+      "state": [
+        0.9333333373069763,
+        0,
+        0.9174796938896179,
+        0,
+        0,
+        0,
+        0,
+        0.8988735675811768,
+        0,
+        1,
+        -1,
+        -0.18222221732139587,
+        -0.437333345413208,
+        0.5551052689552307,
+        -0.18222221732139587,
+        0.437333345413208,
+        0.5551052689552307,
+        -0.36444443464279175,
+        -0.6013333201408386,
+        0.4609898030757904,
+        -0.36444443464279175,
+        0.6013333201408386,
+        0.4609898030757904,
+        0.5080475211143494,
+        0.5551052689552307
+      ],
+      "action": 4,
+      "reward": -1,
+      "style": "PUNT",
+      "timestamp": 1775838167036
+    },
+    {
+      "state": [
+        0.9333333373069763,
+        0,
+        0.9174796938896179,
+        0,
+        0,
+        0,
+        0,
+        0.9745482206344604,
+        1,
+        1,
+        -1,
+        -0.1771472543478012,
+        -0.4346420466899872,
+        0.5630682706832886,
+        -0.17727598547935486,
+        0.43464142084121704,
+        0.5628300309181213,
+        -0.36898067593574524,
+        0.5989344716072083,
+        0.45514988899230957,
+        -0.3689804971218109,
+        -0.5989336371421814,
+        0.45514896512031555,
+        0.5090492963790894,
+        0.5630682706832886
+      ],
+      "action": 4,
+      "reward": -1,
+      "style": "PUNT",
+      "timestamp": 1775838270796
+    },
+    {
+      "state": [
+        0.7907944917678833,
+        -0.04365720972418785,
+        0.7822873592376709,
+        -0.04366200417280197,
+        0.4000000059604645,
+        0.5,
+        0,
+        0.9696508646011353,
+        1,
+        0,
+        -1,
+        -0.5435817837715149,
+        -0.34341928362846375,
+        0.4679900109767914,
+        -0.5109222531318665,
+        -0.31804338097572327,
+        0.4237820506095886,
+        -0.46707698702812195,
+        -0.31379222869873047,
+        0.3375924229621887,
+        -0.5643535852432251,
+        0.6294601559638977,
+        0.29790928959846497,
+        0.3818184435367584,
+        0.4679900109767914
+      ],
+      "action": 5,
+      "reward": 1,
+      "style": "GOAL_KICK",
+      "timestamp": 1775838284018
+    }
+  ],
+  "metadata": {
+    "engineVersion": "1.0.0",
+    "teamAName": "CF Montreal",
+    "teamBName": "St. Louis City SC",
+    "formationA": "3-4-3",
+    "formationB": "3-4-3",
+    "weather": "SUNNY",
+    "lighting": "NOON",
+    "aiStyle": "BALANCED",
+    "halfDuration": 300,
+    "gameSpeedScale": 0.7,
+    "timestamp": 1775838304601
+  }
+}

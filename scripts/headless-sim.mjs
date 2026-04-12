@@ -41,6 +41,7 @@ Options:
 
 Notes:
   - If ${DEFAULT_URL} is not reachable, the script auto-starts a Vite dev server on ${FALLBACK_SERVER_URL}.
+  - Team matchups are randomized from a shuffled pool with no duplicate fixture repeats per cycle.
   - The sim runs headless in Chromium/Edge and prints text summaries as games finish.
   - Results are stored in IndexedDB telemetry and visible in the MATCHES dashboard tab.`)
 }
@@ -102,11 +103,33 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function pickTwoTeams() {
-  const a = pickRandom(MLS_TEAMS)
-  let b = pickRandom(MLS_TEAMS)
-  while (b === a) b = pickRandom(MLS_TEAMS)
-  return [a, b]
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+function buildAllMatchups(teams) {
+  const matchups = []
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matchups.push([teams[i], teams[j]])
+    }
+  }
+  return matchups
+}
+
+function createMatchupPicker(teams) {
+  let pool = shuffleInPlace(buildAllMatchups(teams))
+  return () => {
+    if (pool.length === 0) {
+      pool = shuffleInPlace(buildAllMatchups(teams))
+    }
+    const [a, b] = pool.pop()
+    return Math.random() < 0.5 ? [a, b] : [b, a]
+  }
 }
 
 function formatDuration(ms) {
@@ -320,7 +343,7 @@ function printAggregate(results) {
   const cleanSheets = results.filter(r => r.scoreA === 0 || r.scoreB === 0).length
 
   console.log('')
-  console.log(`${'═'.repeat(60)}`)
+  console.log(`${'-'.repeat(60)}`)
   console.log(`Run complete | ${n} game${n === 1 ? '' : 's'}`)
   console.log(`  Avg goals/game: ${(totalGoals / n).toFixed(1)} | Range: ${Math.min(...results.map(r => r.scoreA + r.scoreB))}-${Math.max(...results.map(r => r.scoreA + r.scoreB))}`)
   console.log(`  Avg shots/game: ${(totalShots / n).toFixed(1)} | Shot accuracy: ${pct(totalSog, totalShots)}`)
@@ -328,7 +351,7 @@ function printAggregate(results) {
   console.log(`  Avg passes/game: ${(totalPasses / n).toFixed(1)} | Pass completion: ${pct(totalPassComp, totalPasses)}`)
   console.log(`  Avg tackles/game: ${(totalTackles / n).toFixed(1)} | Avg fouls/game: ${(totalFouls / n).toFixed(1)}`)
   console.log(`  Draws: ${draws}/${n} (${pct(draws, n)}) | Clean sheets: ${cleanSheets}/${n}`)
-  console.log(`${'═'.repeat(60)}`)
+  console.log(`${'-'.repeat(60)}`)
 }
 
 async function run() {
@@ -395,6 +418,7 @@ async function run() {
     if (!gameReady) throw new Error('Game engine did not initialize within timeout')
 
     const results = []
+    const nextMatchup = createMatchupPicker(MLS_TEAMS)
     const startedAt = Date.now()
 
     for (let i = 0; i < options.games; i++) {
@@ -403,7 +427,7 @@ async function run() {
         throw new Error(`Timed out after ${formatDuration(elapsed)} waiting for ${options.games} game(s)`)
       }
 
-      const [teamA, teamB] = pickTwoTeams()
+      const [teamA, teamB] = nextMatchup()
       const formA = pickRandom(FORMATIONS)
       const formB = pickRandom(FORMATIONS)
 
@@ -414,7 +438,7 @@ async function run() {
 
       const finished = await waitForFullTime(page, 600000)
       if (!finished) {
-        console.warn(`  ⚠ Game ${i + 1} did not finish (timeout). Skipping.`)
+        console.warn(`  ? Game ${i + 1} did not finish (timeout). Skipping.`)
         continue
       }
 

@@ -1,0 +1,1000 @@
+  function _simulateStep(nowFromRaf?: number) {
+    pollGamepad();
+        const now = nowFromRaf ?? performance.now();
+    const bannerNow = now / 1000;
+    
+    // Animate Banners
+    bannerTexts.forEach((t: any) => {
+      if (!t.tickerPhase) {
+        t.tickerPhase = 'scroll';
+        t.tickerOffset = 0;
+        t.tickerSteps = 0;
+        t.tickerBlinkToggles = 0;
+        t.tickerNextAt = bannerNow + 0.1;
+      }
+
+      if (bannerNow >= (t.tickerNextAt || 0)) {
+        if (t.tickerPhase === 'scroll') {
+          const tickerSource = t.tickerSource || 'PIXEL SOCCER LEAGUE • ';
+          const tickerLoop = t.tickerLoop || tickerSource.repeat(10);
+          t.tickerOffset = (t.tickerOffset + 1) % tickerSource.length;
+          const tickerWindowChars = typeof t.tickerWindowChars === 'number' ? t.tickerWindowChars : bannerTickerWindowChars;
+          const doubled = tickerLoop + tickerLoop;
+          const textSlice = doubled.slice(t.tickerOffset, t.tickerOffset + tickerWindowChars);
+          if (t._tickerText !== textSlice) {
+            t._tickerText = textSlice;
+            t.text = textSlice;
+            t.sync();
+          }
+          t.visible = true;
+          t.tickerSteps = (t.tickerSteps || 0) + 1;
+          if (t.tickerSteps >= 18) {
+            t.tickerSteps = 0;
+            t.tickerPhase = 'stop';
+            t.tickerNextAt = bannerNow + 0.8;
+          } else {
+            t.tickerNextAt = bannerNow + 0.11;
+          }
+        } else if (t.tickerPhase === 'stop') {
+          t.visible = true;
+          t.tickerPhase = 'blink';
+          t.tickerBlinkToggles = 0;
+          t.tickerNextAt = bannerNow + 0.12;
+        } else {
+          t.visible = !t.visible;
+          t.tickerBlinkToggles = (t.tickerBlinkToggles || 0) + 1;
+          if (t.tickerBlinkToggles >= 4) {
+            t.visible = true;
+            t.tickerPhase = 'scroll';
+            t.tickerNextAt = bannerNow + 0.11;
+          } else {
+            t.tickerNextAt = bannerNow + 0.12;
+          }
+        }
+      }
+
+      // Ensure visible
+      if (t.tickerPhase !== 'blink') t.visible = true;
+      
+      // Soft Neon Glow
+      t.outlineWidth = 0.05;
+      t.outlineColor = t.color;
+      t.outlineBlur = 0.15;
+    });
+
+    // Snapshot possession team before any AI writes it this frame
+    const prevHolderTeam: 'A' | 'B' | null = (ballState.heldBy?.team as 'A' | 'B') ?? null;
+
+    if (!gameState.isLive && !gameState.isKickoff && !gameState.hintDismissed && gameState.down >= 2) {
+      if (hintOverlay.style.opacity === '0') {
+        hintOverlay.style.opacity = '1';
+      }
+    } else {
+      hintOverlay.style.opacity = '0';
+    }
+
+// COMMENTED: // REMOVED DUPE:         const now = nowFromRaf ?? performance.now();
+    const rawDt = Math.min(Math.max((now - lastTime) / 1000, 0.001), 0.1);
+    lastTime = now;
+    const elapsed = now / 1000;
+    goalNetMaterials.forEach((material) => {
+      material.uniforms.uTime.value = elapsed;
+    });
+    if (isManualPause) {
+      // Must poll gamepad Start button even while paused so it can unpause
+      if (gamepad.connected && gpJustPressed(9) && !gameState.menuVisible) {
+        setManualPause(false);
+      }
+      players.forEach((p: any) => { p.mesh.position.copy(p.pos); });
+      ballGroup.position.copy(ballState.pos);
+      updateBallShadowVisual();
+      renderMainCamera();
+      return;
+    }
+    if (gameState.crossAssistTeam && elapsed > gameState.crossAssistUntil) {
+      gameState.crossAssistTeam = '';
+      gameState.crossAssistUntil = 0;
+    }
+    if (playPatternHideAt > 0 && elapsed >= playPatternHideAt) {
+      playPatternOverlay.style.opacity = '0';
+      playPatternHideAt = 0;
+    }
+
+    // ── FULL TIME ENFORCER ──────────────────────────────────────────────
+    // Nuclear guard: every single frame, if the match is over, force all
+    // gameplay-resuming state off so no timer, callback, or race condition
+    // can restart play.
+    if (matchClock.phase === 'FULL_TIME') {
+      gameState.status = 'START';
+      gameState.isLive = false;
+      gameState.isKickoff = false;
+      gameState.kickoffState = 'NONE';
+      gameState.goalKickInProgress = false;
+      gameState.cornerKickInProgress = false;
+      delayedRestartState.active = false;
+      kickoffPresentation.active = false;
+      freeKickPresentation.active = false;
+      freeKickPresentation.humanWaiting = false;
+      throwInPresentation.active = false;
+      cornerPresentation.active = false;
+      penaltyPresentation.active = false;
+      if (restartAutoStartTimer) { clearTimeout(restartAutoStartTimer); restartAutoStartTimer = null; }
+      clearStuckRestartTimer();
+    }
+    // ────────────────────────────────────────────────────────────────────
+
+    const instantFPS = rawDt > 0 ? (1 / rawDt) : smoothedFPS;
+    smoothedFPS = smoothedFPS * 0.9 + instantFPS * 0.1;
+    // Corner bunch detector disabled
+    // updateCornerBunchDetector(rawDt);
+    if (showFPSDisplay && now - lastFPSUiUpdate >= 120) {
+      fpsDisplay.textContent = `FPS ${Math.round(smoothedFPS)}`;
+      lastFPSUiUpdate = now;
+    }
+    if (showAIStateOverlay && now - lastAIStateUiUpdate >= 180) {
+      const teamA = players.filter((p: any) => p.team === 'A');
+      const teamB = players.filter((p: any) => p.team === 'B');
+      const teamAName = (activeTeams.A.scoreName || 'TEAM A').toUpperCase();
+      const teamBName = (activeTeams.B.scoreName || 'TEAM B').toUpperCase();
+      const holderName = ballState.heldBy ? `${ballState.heldBy.team}:${ballState.heldBy.name}` : 'LOOSE';
+      const formatLine = (p: any) => {
+        const role = (p.displayRole || p.role || 'P').padEnd(2, ' ');
+        const state = (p.aiState || 'IDLE').padEnd(18, ' ');
+        return `${role} ${p.name.slice(0, 12).padEnd(12, ' ')} ${state}`;
+      };
+      aiStateOverlay.textContent = [
+        'AI STATE DEBUG',
+        `BALL: ${holderName}`,
+        `FPS: ${Math.round(smoothedFPS)}`,
+        `CORNER BUNCH ${teamAName}: now ${cornerBunchTracker.A.current} • events ${cornerBunchTracker.A.events} • peak ${cornerBunchTracker.A.peak}`,
+        `CORNER BUNCH ${teamBName}: now ${cornerBunchTracker.B.current} • events ${cornerBunchTracker.B.events} • peak ${cornerBunchTracker.B.peak}`,
+        `CORNER MIXED: now ${cornerBunchTracker.MIXED.current} • events ${cornerBunchTracker.MIXED.events} • peak ${cornerBunchTracker.MIXED.peak}`,
+        '',
+        teamAName,
+        ...teamA.map(formatLine),
+        '',
+        teamBName,
+        ...teamB.map(formatLine),
+      ].join('\n');
+      lastAIStateUiUpdate = now;
+    }
+    const saveSlowmoActive = elapsed < gameState.saveSlowmoUntil;
+    const dt = rawDt * (saveSlowmoActive ? SAVE_SLOWMO_SCALE : 1.0);
+    updateWeatherEffects(dt, elapsed);
+    if (ballState.heldBy && (ballState.heldBy.team === 'A' || ballState.heldBy.team === 'B')) {
+      gameState.offensiveTeam = ballState.heldBy.team;
+    } else if (ballState.lastHeldBy && (ballState.lastHeldBy.team === 'A' || ballState.lastHeldBy.team === 'B')) {
+      gameState.offensiveTeam = ballState.lastHeldBy.team;
+    }
+    const currentKeeperHolder = ballState.heldBy && isGoalkeeper(ballState.heldBy) ? ballState.heldBy : null;
+    if (gameState.keeperHoldPlayer !== currentKeeperHolder) {
+      gameState.keeperHoldPlayer = currentKeeperHolder;
+      gameState.keeperHoldStartedAt = currentKeeperHolder ? elapsed : 0;
+    }
+    refreshDynamicTeamShape(elapsed);
+
+    gameState.cpuDecisionCooldownA = Math.max(0, gameState.cpuDecisionCooldownA - dt);
+    gameState.cpuDecisionCooldownB = Math.max(0, gameState.cpuDecisionCooldownB - dt);
+
+    // In CPU vs CPU, automatically trigger restarts and kickoff touch with no user input.
+    if (gameState.cpuVsCpu && !kickoffPresentation.active && !freeKickPresentation.active && !gameState.menuVisible && !gameState.isResetting && !gameState.isLive && !delayedRestartState.active && gameState.status === 'PLAYING') {
+      // Clear stale HALFTIME message if the clock has moved past halftime.
+      if (gameState.message === 'HALFTIME' && matchClock.phase !== 'HALFTIME') {
+        gameState.message = '';
+      }
+      beginCurrentRestart();
+    }
+
+    // CPU vs CPU / CPU kicker: execute kickoff touch when live and ready
+    if (!kickoffPresentation.active && !gameState.menuVisible && gameState.isKickoff && gameState.kickoffState === 'READY' && gameState.isLive && elapsed >= kickoffLawState.kickoffAllowedAt) {
+      if (gameState.cpuVsCpu) {
+        executeKickoffTouch();
+      } else {
+        const kickerTeam = kickoffLawState.kicker?.team;
+        const { controlA: ka, controlB: kb } = getHumanControlFlags();
+        const kickerIsHuman = (kickerTeam === 'A' && ka) || (kickerTeam === 'B' && kb);
+        if (!kickerIsHuman) {
+          executeKickoffTouch();
+        }
+      }
+    }
+
+    // Watchdog: if CPU mode is stuck (isLive=false, status=PLAYING) for >2 s, force a kick-off restart.
+    // Always clear the stuck restart timer when play goes live, regardless of presentation flags
+    if (gameState.isLive && stuckRestartTimer !== null) {
+      clearStuckRestartTimer();
+    }
+    // Also clear it when a kickoff is already staged and waiting — beginCurrentRestart will be called
+    // by restartAutoStartTimer or another path; no need to compete.
+    if (gameState.isKickoff && stuckRestartTimer !== null) {
+      clearStuckRestartTimer();
+    }
+
+    if (gameState.cpuVsCpu && !kickoffPresentation.active && !freeKickPresentation.active && !throwInPresentation.active && !cornerPresentation.active && !penaltyPresentation.active && !gameState.menuVisible && !delayedRestartState.active && !delayedRestartState.goalAwardTeam && !gameState.isKickoff && restartAutoStartTimer === null && gameState.status === 'PLAYING') {
+      if (!gameState.isLive) {
+        if (stuckRestartTimer === null) {
+          stuckRestartTimer = setTimeout(() => {
+            stuckRestartTimer = null;
+            if (!gameState.isLive && gameState.cpuVsCpu && gameState.status === 'PLAYING' && !kickoffPresentation.active && !freeKickPresentation.active && !throwInPresentation.active && !cornerPresentation.active && !penaltyPresentation.active && !delayedRestartState.active && !delayedRestartState.goalAwardTeam && !gameState.isKickoff && restartAutoStartTimer === null) {
+              console.warn(`[StuckRestartTimer] Fired after 2s !isLive — forcing center-circle kickoff. half=${matchClock.half} matchTime=${matchClock.elapsedInHalf.toFixed(1)}`);
+              const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
+              startSoccerRestart('KICK_OFF', kickoffTeam, 0, 0, matchClock.half === 1 ? '1ST HALF KICK-OFF' : '2ND HALF KICK-OFF');
+              beginCurrentRestart();
+            }
+          }, 2000);
+        }
+      }
+    }
+
+    // Reset nuclear watchdog timer during skipped periods so it doesn't carry over
+    if (delayedRestartState.goalAwardTeam || kickoffPresentation.active) {
+      _notLiveSince = 0;
+    }
+
+    // ── Nuclear watchdog: force-restart if isLive stuck false for > 5s ──
+    // This catches cases where the existing watchdog can't fire because a
+    // presentation flag (e.g. freeKickPresentation.active) is stuck true.
+    // IMPORTANT: Skip during goal celebrations — the delayed restart must
+    // complete so the score is incremented before any watchdog clears state.
+    // Also skip during active kickoff presentations — they are legitimate
+    // dead-ball periods that will self-complete.
+    if (gameState.cpuVsCpu && (matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF') && !delayedRestartState.goalAwardTeam && !kickoffPresentation.active) {
+      if (!gameState.isLive) {
+        if (_notLiveSince === 0) _notLiveSince = elapsed;        const deadTime = elapsed - _notLiveSince;
+        if (deadTime >= NUCLEAR_STUCK_THRESHOLD && gameState.status === 'PLAYING' && !gameState.menuVisible) {
+          const stuckFlags = [
+            freeKickPresentation.active && 'freeKick',
+            throwInPresentation.active && 'throwIn',
+            cornerPresentation.active && 'corner',
+            kickoffPresentation.active && 'kickoff',
+            penaltyPresentation.active && 'penalty',
+            delayedRestartState.active && 'delayedRestart',
+          ].filter(Boolean).join(',') || 'none';
+          console.warn(`[NuclearWatchdog] isLive stuck false for ${deadTime.toFixed(1)}s — half=${matchClock.half} matchTime=${matchClock.elapsedInHalf.toFixed(1)} flags=${stuckFlags}`);
+          // Force-clear every presentation and pending restart
+          freeKickPresentation.active = false;
+          freeKickPresentation.relocating = false;
+          freeKickPresentation.humanWaiting = false;
+          freeKickPresentation.taker = null;
+          freeKickPresentation.receiver = null;
+          freeKickPresentation.wallPlayers = [];
+          freeKickPresentation.wallPositions = [];
+          throwInPresentation.active = false;
+          throwInPresentation.relocating = false;
+          throwInPresentation.thrower = null;
+          throwInPresentation.thrown = false;
+          cornerPresentation.active = false;
+          cornerPresentation.taker = null;
+          penaltyPresentation.active = false;
+          penaltyPresentation.kicker = null;
+          penaltyPresentation.shotTaken = false;
+          kickoffPresentation.active = false;
+          delayedRestartState.active = false;
+          delayedRestartState.goalAwardTeam = null;
+          delayedRestartState.goalFromShot = false;
+          clearStuckRestartTimer();
+          const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
+          startSoccerRestart('KICK_OFF', kickoffTeam, 0, 0, matchClock.half === 1 ? '1ST HALF KICK-OFF' : '2ND HALF KICK-OFF');
+          beginCurrentRestart();
+          _notLiveSince = 0;
+          _lastTuningEventAt = elapsed; // reset drought timer after forced restart
+        }
+      } else {
+        _notLiveSince = 0;
+      }
+
+      // ── Event drought watchdog: force-restart if no game events for 10s ──
+      // Catches states where isLive stays true but the carrier is stuck in a
+      // non-event loop (e.g. infinite dribble hold).
+      // Reset drought timer whenever play is NOT live so dead-ball periods
+      // (throw-ins, free kicks, goal kicks, presentations) don't accumulate.
+      if (_lastTuningEventAt > 0 && !gameState.isLive) {
+        _lastTuningEventAt = elapsed; // keep resetting during dead-ball
+      }
+      if (_lastTuningEventAt > 0 && !delayedRestartState.goalAwardTeam) {
+        const drought = elapsed - _lastTuningEventAt;
+        if (drought >= EVENT_DROUGHT_THRESHOLD && !gameState.menuVisible && gameState.isLive) {
+          const holderInfo = ballState.heldBy
+            ? `${ballState.heldBy.team}:${ballState.heldBy.name}(${ballState.heldBy.displayRole || ballState.heldBy.role})`
+            : 'LOOSE';
+          const stuckFlags = [
+            !gameState.isLive && 'notLive',
+            freeKickPresentation.active && 'freeKick',
+            throwInPresentation.active && 'throwIn',
+            cornerPresentation.active && 'corner',
+            kickoffPresentation.active && 'kickoff',
+            penaltyPresentation.active && 'penalty',
+            delayedRestartState.active && 'delayedRestart',
+            gameState.isKickoff && 'isKickoff',
+          ].filter(Boolean).join(',') || 'none';
+          console.warn(
+            `[EventDroughtWatchdog] No events for ${drought.toFixed(1)}s — ` +
+            `half=${matchClock.half} matchTime=${matchClock.elapsedInHalf.toFixed(1)} ` +
+            `isLive=${gameState.isLive} status=${gameState.status} ball=${holderInfo} ` +
+            `ballPos=(${ballState.pos.x.toFixed(1)},${ballState.pos.z.toFixed(1)}) ` +
+            `flags=${stuckFlags}`
+          );
+          // Force-clear everything and restart
+          freeKickPresentation.active = false;
+          freeKickPresentation.relocating = false;
+          freeKickPresentation.humanWaiting = false;
+          freeKickPresentation.taker = null;
+          freeKickPresentation.receiver = null;
+          freeKickPresentation.wallPlayers = [];
+          freeKickPresentation.wallPositions = [];
+          throwInPresentation.active = false;
+          throwInPresentation.relocating = false;
+          throwInPresentation.thrower = null;
+          throwInPresentation.thrown = false;
+          cornerPresentation.active = false;
+          cornerPresentation.taker = null;
+          penaltyPresentation.active = false;
+          penaltyPresentation.kicker = null;
+          penaltyPresentation.shotTaken = false;
+          kickoffPresentation.active = false;
+          delayedRestartState.active = false;
+          delayedRestartState.goalAwardTeam = null;
+          delayedRestartState.goalFromShot = false;
+          clearStuckRestartTimer();
+          if (restartAutoStartTimer) { clearTimeout(restartAutoStartTimer); restartAutoStartTimer = null; }
+          gameState.isLive = false;
+          const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
+          startSoccerRestart('KICK_OFF', kickoffTeam, 0, 0, matchClock.half === 1 ? '1ST HALF KICK-OFF' : '2ND HALF KICK-OFF');
+          beginCurrentRestart();
+          _notLiveSince = 0;
+          _lastTuningEventAt = elapsed; // reset drought timer
+        }
+      }
+    }
+
+    if (kickoffPresentation.active && !gameState.menuVisible && gameState.status === 'PLAYING') {
+      if (elapsed >= kickoffPresentation.fieldRevealAt && gameState.message === 'GET READY') {
+        gameState.message = '';
+      }
+
+      if (!kickoffPresentation.whistlePlayed && elapsed >= kickoffPresentation.whistleAt) {
+        sounds.whistle();
+        gameState.message = 'GAME START';
+        kickoffPresentation.whistlePlayed = true;
+      }
+
+      if (elapsed >= kickoffPresentation.kickoffAt) {
+        kickoffPresentation.active = false;
+        gameState.message = 'GAME START';
+        beginCurrentRestart();
+        setTimeout(() => {
+          if (gameState.message === 'GAME START' && gameState.isLive) {
+            gameState.message = '';
+          }
+        }, 900);
+        // Kickoff touch is handled by the unified kickoff-touch block below
+      }
+    }
+
+    if (freeKickPresentation.active && !gameState.menuVisible && gameState.status === 'PLAYING') {
+      // If human is waiting to take the free kick, check if they've acted (ball released)
+      if (freeKickPresentation.humanWaiting) {
+        if (!ballState.heldBy || ballState.isFlying || ballState.isRolling) {
+          // Human has kicked/passed — end free kick presentation
+          freeKickPresentation.active = false;
+          freeKickPresentation.humanWaiting = false;
+          freeKickPresentation.taker = null;
+          freeKickPresentation.receiver = null;
+        }
+        // Don't run the rest of the presentation logic while human has control
+      } else {
+      const foulSpot = freeKickPresentation.foulSpot;
+      const taker = freeKickPresentation.taker;
+      const receiver = freeKickPresentation.receiver;
+      const team = soccerRestart.team;
+      const attackSign = teamAttacksRight(team) ? 1 : -1;
+      const holdTarget = foulSpot.clone().add(new THREE.Vector3(-attackSign * 0.42, 0, 0));
+
+      ballState.heldBy = null;
+      ballState.lastHeldBy = null;
+      ballState.isFlying = false;
+      ballState.isRolling = false;
+      ballState.vel.set(0, 0, 0);
+      ballState.pos.copy(foulSpot);
+      // Keep gameState.ballPos in sync so the !isLive idle branch doesn't overwrite with stale data
+      gameState.ballPos.copy(foulSpot);
+      ballGroup.position.copy(foulSpot);
+
+      // ── Relocating phase: players jog to formation positions ──
+      if (freeKickPresentation.relocating) {
+        const applyRelocationAnimation = (p: any) => {
+          const horizSpeedSq = p.vel.x * p.vel.x + p.vel.z * p.vel.z;
+          if (horizSpeedSq > 0.03) {
+            p.state = 'RUN';
+          } else {
+            p.state = 'IDLE';
+          }
+
+          const animThreshold = p.state === 'IDLE' ? 0.6 : 0.12;
+          p.animTimer += dt;
+          if (p.animTimer > animThreshold) {
+            p.animTimer = 0;
+            // Hide all frame sets
+            p.runFrames.forEach((f: any) => f.visible = false);
+            p.idleFrames.forEach((f: any) => f.visible = false);
+            p.frontRunFrames.forEach((f: any) => f.visible = false);
+            p.frontIdleFrames.forEach((f: any) => f.visible = false);
+            p.backRunFrames.forEach((f: any) => f.visible = false);
+            p.backIdleFrames.forEach((f: any) => f.visible = false);
+            // Select correct frame set based on facing mode
+            let frames: any[];
+            if (p.facingMode === 'front') {
+              frames = p.state === 'RUN' ? p.frontRunFrames : p.frontIdleFrames;
+            } else if (p.facingMode === 'back') {
+              frames = p.state === 'RUN' ? p.backRunFrames : p.backIdleFrames;
+            } else {
+              frames = p.state === 'RUN' ? p.runFrames : p.idleFrames;
+            }
+            p.frame = (p.frame + 1) % frames.length;
+            frames.forEach((f: any, i: number) => f.visible = i === p.frame);
+          }
+        };
+
+        const runSpeed = 4.5 * GAME_SPEED_SCALE;
+        let allSettled = true;
+        for (const p of players) {
+          // Skip wall players — they'll be handled in the presentation phase
+          if (freeKickPresentation.wallPlayers.includes(p)) continue;
+          const target = p.homePos;
+          const dir = new THREE.Vector3().subVectors(target, p.pos);
+          dir.y = 0;
+          const dist = dir.length();
+          if (dist > 0.3) {
+            allSettled = false;
+            dir.normalize();
+            const prevPos = p.pos.clone();
+            p.pos.addScaledVector(dir, Math.min(runSpeed * dt, dist));
+            p.pos.y = 0.15;
+            p.vel.copy(p.pos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
+            // Set facing mode based on movement direction so players don't slide sideways
+            const absVx = Math.abs(dir.x);
+            const absVz = Math.abs(dir.z);
+            if (absVz > absVx * 1.3 && absVz > 0.1) {
+              p.facingMode = dir.z > 0 ? 'front' : 'back';
+            } else {
+              p.facingMode = 'side';
+              p.dir = dir.x > 0 ? 1 : -1;
+            }
+          } else {
+            p.vel.multiplyScalar(0);
+          }
+          applyRelocationAnimation(p);
+        }
+        // Also move wall players toward their wall positions during relocation
+        const wallPlayers = freeKickPresentation.wallPlayers;
+        const wallPositions = freeKickPresentation.wallPositions;
+        for (let wi = 0; wi < wallPlayers.length; wi++) {
+          const wp = wallPlayers[wi];
+          const wpos = wallPositions[wi];
+          if (!wp || !wpos) continue;
+          const wdir = new THREE.Vector3().subVectors(wpos, wp.pos);
+          wdir.y = 0;
+          const wdist = wdir.length();
+          if (wdist > 0.3) {
+            allSettled = false;
+            wdir.normalize();
+            const prevWP = wp.pos.clone();
+            wp.pos.addScaledVector(wdir, Math.min(runSpeed * dt, wdist));
+            wp.pos.y = 0.15;
+            wp.vel.copy(wp.pos.clone().sub(prevWP).multiplyScalar(1 / Math.max(dt, 0.0001)));
+            const wAbsVx = Math.abs(wdir.x);
+            const wAbsVz = Math.abs(wdir.z);
+            if (wAbsVz > wAbsVx * 1.3 && wAbsVz > 0.1) {
+              wp.facingMode = wdir.z > 0 ? 'front' : 'back';
+            } else {
+              wp.facingMode = 'side';
+              wp.dir = wdir.x > 0 ? 1 : -1;
+            }
+          } else {
+            wp.vel.multiplyScalar(0);
+          }
+          applyRelocationAnimation(wp);
+        }
+        // End relocation when time expires or all players arrived
+        if (elapsed >= freeKickPresentation.relocatingUntil || allSettled) {
+          freeKickPresentation.relocating = false;
+          // Reset presentation timing from now
+          const now = elapsed;
+          freeKickPresentation.startedAt = now;
+          freeKickPresentation.takerStart.copy(taker?.pos?.clone?.() || holdTarget.clone());
+          freeKickPresentation.whistleAt = now + 1.15;
+          freeKickPresentation.restartAt = now + 2.5;
+        }
+        // Update meshes during relocation
+        for (const p of players) {
+          p.mesh.position.set(p.pos.x, p.pos.y, p.pos.z);
+        }
+        ballGroup.position.copy(ballState.pos);
+        updateBallShadowVisual();
+        updateHUD();
+        renderMainCamera();
+        return; // Skip the normal presentation logic during relocating
+      }
+
+      if (taker) {
+        const walkDuration = Math.max(0.01, freeKickPresentation.restartAt - freeKickPresentation.startedAt);
+        const walkProgress = THREE.MathUtils.clamp((elapsed - freeKickPresentation.startedAt) / walkDuration, 0, 1);
+        const easedWalk = THREE.MathUtils.smoothstep(walkProgress, 0, 1);
+        const scriptedPos = freeKickPresentation.takerStart.clone().lerp(holdTarget, easedWalk);
+        const prevPos = taker.pos.clone();
+        taker.pos.copy(scriptedPos);
+        taker.pos.y = 0.15;
+        taker.vel.copy(scriptedPos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
+        const takerRemainingDist = taker.pos.distanceTo(holdTarget);
+        const takerHorizSpeedSq = taker.vel.x * taker.vel.x + taker.vel.z * taker.vel.z;
+        if (takerRemainingDist > 0.12 || takerHorizSpeedSq > 0.01) {
+          taker.state = 'RUN';
+          const absVx = Math.abs(taker.vel.x);
+          const absVz = Math.abs(taker.vel.z);
+          if (absVz > absVx * 1.3 && absVz > 0.1) {
+            taker.facingMode = taker.vel.z > 0 ? 'front' : 'back';
+          } else {
+            taker.facingMode = 'side';
+            taker.dir = taker.vel.x >= 0 ? 1 : -1;
+          }
+        } else {
+          taker.state = 'IDLE';
+          taker.facingMode = 'side';
+          taker.dir = attackSign;
+        }
+      }
+
+      if (receiver) {
+        receiver.dir = attackSign;
+      }
+
+      // ── Hold wall players in wall positions, facing the ball ──
+      const wallPlayers = freeKickPresentation.wallPlayers;
+      const wallPositions = freeKickPresentation.wallPositions;
+      for (let wi = 0; wi < wallPlayers.length; wi++) {
+        const wp = wallPlayers[wi];
+        const wpos = wallPositions[wi];
+        if (!wp || !wpos) continue;
+        const prevWP = wp.pos.clone();
+        wp.pos.lerp(wpos, THREE.MathUtils.clamp(dt * 6.0, 0.05, 0.5));
+        wp.pos.y = 0.15;
+        wp.vel.copy(wp.pos.clone().sub(prevWP).multiplyScalar(1 / Math.max(dt, 0.0001)));
+        // Face the ball
+        const toBall = foulSpot.x - wp.pos.x;
+        wp.dir = toBall > 0 ? 1 : -1;
+      }
+
+      // ── Push attacking players at least 1 yard from the wall center ──
+      if (wallPositions.length > 0) {
+        const wallCenterPos = wallPositions[Math.floor(wallPositions.length / 2)];
+        const oneYard = 1 * X_PER_YARD;
+        for (const p of players) {
+          if (p.team !== team || p === taker) continue;
+          const distToWall = p.pos.distanceTo(wallCenterPos);
+          if (distToWall < oneYard && distToWall > 0.01) {
+            const pushDir = new THREE.Vector3().subVectors(p.pos, wallCenterPos).setY(0).normalize();
+            p.pos.addScaledVector(pushDir, (oneYard - distToWall) * 1.05);
+          }
+        }
+      }
+
+      if (!freeKickPresentation.whistlePlayed && elapsed >= freeKickPresentation.whistleAt) {
+        sounds.whistle();
+        freeKickPresentation.whistlePlayed = true;
+      }
+      if (elapsed >= freeKickPresentation.restartAt) {
+        // Determine if the taking team is human-controlled
+        const { controlA: fkCtrlA, controlB: fkCtrlB } = getHumanControlFlags();
+        const isHumanTaker = (team === 'A' && fkCtrlA) || (team === 'B' && fkCtrlB);
+
+        if (isHumanTaker && !freeKickPresentation.humanWaiting) {
+          // Transition: hand ball to taker and let human decide (pass/shoot)
+          freeKickPresentation.humanWaiting = true;
+          freeKickPresentation.wallPlayers = [];
+          freeKickPresentation.wallPositions = [];
+          // Don't call beginCurrentRestart() — it would clear freeKickPresentation.active
+          // and humanWaiting.  Instead manually go live and assign ball to the taker.
+          gameState.isLive = true;
+          playState.offsideGraceUntil = performance.now() / 1000 + 3.0;
+          gameState.isKickoff = false;
+          gameState.kickoffState = 'NONE';
+          gameState.passCaught = false;
+          gameState.goalKickInProgress = false;
+          gameState.cornerKickInProgress = false;
+          ballState.isFlying = false;
+          ballState.isRolling = false;
+          clearKickoffLawState();
+          const fkTaker = freeKickPresentation.taker
+            || offenseTeam.filter((p: any) => (p.displayRole || p.role) !== 'GK')
+                .sort((a: any, b: any) => a.pos.distanceTo(ballState.pos) - b.pos.distanceTo(ballState.pos))[0]
+            || offenseTeam[0] || null;
+          ballState.heldBy = fkTaker;
+          if (fkTaker) {
+            soccerRestart.lastTouchTeam = fkTaker.team;
+            if (fkTaker.team === 'A') autoSelectTeamA(fkTaker);
+          }
+          const restartDefenseTeam2: 'A' | 'B' = gameState.offensiveTeam === 'A' ? 'B' : 'A';
+          playState.activeRoutes = buildActiveRoutes(gameState.offensiveTeam);
+          playState.defenseAssignments = buildDefenseAssignments(restartDefenseTeam2, gameState.offensiveTeam);
+          gameState.message = freeKickPresentation.isDirect ? 'DIRECT FREE KICK' : 'INDIRECT — PASS TO TEAMMATE';
+        } else if (isHumanTaker && freeKickPresentation.humanWaiting) {
+          // Waiting for human input — keep taker holding the ball, do nothing
+        } else {
+          // CPU taker — auto-execute as before
+          const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+          const distToGoal = Math.abs(goalX - foulSpot.x);
+          const canShootDirect = freeKickPresentation.isDirect && distToGoal < 30 * X_PER_YARD;
+
+          const isOffsideRestart = gameState.message === 'OFFSIDE';
+          const passTarget = isOffsideRestart
+            ? players
+                .filter((p: any) => p.team === team && p !== taker && !isGoalkeeper(p))
+                .sort((a: any, b: any) => a.pos.distanceTo(taker.pos) - b.pos.distanceTo(taker.pos))[0]
+            : receiver
+            || players.find((p: any) => p.team === team && p !== taker && !isGoalkeeper(p))
+            || players.find((p: any) => p.team === team && p !== taker)
+            || null;
+          freeKickPresentation.active = false;
+          freeKickPresentation.wallPlayers = [];
+          freeKickPresentation.wallPositions = [];
+          beginCurrentRestart();
+          const passer = ballState.heldBy;
+          if (canShootDirect && passer) {
+            // Direct free kick at goal — shoot immediately
+            takeShot(passer, true, 1.0, 'CURLED');
+            gameState.message = '';
+          } else if (passer && passTarget && passer !== passTarget) {
+            // Indirect free kick or too far for direct shot — pass
+            // skipOffside on restarts: can't be offside directly from a free kick restart
+            if (isOffsideRestart) {
+              executeAISafeRestartPass(passer, passTarget, elapsed);
+            } else {
+              executeAIGroundPass(passer, passTarget, elapsed, { style: 'WALL', receiverWindow: 1.6, skipOffside: true });
+            }
+            // Dead-ball restart: extend receive/possession lock so the ball visibly rolls
+            // before the receiver can collect it (prevents the "teleport" look)
+            ballState.receiveLockUntil = elapsed + 0.5;
+            ballState.possessionLockUntil = elapsed + 0.55;
+            if (passTarget.team === 'A') autoSelectTeamA(passTarget);
+            gameState.message = '';
+          }
+        }
+      }
+      } // end else (not humanWaiting)
+    }
+
+    // Throw-in relocation: players walk to restart positions before the throw begins
+    if (throwInPresentation.active && throwInPresentation.relocating) {
+      const relocRunSpeed = 4.5 * GAME_SPEED_SCALE;
+      let allSettled = true;
+      for (const p of players) {
+        const target = p.homePos;
+        const dir = new THREE.Vector3().subVectors(target, p.pos);
+        dir.y = 0;
+        const dist = dir.length();
+        if (dist > 0.3) {
+          allSettled = false;
+          dir.normalize();
+          const prevPos = p.pos.clone();
+          p.pos.addScaledVector(dir, Math.min(relocRunSpeed * dt, dist));
+          p.pos.y = 0.15;
+          p.vel.copy(p.pos.clone().sub(prevPos).multiplyScalar(1 / Math.max(dt, 0.0001)));
+          const absVx = Math.abs(dir.x);
+          const absVz = Math.abs(dir.z);
+          if (absVz > absVx * 1.3 && absVz > 0.1) {
+            p.facingMode = dir.z > 0 ? 'front' : 'back';
+          } else {
+            p.facingMode = 'side';
+            p.dir = dir.x > 0 ? 1 : -1;
+          }
+          p.state = 'RUN';
+        } else {
+          p.vel.multiplyScalar(0);
+          p.state = 'IDLE';
+        }
+      }
+      // Pin ball at the throw-in spot on the ground during relocation
+      ballState.pos.set(soccerRestart.type === 'THROW_IN' ? ballState.pos.x : 0, 0.15, ballState.pos.z);
+      ballState.vel.set(0, 0, 0);
+      if (elapsed >= throwInPresentation.relocatingUntil || allSettled) {
+        throwInPresentation.relocating = false;
+        throwInPresentation.active = false;
+        beginCurrentRestart();
+      }
+    }
+
+    // Throw-in presentation: hold ball above head, then throw to teammate
+    if (throwInPresentation.active && throwInPresentation.thrower) {
+      const thrower = throwInPresentation.thrower;
+      // Pin thrower to the sideline position every frame (even during humanWaiting)
+      thrower.pos.z = throwInPresentation.humanWaiting
+        ? (throwInPresentation.outsideZ > 0 ? FIELD_D / 2 - 0.3 : -FIELD_D / 2 + 0.3)
+        : throwInPresentation.outsideZ;
+      thrower.pos.x = throwInPresentation.spotX;
+      thrower.vel.set(0, 0, 0);
+      // Face into the field: positive-Z sideline → face -Z (back), negative-Z → face +Z (front)
+      thrower.facingMode = throwInPresentation.outsideZ > 0 ? 'back' : 'front';
+
+      // ── Throw-in teammate movement: jog to find open space near the thrower ──
+      if (!throwInPresentation.thrown) {
+        const throwTeam = thrower.team;
+        const throwX = throwInPresentation.spotX;
+        const fieldSideSign = throwInPresentation.outsideZ > 0 ? -1 : 1; // direction into the field
+        const throwMates = players.filter((p: any) => p.team === throwTeam && p !== thrower && !isGoalkeeper(p));
+        const throwOpponents = players.filter((p: any) => p.team !== throwTeam);
+        const jogSpeed = 3.8 * GAME_SPEED_SCALE;
+
+        throwMates.forEach((p: any, idx: number) => {
+          // Spread teammates at staggered distances along the sideline and infield
+          const slotAlong = (idx - (throwMates.length - 1) / 2) * 5.5; // spacing along touchline
+          const slotDepth = 4.5 + (idx % 3) * 3.5; // stagger depth into the field
+          const target = new THREE.Vector3(
+            THREE.MathUtils.clamp(throwX + slotAlong, -FIELD_W / 2 + 2, FIELD_W / 2 - 2),
+            0.15,
+            THREE.MathUtils.clamp(
+              (throwInPresentation.outsideZ > 0 ? FIELD_D / 2 : -FIELD_D / 2) + fieldSideSign * slotDepth,
+              -FIELD_D / 2 + 2, FIELD_D / 2 - 2
+            )
+          );
+          // Push away from nearby opponents
+          throwOpponents.forEach((opp: any) => {
+            const d = target.distanceTo(opp.pos);
+            if (d > 0.1 && d < 4) {
+              const away = new THREE.Vector3().subVectors(target, opp.pos);
+              away.y = 0;
+              away.normalize();
+              target.addScaledVector(away, (4 - d) * 0.5);
+            }
+          });
+          target.x = THREE.MathUtils.clamp(target.x, -FIELD_W / 2 + 2, FIELD_W / 2 - 2);
+          target.z = THREE.MathUtils.clamp(target.z, -FIELD_D / 2 + 2, FIELD_D / 2 - 2);
+
+          const dir = new THREE.Vector3().subVectors(target, p.pos);
+          dir.y = 0;
+          const dist = dir.length();
+          if (dist > 0.4) {
+            dir.normalize();
+            p.pos.addScaledVector(dir, Math.min(jogSpeed * dt, dist));
+            p.pos.y = 0.15;
+            p.vel.copy(dir.multiplyScalar(jogSpeed));
+            p.state = 'RUN';
+          } else {
+            p.vel.multiplyScalar(0);
+            p.state = 'IDLE';
+          }
+        });
+      }
+
+      if (throwInPresentation.thrown) {
+        // Post-throw hold: thrower stays at sideline until returnAt
+        thrower.state = 'IDLE';
+        thrower.idleFrames.forEach((f: any, i: number) => f.visible = i === 0);
+        thrower.runFrames.forEach((f: any) => f.visible = false);
+        thrower.frontRunFrames.forEach((f: any) => f.visible = false);
+        thrower.frontIdleFrames.forEach((f: any) => f.visible = false);
+        thrower.backRunFrames.forEach((f: any) => f.visible = false);
+        thrower.backIdleFrames.forEach((f: any) => f.visible = false);
+        if (elapsed >= throwInPresentation.returnAt) {
+          throwInPresentation.active = false;
+          throwInPresentation.thrower = null;
+          throwInPresentation.thrown = false;
+        }
+      } else if (throwInPresentation.humanWaiting) {
+        // Pin thrower to sideline every frame so they can't drift infield
+        thrower.pos.x = throwInPresentation.spotX;
+        thrower.pos.z = throwInPresentation.outsideZ > 0 ? FIELD_D / 2 - 0.3 : -FIELD_D / 2 + 0.3;
+        thrower.vel.set(0, 0, 0);
+        // Human has control — check if they've released the ball
+        if (!ballState.heldBy || ballState.isFlying || ballState.isRolling) {
+          // Transition to post-throw hold (same grace period as CPU throw)
+          // so handleSoccerOutOfPlay() keeps skipping while ball clears the touchline
+          throwInPresentation.humanWaiting = false;
+          throwInPresentation.thrown = true;
+          throwInPresentation.returnAt = elapsed + 0.8;
+        }
+      } else {
+        // Pre-throw hold: ball above head
+        ballState.pos.copy(thrower.pos);
+        ballState.pos.y = 1.1;
+        ballState.vel.set(0, 0, 0);
+        // Show the last idle frame as the throw-in hold pose
+        thrower.state = 'IDLE';
+        const throwIdleIdx = Math.min(1, thrower.idleFrames.length - 1);
+        thrower.idleFrames.forEach((f: any, i: number) => f.visible = i === throwIdleIdx);
+        thrower.runFrames.forEach((f: any) => f.visible = false);
+        thrower.frontRunFrames.forEach((f: any) => f.visible = false);
+        thrower.frontIdleFrames.forEach((f: any) => f.visible = false);
+        thrower.backRunFrames.forEach((f: any) => f.visible = false);
+        thrower.backIdleFrames.forEach((f: any) => f.visible = false);
+        thrower.frame = throwIdleIdx;
+
+        if (elapsed >= throwInPresentation.throwAt) {
+          const team = thrower.team as 'A' | 'B';
+          const { controlA: tiCtrlA, controlB: tiCtrlB } = getHumanControlFlags();
+          const isHumanThrower = (team === 'A' && tiCtrlA) || (team === 'B' && tiCtrlB);
+
+          if (isHumanThrower) {
+            // Hand control to the human: go live, give ball to thrower
+            throwInPresentation.humanWaiting = true;
+            gameState.isLive = true;
+            playState.offsideGraceUntil = performance.now() / 1000 + 3.0;
+            ballState.heldBy = thrower;
+            ballState.lastHeldBy = thrower;
+            soccerRestart.lastTouchTeam = team;
+            // Position thrower just inside the touchline so first touch is in-play
+            thrower.pos.x = throwInPresentation.spotX;
+            thrower.pos.z = throwInPresentation.outsideZ > 0 ? FIELD_D / 2 - 0.3 : -FIELD_D / 2 + 0.3;
+            if (team === 'A') autoSelectTeamA(thrower);
+            const restartDefTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
+            playState.activeRoutes = buildActiveRoutes(team);
+            playState.defenseAssignments = buildDefenseAssignments(restartDefTeam, team);
+            gameState.message = 'THROW-IN';
+          } else {
+          // CPU thrower — execute the throw-in automatically
+          const teammates = players.filter((p: any) => p.team === team && p !== thrower && !isGoalkeeper(p));
+          const target = teammates
+            .slice()
+            .sort((a: any, b: any) => a.pos.distanceTo(thrower.pos) - b.pos.distanceTo(thrower.pos))[0]
+            || players.find((p: any) => p.team === team && p !== thrower)
+            || null;
+          throwInPresentation.thrown = true;
+          throwInPresentation.returnAt = elapsed + 0.8;
+          if (target) {
+            const throwDir = new THREE.Vector3().subVectors(target.pos, thrower.pos);
+            throwDir.y = 0;
+            if (throwDir.lengthSq() < 0.01) throwDir.set(teamAttacksRight(team) ? 1 : -1, 0, 0);
+            const throwDist = throwDir.length();
+            throwDir.normalize();
+            const weather = getActiveWeatherPreset();
+            ballState.lastHeldBy = thrower;
+            ballState.heldBy = null;
+            ballState.isFlying = true;
+            ballState.isRolling = false;
+            ballState.isShot = false;
+            ballState.receiveLockUntil = elapsed + 0.14;
+            ballState.possessionLockUntil = elapsed + 0.18;
+            setIntendedReceiver(target, team, elapsed, 2.2);
+            // Release from just inside the touchline to avoid immediate re-trigger of out-of-play.
+            ballState.pos.x = throwInPresentation.spotX;
+            ballState.pos.z = throwInPresentation.outsideZ > 0 ? FIELD_D / 2 - 0.12 : -FIELD_D / 2 + 0.12;
+            ballState.pos.y = 1.1;
+            const throwSpeed = THREE.MathUtils.clamp(9.0 + throwDist * 0.3, 9.0, 16.0) * GAME_SPEED_SCALE * weather.passSpeedMul;
+            ballState.vel.copy(throwDir.multiplyScalar(throwSpeed));
+            ballState.vel.y = THREE.MathUtils.clamp(2.2 + throwDist * 0.04, 2.2, 4.0);
+            soccerRestart.lastTouchTeam = team;
+            showPlayPatternTag('THROW-IN', 'rgba(180,220,255,0.96)');
+            sounds.throw();
+          }
+          }
+        }
+      }
+    }
+
+    // Corner presentation: taker holds at flag, then auto-crosses
+    if (cornerPresentation.active && cornerPresentation.taker && gameState.isLive) {
+      const taker = cornerPresentation.taker;
+      // Dead-ball: pin ball at corner flag, freeze taker
+      ballState.pos.set(gameState.ballPos.x, BALL_GROUND_Y, gameState.ballPos.z);
+      ballState.vel.set(0, 0, 0);
+      taker.pos.set(gameState.ballPos.x, 0.15, gameState.ballPos.z);
+      taker.vel.set(0, 0, 0);
+
+      if (elapsed >= cornerPresentation.crossAt) {
+        cornerPresentation.active = false;
+        cornerPresentation.taker = null;
+        executeAICornerCross(taker, elapsed);
+      }
+    }
+
+    // Penalty presentation: position kicker & GK, then execute the penalty shot
+    if (penaltyPresentation.active && !gameState.menuVisible && gameState.status === 'PLAYING') {
+      const spotX = penaltyPresentation.penaltySpotX;
+      const attackingTeam = soccerRestart.team;
+      const defendingTeam: 'A' | 'B' = attackingTeam === 'A' ? 'B' : 'A';
+      const attackRight = teamAttacksRight(attackingTeam);
+      const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
+      const approachSign = attackRight ? -1 : 1;
+
+      // Select kicker once (best outfield shooter on the attacking team)
+      if (!penaltyPresentation.kicker) {
+        const candidates = players
+          .filter((p: any) => p.team === attackingTeam && !isGoalkeeper(p))
+          .sort((a: any, b: any) => getShotSkill(b) - getShotSkill(a));
+        penaltyPresentation.kicker = candidates[0] || players.find((p: any) => p.team === attackingTeam) || null;
+      }
+
+      const kicker = penaltyPresentation.kicker;
+
+      // Position kicker a few yards behind the penalty spot (only before human takes control)
+      if (kicker && !penaltyPresentation.humanWaiting) {
+        kicker.pos.x = spotX + approachSign * 3 * X_PER_YARD;
+        kicker.pos.z = 0;
+        kicker.pos.y = 0.15;
+      }
+
+      // Position defending goalkeeper centered on the goal line
+      const defGK = players.find((p: any) => p.team === defendingTeam && isGoalkeeper(p));
+      if (defGK) {
+        defGK.pos.x = goalX + (attackRight ? -0.4 : 0.4);
+        defGK.pos.z = 0;
+        defGK.pos.y = 0.15;
+      }
+
+      // Line up all non-kicker, non-goalie players outside the penalty area edge, standing still.
+      const frontEdgeX = attackRight
+        ? rightPenaltyX - 0.7   // just outside the penalty line (field-centre side)
+        : leftPenaltyX + 0.7;
+      const zSpan = penaltyHalfZ + 0.5;   // spread across the penalty box width
+      const orbiters = players.filter((p: any) => p !== kicker && p !== defGK);
+      // Interleave home and away players so they alternate in the line
+      const teamAPlayers = orbiters.filter((p: any) => p.team === 'A');
+      const teamBPlayers = orbiters.filter((p: any) => p.team === 'B');
+      const interleaved: any[] = [];
+      const maxLen = Math.max(teamAPlayers.length, teamBPlayers.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < teamAPlayers.length) interleaved.push(teamAPlayers[i]);
+        if (i < teamBPlayers.length) interleaved.push(teamBPlayers[i]);
+      }
+      interleaved.forEach((p: any, idx: number) => {
+        const n = interleaved.length;
+        // Even spacing along the front edge, centred on z = 0
+        const t = n > 1 ? idx / (n - 1) : 0.5;
+        p.pos.x = frontEdgeX;
+        p.pos.z = -zSpan + t * zSpan * 2;
+        p.pos.y = 0.15;
+        p.vel.set(0, 0, 0);
+      });
+
+      // Keep ball on penalty spot (only before human takes control)
+      if (!penaltyPresentation.humanWaiting) {
+        ballState.pos.set(spotX, 0.15, 0);
+        ballState.vel.set(0, 0, 0);
+        ballState.heldBy = null;
+      }
+
+      // Whistle
+      if (!penaltyPresentation.whistlePlayed && elapsed >= penaltyPresentation.whistleAt) {
+        sounds.whistle();
+        penaltyPresentation.whistlePlayed = true;
+      }
+
+      // Execute the penalty shot
+      if (!penaltyPresentation.shotTaken && elapsed >= penaltyPresentation.shotAt) {
+        const { controlA: pkCtrlA, controlB: pkCtrlB } = getHumanControlFlags();
+        const isHumanKicker = (attackingTeam === 'A' && pkCtrlA) || (attackingTeam === 'B' && pkCtrlB);
+
+        if (isHumanKicker && !penaltyPresentation.humanWaiting) {
+          // Hand control to the human: go live, give ball to kicker
+          penaltyPresentation.humanWaiting = true;
+          gameState.isLive = true;
+          gameState.message = 'PENALTY — SHOOT!';
+          if (kicker) {
+            kicker.pos.x = spotX;
+            kicker.pos.z = 0;
+            ballState.heldBy = kicker;
+            ballState.lastHeldBy = kicker;
+            soccerRestart.lastTouchTeam = attackingTeam;
+            if (attackingTeam === 'A') autoSelectTeamA(kicker);
+          }
+        } else if (isHumanKicker && penaltyPresentation.humanWaiting) {
+          // Waiting for human to shoot — check if they've released the ball
+          if (!ballState.heldBy || ballState.isFlying || ballState.isRolling) {
+            penaltyPresentation.shotTaken = true;
+            penaltyPresentation.active = false;
+            penaltyPresentation.humanWaiting = false;
+            penaltyPresentation.kicker = null;
+          }
+        } else {
+        // CPU kicker — auto-execute the penalty
+        penaltyPresentation.shotTaken = true;
+        penaltyPresentation.active = false;
+
+        // Give ball to kicker, make game live, then take the shot
+        gameState.isLive = true;
+        gameState.message = '';
+        if (kicker) {
+          // Move kicker to the ball
+          kicker.pos.x = spotX;
+          kicker.pos.z = 0;
+          ballState.heldBy = kicker;
+          ballState.lastHeldBy = kicker;

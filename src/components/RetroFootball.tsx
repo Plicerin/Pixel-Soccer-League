@@ -19,6 +19,29 @@ import {
   TelemetryRecorder,
 } from '../telemetry';
 import { installSmokeTestApi } from '../smokeTest';
+import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
+
+// Helper: reset positions, draw routes, activate play — called on every play/formation change
+function applyPracticePlay(
+  gameRef: React.MutableRefObject<any>,
+  play: (typeof PRACTICE_PLAYS)[number],
+  formation: string,
+  aggressivenessKey: AggressivenessKey,
+) {
+  // 1. Deactivate any running play (clears stale player refs before formation rebuild)
+  gameRef.current?.deactivatePracticePlay?.();
+  // 2. Rebuild formation → snaps all players to homePos
+  gameRef.current?.setTeamFormations?.(formation, formation);
+  // 3. Tune CPU shot accuracy
+  const agg = PRACTICE_AGGRESSIVENESS[aggressivenessKey];
+  gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
+  // 4. Compute routes from fresh player positions
+  const allPlayers = gameRef.current?.getPlayers?.() ?? [];
+  const routes = getPlayRoutes(play, allPlayers);
+  // 5. Draw arrows + execute play
+  gameRef.current?.drawPracticeRoutes?.(routes);
+  gameRef.current?.activatePracticePlay?.(routes);
+}
 
 const MLS_TEAM_OPTIONS = [
   'Atlanta United',  // keep list unchanged – just adding color map below it
@@ -203,8 +226,17 @@ const RetroFootball: React.FC = () => {
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
   const [hotSeatMode, setHotSeatMode] = useState(false);
   const [testingMode, setTestingMode] = useState(false);
-  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | null>(null);
+  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | 'practice' | null>(null);
   const [hasActiveMatchSession, setHasActiveMatchSession] = useState(false);
+  // Practice mode setup state
+  const [showPracticeSetup, setShowPracticeSetup] = useState(false);
+  const [practiceIsHuman, setPracticeIsHuman] = useState(true);
+  const [selectedPracticePlay, setSelectedPracticePlay] = useState<string | null>(null);
+  const [practiceActive, setPracticeActive] = useState(false);
+  const [practiceFormation, setPracticeFormation] = useState<string>(PRACTICE_PLAYS[0].formation);
+  const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('STANDARD');
+  const [showPracticeComplete, setShowPracticeComplete] = useState(false);
+  const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -231,28 +263,27 @@ const RetroFootball: React.FC = () => {
   const menuFocusRef = useRef(2);
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
   const menuGpStickCooldown = useRef(0);
-  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test', overrideTeams?: { a: string; b: string }) => void>(() => {});
+  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => void>(() => {});
   const setSeasonModeActiveRef = useRef(setSeasonModeActive);
 
   // Keep ref in sync with state for use in gamepad polling
   useEffect(() => { menuFocusRef.current = menuFocusIndex; }, [menuFocusIndex]);
 
   const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
-  const MENU_ITEM_COUNT = 6; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season
+  const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season, 6=Practice
 
   // ── Splash screen dismiss handler ──
   useEffect(() => {
     if (!showSplash) return;
     const dismiss = () => {
       if (!splashAudioStartedRef.current) {
-        // First press: start audio, stay on splash
+        // First press starts audio and immediately advances to menu.
         splashAudioStartedRef.current = true;
         setSplashAudioStarted(true);
         gameRef.current?.splashMusicStart?.();
-        return;
       }
       if (!splashAdvancedRef.current) {
-        // Second press: advance to menu (music continues until match starts)
+        // Advance to menu (music continues until match starts).
         splashAdvancedRef.current = true;
         // Snapshot current gamepad state into menuGpPrev so the menu poll
         // (which may run later in this same rAF batch) won't see a false "justPressed".
@@ -362,6 +393,7 @@ const RetroFootball: React.FC = () => {
               handleKickOffRef.current('cpu', { a: shuffled[0], b: shuffled[1] });
             }
             else if (fi === 5) setSeasonModeActiveRef.current(true);
+            else if (fi === 6) setShowPracticeSetup(true);
             return fi;
           });
         }
@@ -542,26 +574,38 @@ const RetroFootball: React.FC = () => {
       _dashTick++;
       // Skip broadcasting during splash/menu — only track real matches
       if (!hasActiveMatchSessionRef.current) {
-        if (_dashTick % 5 === 1) console.log('[PSL-Bridge] tick', _dashTick, 'skipped: hasActiveMatchSession=false');
         return;
       }
       const g = (window as any).__gameRef;
-      if (!g) { console.log('[PSL-Bridge] tick', _dashTick, 'skipped: __gameRef missing'); return; }
-      const bundle = g.getTuningBundle?.();
-      if (!bundle) { console.log('[PSL-Bridge] tick', _dashTick, 'skipped: getTuningBundle returned null'); return; }
+      if (!g) return;
+      
       const snap2 = g.getMatchSnapshot?.();
+      const phase = snap2?.phase || '';
+      
+      // OPTIMIZATION: Only broadcast and disk-sync at 1Hz (every 10 ticks) or on phase change
+      const isPhaseChange = phase !== prevPhase;
+      const shouldTick = _dashTick % 10 === 0 || isPhaseChange;
+      
+      if (!shouldTick) return;
+
+      const bundle = g.getTuningBundle?.();
+      if (!bundle) return;
       const live2 = g.getLiveTelemetry?.();
       const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now() };
-      try { dashChannel?.postMessage(payload); } catch (e) { console.error('[PSL-Bridge] BroadcastChannel postMessage error:', e); }
-      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
-        // Quota exceeded — clear stale tuning history to free space then retry
-        try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
+      
+      try { dashChannel?.postMessage(payload); } catch (e) {}
+      
+      // Disk operations are expensive; skip unless phase changed
+      if (isPhaseChange) {
+        try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
+          try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
+        }
       }
-      // Server relay: bridges across isolated browser contexts (VS Code webview ↔ external browser)
+
+      // Server relay: reduce frequency via fetch
       try { fetch('/__tuning/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {}); } catch {}
-      if (_dashTick % 5 === 0) console.log('[PSL-Bridge] tick', _dashTick, 'broadcast OK, phase:', snap2?.phase);
+      
       // Auto-save when match reaches FULL_TIME
-      const phase = snap2?.phase || '';
       if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME') {
         // Save to SQLite via server endpoint
         try {
@@ -642,6 +686,26 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setCpuVsCpu?.(false);
+      gameRef.current?.setPracticePlayCompleteCallback?.(() => {
+        if (practiceCompleteTimerRef.current) clearTimeout(practiceCompleteTimerRef.current);
+        setShowPracticeComplete(true);
+        setPracticeActive(false);
+        practiceCompleteTimerRef.current = setTimeout(() => setShowPracticeComplete(false), 2200);
+      });
+
+      // Poll play activity state for UI badge - throttled to 250ms
+      let lastPracticeCheck = 0;
+      const updatePracticeState = (now: number) => {
+        if (now - lastPracticeCheck > 250) {
+          if (gameRef.current && gameMode === 'practice') {
+            const isActive = gameRef.current.isPracticePlayActive?.() ?? false;
+            setPracticeActive(p => (p !== isActive ? isActive : p));
+          }
+          lastPracticeCheck = now;
+        }
+        requestAnimationFrame(updatePracticeState);
+      };
+      requestAnimationFrame(updatePracticeState);
 
       // Expose game API on window for automation / telemetry scripts
       (window as any).__gameRef = gameRef.current;
@@ -702,6 +766,8 @@ const RetroFootball: React.FC = () => {
         gameRef.current?.setHotSeatMode?.(false);
         gameRef.current?.setTestingMode?.(false);
         gameRef.current?.setCpuVsCpu?.(false);
+        gameRef.current?.setPracticeMode?.(false);
+        gameRef.current?.clearPracticeRoutes?.();
         gameRef.current?.setMenuVisible?.(true);
 
         const rec = telemetryRecorderRef.current;
@@ -811,10 +877,11 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setUniform(team, index);
   };
 
-  const handleKickOff = (mode: '1p' | '2p' | 'cpu' | 'test', overrideTeams?: { a: string; b: string }) => {
+  const handleKickOff = (mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => {
     const isHotSeat = mode === '2p';
     const isCpu = mode === 'cpu';
     const isTesting = mode === 'test';
+    const isPractice = mode === 'practice';
     const nextTeamAName = overrideTeams?.a ?? teamAName;
     const nextTeamBName = overrideTeams?.b ?? teamBName;
     if (overrideTeams) {
@@ -859,6 +926,11 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setHotSeatMode?.(isHotSeat || isTesting);
     gameRef.current?.setTestingMode?.(isTesting);
     gameRef.current?.setCpuVsCpu?.(isCpu);
+    gameRef.current?.setPracticeMode?.(isPractice);
+    if (isPractice) {
+      gameRef.current?.setTestingMode?.(true);
+      gameRef.current?.setHotSeatMode?.(true);
+    }
     gameRef.current?.splashMusicStop?.();
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
@@ -1281,7 +1353,7 @@ const RetroFootball: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              {splashAudioStarted ? 'Press again to continue' : 'Press any button to start'}
+              {splashAudioStarted ? 'Loading match menu...' : 'Press any button to start'}
             </p>
 
             {/* Hint */}
@@ -1295,7 +1367,7 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
       {/* Mode Select Screen */}
-      {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && (
+      {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
             {/* Title */}
@@ -1367,7 +1439,7 @@ const RetroFootball: React.FC = () => {
               >
                 CPU vs CPU
               </button>
-              <div className="border-t border-white/10 pt-3">
+              <div className="border-t border-white/10 pt-3 flex flex-col gap-3">
                 <button
                   onClick={() => setSeasonModeActive(true)}
                   className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
@@ -1375,6 +1447,14 @@ const RetroFootball: React.FC = () => {
                   }`}
                 >
                   Season Mode
+                </button>
+                <button
+                  onClick={() => setShowPracticeSetup(true)}
+                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                    menuFocusIndex === 6 ? 'bg-emerald-500/40 text-emerald-200 border-emerald-400' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
+                  }`}
+                >
+                  Practice
                 </button>
               </div>
             </div>
@@ -1423,6 +1503,188 @@ const RetroFootball: React.FC = () => {
           clearLastMatchResult={() => setSeasonMatchResult(null)}
         />
       )}
+
+      {/* Practice Setup Overlay */}
+      {showPracticeSetup && !hasActiveMatchSession && (
+        <div className="absolute inset-0 z-60 flex items-center justify-center bg-black/80">
+          <div className="bg-zinc-900 border border-emerald-500/40 rounded-xl p-6 w-80 flex flex-col gap-5 text-white">
+            <div className="text-center">
+              <p className="text-emerald-400 text-[9px] uppercase tracking-widest mb-1">Practice Mode</p>
+              <p className="text-white text-sm font-semibold">Set Up Session</p>
+            </div>
+
+            {/* Team selector */}
+            <div className="flex flex-col gap-1">
+              <label className="text-white/40 text-[9px] uppercase tracking-widest">Team</label>
+              <select
+                value={teamAName}
+                onChange={(e) => setTeamAName(e.target.value)}
+                className="bg-zinc-800 border border-white/20 text-white text-xs rounded px-2 py-2 focus:outline-none focus:border-emerald-400"
+              >
+                {MLS_TEAM_OPTIONS.map((team) => (
+                  <option key={team} value={team}>{team}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Human / CPU toggle */}
+            <div className="flex flex-col gap-1">
+              <label className="text-white/40 text-[9px] uppercase tracking-widest">Controlled By</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPracticeIsHuman(true)}
+                  className={`flex-1 py-2 border text-xs rounded transition-colors ${practiceIsHuman ? 'bg-emerald-500/40 border-emerald-400 text-emerald-200' : 'border-white/20 text-white/50 hover:bg-white/10'}`}
+                >
+                  Human
+                </button>
+                <button
+                  onClick={() => setPracticeIsHuman(false)}
+                  className={`flex-1 py-2 border text-xs rounded transition-colors ${!practiceIsHuman ? 'bg-emerald-500/40 border-emerald-400 text-emerald-200' : 'border-white/20 text-white/50 hover:bg-white/10'}`}
+                >
+                  CPU
+                </button>
+              </div>
+            </div>
+
+            {/* Begin / Cancel */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowPracticeSetup(false)}
+                className="flex-1 py-2 border border-white/20 text-white/50 text-xs rounded hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedPracticePlay(null);
+                  setPracticeActive(false);
+                  setPracticeFormation('4-4-2'); // default practice start formation
+                  setShowPracticeSetup(false);
+                  handleKickOff('practice');
+                  // Do not automatically apply a play at startup (per user request).
+                  // The practice should start in a standard kickoff formation at the center circle.
+                  setTimeout(() => {
+                    if (!practiceIsHuman) gameRef.current?.setCpuVsCpu?.(true);
+                    setShowPositionLabels(true);
+                    gameRef.current?.setShowPositionLabels?.(true);
+                    // play is only active once selected from the in-game play selector
+                  }, 600);
+                }}
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-semibold rounded transition-colors"
+              >
+                Begin Practice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Practice play-complete flash badge */}
+      {showPracticeComplete && gameMode === 'practice' && (
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="px-8 py-3 bg-emerald-500 text-white text-sm font-bold rounded-full tracking-[0.2em] uppercase shadow-2xl border border-emerald-300/60 animate-pulse">
+            Play Set
+          </div>
+        </div>
+      )}
+
+      {/* In-game Practice Panel */}
+      {gameMode === 'practice' && hasActiveMatchSession && (() => {
+        const currentPlay = PRACTICE_PLAYS.find(p => p.key === selectedPracticePlay);
+        const clubGroups = PRACTICE_PLAYS.reduce<Record<string, typeof PRACTICE_PLAYS>>((acc, play) => {
+          if (!acc[play.club]) acc[play.club] = [];
+          acc[play.club].push(play);
+          return acc;
+        }, {});
+        return (
+          <div className="absolute top-2 right-2 z-30 bg-black/70 border border-emerald-500/40 rounded-lg p-3 flex flex-col gap-2 w-52 text-white">
+            <div className="flex justify-between items-center">
+              <p className="text-emerald-400 text-[9px] uppercase tracking-widest">Practice</p>
+              {practiceActive && (
+                <span className="text-[8px] bg-red-500/80 px-1 rounded animate-pulse">ACTIVE</span>
+              )}
+            </div>
+
+            {/* Play selector */}
+            <div className="flex flex-col gap-0.5">
+              <label className="text-white/40 text-[8px] uppercase tracking-widest">Play</label>
+              <select
+                value={selectedPracticePlay ?? 'none'}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  if (key === 'none') {
+                    setSelectedPracticePlay(null);
+                    setPracticeActive(false);
+                    gameRef.current?.deactivatePracticePlay?.();
+                    return;
+                  }
+                  const play = PRACTICE_PLAYS.find(p => p.key === key)!;
+                  setSelectedPracticePlay(key);
+                  setPracticeActive(true);
+                  setPracticeFormation(play.formation);
+                  setShowPositionLabels(true);
+                  gameRef.current?.setShowPositionLabels?.(true);
+                  applyPracticePlay(gameRef, play, play.formation, practiceAggressiveness);
+                }}
+                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+              >
+                <option value="none" className="text-white/50 italic">None Selected</option>
+                {Object.entries(clubGroups).map(([club, plays]) => (
+                  <optgroup key={club} label={club}>
+                    {plays.map(play => (
+                      <option key={play.key} value={play.key}>{play.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <p className="text-white/30 text-[8px] italic leading-tight mt-0.5">
+                {currentPlay ? currentPlay.description : "Select a play to begin routing"}
+              </p>
+            </div>
+
+            {/* Formation selector */}
+            <div className="flex flex-col gap-0.5">
+              <label className="text-white/40 text-[8px] uppercase tracking-widest">Formation</label>
+              <select
+                value={practiceFormation}
+                onChange={(e) => {
+                  const f = e.target.value;
+                  setPracticeFormation(f);
+                  if (currentPlay) {
+                    applyPracticePlay(gameRef, currentPlay, f, practiceAggressiveness);
+                  } else {
+                    gameRef.current?.setTeamFormations?.(f, f);
+                  }
+                }}
+                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+              >
+                {['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'].map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Aggressiveness selector */}
+            <div className="flex flex-col gap-0.5">
+              <label className="text-white/40 text-[8px] uppercase tracking-widest">Aggressiveness</label>
+              <select
+                value={practiceAggressiveness}
+                onChange={(e) => {
+                  const key = e.target.value as AggressivenessKey;
+                  setPracticeAggressiveness(key);
+                  const agg = PRACTICE_AGGRESSIVENESS[key];
+                  gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
+                }}
+                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+              >
+                {(Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[]).map(k => (
+                  <option key={k} value={k}>{PRACTICE_AGGRESSIVENESS[k].label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Full Time / Game Over Overlay */}
       {isFullTime && fullTimeScore && (() => {
