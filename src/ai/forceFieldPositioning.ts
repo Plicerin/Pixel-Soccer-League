@@ -100,13 +100,13 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // ── FORCE 1: Formation pull ───────────────────────────────────────────
   // Defenders pulled harder, attackers freer to roam.
   const homePull = hasPossession
-    ? (0.20 - mindset * 0.12)
+    ? (0.34 - mindset * 0.14)
     : (0.7 - mindset * 0.2);
   const toHomeX = homePos.x - playerPos.x;
   const toHomeZ = homePos.z - playerPos.z;
   const homeDist = Math.sqrt(toHomeX * toHomeX + toHomeZ * toHomeZ);
   if (homeDist > 0.5) {
-    const cap = Math.min(homeDist, 22);
+    const cap = Math.min(homeDist, 18);
     fx += (toHomeX / homeDist) * homePull * cap;
     fz += (toHomeZ / homeDist) * homePull * cap;
   }
@@ -114,7 +114,7 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // ── FORCE 1b: Possession depth shift ──────────────────────────────────
   // Nudge the whole team upfield when in possession.
   if (hasPossession) {
-    const depthShift = 5 + mindset * 12;
+    const depthShift = 3 + mindset * 8;
     fx += attackSign * depthShift;
   }
 
@@ -127,24 +127,24 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
     const ballDist = Math.sqrt(toBallX * toBallX + toBallZ * toBallZ);
     if (ballDist > 5 && ballDist < 25) {
       const attract = 0.18 + mindset * 0.25;
-      fx += (toBallX / ballDist) * attract * 3;
+      fx += (toBallX / ballDist) * attract * 2.2;
       if (!isWideRole(role)) {
-        fz += (toBallZ / ballDist) * attract * 3;
+        fz += (toBallZ / ballDist) * attract * 2.2;
       }
     }
   }
 
   // ── FORCE 3: Teammate repulsion ───────────────────────────────────────
   const spacingRadius = 14; // wider detection range
-  const spacingIdealMin = 9; // below this = extra hard kick to reach 6 m ideal floor
+  const spacingIdealMin = 7; // below this = extra hard kick
   for (const mate of teammatePositions) {
     const dx = playerPos.x - mate.x;
     const dz = playerPos.z - mate.z;
     const d = Math.sqrt(dx * dx + dz * dz);
     if (d > 0.05 && d < spacingRadius) {
       // Baseline repulsion + steep inner kick below the ideal-floor threshold (9 m buffer → 6 m ideal).
-      const base = Math.pow((spacingRadius - d) / spacingRadius, 1.3) * 10.5;
-      const innerKick = d < spacingIdealMin ? (spacingIdealMin - d) * 4.5 : 0;
+      const base = Math.pow((spacingRadius - d) / spacingRadius, 1.3) * 7.0;
+      const innerKick = d < spacingIdealMin ? (spacingIdealMin - d) * 3.0 : 0;
       const repel = base + innerKick;
       fx += (dx / d) * repel;
       fz += (dz / d) * repel;

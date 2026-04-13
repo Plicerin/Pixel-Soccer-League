@@ -1006,6 +1006,19 @@ export function initGame(container: HTMLElement) {
   let _lastShapeSampleAt = 0;
   const SHAPE_SAMPLE_INTERVAL = 5; // seconds
 
+  // ── Tuning telemetry: per-player positioning samples ──
+  type PlayerPositioningSample = {
+    t: number;
+    half: number;
+    team: 'A' | 'B';
+    role: string;
+    homeErr: number;       // distance from formation home position
+    nearOppDist: number;   // distance to nearest opponent
+    nearTmDist: number;    // distance to nearest teammate
+    compDelta: number;     // distance from team centroid
+  };
+  const playerPositioningSamples: PlayerPositioningSample[] = [];
+
   // ── Tuning telemetry: transition tracking ──
   type TransitionEvent = {
     t: number;
@@ -1017,6 +1030,7 @@ export function initGame(container: HTMLElement) {
     duration?: number;       // filled when transition ends
     passesInTransition?: number;
     progressionYards?: number;
+    result?: string;
   };
   const transitionLog: TransitionEvent[] = [];
   let _activeTransition: TransitionEvent | null = null;
@@ -1802,10 +1816,14 @@ export function initGame(container: HTMLElement) {
     gameState.passesCompletedB = 0;
     gameState.tacklesWonA = 0;
     gameState.tacklesWonB = 0;
+    gameState.tackleTimesA.length = 0;
+    gameState.tackleTimesB.length = 0;
     gameState.clearancesA = 0;
     gameState.clearancesB = 0;
     gameState.foulsA = 0;
     gameState.foulsB = 0;
+    gameState.offsidesA = 0;
+    gameState.offsidesB = 0;
     gameState.cornersA = 0;
     gameState.cornersB = 0;
     gameState.throwInsA = 0;
@@ -1824,6 +1842,7 @@ export function initGame(container: HTMLElement) {
     tuningEventLog.length = 0;
     shapeSamplesA.length = 0;
     shapeSamplesB.length = 0;
+    playerPositioningSamples.length = 0;
     _lastShapeSampleAt = 0;
     _lastDiagnosticLogAt = 0;
     _lastTuningEventAt = 0;
@@ -1960,7 +1979,7 @@ export function initGame(container: HTMLElement) {
     gameState.kickoffState = type === 'KICK_OFF' ? 'READY' : 'NONE';
     gameState.goalKickInProgress = false;
     gameState.cornerKickInProgress = false;
-    gameState.status = matchClock.phase === 'FULL_TIME' ? 'START' : 'PLAYING';
+    gameState.status = 'PLAYING';
     gameState.message = message;
     gameState.messageReason = '';
     gameState.passCaught = false;
@@ -2074,7 +2093,7 @@ export function initGame(container: HTMLElement) {
     const sortedOpponents = opponents.slice().sort((a, b) => attackRight ? b.pos.x - a.pos.x : a.pos.x - b.pos.x);
     const secondLastOpponentX = sortedOpponents[1].pos.x;
     // Tolerance: need to be clearly past the line (like VAR's "clear and obvious" threshold)
-    const OFFSIDE_TOLERANCE = 1.5;
+    const OFFSIDE_TOLERANCE = 0.5;
     return attackRight
       ? player.pos.x > secondLastOpponentX + OFFSIDE_TOLERANCE
       : player.pos.x < secondLastOpponentX - OFFSIDE_TOLERANCE;
@@ -2337,7 +2356,7 @@ export function initGame(container: HTMLElement) {
 
   function awardSoccerGoal(scoringTeam: 'A' | 'B', fromShot: boolean = false) {
     sounds.whistle();
-    pushTuningEvent(elapsed, matchClock.half, 'GOAL', scoringTeam, 'TEAM', { fromShot });
+    pushTuningEvent(performance.now() / 1000, matchClock.half, 'GOAL', scoringTeam, 'TEAM', { fromShot });
     goalMonitorLog(
       `GOAL AWARDED to ${scoringTeam} fromShot=${fromShot} ` +
       `pos=(${ballState.pos.x.toFixed(2)},${ballState.pos.y.toFixed(2)},${ballState.pos.z.toFixed(2)}) ` +
@@ -5048,9 +5067,6 @@ export function initGame(container: HTMLElement) {
     selectedKickoffPlayerIndex: 0,
     passCaught: false,
     practiceModeEnabled: false,
-    tuningProgressWeight: 0.8,
-    tuningLanePenalty: 0.15,
-    tuningSpaceWeight: 0.05,
     tuningShortPassBias: 0.05,
     _practiceRepCount: 0,
     selectedOffensePlay: 'slant-flood',
@@ -5098,6 +5114,12 @@ export function initGame(container: HTMLElement) {
     giveAndGoPasser: null as any,
     giveAndGoReceiver: null as any,
     giveAndGoExpiry: 0,
+    giveAndGoPhase: 'NONE' as 'NONE' | 'INITIAL_PASS' | 'PASSER_SPRINTING' | 'RETURN_PASS' | 'COMPLETED',
+    giveAndGoPasserStartX: 0,   // passer's x when the g&g was initiated
+    giveAndGoAttemptsA: 0,
+    giveAndGoAttemptsB: 0,
+    giveAndGoCompletionsA: 0,
+    giveAndGoCompletionsB: 0,
     defenseCalloutUntil: 0,
     defenseCalloutTeam: '' as 'A' | 'B' | '',
     crossAssistTeam: '' as 'A' | 'B' | '',
@@ -5156,10 +5178,14 @@ export function initGame(container: HTMLElement) {
     passesCompletedB: 0,
     tacklesWonA: 0,
     tacklesWonB: 0,
+    tackleTimesA: [] as number[],
+    tackleTimesB: [] as number[],
     clearancesA: 0,
     clearancesB: 0,
     foulsA: 0,
     foulsB: 0,
+    offsidesA: 0,
+    offsidesB: 0,
     cornersA: 0,
     cornersB: 0,
     throwInsA: 0,
@@ -6577,7 +6603,7 @@ export function initGame(container: HTMLElement) {
     const impacts = bestPanel.material.uniforms.uImpacts.value as THREE.Vector4[];
     impacts.pop();
     impacts.unshift(new THREE.Vector4(u, v, elapsed, THREE.MathUtils.clamp(force, 0.18, 1.0)));
-    bestPanel.material.uniforms.uImpacts.needsUpdate = true;
+    (bestPanel.material.uniforms.uImpacts as any).needsUpdate = true;
   }
 
   function buildGoalNetPanel(
@@ -8219,9 +8245,9 @@ export function initGame(container: HTMLElement) {
         receiverWindow = options?.receiverWindow ?? 2.25;
         break;
       case 'BACK':
-        angleErrorBase *= 0.56;
-        speedMultiplier = 1.05;
-        receiverWindow = options?.receiverWindow ?? 2.3;
+        angleErrorBase *= 0.44;
+        speedMultiplier = 1.14;
+        receiverWindow = options?.receiverWindow ?? 2.8;
         break;
       case 'DIAGONAL':
         angleErrorBase *= 0.74;
@@ -9111,6 +9137,9 @@ export function initGame(container: HTMLElement) {
       const isOverlapRunner = _overlapRun.active && candidate === _overlapRun.runner && carrier === _overlapRun.carrier;
       const overlapBonus = isOverlapRunner && (candidate.pos.x * attackSign) > (carrier.pos.x * attackSign) + 1.5 ? 4.5 : 0;
       // ST dropping in to combine (wall pass) before spinning forward.
+      // Give-and-go return bonus: strongly prefer the sprinting passer as pass target
+      const giveAndGoReturnBonus = gameState.giveAndGoActive && candidate === gameState.giveAndGoPasser
+        && (candidate.pos.x * attackSign) > (carrier.pos.x * attackSign) + 2 ? 5.0 : 0;
       const wallPassBonus = carrierRole === 'ST' && passDist < 11 && progress < 0.8 && progress > -7 ? 1.6 : 0;
       // Prefer forward targets — advance play toward goal
       // Near opponent goal: prefer cutback passes (backward) over forward passes into dead space
@@ -9125,7 +9154,7 @@ export function initGame(container: HTMLElement) {
         // In the box: slight cutback preference, no forward bonus
         forwardPreference = progress > 2 ? -progress * 0.05 : (progress < -2 ? Math.min(-progress * 0.08, 1.5) : 0);
       } else {
-        forwardPreference = progress > 2 ? Math.min(progress * 0.10, 2.2) : (progress < -2 ? progress * 0.06 : 0);
+        forwardPreference = progress > 2 ? Math.min(progress * 0.10, 2.2) : (progress < -2 ? progress * 0.08 : (progress > 0 ? progress * 0.05 : progress * 0.10));
       }
       // Wide carrier bonus: when carrier is in a wide channel near goal, prefer central box targets
       const carrierIsWide = Math.abs(carrier.pos.z) > goalMouthWidth * 0.7 && carrierDistToGoal < penaltyDepth + 12;
@@ -9136,11 +9165,11 @@ export function initGame(container: HTMLElement) {
         ? 3.6 : 0;
       // Pass is "open" if the lane isn't heavily blocked AND receiver has some space
       const isOpen = lanePressure < 3.8 && receiverDanger < 4 && supportSpace > 1.2;
-      // Backward penalty — prefer forward but allow safe recycling
-      const backwardPenalty = progress < -1 ? Math.abs(progress) * 2.8 : 0;
+      // Backward penalty — graduated: any backward pass penalised, deep backs heavily
+      const backwardPenalty = progress < -1 ? (Math.abs(progress) + 0.5) * 2.6 : (progress < 0 ? (Math.abs(progress) + 0.4) * 1.8 : 0);
       // Hard gate: no backward passes inside opponent penalty area — shoot instead
       const carrierInBox = carrierDistToGoal < penaltyDepth && Math.abs(carrier.pos.z) <= penaltyHalfZ;
-      if (carrierInBox && progress < 0) return; // skip ANY backward candidate in the box
+      if (carrierInBox && progress < 1.0) return; // skip backward/lateral/marginal-forward candidates in the box
       const score =
         progress * progressWeight +
         forwardPreference +
@@ -9154,7 +9183,8 @@ export function initGame(container: HTMLElement) {
         widthStretchBonus +
         wallPassBonus +
         crossTargetBonus +
-        overlapBonus;
+        overlapBonus +
+        giveAndGoReturnBonus;
       if (score > bestScore && isOpen) {
         bestScore = score;
         bestTarget = candidate;
@@ -9430,7 +9460,7 @@ export function initGame(container: HTMLElement) {
     if (Math.random() >= chance) return false;
 
     let shotStyle: 'VOLLEY' | 'HALF_VOLLEY' | 'HEADER' | 'TOE_POKE';
-    if (wasFlying && ballHeight > 1.2) shotStyle = 'HEADER';
+    if (wasFlying && ballHeight > 0.85) shotStyle = 'HEADER';
     else if (wasFlying) shotStyle = 'VOLLEY';
     else if (incomingBallSpeed > 9) shotStyle = 'TOE_POKE';
     else shotStyle = 'HALF_VOLLEY';
@@ -9488,7 +9518,27 @@ export function initGame(container: HTMLElement) {
       const maxAimError = THREE.MathUtils.lerp(cpuShotAimErrorRad, cpuShotAimErrorRad * composureFloor, composure) + distanceError;
       const aimError = (Math.random() * 2 - 1) * maxAimError;
 
-      const arc = computeShotArc(shooter, powerScale);
+      // ── Miss-frame mechanic: CPU shots sometimes aim wide/high ──
+      const missFrameChance = THREE.MathUtils.lerp(0.58, 0.20, composure);
+      let missOverrideAimZ: number | undefined;
+      let missOverrideTargetY: number | undefined;
+      if (Math.random() < missFrameChance) {
+        const missType = Math.random();
+        if (missType < 0.50) {
+          // Wide miss: aim beyond the posts
+          const side = Math.random() < 0.5 ? 1 : -1;
+          missOverrideAimZ = side * goalMouthWidth * (0.55 + Math.random() * 0.35);
+        } else if (missType < 0.85) {
+          // Over the bar
+          missOverrideTargetY = goalMouthHeight + 0.3 + Math.random() * 1.2;
+        } else {
+          // Scuffed wide and low
+          const side = Math.random() < 0.5 ? 1 : -1;
+          missOverrideAimZ = side * goalMouthWidth * (0.52 + Math.random() * 0.30);
+          missOverrideTargetY = 0.15 + Math.random() * 0.3;
+        }
+      }
+      const arc = computeShotArc(shooter, powerScale, missOverrideAimZ, missOverrideTargetY);
       const launchDir = shooter.vel.clone().setY(0);
       if (launchDir.lengthSq() < 0.01) {
         const toGoal = new THREE.Vector3(arc.targetPos.x - shooter.pos.x, 0, arc.targetPos.z - shooter.pos.z);
@@ -9822,21 +9872,21 @@ export function initGame(container: HTMLElement) {
       case 'GK':
         return 4.5;
       case 'CB':
-        return 14.0;
+        return 12.0;
       case 'LB':
       case 'RB':
-        return 16.5;
+        return 14.0;
       case 'DM':
-        return 17.5;
+        return 15.0;
       case 'CM':
-        return 20.0;
+        return 17.0;
       case 'LM':
       case 'RM':
-        return 22.5;
+        return 19.0;
       case 'ST':
-        return 25.0;
+        return 21.0;
       default:
-        return 18.0;
+        return 16.0;
     }
   }
 
@@ -9964,7 +10014,7 @@ export function initGame(container: HTMLElement) {
         const sortedOpponents = opponents.slice().sort((a: any, b: any) => attackRight ? b.pos.x - a.pos.x : a.pos.x - b.pos.x);
         secondLastOpponentX = sortedOpponents[1].pos.x;
         const phase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
-        const offsideMargin = phase === 'FINAL_THIRD' ? 1.8 : (phase === 'TRANSITION' ? 2.2 : 3.0);
+        const offsideMargin = phase === 'FINAL_THIRD' ? 0.3 : (phase === 'TRANSITION' ? 0.6 : 1.2);
         // Offside law: onside if behind the ball OR behind 2nd-last defender (use the more permissive limit)
         const onsideX = attackRight
           ? Math.max(anchor.x, secondLastOpponentX) - offsideMargin
@@ -10193,17 +10243,21 @@ export function initGame(container: HTMLElement) {
     }
 
     // --- Final offside safety net: re-clamp after all position adjustments ---
-    // Active with or without carrier — use ball position as fallback anchor
+    // Probabilistic: attackers in advanced phases occasionally skip the clamp → can be caught offside
+    const _isAttacker = roleLabel === 'ST' || roleLabel === 'LW' || roleLabel === 'RW' || roleLabel === 'LM' || roleLabel === 'RM';
+    const _offsPhase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+    const _skipClampChance = _isAttacker ? (_offsPhase === 'FINAL_THIRD' ? 0.40 : (_offsPhase === 'TRANSITION' ? 0.20 : 0)) : 0;
+    const _applyClamp = Math.random() >= _skipClampChance;
     // Ball carrier is exempt: you cannot be offside when you have the ball (FIFA Law 11)
-    if (OFFSIDE_RULES_ENABLED && player !== carrier) {
+    if (OFFSIDE_RULES_ENABLED && player !== carrier && _applyClamp) {
       const anchor = carrier ? carrier.pos : ballState.pos;
       const opp = players.filter((o: any) => o.team !== player.team);
       if (opp.length >= 2) {
         const sortedOpp = opp.slice().sort((a: any, b: any) => attackRight ? b.pos.x - a.pos.x : a.pos.x - b.pos.x);
         const secondLastX = sortedOpp[1].pos.x;
         const phase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
-        const offsideMargin = phase === 'FINAL_THIRD' ? 1.8 : (phase === 'TRANSITION' ? 2.2 : 3.0);
-        // Dynamic margin: tighter in advanced phases so runners can stay available
+        const offsideMargin = phase === 'FINAL_THIRD' ? 0.3 : (phase === 'TRANSITION' ? 0.8 : 1.8);
+        // Dynamic margin: tighter in advanced phases so runners can push the line
         const safeX = attackRight
           ? Math.max(anchor.x, secondLastX) - offsideMargin
           : Math.min(anchor.x, secondLastX) + offsideMargin;
@@ -10218,13 +10272,13 @@ export function initGame(container: HTMLElement) {
     let leashAnchor: THREE.Vector3;
     let leashRadius: number;
     if (teamHasBall && isAttackerRole) {
-      // Attacking with possession: anchor leash to carrier/ball position with generous radius
+      // Attacking with possession: anchor leash to carrier/ball position
       leashAnchor = ballState.pos;
-      leashRadius = getRoleShapeLeash(player) + 13;
+      leashRadius = getRoleShapeLeash(player) + 8;
     } else if (teamHasBall) {
-      // Defender/DM with possession: relaxed leash from ball position
-      leashAnchor = ballState.pos;
-      leashRadius = getRoleShapeLeash(player) + 7;
+      // Defender/GK with possession: anchor to HOME so they hold shape
+      leashAnchor = player.homePos;
+      leashRadius = getRoleShapeLeash(player) + 5;
     } else {
       // No possession: standard leash from home position
       leashAnchor = player.homePos;
@@ -11232,6 +11286,7 @@ export function initGame(container: HTMLElement) {
     // Cancel any give-and-go if possession changed to opponent
     if (gameState.giveAndGoActive && gameState.giveAndGoReceiver?.team !== wonTeam) {
       gameState.giveAndGoActive = false;
+      gameState.giveAndGoPhase = 'NONE';
     }
 
     // ── Transition tracking for tuning telemetry ──
@@ -12798,6 +12853,31 @@ export function initGame(container: HTMLElement) {
             lowLine: Math.round(minX * 10) / 10,
           };
           (team === 'A' ? shapeSamplesA : shapeSamplesB).push(sample);
+
+          // ── Per-player positioning samples ──
+          const centroidX = avgX;
+          const centroidZ = avgZ;
+          const allPlayers = players.filter((p: any) => p.team === team);
+          for (const p of allPlayers) {
+            const role = getRoleKey(p);
+            const homeErr = p.homePos ? p.pos.distanceTo(p.homePos) : 0;
+            const opponents = players.filter((o: any) => o.team !== team && !isGoalkeeper(o));
+            const teammates = players.filter((t: any) => t.team === team && t !== p && !isGoalkeeper(t));
+            const nearOppDist = opponents.length > 0 ? Math.min(...opponents.map((o: any) => p.pos.distanceTo(o.pos))) : -1;
+            const nearTmDist = teammates.length > 0 ? Math.min(...teammates.map((t: any) => p.pos.distanceTo(t.pos))) : -1;
+            const ax = p.pos.x * attackSign;
+            const compDelta = Math.hypot(ax - centroidX, p.pos.z - centroidZ);
+            playerPositioningSamples.push({
+              t: Math.round(matchClock.elapsedInHalf * 10) / 10,
+              half: matchClock.half,
+              team,
+              role,
+              homeErr: Math.round(homeErr * 10) / 10,
+              nearOppDist: Math.round(nearOppDist * 10) / 10,
+              nearTmDist: Math.round(nearTmDist * 10) / 10,
+              compDelta: Math.round(compDelta * 10) / 10,
+            });
+          }
         }
       }
 
@@ -13589,9 +13669,7 @@ export function initGame(container: HTMLElement) {
                   Math.random() < 0.55;
 
                 // Log rule-based decision as experience for behavioral cloning
-                const ruleAction = preferThrow ? 'THROW'
-                  : selectedKickStyle === 'GOAL_KICK_STANDARD' ? 'GOAL_KICK'
-                  : selectedKickStyle;
+                const ruleAction = preferThrow ? 'THROW' : selectedKickStyle;
                 _pendingKeeperExp = {
                   state: Array.from(encodedState),
                   action: KEEPER_ACTIONS.indexOf(ruleAction as any),
@@ -13841,7 +13919,7 @@ export function initGame(container: HTMLElement) {
             // ── Risk tolerance: derived from role + awareness ──
             // Playmakers/wingers are braver; CBs/DMs play safe
             const aiStyle = getActiveAIStyle();
-            const aiStyleRiskBoost = aiStyle === 'AGGRESSIVE' ? 0.22 : (aiStyle === 'CONSERVATIVE' ? -0.15 : 0);
+            const aiStyleRiskBoost = gameState.aiStyle === 'AGGRESSIVE' ? 0.22 : (gameState.aiStyle === 'POSSESSION' ? -0.15 : 0);
             
             const riskTolerance = THREE.MathUtils.clamp(
               (roleProfile.progressivePass - 0.5) * 0.5
@@ -14073,12 +14151,18 @@ export function initGame(container: HTMLElement) {
                 gameState.giveAndGoPasser = cpuCarrier;
                 gameState.giveAndGoReceiver = selectedPassTarget;
                 gameState.giveAndGoExpiry = elapsed + 3.5;
+                gameState.giveAndGoPhase = 'INITIAL_PASS';
+                gameState.giveAndGoPasserStartX = cpuCarrier.pos.x;
+                if (team === 'A') gameState.giveAndGoAttemptsA++; else gameState.giveAndGoAttemptsB++;
                 showPlayPatternTag('GIVE + GO', 'rgba(126,226,255,0.96)');
               } else if (forceQuickOneTwo && !gameState.giveAndGoActive) {
                 gameState.giveAndGoActive = true;
                 gameState.giveAndGoPasser = cpuCarrier;
                 gameState.giveAndGoReceiver = selectedPassTarget;
                 gameState.giveAndGoExpiry = elapsed + 3.2;
+                gameState.giveAndGoPhase = 'INITIAL_PASS';
+                gameState.giveAndGoPasserStartX = cpuCarrier.pos.x;
+                if (team === 'A') gameState.giveAndGoAttemptsA++; else gameState.giveAndGoAttemptsB++;
                 showPlayPatternTag('GIVE + GO', 'rgba(126,226,255,0.96)');
               }
               if (isBackPass) {
@@ -14108,7 +14192,7 @@ export function initGame(container: HTMLElement) {
               (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
             } else if (recycleTarget) {
               // Recycle: safe back-pass to retain possession — but NOT inside opponent penalty area
-              const recycleDist = Math.abs(attackGoalX - cpuCarrier.pos.x);
+              const recycleDist = Math.abs(goalX - cpuCarrier.pos.x);
               if (recycleDist < penaltyDepth && Math.abs(cpuCarrier.pos.z) <= penaltyHalfZ) {
                 // In the box — take a shot instead of recycling backward
                 takeShot(cpuCarrier, true);
@@ -14128,14 +14212,21 @@ export function initGame(container: HTMLElement) {
             if (gameState.giveAndGoActive && elapsed < gameState.giveAndGoExpiry &&
                 ballState.heldBy === gameState.giveAndGoReceiver && !isGoalkeeper(gameState.giveAndGoReceiver)) {
               const passer = gameState.giveAndGoPasser;
-              if (passer && passer.team === team && (gameState as any)[cooldownKey] <= 0) {
+              if (passer && passer.team === team) {
                 const returnDist = ballState.heldBy.pos.distanceTo(passer.pos);
-                const passerIsForward = (passer.pos.x - ballState.heldBy.pos.x) * attackSign > 3;
-                if (returnDist < 22 && passerIsForward && Math.random() < 0.74) {
+                const passerIsForward = (passer.pos.x - ballState.heldBy.pos.x) * attackSign > 2;
+                // Boosted return-pass probability (was 0.74, now 0.88) and relaxed distance (was 22, now 26)
+                if (returnDist < 26 && passerIsForward && Math.random() < 0.88) {
+                  gameState.giveAndGoPhase = 'RETURN_PASS';
                   executeAIGroundPass(gameState.giveAndGoReceiver, passer, elapsed, { style: 'WALL' });
+                  // Track completion
+                  if (team === 'A') gameState.giveAndGoCompletionsA++; else gameState.giveAndGoCompletionsB++;
+                  gameState.giveAndGoPhase = 'COMPLETED';
+                  showPlayPatternTag('GIVE+GO \u2713', 'rgba(100,255,180,0.96)');
                   gameState.giveAndGoActive = false;
                   (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
-                } else if (returnDist > 20 || elapsed > gameState.giveAndGoExpiry - 0.5) {
+                } else if (returnDist > 24 || elapsed > gameState.giveAndGoExpiry - 0.5) {
+                  gameState.giveAndGoPhase = 'NONE';
                   gameState.giveAndGoActive = false;
                 }
               }
@@ -14340,6 +14431,31 @@ export function initGame(container: HTMLElement) {
             }
             return;
           } else {
+            // ── Give-and-go passer sprint: override support target to sprint forward ──
+            const isGiveGoPasser = !practiceModeEnabled && gameState.giveAndGoActive
+              && p === gameState.giveAndGoPasser && elapsed < gameState.giveAndGoExpiry
+              && p !== ballState.heldBy;
+            if (isGiveGoPasser) {
+              gameState.giveAndGoPhase = 'PASSER_SPRINTING';
+              const ggAttackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
+              // Sprint 12 yards ahead of where the receiver is, biased toward goal
+              const receiver = gameState.giveAndGoReceiver;
+              const sprintX = (receiver?.pos?.x ?? p.pos.x) + ggAttackSign * 12 * X_PER_YARD;
+              const sprintZ = p.pos.z * 0.6 + (receiver?.pos?.z ?? 0) * 0.4; // drift toward center
+              const sprintTarget = new THREE.Vector3(
+                THREE.MathUtils.clamp(sprintX, -FIELD_W / 2 + 2, FIELD_W / 2 - 2),
+                0.15,
+                THREE.MathUtils.clamp(sprintZ, -FIELD_D / 2 + 2, FIELD_D / 2 - 2)
+              );
+              _loopDir.subVectors(sprintTarget, p.pos).setY(0);
+              const sprintDist = _loopDir.length();
+              if (sprintDist > 0.4) {
+                const sprintSpeed = getUniformPlayerRunSpeed() * 1.35;
+                p.vel.lerp(_loopDir.normalize().multiplyScalar(sprintSpeed), dt * 10);
+                p.pos.addScaledVector(p.vel, dt);
+              }
+              p.glow.visible = false;
+            } else {
             const isTransitionTeam = gameState.transitionDefenseTeam === p.team && elapsed < gameState.transitionDefenseExpiry;
 
             let supportTarget: THREE.Vector3;
@@ -14366,6 +14482,7 @@ export function initGame(container: HTMLElement) {
 
               p.vel.lerp(dir.multiplyScalar(speed), dt * (dist > 4 ? 4.8 : 7.0));
               p.pos.addScaledVector(p.vel, dt);
+            }
             }
           }
         });
@@ -14449,12 +14566,17 @@ export function initGame(container: HTMLElement) {
               const speedDiff = p.stats.speed - liveCarrier.stats.speed;
               const rawWinChance = 0.28 + (p.stats.coverage * 0.2) - (liveCarrier.stats.carrying * 0.12) + (speedDiff * 1.8);
               const winChance = THREE.MathUtils.clamp(rawWinChance + carrierTouchQuality * 0.18, 0.08, 0.74);
+              // Per-team tackle cap: max 3 per 5-second window
+              const _tackleTimes2c = p.team === 'A' ? gameState.tackleTimesA : gameState.tackleTimesB;
+              while (_tackleTimes2c.length > 0 && elapsed - _tackleTimes2c[0] > 5.0) _tackleTimes2c.shift();
+              if (_tackleTimes2c.length >= 3) return;
               if (Math.random() < winChance * dt * 60) {
                 triggerTacklePoseAnimation(liveCarrier, p);
                 ballState.heldBy = p;
                 ballState.lastHeldBy = p;
                 ballState.possessionLockUntil = elapsed + 0.55;
-                p.tackleCooldown = 0.55;
+                p.tackleCooldown = 1.2;
+                _tackleTimes2c.push(elapsed);
                 if (p.team === 'A') gameState.tacklesWonA++; else gameState.tacklesWonB++;
                 { const tRole = getRoleKey(p); ensureRole(p.team, tRole).tackles++;
                   ensureRole(liveCarrier.team, getRoleKey(liveCarrier)).turnovers++;
@@ -14471,7 +14593,7 @@ export function initGame(container: HTMLElement) {
                 soccerRestart.lastTouchTeam = p.team;
                 sounds.catch();
               } else {
-                p.tackleCooldown = Math.max(p.tackleCooldown, 0.28);
+                p.tackleCooldown = Math.max(p.tackleCooldown, 0.65);
               }
             }
           });
@@ -14762,18 +14884,23 @@ export function initGame(container: HTMLElement) {
                   - ballCarrier.stats.carrying * 0.12
                   + (speedDiff * 2.0);
                 const challengeWinChance = THREE.MathUtils.clamp(rawChallengeWinChance + touchQuality * 0.2, 0.08, 0.76);
+                // Per-team tackle cap: max 3 per 5-second window
+                const _tackleTimes2e = p.team === 'A' ? gameState.tackleTimesA : gameState.tackleTimesB;
+                while (_tackleTimes2e.length > 0 && elapsed - _tackleTimes2e[0] > 5.0) _tackleTimes2e.shift();
+                if (_tackleTimes2e.length >= 3) return;
                 if (Math.random() < challengeWinChance * dt * 60) {
                   triggerTacklePoseAnimation(ballCarrier, p);
                   ballState.heldBy = p;
                   ballState.possessionLockUntil = elapsed + 0.55;
                   ballState.lastHeldBy = p;
-                  p.tackleCooldown = 0.58;
+                  p.tackleCooldown = 1.2;
+                  _tackleTimes2e.push(elapsed);
                   if (p.team === 'A') gameState.tacklesWonA++; else gameState.tacklesWonB++;
                   pushTelemEvent(p.team, 'TACKLE', `${p.name || 'Unknown'} wins ball from ${ballCarrier.name || 'Unknown'}`);
                   soccerRestart.lastTouchTeam = p.team;
                   sounds.catch();
                 } else {
-                  p.tackleCooldown = Math.max(p.tackleCooldown, 0.3);
+                  p.tackleCooldown = Math.max(p.tackleCooldown, 0.65);
                 }
               }
               return;
@@ -14936,9 +15063,10 @@ export function initGame(container: HTMLElement) {
             const distXZBall = isKeeperClaim ? Math.sqrt(dxBall * dxBall + dzBall * dzBall) : distToBall;
             const shotDistToKeeper = isKeeperClaim && ballState.isShot ? distXZBall : 99;
             const closeShotRadius = shotDistToKeeper < 3.0 ? 1.4 : 1.05;
+            const isIntendedFlying = p === ballState.intendedReceiver && elapsed <= ballState.intendedUntil;
             const flyingCollectRadius = isKeeperClaim
               ? (ballState.isShot ? closeShotRadius : 1.1)
-              : 1.2;
+              : (isIntendedFlying ? 1.65 : (ballState.isShot ? 1.2 : 0.65));
             const keeperHeightOk = !isKeeperClaim || ballState.pos.y <= goalMouthHeight + 0.15;
             const effectiveDist = isKeeperClaim ? distXZBall : distToBall;
             if (effectiveDist < flyingCollectRadius && keeperHeightOk) {
@@ -15004,6 +15132,18 @@ export function initGame(container: HTMLElement) {
                     recordShotOnTarget(shootingTeam);
                     recordSave(p.team);
                   }
+                  // ── GK parry: sometimes the keeper tips it over the bar → corner ──
+                  if (!goalAlreadyAwarded && Math.random() < 0.35) {
+                    gameState.message = 'SAVE!';
+                    triggerGoalkeeperSaveAnimation(p, elapsed);
+                    sounds.catch();
+                    soccerRestart.lastTouchTeam = p.team;
+                    // Determine which goal the keeper defends using actual position
+                    const cornerX = p.pos.x > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+                    const cornerZ = ballState.pos.z >= 0 ? FIELD_D / 2 : -FIELD_D / 2;
+                    queueDelayedRestart('CORNER', shootingTeam, cornerX, cornerZ, 'CORNER', outOfPlayRestartDelaySec);
+                    return;
+                  }
                   // Keeper has ball in hands — give full distribution window (no challenge allowed)
                   const keeperHoldSeconds = 1.2 + Math.random() * 0.8;
                   setCPUTeamDecisionCooldown(p.team, keeperHoldSeconds);
@@ -15050,11 +15190,12 @@ export function initGame(container: HTMLElement) {
 
                 if (!practiceModeEnabled && isOffsideFlagged(p)) {
                   const now = performance.now() / 1000;
-                  if (now - playState.lastOffsideCallAt < 8.0) {
+                  if (now - playState.lastOffsideCallAt < 3.0) {
                     // Offside cooldown: suppress rapid chain calls
                     clearOffsideState();
                   } else {
                     playState.lastOffsideCallAt = now;
+                    if (p.team === 'A') gameState.offsidesA++; else gameState.offsidesB++;
                     startSoccerRestart('TURNOVER', p.team === 'A' ? 'B' : 'A', p.pos.x, p.pos.z, 'OFFSIDE');
                     gameState.messageReason = 'Player in Offside Position';
                     sounds.incomplete();
@@ -15345,7 +15486,12 @@ export function initGame(container: HTMLElement) {
               // Shoulder challenge (no American-football tackle stops)
               if (ballState.heldBy === p2 && p1.team !== p2.team) {
                 if (isKeeperHandlingInBox(p2)) return;
+                if (p1.tackleCooldown > 0) return;
                 if (maybeCallSoccerFoul(p1, p2, dt, elapsed)) return;
+                // Per-team tackle cap: max 3 per 5-second window
+                const _tackleTimes2g = p1.team === 'A' ? gameState.tackleTimesA : gameState.tackleTimesB;
+                while (_tackleTimes2g.length > 0 && elapsed - _tackleTimes2g[0] > 5.0) _tackleTimes2g.shift();
+                if (_tackleTimes2g.length >= 3) return;
                 const speedDiff = p1.stats.speed - p2.stats.speed;
                 const rawChallengeWinChance = 0.24
                   + (p1.stats.coverage * 0.2)
@@ -15358,6 +15504,8 @@ export function initGame(container: HTMLElement) {
                   ballState.heldBy = p1;
                   ballState.lastHeldBy = p1;
                   ballState.possessionLockUntil = elapsed + 0.55;
+                  p1.tackleCooldown = 1.2;
+                  _tackleTimes2g.push(elapsed);
                   if (p1.team === 'A') gameState.tacklesWonA++; else gameState.tacklesWonB++;
                   pushTelemEvent(p1.team, 'TACKLE', `${p1.name || 'Unknown'} wins ball from ${p2.name || 'Unknown'}`);
                   markKickoffTouch(p1);
@@ -15584,9 +15732,20 @@ export function initGame(container: HTMLElement) {
               if (kickoffLawState.active && kickoffLawState.firstKickTaken && !kickoffLawState.touchedByAnotherPlayer && p === kickoffLawState.kicker) continue;
               const distToBall = p.pos.distanceTo(ballState.pos);
               const isIntended = p === ballState.intendedReceiver && elapsed <= ballState.intendedUntil;
-              const collectRadius = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos)
-                ? 1.6
-                : (isIntended ? 1.55 : 0.50);
+              // Role-based intercept radius: attackers have smaller radius for pass interceptions
+              let collectRadius: number;
+              if (isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos)) {
+                collectRadius = 1.6;
+              } else if (isIntended) {
+                collectRadius = 1.55;
+              } else {
+                collectRadius = 0.50;
+                if (ballState.intendedTeam && p.team !== ballState.intendedTeam && elapsed <= ballState.intendedUntil) {
+                  const iRole = getRoleKey(p);
+                  if (iRole === 'ST' || iRole === 'LW' || iRole === 'RW') collectRadius = 0.25;
+                  else if (iRole === 'CAM' || iRole === 'LM' || iRole === 'RM') collectRadius = 0.38;
+                }
+              }
               if (distToBall < collectRadius && distToBall < bestDist) {
                 collector = p;
                 bestDist = distToBall;
@@ -15609,10 +15768,11 @@ export function initGame(container: HTMLElement) {
             ballState.rollingLaunchSpeed = 0;
             if (isOffsideFlagged(collector)) {
               const now = performance.now() / 1000;
-              if (now - playState.lastOffsideCallAt < 8.0) {
+              if (now - playState.lastOffsideCallAt < 3.0) {
                 clearOffsideState();
               } else {
                 playState.lastOffsideCallAt = now;
+                if (collector.team === 'A') gameState.offsidesA++; else gameState.offsidesB++;
                 startSoccerRestart('TURNOVER', collector.team === 'A' ? 'B' : 'A', collector.pos.x, collector.pos.z, 'OFFSIDE');
                 gameState.messageReason = 'Player in Offside Position';
                 sounds.incomplete();
@@ -15689,7 +15849,18 @@ export function initGame(container: HTMLElement) {
               // exclude the original kicker from picking up the loose ball (prevents instant double-touch penalty).
               if (kickoffLawState.active && kickoffLawState.firstKickTaken && !kickoffLawState.touchedByAnotherPlayer && p === kickoffLawState.kicker) continue;
               const distToBall = p.pos.distanceTo(ballState.pos);
-              const collectRadius = isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos) ? 2.1 : 1.25;
+              // Role-based intercept radius for stationary ball
+              let collectRadius: number;
+              if (isGoalkeeper(p) && isInsideOwnPenaltyArea(p, ballState.pos)) {
+                collectRadius = 2.1;
+              } else if (ballState.intendedTeam && p.team !== ballState.intendedTeam && elapsed <= ballState.intendedUntil) {
+                const iRole = getRoleKey(p);
+                if (iRole === 'ST' || iRole === 'LW' || iRole === 'RW') collectRadius = 0.65;
+                else if (iRole === 'CAM' || iRole === 'LM' || iRole === 'RM') collectRadius = 0.90;
+                else collectRadius = 1.25;
+              } else {
+                collectRadius = 1.25;
+              }
               if (distToBall < collectRadius && distToBall < bestDist) {
                 collector = p;
                 bestDist = distToBall;
@@ -15699,10 +15870,11 @@ export function initGame(container: HTMLElement) {
           if (collector) {
             if (isOffsideFlagged(collector)) {
               const now = performance.now() / 1000;
-              if (now - playState.lastOffsideCallAt < 8.0) {
+              if (now - playState.lastOffsideCallAt < 3.0) {
                 clearOffsideState();
               } else {
                 playState.lastOffsideCallAt = now;
+                if (collector.team === 'A') gameState.offsidesA++; else gameState.offsidesB++;
                 startSoccerRestart('TURNOVER', collector.team === 'A' ? 'B' : 'A', collector.pos.x, collector.pos.z, 'OFFSIDE');
                 gameState.messageReason = 'Player in Offside Position';
                 sounds.incomplete();
@@ -16640,6 +16812,8 @@ export function initGame(container: HTMLElement) {
       gameState.clearancesB = 0;
       gameState.foulsA = 0;
       gameState.foulsB = 0;
+      gameState.offsidesA = 0;
+      gameState.offsidesB = 0;
       gameState.cornersA = 0;
       gameState.cornersB = 0;
       gameState.throwInsA = 0;
@@ -17088,6 +17262,8 @@ export function initGame(container: HTMLElement) {
       gameState.clearancesB = 0;
       gameState.foulsA = 0;
       gameState.foulsB = 0;
+      gameState.offsidesA = 0;
+      gameState.offsidesB = 0;
       gameState.cornersA = 0;
       gameState.cornersB = 0;
       gameState.throwInsA = 0;
@@ -17102,6 +17278,7 @@ export function initGame(container: HTMLElement) {
       tuningEventLog.length = 0;
       shapeSamplesA.length = 0;
       shapeSamplesB.length = 0;
+      playerPositioningSamples.length = 0;
       _lastShapeSampleAt = 0;
       _lastDiagnosticLogAt = 0;
       _lastTuningEventAt = 0;
@@ -17669,6 +17846,8 @@ export function initGame(container: HTMLElement) {
       clearancesB: gameState.clearancesB,
       foulsA: gameState.foulsA,
       foulsB: gameState.foulsB,
+      offsidesA: gameState.offsidesA,
+      offsidesB: gameState.offsidesB,
       throwInsA: gameState.throwInsA,
       throwInsB: gameState.throwInsB,
       possessionA: possA,
@@ -17713,6 +17892,7 @@ export function initGame(container: HTMLElement) {
           tackles: gameState.tacklesWonA,
           clearances: gameState.clearancesA,
           fouls: gameState.foulsA,
+          offsides: gameState.offsidesA,
           corners: gameState.cornersA,
           throwIns: gameState.throwInsA,
           gkDistributions: gameState.gkDistributionsA,
@@ -17729,6 +17909,7 @@ export function initGame(container: HTMLElement) {
           tackles: gameState.tacklesWonB,
           clearances: gameState.clearancesB,
           fouls: gameState.foulsB,
+          offsides: gameState.offsidesB,
           corners: gameState.cornersB,
           throwIns: gameState.throwInsB,
           gkDistributions: gameState.gkDistributionsB,
@@ -17781,6 +17962,7 @@ export function initGame(container: HTMLElement) {
         tackles: t === 'A' ? gs.tacklesWonA : gs.tacklesWonB,
         clearances: t === 'A' ? gs.clearancesA : gs.clearancesB,
         fouls: t === 'A' ? gs.foulsA : gs.foulsB,
+        offsides: t === 'A' ? gs.offsidesA : gs.offsidesB,
         corners: t === 'A' ? gs.cornersA : gs.cornersB,
         throwIns: t === 'A' ? gs.throwInsA : gs.throwInsB,
         possession: poss,
@@ -17816,7 +17998,7 @@ export function initGame(container: HTMLElement) {
           name: activeTeams.A.rosterName, formation: activeTeamFormations.A,
           score: gameState.scoreA, shots: gameState.shotsA, shotsOnTarget: gameState.shotsOnTargetA,
           saves: gameState.savesA, passes: gameState.passesA, passesCompleted: gameState.passesCompletedA,
-          tackles: gameState.tacklesWonA, clearances: gameState.clearancesA, fouls: gameState.foulsA,
+          tackles: gameState.tacklesWonA, clearances: gameState.clearancesA, fouls: gameState.foulsA, offsides: gameState.offsidesA,
           corners: gameState.cornersA, throwIns: gameState.throwInsA, possession: possA,
           gkDist: gameState.gkDistributionsA, gkDistComp: gameState.gkDistCompletedA,
           roleStats: { ...roleStatsA }, passNetwork: Object.values(passNetA).map(e => ({ ...e })),
@@ -17825,7 +18007,7 @@ export function initGame(container: HTMLElement) {
           name: activeTeams.B.rosterName, formation: activeTeamFormations.B,
           score: gameState.scoreB, shots: gameState.shotsB, shotsOnTarget: gameState.shotsOnTargetB,
           saves: gameState.savesB, passes: gameState.passesB, passesCompleted: gameState.passesCompletedB,
-          tackles: gameState.tacklesWonB, clearances: gameState.clearancesB, fouls: gameState.foulsB,
+          tackles: gameState.tacklesWonB, clearances: gameState.clearancesB, fouls: gameState.foulsB, offsides: gameState.offsidesB,
           corners: gameState.cornersB, throwIns: gameState.throwInsB, possession: 100 - possA,
           gkDist: gameState.gkDistributionsB, gkDistComp: gameState.gkDistCompletedB,
           roleStats: { ...roleStatsB }, passNetwork: Object.values(passNetB).map(e => ({ ...e })),
@@ -17833,6 +18015,7 @@ export function initGame(container: HTMLElement) {
         events: tuningEventLog.map(e => ({ ...e })),
         shapeA: shapeSamplesA.map(s => ({ ...s })),
         shapeB: shapeSamplesB.map(s => ({ ...s })),
+        playerPositioning: playerPositioningSamples.map(s => ({ ...s })),
         transitions: transitionLog.map(t => ({ ...t })),
         goalLog: goalLog.map(g => ({ ...g })),
         keeperExperience: [...keeperExperienceBuffer],
