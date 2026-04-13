@@ -977,8 +977,15 @@ export function initGame(container: HTMLElement) {
   };
   const tuningEventLog: TuningEvent[] = [];
   function pushTuningEvent(elapsed: number, half: number, type: string, team: 'A' | 'B', role: string, detail: Record<string, any>) {
-    tuningEventLog.push({ t: Math.round(elapsed * 100) / 100, half, type, team, role, detail });
+    const ev = { t: Math.round(elapsed * 100) / 100, half, type, team, role, detail };
+    tuningEventLog.push(ev);
+    if (gameState.practiceModeEnabled) {
+      _practiceRepEvents.push(ev);
+    }
     _lastTuningEventAt = performance.now() / 1000;
+    if (gameState.practiceModeEnabled) {
+      _lastPracticeEventAt = elapsed;
+    }
   }
 
   // ── Tuning telemetry: team shape sampling ──
@@ -1455,6 +1462,27 @@ export function initGame(container: HTMLElement) {
 
   let restartAutoStartTimer: ReturnType<typeof setTimeout> | null = null;
   let stuckRestartTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  // ── Tuning Lab State ──
+  let _lastPracticeEventAt = 0;
+  let _practiceRepCount = 0;
+  const PRACTICE_AUTO_RESET_SECONDS = 14.5; // Reset after 14.5s of play without event
+  let _practiceRepEvents: TuningEvent[] = []; // Current rep event buffer
+  let _practiceRepHistory: any[] = []; // Full history for export
+  
+  let _practiceReport = {
+    totalReps: 0,
+    goals: 0,
+    completions: 0,
+    totalPasses: 0,
+    turnovers: 0,
+    progressivePasses: 0,
+    boxEntries: 0,
+    shots: 0,
+    shotsOnTarget: 0,
+    lastRepSummary: ""
+  };
+  
   // ── Nuclear watchdog: tracks wall-time when isLive last went false ──
   let _notLiveSince = 0;       // elapsed (performance.now()/1000) when isLive became false; 0 = live
   const NUCLEAR_STUCK_THRESHOLD = 5.0; // seconds of continuous !isLive before force-restart
@@ -1464,6 +1492,56 @@ export function initGame(container: HTMLElement) {
   // ── H2 diagnostic logging ──
   let _lastDiagnosticLogAt = 0;  // match-seconds since last diagnostic log
   const DIAGNOSTIC_LOG_INTERVAL = 30; // log every 30 match-seconds
+
+  function incrementPracticeRep() {
+    // ── Generate tiny practice report for the completed rep ──
+    const passes = _practiceRepEvents.filter(e => e.type === 'PASS');
+    const completions = passes.filter(e => e.detail?.outcome === 'SUCCESS');
+    const turnovers = _practiceRepEvents.filter(e => e.type === 'TURNOVER');
+    const goals = _practiceRepEvents.filter(e => e.type.includes('GOAL'));
+    const progression = passes.filter(e => e.detail?.isProgressive);
+    const box = _practiceRepEvents.filter(e => e.type === 'BOX_ENTRY');
+    const shots = _practiceRepEvents.filter(e => e.type === 'SHOT');
+    const sots = shots.filter(e => e.detail?.onTarget);
+
+    _practiceReport.totalReps++;
+    if (goals.length > 0) _practiceReport.goals++;
+    _practiceReport.completions += completions.length;
+    _practiceReport.totalPasses += passes.length;
+    _practiceReport.turnovers += turnovers.length;
+    _practiceReport.progressivePasses += progression.length;
+    _practiceReport.boxEntries += box.length;
+    _practiceReport.shots += shots.length;
+    _practiceReport.shotsOnTarget += sots.length;
+
+    const repStat = {
+      rep: _practiceReport.totalReps,
+      reason: "reset",
+      at: Date.now(),
+      passPct: passes.length > 0 ? Math.round((completions.length / passes.length) * 1000) / 10 : 0,
+      passAtt: passes.length,
+      passComp: completions.length,
+      shots: shots.length,
+      shotsOnTarget: sots.length,
+      recoveries: 0, 
+      interceptions: _practiceRepEvents.filter(e => e.type === 'INTERCEPTION').length,
+      turnovers: turnovers.length,
+      progressivePasses: progression.length
+    };
+    _practiceRepHistory.push(repStat);
+
+    const rate = passes.length > 0 ? Math.round((completions.length / passes.length) * 100) : 0;
+    const summary = `Rep #${_practiceRepCount}: ${passes.length} passes (${rate}% prec), ${turnovers.length} TOs, ${goals.length ? 'GOAL!' : 'No score'}`;
+    _practiceReport.lastRepSummary = summary;
+    console.log(`%c[Practice Report] ${summary}`, "color: #34d399; font-weight: bold;");
+
+    _practiceRepEvents = []; // ── Clear for next rep ──
+
+    _practiceRepCount++;
+    gameState._practiceRepCount = _practiceRepCount;
+    // Export report stats to gameState for rendering if needed
+    (gameState as any).practiceStats = { ..._practiceReport };
+  }
 
   function clearStuckRestartTimer() {
     if (stuckRestartTimer !== null) {
@@ -1764,7 +1842,9 @@ export function initGame(container: HTMLElement) {
     sounds.kickoffAnnouncer();
     kickoffPresentation.whistleAt = now + 2.1;
     kickoffPresentation.kickoffAt = now + 2.7;
-    sounds.crowdStart();
+    if (!practiceModeEnabled) {
+      sounds.crowdStart();
+    }
     kickoffPresentation.whistlePlayed = false;
 
     gameState.message = 'GET READY';
@@ -2048,6 +2128,12 @@ export function initGame(container: HTMLElement) {
     return !!player && ballState.heldBy === player && isGoalkeeper(player) && isInsideOwnPenaltyArea(player, player.pos);
   }
 
+  function isInsideOpponentBox(player: any, position: THREE.Vector3 = player.pos) {
+    const attacksRight = teamAttacksRight(player.team);
+    const inDepth = attacksRight ? position.x >= rightPenaltyX : position.x <= leftPenaltyX;
+    return inDepth && Math.abs(position.z) <= (penaltyHalfZ + 0.5);
+  }
+
   let lastFoulTime = 0; // global cooldown: no back-to-back fouls
 
   function getFoulerLabel(player: any) {
@@ -2251,6 +2337,7 @@ export function initGame(container: HTMLElement) {
 
   function awardSoccerGoal(scoringTeam: 'A' | 'B', fromShot: boolean = false) {
     sounds.whistle();
+    pushTuningEvent(elapsed, matchClock.half, 'GOAL', scoringTeam, 'TEAM', { fromShot });
     goalMonitorLog(
       `GOAL AWARDED to ${scoringTeam} fromShot=${fromShot} ` +
       `pos=(${ballState.pos.x.toFixed(2)},${ballState.pos.y.toFixed(2)},${ballState.pos.z.toFixed(2)}) ` +
@@ -2259,6 +2346,8 @@ export function initGame(container: HTMLElement) {
     
     if (practiceModeEnabled) {
       // Practice reset to center
+      sounds.goalAnnouncer();
+      incrementPracticeRep();
       queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'GOAL!', 1.5, scoringTeam, fromShot);
       return;
     }
@@ -2319,6 +2408,7 @@ export function initGame(container: HTMLElement) {
       const isOutOfBounds = Math.abs(x) > FIELD_W / 2 || Math.abs(z) > FIELD_D / 2;
       if (isOutOfBounds) {
         // Practice reset to the center circle
+        incrementPracticeRep();
         queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'RESET', 0.8);
         return true;
       }
@@ -2361,7 +2451,7 @@ export function initGame(container: HTMLElement) {
           const defendingTeam = attackingTeam === 'A' ? 'B' : 'A';
 
           if (practiceModeEnabled) {
-            queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'DEAD BALL RESET', 0.8);
+            queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'RESET', 0.8);
             return true;
           }
 
@@ -2394,7 +2484,7 @@ export function initGame(container: HTMLElement) {
 
       if (practiceModeEnabled) {
         // In practice mode, any ball out of bounds at the endline resets to center (no corner/goal kick)
-        queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'OUT OF BOUNDS RESET', 0.8);
+        queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'RESET', 0.8);
         return true;
       }
       const attackingTeam = getTeamAttackingGoal(rightGoal);
@@ -2677,6 +2767,15 @@ export function initGame(container: HTMLElement) {
 
   let showAIStateOverlay = false;
   let showPositionLabels = false;
+  let showAIStateLabels = false;
+
+  function applyPositionLabelVisibility() {
+    const hidden = (typeof splashSceneMode !== 'undefined' && splashSceneMode) || gameState.menuVisible;
+    players.forEach((p: any) => {
+      if (p.positionLabel) p.positionLabel.visible = hidden ? false : showPositionLabels;
+      if (p.aiStateLabel)  p.aiStateLabel.visible  = hidden ? false : showAIStateLabels;
+    });
+  }
 
   function applyAIStateOverlayVisibility() {
     aiStateOverlay.style.display = showAIStateOverlay && !splashSceneMode ? 'block' : 'none';
@@ -2945,7 +3044,8 @@ export function initGame(container: HTMLElement) {
       { player: selectedA, panel: homePossessionPanel },
       { player: selectedB, panel: awayPossessionPanel }
     ].forEach(({ player, panel }) => {
-      if (player) {
+      const hidden = _miniMapMenuUp || splashSceneMode || !showMiniMap;
+      if (player && !hidden) {
         const nameParts = player.name ? player.name.split(' ') : ['Player'];
         const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : (player.name || 'Player');
         const roleText = (player.displayRole || player.role || 'P').toUpperCase().slice(0, 2);
@@ -3002,6 +3102,7 @@ export function initGame(container: HTMLElement) {
   let smoothedFPS = 60;
   let lastFPSUiUpdate = 0;
   let lastAIStateUiUpdate = 0;
+  let lastAIStateLabelUpdate = 0;
 
   const CORNER_BUNCH_MIN_PLAYERS = 3;
   const CORNER_BUNCH_COMBINED_MIN_PLAYERS = 5;
@@ -3313,11 +3414,850 @@ export function initGame(container: HTMLElement) {
   const HALFTIME_BREAK_SECONDS = 6;
   let testingClockMode = false;
   let practiceModeEnabled = false;
-  let practiceRouteObjects: THREE.Object3D[] = [];
+  let practiceRouteObjects: THREE.Object3D[] = [];        // per-rep route arrows (cleared each reset)
+  let practiceOverlayObjects: THREE.Object3D[] = [];      // persistent zone/label visuals (survive rep resets)
   let practicePlayActive = false;
   let practicePlayerTargets = new Map<any, THREE.Vector3>();
   let practiceReachedTargets = new Set<any>();
   let practicePlayCompleteCallback: (() => void) | null = null;
+  let activePracticeTemplate: any = null;
+  let activePracticeRoutes: Array<{ fromX: number; fromZ: number; toX: number; toZ: number; color: number }> = [];
+  let runningOverlapPattern = false;
+  let overlapWinger: any = null;
+  let overlapFullback: any = null;
+  let runningUnderlapPattern = false;
+  let underlapWinger: any = null;
+  let underlapFullback: any = null;
+  let runningGiveGoPattern = false;
+  let giveGoA: any = null;
+  let giveGoB: any = null;
+  let runningSwitchPattern = false;
+  let runningThirdManPattern = false;
+  let thirdManA: any = null;
+  let thirdManB: any = null;
+  let thirdManC: any = null;
+  let giveAndGoA: any = null;
+  let giveAndGoB: any = null;
+  let switchCarrier: any = null;
+  let switchTarget: any = null;
+
+  // ── Overlap FSM (drives both practice visuals + live-match AI behaviour) ──
+  type OverlapFSMState =
+    | 'IDLE'                  // no overlap in progress
+    | 'POSSESSION_WIDE'       // winger has ball in wide channel
+    | 'OVERLAP_TRIGGER'       // fullback recognised opportunity, begins run
+    | 'FULLBACK_RUN'          // fullback sprinting around the outside
+    | 'DEFENDER_DECISION'     // defender must choose: follow FB or track winger
+    | 'WINGER_ACTION'         // winger decides: pass to FB or cut inside
+    | 'FULLBACK_CONTINUATION' // FB received ball → driving to byline / crossing
+    | 'RESET';                // play concluded, wind down
+
+  const _overlapFSM = {
+    state: 'IDLE' as OverlapFSMState,
+    runner: null as any,          // the fullback
+    carrier: null as any,         // the winger
+    side: '' as 'L' | 'R' | '',
+    triggeredAt: 0,               // elapsed time of trigger
+    stateEnteredAt: 0,            // elapsed time when current state began
+    passDelivered: false,         // winger has released the ball to FB
+    cutInside: false,             // winger chose to dribble infield instead
+  };
+
+  /** Convenience alias – existing code checks `_overlapRun.active` everywhere. */
+  const _overlapRun = {
+    get active()      { return _overlapFSM.state !== 'IDLE' && _overlapFSM.state !== 'RESET'; },
+    get runner()      { return _overlapFSM.runner; },
+    get carrier()     { return _overlapFSM.carrier; },
+    get side()        { return _overlapFSM.side; },
+    get triggeredAt() { return _overlapFSM.triggeredAt; },
+  };
+
+  function resetOverlapFSM() {
+    _overlapFSM.state = 'IDLE';
+    _overlapFSM.runner = null;
+    _overlapFSM.carrier = null;
+    _overlapFSM.side = '';
+    _overlapFSM.triggeredAt = 0;
+    _overlapFSM.stateEnteredAt = 0;
+    _overlapFSM.passDelivered = false;
+    _overlapFSM.cutInside = false;
+  }
+
+  // ── Give-and-Go FSM ─────────────────────────────────────────────────────────
+  type GiveGoFSMState =
+    | 'IDLE'
+    | 'A_HAS_BALL'
+    | 'PASS_TO_B'
+    | 'A_RUNS_FORWARD'
+    | 'B_LAYOFF'
+    | 'A_RECEIVES'
+    | 'RESOLVE'
+    | 'RESET';
+
+  const _giveGoFSM = {
+    state: 'IDLE' as GiveGoFSMState,
+    playerA: null as any,         // passer / runner
+    playerB: null as any,         // wall player (layoff)
+    triggeredAt: 0,
+    stateEnteredAt: 0,
+    passDelivered: false,         // A has passed to B
+    layoffDelivered: false,       // B has returned the ball
+    runTarget: null as THREE.Vector3 | null,  // space behind defender for A's run
+  };
+
+  function resetGiveGoFSM() {
+    _giveGoFSM.state = 'IDLE';
+    _giveGoFSM.playerA = null;
+    _giveGoFSM.playerB = null;
+    _giveGoFSM.triggeredAt = 0;
+    _giveGoFSM.stateEnteredAt = 0;
+    _giveGoFSM.passDelivered = false;
+    _giveGoFSM.layoffDelivered = false;
+    _giveGoFSM.runTarget = null;
+  }
+
+  /** Pick give-and-go participants from a set of practice-target entries.
+   *  A = the passer/runner (CM preferred), B = the wall player (ST preferred). */
+  function pickGiveGoPlayers(entries: Array<[any, THREE.Vector3]>): { a: any; b: any } {
+    const cmEntry = entries.find(e => {
+      const r = (e[0].displayRole || e[0].role || '').toString().toUpperCase();
+      return ['CM', 'LCM', 'RCM', 'AM', 'CAM'].includes(r);
+    });
+    const stEntry = entries.find(e => {
+      const r = (e[0].displayRole || e[0].role || '').toString().toUpperCase();
+      return ['ST', 'CF', 'SS'].includes(r);
+    });
+    if (cmEntry && stEntry && cmEntry !== stEntry) {
+      return { a: cmEntry[0], b: stEntry[0] };
+    }
+    // Fallback: furthest-back midfielder as A, furthest-forward as B
+    entries.sort((a, b) => a[0].pos.x - b[0].pos.x);
+    return { a: entries[0]?.[0] ?? null, b: entries[entries.length - 1]?.[0] ?? null };
+  }
+
+  // ── Overlap Practice Visual Aid helpers ─────────────────────────────────────
+
+  /** Create a floating zone label (canvas sprite). */
+  function createOverlapZoneLabel(text: string, color: number): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 512, 128);
+    const hex = '#' + color.toString(16).padStart(6, '0');
+    ctx.fillStyle = hex + '44';
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.fill();
+    ctx.strokeStyle = hex + 'aa';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lines = text.split('\n');
+    const lineH = 32;
+    const startY = 64 - (lines.length - 1) * lineH / 2;
+    lines.forEach((line, i) => ctx.fillText(line, 256, startY + i * lineH));
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(5.0, 1.25, 1);
+    return sprite;
+  }
+
+  /** Create a player-role label sprite (e.g. "WINGER", "FULLBACK"). */
+  function createOverlapPlayerLabel(text: string, bgColor: number): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 64);
+    const hex = '#' + bgColor.toString(16).padStart(6, '0');
+    ctx.fillStyle = hex;
+    ctx.beginPath();
+    ctx.roundRect(8, 8, 240, 48, 12);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 32);
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(3.2, 0.8, 1);
+    return sprite;
+  }
+
+  /** Create a dashed line between two 3D points. */
+  function createDashedLine(from: THREE.Vector3, to: THREE.Vector3, color: number): THREE.Line {
+    const geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+    const mat = new THREE.LineDashedMaterial({
+      color, dashSize: 0.5, gapSize: 0.3,
+      transparent: true, opacity: 0.7,
+    });
+    const line = new THREE.Line(geo, mat);
+    line.computeLineDistances();
+    return line;
+  }
+
+  /**
+   * Draw all overlap practice visuals on the field when the OVERLAP play is
+   * selected: zone overlays, curved run, player labels, decision marker,
+   * pass & cross paths.  Everything is pushed into practiceRouteObjects for
+   * automatic cleanup.
+   */
+  function drawOverlapPracticeVisuals(wingerPlayer: any, fullbackPlayer: any, side: 'L' | 'R') {
+    // Clear any previous overlay objects first (but NOT per-rep route arrows)
+    for (const obj of practiceOverlayObjects) scene.remove(obj);
+    practiceOverlayObjects = [];
+
+    const attackSign = 1; // Practice mode: Team A always attacks right
+    const sideSign = side === 'R' ? 1 : -1;
+    const touchlineZ = sideSign * FIELD_D / 2;
+    const yd = FIELD_SCALE_PER_YARD;
+
+    const wX = wingerPlayer.pos.x;
+    const wZ = wingerPlayer.pos.z;
+    const fbX = fullbackPlayer.pos.x;
+    const fbZ = fullbackPlayer.pos.z;
+
+    // Target positions (from OVERLAP route template: fb 18yd fwd / 12yd out, winger 12yd fwd / 4yd out)
+    const fbTargetX = fbX + 18 * yd * attackSign;
+    const fbTargetZ = fbZ + 12 * yd * sideSign;
+
+    // ── Zone 1: Wide Channel (light-blue strip along touchline) ──
+    const chanW = 12 * yd;
+    const chanL = 35 * yd;
+    const chanStartX = Math.min(fbX, wX) - 3 * yd;
+    const chanCenterZ = touchlineZ - sideSign * chanW / 2;
+
+    const wideGeo = new THREE.PlaneGeometry(chanL, chanW);
+    const wideMat = new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+    const wideMesh = new THREE.Mesh(wideGeo, wideMat);
+    wideMesh.rotation.x = -Math.PI / 2;
+    wideMesh.position.set(chanStartX + chanL / 2, 0.02, chanCenterZ);
+    scene.add(wideMesh);
+    practiceOverlayObjects.push(wideMesh);
+
+    const wideEdges = new THREE.EdgesGeometry(wideGeo);
+    const wideEdgeLine = new THREE.LineSegments(wideEdges, new THREE.LineBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.35 }));
+    wideEdgeLine.rotation.x = -Math.PI / 2;
+    wideEdgeLine.position.copy(wideMesh.position);
+    scene.add(wideEdgeLine);
+    practiceOverlayObjects.push(wideEdgeLine);
+
+    const wideLabel = createOverlapZoneLabel('WIDE CHANNEL', 0x40c4ff);
+    wideLabel.position.set(chanStartX + chanL * 0.3, 0.30, chanCenterZ);
+    scene.add(wideLabel);
+    practiceOverlayObjects.push(wideLabel);
+
+    // ── Zone 2: Space Outside (green – the area FB runs into) ──
+    const spW = 8 * yd;
+    const spL = 14 * yd;
+    const spStartX = wX + 6 * yd * attackSign;
+    const spCenterZ = touchlineZ - sideSign * spW / 2;
+
+    const spaceGeo = new THREE.PlaneGeometry(spL, spW);
+    const spaceMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false });
+    const spaceMesh = new THREE.Mesh(spaceGeo, spaceMat);
+    spaceMesh.rotation.x = -Math.PI / 2;
+    spaceMesh.position.set(spStartX + spL / 2 * attackSign, 0.03, spCenterZ);
+    scene.add(spaceMesh);
+    practiceOverlayObjects.push(spaceMesh);
+
+    const spaceEdges = new THREE.EdgesGeometry(spaceGeo);
+    const spaceEdgeLine = new THREE.LineSegments(spaceEdges, new THREE.LineBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.40 }));
+    spaceEdgeLine.rotation.x = -Math.PI / 2;
+    spaceEdgeLine.position.copy(spaceMesh.position);
+    scene.add(spaceEdgeLine);
+    practiceOverlayObjects.push(spaceEdgeLine);
+
+    const spaceLabel = createOverlapZoneLabel('SPACE\nOUTSIDE', 0x69f0ae);
+    spaceLabel.position.set(spStartX + spL / 2 * attackSign, 0.30, spCenterZ);
+    scene.add(spaceLabel);
+    practiceOverlayObjects.push(spaceLabel);
+
+    // ── Zone 3: Crossing / Cutback Zone (orange – near penalty area) ──
+    const crossZoneL = 10 * yd;
+    const crossZoneW = 14 * yd;
+    const crossZoneCX = FIELD_W / 2 - crossZoneL / 2 - 1;
+    const crossZoneCZ = 0;
+
+    const crossGeo = new THREE.PlaneGeometry(crossZoneL, crossZoneW);
+    const crossMat = new THREE.MeshBasicMaterial({ color: 0xff6e40, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+    const crossMesh = new THREE.Mesh(crossGeo, crossMat);
+    crossMesh.rotation.x = -Math.PI / 2;
+    crossMesh.position.set(crossZoneCX, 0.02, crossZoneCZ);
+    scene.add(crossMesh);
+    practiceOverlayObjects.push(crossMesh);
+
+    const crossEdges = new THREE.EdgesGeometry(crossGeo);
+    const crossEdgeLine = new THREE.LineSegments(crossEdges, new THREE.LineBasicMaterial({ color: 0xff6e40, transparent: true, opacity: 0.35 }));
+    crossEdgeLine.rotation.x = -Math.PI / 2;
+    crossEdgeLine.position.copy(crossMesh.position);
+    scene.add(crossEdgeLine);
+    practiceOverlayObjects.push(crossEdgeLine);
+
+    const crossLabel = createOverlapZoneLabel('CROSSING /\nCUTBACK ZONE', 0xff6e40);
+    crossLabel.position.set(crossZoneCX, 0.30, crossZoneCZ);
+    scene.add(crossLabel);
+    practiceOverlayObjects.push(crossLabel);
+
+    // ── Curved Overlap Run (FB path around outside of winger) ──
+    const curvePoints = [
+      new THREE.Vector3(fbX, 0.18, fbZ),
+      new THREE.Vector3(
+        THREE.MathUtils.lerp(fbX, wX, 0.5),
+        0.18,
+        wZ + sideSign * 5 * yd,
+      ),
+      new THREE.Vector3(
+        wX + attackSign * 3 * yd,
+        0.18,
+        wZ + sideSign * 8 * yd,
+      ),
+      new THREE.Vector3(fbTargetX, 0.18, fbTargetZ),
+    ];
+    const curve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal', 0.5);
+    const tubeGeo = new THREE.TubeGeometry(curve, 40, 0.08, 6, false);
+    const tubeMat = new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.65 });
+    const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+    scene.add(tubeMesh);
+    practiceOverlayObjects.push(tubeMesh);
+
+    // Arrowhead at curve end
+    const curveEnd = curve.getPointAt(1);
+    const curveTangent = curve.getTangentAt(1).normalize();
+    const curveArrow = new THREE.ArrowHelper(curveTangent, curveEnd, 1.2, 0x40c4ff, 0.9, 0.45);
+    scene.add(curveArrow);
+    practiceOverlayObjects.push(curveArrow);
+
+    // Label on curve
+    const curveMid = curve.getPointAt(0.55);
+    const runLabel = createOverlapZoneLabel('OVERLAPPING\nRUN', 0x40c4ff);
+    runLabel.position.set(curveMid.x, 0.55, curveMid.z + sideSign * 2 * yd);
+    runLabel.scale.set(4.2, 1.05, 1);
+    scene.add(runLabel);
+    practiceOverlayObjects.push(runLabel);
+
+    // ── Winger Cut-Inside Path (dashed amber arrow infield) ──
+    const cutTarget = new THREE.Vector3(
+      wX + attackSign * 14 * yd,
+      0.18,
+      wZ - sideSign * 8 * yd,
+    );
+    const cutLine = createDashedLine(new THREE.Vector3(wX, 0.18, wZ), cutTarget, 0xffab40);
+    scene.add(cutLine);
+    practiceOverlayObjects.push(cutLine);
+
+    const cutDir = cutTarget.clone().sub(new THREE.Vector3(wX, 0.18, wZ)).normalize();
+    const cutArrow = new THREE.ArrowHelper(cutDir, cutTarget.clone().sub(cutDir.clone().multiplyScalar(1.0)), 1.0, 0xffab40, 0.7, 0.35);
+    scene.add(cutArrow);
+    practiceOverlayObjects.push(cutArrow);
+
+    const cutLabel = createOverlapZoneLabel('CUT INSIDE', 0xffab40);
+    cutLabel.position.set((wX + cutTarget.x) / 2, 0.45, (wZ + cutTarget.z) / 2);
+    cutLabel.scale.set(3.5, 0.9, 1);
+    scene.add(cutLabel);
+    practiceOverlayObjects.push(cutLabel);
+
+    // ── Pass to Fullback (dashed green line winger → FB target) ──
+    const passLine = createDashedLine(
+      new THREE.Vector3(wX, 0.20, wZ),
+      new THREE.Vector3(fbTargetX, 0.20, fbTargetZ),
+      0x69f0ae,
+    );
+    scene.add(passLine);
+    practiceOverlayObjects.push(passLine);
+
+    const passLabel = createOverlapZoneLabel('PASS', 0x69f0ae);
+    passLabel.position.set((wX + fbTargetX) / 2, 0.45, (wZ + fbTargetZ) / 2);
+    passLabel.scale.set(2.8, 0.7, 1);
+    scene.add(passLabel);
+    practiceOverlayObjects.push(passLabel);
+
+    // ── Cross into Box (dashed orange arrow FB target → crossing zone) ──
+    const crossPassFrom = new THREE.Vector3(fbTargetX, 0.20, fbTargetZ);
+    const crossPassTo   = new THREE.Vector3(crossZoneCX, 0.20, crossZoneCZ);
+    const crossPassLine = createDashedLine(crossPassFrom, crossPassTo, 0xff6e40);
+    scene.add(crossPassLine);
+    practiceOverlayObjects.push(crossPassLine);
+
+    const crossPassDir = crossPassTo.clone().sub(crossPassFrom).normalize();
+    const crossPassArrow = new THREE.ArrowHelper(crossPassDir, crossPassTo.clone().sub(crossPassDir.clone().multiplyScalar(1.0)), 1.0, 0xff6e40, 0.7, 0.35);
+    scene.add(crossPassArrow);
+    practiceOverlayObjects.push(crossPassArrow);
+
+    const crossPassLabel = createOverlapZoneLabel('CROSS', 0xff6e40);
+    crossPassLabel.position.set((fbTargetX + crossZoneCX) / 2, 0.45, (fbTargetZ + crossZoneCZ) / 2);
+    crossPassLabel.scale.set(2.8, 0.7, 1);
+    scene.add(crossPassLabel);
+    practiceOverlayObjects.push(crossPassLabel);
+
+    // ── Decision "OR" marker ──
+    const orLabel = createOverlapZoneLabel('OR', 0xffd740);
+    orLabel.position.set(wX + attackSign * 4 * yd, 0.60, wZ + sideSign * 2 * yd);
+    orLabel.scale.set(2.2, 0.55, 1);
+    scene.add(orLabel);
+    practiceOverlayObjects.push(orLabel);
+
+    // ── Player Role Labels (above the player head) ──
+    const wingerRoleLabel = createOverlapPlayerLabel('WINGER', 0x00897b);
+    wingerRoleLabel.position.set(wX, PLAYER_VOXEL_SIZE * 16 + 1.4, wZ);
+    scene.add(wingerRoleLabel);
+    practiceOverlayObjects.push(wingerRoleLabel);
+
+    const fbRoleLabel = createOverlapPlayerLabel('FULLBACK', 0x0277bd);
+    fbRoleLabel.position.set(fbX, PLAYER_VOXEL_SIZE * 16 + 1.4, fbZ);
+    scene.add(fbRoleLabel);
+    practiceOverlayObjects.push(fbRoleLabel);
+
+    // ── FSM State indicator label ──
+    const fsmLabel = createOverlapZoneLabel('FSM: IDLE', 0x9e9e9e);
+    fsmLabel.position.set(chanStartX + chanL * 0.7, 0.80, chanCenterZ - sideSign * 3 * yd);
+    fsmLabel.scale.set(3.5, 0.9, 1);
+    fsmLabel.name = 'overlapFSMLabel';
+    scene.add(fsmLabel);
+    practiceOverlayObjects.push(fsmLabel);
+  }
+
+  /** Update the on-field FSM state label text (if visible). */
+  function updateOverlapFSMLabel() {
+    const label = practiceOverlayObjects.find((o: any) => o.name === 'overlapFSMLabel') as THREE.Sprite | undefined;
+    if (!label) return;
+    // Recreate canvas texture with new state text
+    const stateText = 'FSM: ' + _overlapFSM.state;
+    const stateColor = {
+      IDLE: 0x9e9e9e,
+      POSSESSION_WIDE: 0x40c4ff,
+      OVERLAP_TRIGGER: 0xffd740,
+      FULLBACK_RUN: 0x40c4ff,
+      DEFENDER_DECISION: 0xff6e40,
+      WINGER_ACTION: 0xffab40,
+      FULLBACK_CONTINUATION: 0x69f0ae,
+      RESET: 0x9e9e9e,
+    }[_overlapFSM.state] || 0x9e9e9e;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 512, 128);
+    const hex = '#' + stateColor.toString(16).padStart(6, '0');
+    ctx.fillStyle = hex + '55';
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.fill();
+    ctx.strokeStyle = hex + 'cc';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stateText, 256, 64);
+    if (label.material && (label.material as THREE.SpriteMaterial).map) {
+      (label.material as THREE.SpriteMaterial).map!.dispose();
+    }
+    (label.material as THREE.SpriteMaterial).map = new THREE.CanvasTexture(canvas);
+    (label.material as THREE.SpriteMaterial).needsUpdate = true;
+  }
+
+  // ── Give-and-Go Practice Visual Aids ────────────────────────────────────────
+
+  /**
+   * Draw all give-and-go practice visuals on the field: Player A & B labels,
+   * zone overlays, pass paths, run-into-space arrow, return-pass arrow, and
+   * FSM state indicator.
+   */
+  function drawGiveGoPracticeVisuals(playerA: any, playerB: any) {
+    for (const obj of practiceOverlayObjects) scene.remove(obj);
+    practiceOverlayObjects = [];
+
+    const yd = FIELD_SCALE_PER_YARD;
+    const aX = playerA.pos.x;
+    const aZ = playerA.pos.z;
+    const bX = playerB.pos.x;
+    const bZ = playerB.pos.z;
+
+    // A runs into space behind the defender: forward + slightly inside
+    const runTargetX = bX + 14 * yd;
+    const runTargetZ = bZ;
+
+    // ── Zone 1: Combination Zone (where the 1-2 happens) ──
+    const comboW = 14 * yd;
+    const comboL = 14 * yd;
+    const comboCX = (aX + bX) / 2;
+    const comboCZ = (aZ + bZ) / 2;
+
+    const comboGeo = new THREE.PlaneGeometry(comboL, comboW);
+    const comboMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+    const comboMesh = new THREE.Mesh(comboGeo, comboMat);
+    comboMesh.rotation.x = -Math.PI / 2;
+    comboMesh.position.set(comboCX, 0.02, comboCZ);
+    scene.add(comboMesh);
+    practiceOverlayObjects.push(comboMesh);
+
+    const comboEdges = new THREE.EdgesGeometry(comboGeo);
+    const comboEdgeLine = new THREE.LineSegments(comboEdges, new THREE.LineBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.35 }));
+    comboEdgeLine.rotation.x = -Math.PI / 2;
+    comboEdgeLine.position.copy(comboMesh.position);
+    scene.add(comboEdgeLine);
+    practiceOverlayObjects.push(comboEdgeLine);
+
+    const comboLabel = createOverlapZoneLabel('COMBINATION\nZONE', 0x69f0ae);
+    comboLabel.position.set(comboCX, 0.30, comboCZ - 5 * yd);
+    scene.add(comboLabel);
+    practiceOverlayObjects.push(comboLabel);
+
+    // ── Zone 2: Space Behind Defender (where A runs into) ──
+    const spaceW = 10 * yd;
+    const spaceL = 12 * yd;
+
+    const spaceGeo = new THREE.PlaneGeometry(spaceL, spaceW);
+    const spaceMat = new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+    const spaceMesh = new THREE.Mesh(spaceGeo, spaceMat);
+    spaceMesh.rotation.x = -Math.PI / 2;
+    spaceMesh.position.set(runTargetX, 0.03, runTargetZ);
+    scene.add(spaceMesh);
+    practiceOverlayObjects.push(spaceMesh);
+
+    const spaceEdges = new THREE.EdgesGeometry(spaceGeo);
+    const spaceEdgeLine = new THREE.LineSegments(spaceEdges, new THREE.LineBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.40 }));
+    spaceEdgeLine.rotation.x = -Math.PI / 2;
+    spaceEdgeLine.position.copy(spaceMesh.position);
+    scene.add(spaceEdgeLine);
+    practiceOverlayObjects.push(spaceEdgeLine);
+
+    const spaceLabel = createOverlapZoneLabel('SPACE BEHIND\nDEFENDER', 0x40c4ff);
+    spaceLabel.position.set(runTargetX, 0.30, runTargetZ - 4 * yd);
+    scene.add(spaceLabel);
+    practiceOverlayObjects.push(spaceLabel);
+
+    // ── Step 1: Pass A → B (solid green arrow) ──
+    const passFrom = new THREE.Vector3(aX, 0.20, aZ);
+    const passTo   = new THREE.Vector3(bX, 0.20, bZ);
+    const passLine = createDashedLine(passFrom, passTo, 0x69f0ae);
+    scene.add(passLine);
+    practiceOverlayObjects.push(passLine);
+
+    const passDir = passTo.clone().sub(passFrom).normalize();
+    const passArrow = new THREE.ArrowHelper(passDir, passFrom, passFrom.distanceTo(passTo), 0x69f0ae, 0.7, 0.35);
+    scene.add(passArrow);
+    practiceOverlayObjects.push(passArrow);
+
+    const stepOneLabel = createOverlapZoneLabel('1. PASS', 0x69f0ae);
+    stepOneLabel.position.set((aX + bX) / 2, 0.50, (aZ + bZ) / 2 + 3 * yd);
+    stepOneLabel.scale.set(3.2, 0.8, 1);
+    scene.add(stepOneLabel);
+    practiceOverlayObjects.push(stepOneLabel);
+
+    // ── Step 2: A runs into space (curved dashed blue arrow) ──
+    const runFrom = new THREE.Vector3(aX, 0.18, aZ);
+    const runTo   = new THREE.Vector3(runTargetX, 0.18, runTargetZ);
+    const runMid  = new THREE.Vector3((aX + runTargetX) / 2, 0.18, aZ + (runTargetZ - aZ) * 0.3 - 3 * yd);
+    const runCurve = new THREE.CatmullRomCurve3([runFrom, runMid, runTo], false, 'centripetal', 0.5);
+    const runTubeGeo = new THREE.TubeGeometry(runCurve, 32, 0.06, 6, false);
+    const runTubeMat = new THREE.MeshBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.55 });
+    const runTubeMesh = new THREE.Mesh(runTubeGeo, runTubeMat);
+    scene.add(runTubeMesh);
+    practiceOverlayObjects.push(runTubeMesh);
+
+    const runEnd = runCurve.getPointAt(1);
+    const runTangent = runCurve.getTangentAt(1).normalize();
+    const runArrowHead = new THREE.ArrowHelper(runTangent, runEnd, 1.0, 0x40c4ff, 0.8, 0.4);
+    scene.add(runArrowHead);
+    practiceOverlayObjects.push(runArrowHead);
+
+    const stepTwoLabel = createOverlapZoneLabel('2. RUN INTO\nSPACE', 0x40c4ff);
+    const runCurveMid = runCurve.getPointAt(0.5);
+    stepTwoLabel.position.set(runCurveMid.x, 0.55, runCurveMid.z - 3 * yd);
+    stepTwoLabel.scale.set(4.0, 1.0, 1);
+    scene.add(stepTwoLabel);
+    practiceOverlayObjects.push(stepTwoLabel);
+
+    // ── Step 3: Return pass B → A's run target (dashed amber arrow) ──
+    const returnFrom = new THREE.Vector3(bX, 0.20, bZ);
+    const returnTo   = new THREE.Vector3(runTargetX, 0.20, runTargetZ);
+    const returnLine = createDashedLine(returnFrom, returnTo, 0xffab40);
+    scene.add(returnLine);
+    practiceOverlayObjects.push(returnLine);
+
+    const returnDir = returnTo.clone().sub(returnFrom).normalize();
+    const returnArrow = new THREE.ArrowHelper(returnDir, returnFrom, returnFrom.distanceTo(returnTo), 0xffab40, 0.7, 0.35);
+    scene.add(returnArrow);
+    practiceOverlayObjects.push(returnArrow);
+
+    const stepThreeLabel = createOverlapZoneLabel('3. RETURN\nPASS', 0xffab40);
+    stepThreeLabel.position.set((bX + runTargetX) / 2, 0.50, (bZ + runTargetZ) / 2 + 3 * yd);
+    stepThreeLabel.scale.set(3.5, 0.9, 1);
+    scene.add(stepThreeLabel);
+    practiceOverlayObjects.push(stepThreeLabel);
+
+    // ── Player Role Labels ──
+    const aLabel = createOverlapPlayerLabel('PLAYER A', 0xd32f2f);
+    aLabel.position.set(aX, PLAYER_VOXEL_SIZE * 16 + 1.4, aZ);
+    scene.add(aLabel);
+    practiceOverlayObjects.push(aLabel);
+
+    const bLabel = createOverlapPlayerLabel('PLAYER B', 0x1565c0);
+    bLabel.position.set(bX, PLAYER_VOXEL_SIZE * 16 + 1.4, bZ);
+    scene.add(bLabel);
+    practiceOverlayObjects.push(bLabel);
+
+    // ── FSM State indicator label ──
+    const fsmLabel = createOverlapZoneLabel('FSM: IDLE', 0x9e9e9e);
+    fsmLabel.position.set(comboCX, 0.80, comboCZ + 6 * yd);
+    fsmLabel.scale.set(3.5, 0.9, 1);
+    fsmLabel.name = 'giveGoFSMLabel';
+    scene.add(fsmLabel);
+    practiceOverlayObjects.push(fsmLabel);
+  }
+
+  /** Update the on-field FSM state label for the give-and-go play. */
+  function updateGiveGoFSMLabel() {
+    const label = practiceOverlayObjects.find((o: any) => o.name === 'giveGoFSMLabel') as THREE.Sprite | undefined;
+    if (!label) return;
+    const stateText = 'FSM: ' + _giveGoFSM.state;
+    const stateColor: Record<string, number> = {
+      IDLE:            0x9e9e9e,
+      A_HAS_BALL:      0x69f0ae,
+      PASS_TO_B:       0x69f0ae,
+      A_RUNS_FORWARD:  0x40c4ff,
+      B_LAYOFF:        0xffab40,
+      A_RECEIVES:      0x40c4ff,
+      RESOLVE:         0xff6e40,
+      RESET:           0x9e9e9e,
+    };
+    const color = stateColor[_giveGoFSM.state] || 0x9e9e9e;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 512, 128);
+    const hex = '#' + color.toString(16).padStart(6, '0');
+    ctx.fillStyle = hex + '55';
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.fill();
+    ctx.strokeStyle = hex + 'cc';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 96, 16);
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stateText, 256, 64);
+    if (label.material && (label.material as THREE.SpriteMaterial).map) {
+      (label.material as THREE.SpriteMaterial).map!.dispose();
+    }
+    (label.material as THREE.SpriteMaterial).map = new THREE.CanvasTexture(canvas);
+    (label.material as THREE.SpriteMaterial).needsUpdate = true;
+  }
+
+  /**
+   * Give-and-Go FSM tick — runs every frame. In practice mode it drives Player A
+   * and Player B through the 1-2 combination; in live matches it detects and
+   * rewards wall-pass patterns organically.
+   */
+  function updateGiveGoDetection(elapsed: number) {
+    const st = _giveGoFSM.state;
+    const since = elapsed - _giveGoFSM.stateEnteredAt;
+
+    // ── Active play expiry ──
+    if (st !== 'IDLE') {
+      const timedOut = elapsed - _giveGoFSM.triggeredAt > 8;
+      if (timedOut) { resetGiveGoFSM(); return; }
+
+      // ── State transitions ──
+      if (st === 'A_HAS_BALL') {
+        // Wait 0.35 s then auto-pass to B
+        if (since > 0.35) {
+          console.log('[GG-FSM] A_HAS_BALL -> PASS_TO_B');
+          _giveGoFSM.state = 'PASS_TO_B';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        }
+      } else if (st === 'PASS_TO_B') {
+        // Check if B received the ball
+        if (ballState.heldBy === _giveGoFSM.playerB) {
+          console.log('[GG-FSM] PASS_TO_B -> A_RUNS_FORWARD (B received)');
+          _giveGoFSM.passDelivered = true;
+          _giveGoFSM.state = 'A_RUNS_FORWARD';
+          _giveGoFSM.stateEnteredAt = elapsed;
+          // Compute run target: space ahead of B, behind the defensive line
+          const yd = FIELD_SCALE_PER_YARD;
+          const bPos = _giveGoFSM.playerB.pos;
+          _giveGoFSM.runTarget = new THREE.Vector3(bPos.x + 14 * yd, 0.15, bPos.z);
+        } else if (since > 3.0) {
+          console.log('[GG-FSM] PASS_TO_B -> RESET (timeout, ball held by:', ballState.heldBy?.displayRole, ')');
+          _giveGoFSM.state = 'RESET';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        }
+      } else if (st === 'A_RUNS_FORWARD') {
+        // Wait for B to release the layoff (or A gets close to the target)
+        if (since > 0.5) {
+          _giveGoFSM.state = 'B_LAYOFF';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        }
+      } else if (st === 'B_LAYOFF') {
+        // Check if A received the return ball
+        if (ballState.heldBy === _giveGoFSM.playerA) {
+          console.log('[GG-FSM] B_LAYOFF -> A_RECEIVES');
+          _giveGoFSM.layoffDelivered = true;
+          _giveGoFSM.state = 'A_RECEIVES';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        } else if (since > 3.0) {
+          _giveGoFSM.state = 'RESET';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        }
+      } else if (st === 'A_RECEIVES') {
+        _giveGoFSM.state = 'RESOLVE';
+        _giveGoFSM.stateEnteredAt = elapsed;
+      } else if (st === 'RESOLVE') {
+        if (since > 2.0) {
+          _giveGoFSM.state = 'RESET';
+          _giveGoFSM.stateEnteredAt = elapsed;
+        }
+      } else if (st === 'RESET') {
+        if (since > 1.0) {
+          console.log('[GG-FSM] RESET -> IDLE (restarting rep)');
+          resetGiveGoFSM();
+          // In practice mode, restart the rep
+          if (practiceModeEnabled && activePracticeTemplate === 'GIVE_AND_GO') {
+            restartPracticeRep();
+          }
+        }
+      }
+      return;
+    }
+
+    // ── IDLE: trigger when practice mode starts give-and-go with A holding ball ──
+    if (!practiceModeEnabled || activePracticeTemplate !== 'GIVE_AND_GO') return;
+    if (!giveAndGoA || !giveAndGoB) return;
+    if (!gameState.isLive) return;
+    if (ballState.heldBy === giveAndGoA) {
+      console.log('[GG-FSM] IDLE -> A_HAS_BALL (triggered)', giveAndGoA.displayRole, giveAndGoA.name);
+      _giveGoFSM.state = 'A_HAS_BALL';
+      _giveGoFSM.playerA = giveAndGoA;
+      _giveGoFSM.playerB = giveAndGoB;
+      _giveGoFSM.triggeredAt = elapsed;
+      _giveGoFSM.stateEnteredAt = elapsed;
+      _giveGoFSM.passDelivered = false;
+      _giveGoFSM.layoffDelivered = false;
+      _giveGoFSM.runTarget = null;
+    }
+  }
+
+  /** FSM-driven overlap detection — runs every frame during live play. */
+  function updateOverlapDetection(elapsed: number) {
+    const fsmState = _overlapFSM.state;
+    const sinceStateEntry = elapsed - _overlapFSM.stateEnteredAt;
+
+    // ── Active-overlap expiry (any state except IDLE) ──
+    if (fsmState !== 'IDLE') {
+      const carrierStillHasBall = ballState.heldBy === _overlapFSM.carrier;
+      const timedOut = elapsed - _overlapFSM.triggeredAt > 8;
+      // In FULLBACK_CONTINUATION the carrier has changed — skip carrier check
+      const carrierLost = fsmState !== 'FULLBACK_CONTINUATION' && !carrierStillHasBall;
+      if (carrierLost || timedOut) {
+        resetOverlapFSM();
+      }
+      // State-specific transitions
+      if (fsmState === 'POSSESSION_WIDE' && sinceStateEntry > 0.4) {
+        _overlapFSM.state = 'OVERLAP_TRIGGER';
+        _overlapFSM.stateEnteredAt = elapsed;
+      } else if (fsmState === 'OVERLAP_TRIGGER' && sinceStateEntry > 0.3) {
+        _overlapFSM.state = 'FULLBACK_RUN';
+        _overlapFSM.stateEnteredAt = elapsed;
+      } else if (fsmState === 'FULLBACK_RUN') {
+        // Transition when FB gets ahead of carrier
+        const attackSign = teamAttacksRight(_overlapFSM.carrier?.team) ? 1 : -1;
+        const fbAhead = _overlapFSM.runner && _overlapFSM.carrier
+          ? (_overlapFSM.runner.pos.x * attackSign) - (_overlapFSM.carrier.pos.x * attackSign)
+          : -999;
+        if (fbAhead > 1.5 || sinceStateEntry > 3.0) {
+          _overlapFSM.state = 'DEFENDER_DECISION';
+          _overlapFSM.stateEnteredAt = elapsed;
+        }
+      } else if (fsmState === 'DEFENDER_DECISION' && sinceStateEntry > 0.6) {
+        _overlapFSM.state = 'WINGER_ACTION';
+        _overlapFSM.stateEnteredAt = elapsed;
+      } else if (fsmState === 'WINGER_ACTION') {
+        // Check if winger passed to FB
+        if (ballState.heldBy === _overlapFSM.runner) {
+          _overlapFSM.passDelivered = true;
+          _overlapFSM.state = 'FULLBACK_CONTINUATION';
+          _overlapFSM.stateEnteredAt = elapsed;
+        } else if (sinceStateEntry > 2.5) {
+          _overlapFSM.cutInside = true;
+          _overlapFSM.state = 'RESET';
+          _overlapFSM.stateEnteredAt = elapsed;
+        }
+      } else if (fsmState === 'FULLBACK_CONTINUATION' && sinceStateEntry > 3.0) {
+        _overlapFSM.state = 'RESET';
+        _overlapFSM.stateEnteredAt = elapsed;
+      } else if (fsmState === 'RESET' && sinceStateEntry > 1.0) {
+        resetOverlapFSM();
+      }
+      return; // already running an overlap — don't re-trigger
+    }
+
+    // ── IDLE: try to trigger a new overlap ──
+    if (!gameState.isLive || !ballState.heldBy) return;
+
+    const holder = ballState.heldBy;
+    const holderRole = (holder.displayRole || holder.role || '').toString().toUpperCase();
+    const team: 'A' | 'B' = holder.team;
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+
+    // Condition 1: carrier must be a winger on the flank
+    const isWinger = holderRole === 'LM' || holderRole === 'RM';
+    if (!isWinger) return;
+    const onFlank = Math.abs(holder.pos.z) > FIELD_D * 0.22;
+    if (!onFlank) return;
+
+    // Condition 2: carrier must be past halfway in the attacking direction
+    const pastHalf = (holder.pos.x * attackSign) > 0;
+    if (!pastHalf) return;
+
+    // Condition 3: find the same-side fullback behind the winger
+    const targetFbRole = holderRole === 'LM' ? 'LB' : 'RB';
+    const teamPlayers = getOrderedTeamPlayers(team);
+    const fb = teamPlayers.find((p: any) => {
+      const r = (p.displayRole || p.role || '').toString().toUpperCase();
+      return r === targetFbRole;
+    });
+    if (!fb) return;
+
+    // Condition 4: fullback must be behind the winger (has room to overlap)
+    const fbAhead = (fb.pos.x * attackSign) - (holder.pos.x * attackSign);
+    if (fbAhead > -1) return; // FB is already ahead — no overlap needed
+
+    // Condition 5: no heavy pressure on the carrier (needs time to execute)
+    let nearbyOpp = 0;
+    for (const p of players) {
+      if (p.team !== team && p.pos.distanceTo(holder.pos) < 5.5) nearbyOpp++;
+    }
+    if (nearbyOpp >= 3) return; // too much pressure, can't hold
+
+    // Trigger overlap FSM!
+    _overlapFSM.state = 'POSSESSION_WIDE';
+    _overlapFSM.carrier = holder;
+    _overlapFSM.runner = fb;
+    _overlapFSM.side = holderRole === 'LM' ? 'L' : 'R';
+    _overlapFSM.triggeredAt = elapsed;
+    _overlapFSM.stateEnteredAt = elapsed;
+    _overlapFSM.passDelivered = false;
+    _overlapFSM.cutInside = false;
+  }
 
   function getHalfDurationSeconds() {
     return testingClockMode ? TESTING_HALF_DURATION_SECONDS : REGULAR_HALF_DURATION_SECONDS;
@@ -4107,6 +5047,12 @@ export function initGame(container: HTMLElement) {
     kickoffState: 'NONE' as 'NONE' | 'READY' | 'KICKED',
     selectedKickoffPlayerIndex: 0,
     passCaught: false,
+    practiceModeEnabled: false,
+    tuningProgressWeight: 0.8,
+    tuningLanePenalty: 0.15,
+    tuningSpaceWeight: 0.05,
+    tuningShortPassBias: 0.05,
+    _practiceRepCount: 0,
     selectedOffensePlay: 'slant-flood',
     selectedDefensePlay: 'cover-2',
     lastOffensePlay: 'slant-flood',
@@ -4136,7 +5082,7 @@ export function initGame(container: HTMLElement) {
     goalKickInProgress: false,
     cornerKickInProgress: false,
     saveSlowmoUntil: 0,
-    aiStyle: 'BALANCED' as 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION',
+    aiStyle: 'AGGRESSIVE' as 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION',
     // Counter-attack burst
     counterAttackActive: false,
     counterAttackTeam: '' as 'A' | 'B' | '',
@@ -4158,6 +5104,10 @@ export function initGame(container: HTMLElement) {
     crossAssistUntil: 0,
     attackPhaseA: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
     attackPhaseB: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
+    // ── Tuning Lab: AI Weights ──
+    tuningProgressWeight: 0.88,
+    tuningLanePenalty: 0.42,
+    tuningSpaceWeight: 0.65,
     lastShotTelemetrySeq: 0,
     lastShotTelemetry: null as null | {
       seq: number;
@@ -4509,6 +5459,13 @@ export function initGame(container: HTMLElement) {
     const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const passerDistToGoal = Math.abs(goalX - passer.pos.x);
     const progress = target ? Math.round((target.pos.x - passer.pos.x) * attackSign * 10) / 10 : 0;
+
+    // ── Tuning Lab: Rich decision metrics ──
+    const lanePressure = target ? getPassLanePressure(passer.pos, target.pos, team) : 0;
+    const opponents = players.filter((p: any) => p.team !== team && !isGoalkeeper(p));
+    const nearbyOppPressure = opponents.filter((opp: any) => opp.pos.distanceTo(passer.pos) < 6.5).length;
+    const receiverDanger = target ? opponents.filter((opp: any) => opp.pos.distanceTo(target.pos) < 4.0).length : 0;
+
     pushTuningEvent(elapsed, matchClock.half, 'PASS', team, role, {
       style, to: target?.name || '?', toRole: target ? getRoleKey(target) : '?',
       x: Math.round(passer.pos.x * 10) / 10, z: Math.round(passer.pos.z * 10) / 10,
@@ -4517,6 +5474,10 @@ export function initGame(container: HTMLElement) {
       dist: target ? Math.round(passer.pos.distanceTo(target.pos) * 10) / 10 : 0,
       progress,
       passerDistToGoal: Math.round(passerDistToGoal * 10) / 10,
+      lanePressure: Math.round(lanePressure * 10) / 10,
+      nearbyOppPressure,
+      receiverDanger,
+      practice: gameState.practiceModeEnabled || false,
     });
     // Count passes during active transition
     if (_activeTransition && _activeTransition.team === team) _transitionPasses++;
@@ -4542,10 +5503,22 @@ export function initGame(container: HTMLElement) {
     const attackSign = teamAttacksRight(team) ? 1 : -1;
     const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const dist = distToGoal ?? Math.abs(goalX - shooter.pos.x);
+    
+    // ── Tuning Lab: Rich decision metrics ──
+    const opponents = players.filter((p: any) => p.team !== team && !isGoalkeeper(p));
+    const nearbyOppPressure = opponents.filter((opp: any) => opp.pos.distanceTo(shooter.pos) < 5.4).length;
+    const yardScale = FIELD_W / 120;
+    const distYards = Math.round((dist / yardScale) * 10) / 10;
+    const angleToGoal = Math.abs(Math.atan2(shooter.pos.z, Math.abs(goalX - shooter.pos.x)));
+
     pushTuningEvent(elapsed, matchClock.half, 'SHOT', team, role, {
       style,
       x: Math.round(shooter.pos.x * 10) / 10, z: Math.round(shooter.pos.z * 10) / 10,
       distToGoal: Math.round(dist * 10) / 10,
+      distYards,
+      nearbyOppPressure,
+      angleToGoal: Math.round(angleToGoal * 100) / 100,
+      practice: gameState.practiceModeEnabled || false,
     });
   }
 
@@ -4589,6 +5562,7 @@ export function initGame(container: HTMLElement) {
       for (let i = tuningEventLog.length - 1; i >= 0; i--) {
         if (tuningEventLog[i].type === 'PASS' && tuningEventLog[i].team === passTeam) {
           tuningEventLog[i].detail.completed = true;
+          tuningEventLog[i].detail.outcome = 'SUCCESS';
           break;
         }
       }
@@ -4615,6 +5589,9 @@ export function initGame(container: HTMLElement) {
       pushTuningEvent(elapsed, matchClock.half, 'INTERCEPTION', collector.team, iRole, {
         aerial: false,
         x: Math.round(collector.pos.x * 10) / 10, z: Math.round(collector.pos.z * 10) / 10,
+      });
+      pushTuningEvent(elapsed, matchClock.half, 'TURNOVER', passTeam, ballState.intendedPasserRole || '?', {
+        cause: 'INTERCEPTION', x: Math.round(collector.pos.x * 10) / 10, z: Math.round(collector.pos.z * 10) / 10
       });
     }
     clearIntendedReceiver();
@@ -5138,18 +6115,18 @@ export function initGame(container: HTMLElement) {
     },
     AGGRESSIVE: {
       pressureCount: 5,
-      looseBallChasers: 3,
-      chaseSpeedLead: 7.2,
-      chaseSpeedSupport: 6.4,
-      carryBias: 6.5,
-      passChanceFar: 0.62,
-      passChanceNear: 0.48,
-      shootChanceFar: 0.33,
-      shootChanceNear: 0.52,
-      cooldownShoot: 1.1,
-      cooldownPass: 0.10,
-      cpuShotAimErrorRad: 0.46,
-      cpuShotPressureError: 0.12,
+      looseBallChasers: 4,
+      chaseSpeedLead: 8.4,
+      chaseSpeedSupport: 7.2,
+      carryBias: 7.5,
+      passChanceFar: 0.55,
+      passChanceNear: 0.42,
+      shootChanceFar: 0.42,
+      shootChanceNear: 0.60,
+      cooldownShoot: 1.0,
+      cooldownPass: 0.08,
+      cpuShotAimErrorRad: 0.48,
+      cpuShotPressureError: 0.15,
     },
     POSSESSION: {
       pressureCount: 3,
@@ -5304,7 +6281,11 @@ export function initGame(container: HTMLElement) {
 
   function updateHUD() {
     const kickoffPrompt = '';
-    
+
+    if (practiceModeEnabled && !gameState.isLive) {
+      visualizeCurrentPlays();
+    }
+
     teamA.score.textContent = gameState.scoreA.toString();
     teamB.score.textContent = gameState.scoreB.toString();
     updateScoreboardTheme();
@@ -5945,6 +6926,11 @@ export function initGame(container: HTMLElement) {
       bannerTexts.push(bRight);
     }
 
+    if (practiceModeEnabled) {
+      bannerTexts.forEach(b => b.visible = false);
+    }
+
+
     // Crowd Blocks - Team A on one side, Team B on the other
     const teamACrowdColors = getCrowdPalette('teamA');
     const teamBCrowdColors = getCrowdPalette('teamB');
@@ -6000,6 +6986,10 @@ export function initGame(container: HTMLElement) {
     crowdMesh.castShadow = true;
     crowdMesh.receiveShadow = true;
     stadiumGroup.add(crowdMesh);
+
+    if (practiceModeEnabled) {
+      crowdMesh.visible = false;
+    }
 
     let instanceIndex = 0;
     const dummy = new THREE.Object3D();
@@ -6190,7 +7180,105 @@ export function initGame(container: HTMLElement) {
     sprite.scale.set(2.8, 0.7, 1);
     sprite.position.y = PLAYER_VOXEL_SIZE * 16 + 0.6; // above player head
     sprite.visible = showPositionLabels;
+    (sprite as any)._labelText = text;
     return sprite;
+  }
+
+  /** Recolor an existing position-label sprite with a tinted background. Pass null to reset. */
+  function recolorPositionLabel(player: any, bgColor: string | null) {
+    const sprite = player?.positionLabel as THREE.Sprite | undefined;
+    if (!sprite) return;
+    const text: string = (sprite as any)._labelText || '';
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.fillStyle = bgColor ?? 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.roundRect(8, 8, 240, 48, 12);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 32);
+    if ((sprite.material as THREE.SpriteMaterial).map) {
+      (sprite.material as THREE.SpriteMaterial).map!.dispose();
+    }
+    (sprite.material as THREE.SpriteMaterial).map = new THREE.CanvasTexture(canvas);
+    (sprite.material as THREE.SpriteMaterial).needsUpdate = true;
+  }
+
+  /** Small label that floats below the player showing their current AI state. */
+  function createAIStateLabelSprite(): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d')!;
+    // Pre-draw "IDLE" so the texture is never blank
+    ctx.clearRect(0, 0, 256, 48);
+    ctx.fillStyle = '#9e9e9e55';
+    ctx.beginPath();
+    ctx.roundRect(12, 6, 232, 36, 8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('IDLE', 128, 24);
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(2.4, 0.45, 1);
+    sprite.position.y = PLAYER_VOXEL_SIZE * 16 + 1.3; // just above position label
+    sprite.visible = showAIStateLabels;
+    sprite.renderOrder = 999;
+    (sprite as any)._canvas = canvas;
+    (sprite as any)._lastText = 'IDLE';
+    return sprite;
+  }
+
+  const AI_STATE_COLORS: Record<string, string> = {
+    IDLE:               '#9e9e9e',
+    CARRY:              '#ffab40',
+    CHASE_LOOSE_BALL:   '#ff5252',
+    SUPPORT_LOOSE_BALL: '#ff8a80',
+    USER_CONTROL:       '#40c4ff',
+    SUPPORT:            '#69f0ae',
+    DEFEND:             '#ce93d8',
+    PRESS:              '#f44336',
+    MARK:               '#ba68c8',
+    COVER:              '#ab47bc',
+    TRACK_RUNNER:       '#e040fb',
+    INTERCEPT:          '#ea80fc',
+    RETURN_HOME:        '#90a4ae',
+    GOAL_KICK:          '#4dd0e1',
+  };
+
+  /** Redraw the text on a player's AI state label sprite (only when changed). */
+  function updateAIStateLabelSprite(player: any) {
+    const sprite = player.aiStateLabel as THREE.Sprite;
+    if (!sprite) return;
+    const text = (player.aiState || 'IDLE').toString();
+    if ((sprite as any)._lastText === text) return; // no change
+    (sprite as any)._lastText = text;
+    const canvas = (sprite as any)._canvas as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 48);
+    const color = AI_STATE_COLORS[text] || '#9e9e9e';
+    ctx.fillStyle = color + '55';
+    ctx.beginPath();
+    ctx.roundRect(12, 6, 232, 36, 8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 24);
+    if ((sprite.material as THREE.SpriteMaterial).map) {
+      (sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true;
+    }
   }
 
   function addPlayer(
@@ -6284,10 +7372,14 @@ export function initGame(container: HTMLElement) {
     const positionLabel = createPositionLabelSprite(`${displayRole || role} ${name.split(' ').pop()}`);
     group.add(positionLabel);
 
+    const aiStateLabel = createAIStateLabelSprite();
+    group.add(aiStateLabel);
+
     const player = {
       mesh: group,
       spriteGroup,
       positionLabel,
+      aiStateLabel,
       runFrames,
       idleFrames,
       frontRunFrames,
@@ -7976,11 +9068,20 @@ export function initGame(container: HTMLElement) {
     const phaseProgressBoost = phase === 'FINAL_THIRD' ? 0.12 : phase === 'TRANSITION' ? 0.08 : phase === 'PROGRESSION' ? 0.04 : 0;
     const phaseSpaceBoost = phase === 'BUILD_UP' ? 0.10 : phase === 'PROGRESSION' ? 0.05 : 0;
     const phaseLaneRelax = phase === 'FINAL_THIRD' ? -0.35 : phase === 'TRANSITION' ? -0.20 : 0;
+    const laneRelaxScale = phase === 'FINAL_THIRD' ? 0.35 : phase === 'TRANSITION' ? 0.20 : 0;
     const idealDist = THREE.MathUtils.lerp(9.5, 19.0, progressiveBlend);
-    const progressWeight = THREE.MathUtils.lerp(0.64, 0.92, progressiveBlend) + phaseProgressBoost;
-    const spaceWeight = THREE.MathUtils.lerp(0.72, 0.48, progressiveBlend) + phaseSpaceBoost;
-    const lanePenaltyScale = THREE.MathUtils.lerp(1.10, 0.40, passSkill) + phaseLaneRelax * 0.35;
-
+    
+    // ── Apply Tuning Lab Weights if in Practice ──
+    const progressWeight = gameState.practiceModeEnabled
+      ? (gameState as any).tuningProgressWeight
+      : THREE.MathUtils.lerp(0.64, 0.92, progressiveBlend) + phaseProgressBoost;
+    const spaceWeight = gameState.practiceModeEnabled
+      ? (gameState as any).tuningSpaceWeight
+      : THREE.MathUtils.lerp(0.72, 0.48, progressiveBlend) + phaseSpaceBoost;
+    const lanePenaltyScale = gameState.practiceModeEnabled
+      ? (gameState as any).tuningLanePenalty
+      : THREE.MathUtils.lerp(1.10, 0.40, passSkill) + laneRelaxScale * 0.35;
+    
     teammates.forEach((candidate: any) => {
       const passDist = carrier.pos.distanceTo(candidate.pos);
       if (passDist < 4.0 || passDist > 33) return;
@@ -8006,6 +9107,9 @@ export function initGame(container: HTMLElement) {
       const isWideRunner = (candidateRole === 'LM' || candidateRole === 'RM') && Math.abs(candidate.pos.z) > FIELD_D * 0.22;
       const diagonalRunBonus = movingForward && progress > 2.5 && Math.abs(candidate.pos.z - carrier.pos.z) > 5.5 ? 1.25 : 0;
       const widthStretchBonus = isWideRunner && progress >= 0 ? 1.35 : 0;
+      // Overlap run bonus: heavily reward the overlapping fullback once they've gotten ahead
+      const isOverlapRunner = _overlapRun.active && candidate === _overlapRun.runner && carrier === _overlapRun.carrier;
+      const overlapBonus = isOverlapRunner && (candidate.pos.x * attackSign) > (carrier.pos.x * attackSign) + 1.5 ? 4.5 : 0;
       // ST dropping in to combine (wall pass) before spinning forward.
       const wallPassBonus = carrierRole === 'ST' && passDist < 11 && progress < 0.8 && progress > -7 ? 1.6 : 0;
       // Prefer forward targets — advance play toward goal
@@ -8049,7 +9153,8 @@ export function initGame(container: HTMLElement) {
         diagonalRunBonus +
         widthStretchBonus +
         wallPassBonus +
-        crossTargetBonus;
+        crossTargetBonus +
+        overlapBonus;
       if (score > bestScore && isOpen) {
         bestScore = score;
         bestTarget = candidate;
@@ -8958,6 +10063,24 @@ export function initGame(container: HTMLElement) {
         }
       }
 
+      // ── Dynamic overlap sprint: fullback rockets past the winger on the outside ──
+      // Only sprint during FULLBACK_RUN, DEFENDER_DECISION, WINGER_ACTION, FULLBACK_CONTINUATION
+      const fsmSprintStates = ['FULLBACK_RUN', 'DEFENDER_DECISION', 'WINGER_ACTION', 'FULLBACK_CONTINUATION'];
+      const fsmSprinting = _overlapRun.active && fsmSprintStates.includes(_overlapFSM.state);
+      if (fsmSprinting && player === _overlapRun.runner && carrier === _overlapRun.carrier) {
+        const elapsed = performance.now() / 1000;
+        const runDuration = elapsed - _overlapRun.triggeredAt;
+        // Ramp up: don't sprint instantly — start after 0.3s, reach full intensity by 1.2s
+        const ramp = THREE.MathUtils.clamp((runDuration - 0.3) / 0.9, 0, 1);
+        // Target: ahead of carrier by 8–12 units, hugging the touchline
+        const aheadDist = THREE.MathUtils.lerp(4, 12, ramp);
+        const touchlineZ = _overlapRun.side === 'L' ? -FIELD_D / 2 + 2.5 : FIELD_D / 2 - 2.5;
+        const overlapX = carrier.pos.x + attackSign * aheadDist;
+        // Blend aggressively toward the overlap target
+        finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, overlapX, 0.6 + ramp * 0.3);
+        finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, touchlineZ, 0.5 + ramp * 0.4);
+      }
+
       if ((phase === 'FINAL_THIRD' || phase === 'TRANSITION') && (isAttackerRole || isMidfield || isFullback)) {
         // Detect flank run: carrier is wide (|z| > 30% of field depth) and advanced past halfway
         const carrierOnFlank = Math.abs(carrier.pos.z) > FIELD_D * 0.30;
@@ -9508,7 +10631,9 @@ export function initGame(container: HTMLElement) {
     const defenseAttacksRight = !offenseAttacksRight;
     const offFormation = SOCCER_FORMATIONS[activeTeamFormations[offTeam]] || SOCCER_FORMATIONS['4-2-3-1'];
     const defFormation = SOCCER_FORMATIONS[activeTeamFormations[defTeam]] || SOCCER_FORMATIONS['4-2-3-1'];
-    const useRestartShape = !gameState.isLive;
+
+    // In practice mode, we always want the neutral kickoff layout unless a specific play is running
+    const useRestartShape = !gameState.isLive || (practiceModeEnabled && !practicePlayActive);
     const restartSlots = useRestartShape ? buildRestartFormationSlots(offenseAttacksRight) : null;
     const offenseSlots = restartSlots ? restartSlots.offense : { team: offFormation.team };
     const defenseSlots = restartSlots ? restartSlots.defense : { team: defFormation.team };
@@ -9516,12 +10641,16 @@ export function initGame(container: HTMLElement) {
     const nameForOffense = createTeamLineupNamer(offTeam);
     const nameForDefense = createTeamLineupNamer(defTeam);
     const usedRatingsByTeam: Record<'A' | 'B', Set<number>> = { A: new Set<number>(), B: new Set<number>() };
+    const randomTeamA = Math.floor(Math.random() * 99999);
+    const randomTeamB = Math.floor(Math.random() * 88888);
 
     for (let idx = 0; idx < 11; idx++) {
       const roleLabel = offFormation.roles[idx] || 'CM';
       const rawSlot = offenseSlots.team[idx] || offenseSlots.team[offenseSlots.team.length - 1];
       const slot = restartSlots ? rawSlot : toSoccerFieldPosition(rawSlot, offenseAttacksRight);
       const archetype = getSoccerRoleArchetype(roleLabel);
+      // In practice mode, we want stable rosters across reps, so we don't use the rep count as a seed.
+      // We use a fixed seed per session/match to ensure same players slot into same roles.
       const ratingProfile = pickMLSPlayerForRole(offTeam, roleLabel, usedRatingsByTeam[offTeam]);
       const playerName = ratingProfile?.name || nameForOffense(roleLabel);
       const statProfile = ratingProfile ? buildPlayerStatsFromMLS(ratingProfile, roleLabel, offTeam) : undefined;
@@ -9543,11 +10672,106 @@ export function initGame(container: HTMLElement) {
     removeReferee();
     referee = createReferee();
 
-    // Practice mode: remove Team B players and keep only Team A
-    if (practiceModeEnabled) applyPracticeLayout();
+    if (practiceModeEnabled) {
+      if (referee) removeReferee();
+      applyPracticeLayout();
+      visualizeCurrentPlays();
+    }
+  }
+
+  function visualizeCurrentPlays() {
+    if (!practiceModeEnabled) return;
+    const offTeam = gameState.offensiveTeam;
+    const attackRight = teamAttacksRight(offTeam);
+    const attackSign = attackRight ? 1 : -1;
+    
+    const offPlay = (PASS_PLAYBOOK as any)[gameState.selectedOffensePlay];
+    const defPlay = (DEFENSE_PLAYBOOK as any)[gameState.selectedDefensePlay];
+    
+    const routes: Array<{ fromX: number; fromZ: number; toX: number; toZ: number; color: number }> = [];
+    const yardScale = FIELD_W / 120;
+    const widthScale = FIELD_D / 80;
+
+    // ── Visualize Offensive Routes ──
+    if (offPlay && offPlay.routes) {
+      offPlay.routes.forEach((r: any) => {
+        const player = players.find(p => p.team === offTeam && (p.displayRole || p.role) === r.role);
+        if (!player) return;
+        
+        let lastPos = player.pos.clone();
+        r.points.forEach((pt: any) => {
+          // Playbook points are relative to the line of scrimmage (X=0 in local play space)
+          // We translate them to world space based on team direction
+          const worldX = player.pos.x + pt.x * yardScale * attackSign;
+          const worldZ = pt.z * widthScale;
+          
+          routes.push({
+            fromX: lastPos.x,
+            fromZ: lastPos.z,
+            toX: worldX,
+            toZ: worldZ,
+            color: 0x90d6ff // Light Blue for offense
+          });
+          lastPos.set(worldX, 0.15, worldZ);
+        });
+      });
+    }
+
+    // ── Visualize Defensive Assignments (Zones/Rush) ──
+    if (defPlay && defPlay.assignments) {
+      const defTeam = offTeam === 'A' ? 'B' : 'A';
+      const defAttackSign = teamAttacksRight(defTeam) ? 1 : -1;
+      
+      defPlay.assignments.forEach((asg: any, idx: number) => {
+        const p = players.filter(pl => pl.team === defTeam && (pl.displayRole || pl.role) === asg.role)[idx % 3]; // simplified mapping
+        if (!p) return;
+
+        if (asg.type === 'rush') {
+          // Rushers: Arrow toward the offensive backfield (approx center spot for soccer practice)
+          routes.push({
+            fromX: p.pos.x, fromZ: p.pos.z,
+            toX: p.pos.x + 3 * yardScale * defAttackSign, toZ: p.pos.z,
+            color: 0xffa0a0 // Light Red for defense
+          });
+        } else if (asg.type === 'zone' && asg.x !== undefined) {
+          // Zone: Draw route from homePos to zone center
+          const zoneX = p.pos.x + asg.x * yardScale * defAttackSign;
+          const zoneZ = asg.z * widthScale;
+          routes.push({
+            fromX: p.pos.x, fromZ: p.pos.z,
+            toX: zoneX, toZ: zoneZ,
+            color: 0xffa0a0
+          });
+        }
+      });
+    }
+
+    // Reuse existing practice route mesh system
+    for (const obj of practiceRouteObjects) scene.remove(obj);
+    practiceRouteObjects = [];
+    for (const r of routes) {
+      const dx = r.toX - r.fromX;
+      const dz = r.toZ - r.fromZ;
+      const len = Math.sqrt(dx * dx + dz * dz);
+      if (len < 0.1) continue;
+      const dir = new THREE.Vector3(dx, 0, dz).normalize();
+      const arrow = new THREE.ArrowHelper(
+        dir,
+        new THREE.Vector3(r.fromX, 0.18, r.fromZ),
+        len,
+        r.color,
+        Math.min(0.6, len * 0.2),
+        Math.min(0.3, len * 0.1),
+      );
+      scene.add(arrow);
+      practiceRouteObjects.push(arrow);
+    }
   }
 
   function applyPracticeLayout() {
+    // Stop crowd noise if it's playing
+    sounds.crowdStop();
+
     // Remove all Team B players from scene and arrays so only Team A is on the pitch
     for (let i = players.length - 1; i >= 0; i--) {
       const p = players[i];
@@ -10396,7 +11620,17 @@ export function initGame(container: HTMLElement) {
       t.outlineWidth = 0.05;
       t.outlineColor = t.color;
       t.outlineBlur = 0.15;
+
+      // Practice mode visibility override
+      if (practiceModeEnabled) {
+        t.visible = false;
+      }
     });
+
+    if (practiceModeEnabled) {
+      if (crowdMesh && crowdMesh.visible) crowdMesh.visible = false;
+      if (referee) removeReferee();
+    }
 
     // Snapshot possession team before any AI writes it this frame
     const prevHolderTeam: 'A' | 'B' | null = (ballState.heldBy?.team as 'A' | 'B') ?? null;
@@ -10497,6 +11731,11 @@ export function initGame(container: HTMLElement) {
       ].join('\n');
       lastAIStateUiUpdate = now;
     }
+    // Update 3D AI-state label sprites beneath each player (independent of HTML overlay)
+    if (showAIStateLabels && now - lastAIStateLabelUpdate >= 180) {
+      for (const p of players) updateAIStateLabelSprite(p);
+      lastAIStateLabelUpdate = now;
+    }
     const saveSlowmoActive = elapsed < gameState.saveSlowmoUntil;
     const dt = rawDt * (saveSlowmoActive ? SAVE_SLOWMO_SCALE : 1.0);
     updateWeatherEffects(dt, elapsed);
@@ -10511,12 +11750,18 @@ export function initGame(container: HTMLElement) {
       gameState.keeperHoldStartedAt = currentKeeperHolder ? elapsed : 0;
     }
     refreshDynamicTeamShape(elapsed);
+    updateOverlapDetection(elapsed);
+    updateGiveGoDetection(elapsed);
+    // Update on-field FSM state label during overlap practice
+    if (practiceModeEnabled && activePracticeTemplate === 'OVERLAP') updateOverlapFSMLabel();
+    if (practiceModeEnabled && activePracticeTemplate === 'GIVE_AND_GO') updateGiveGoFSMLabel();
 
     gameState.cpuDecisionCooldownA = Math.max(0, gameState.cpuDecisionCooldownA - dt);
     gameState.cpuDecisionCooldownB = Math.max(0, gameState.cpuDecisionCooldownB - dt);
 
     // In CPU vs CPU, automatically trigger restarts and kickoff touch with no user input.
-    if (gameState.cpuVsCpu && !kickoffPresentation.active && !freeKickPresentation.active && !gameState.menuVisible && !gameState.isResetting && !gameState.isLive && !delayedRestartState.active && gameState.status === 'PLAYING') {
+    // Auto-resume in CPU vs CPU or Practice Mode (when no human control)
+    if ((gameState.cpuVsCpu || (gameState.practiceModeEnabled && !getHumanControlFlags().controlA)) && !kickoffPresentation.active && !freeKickPresentation.active && !gameState.menuVisible && !gameState.isResetting && !gameState.isLive && !delayedRestartState.active && gameState.status === 'PLAYING') {
       // Clear stale HALFTIME message if the clock has moved past halftime.
       if (gameState.message === 'HALFTIME' && matchClock.phase !== 'HALFTIME') {
         gameState.message = '';
@@ -10524,9 +11769,9 @@ export function initGame(container: HTMLElement) {
       beginCurrentRestart();
     }
 
-    // CPU vs CPU / CPU kicker: execute kickoff touch when live and ready
+    // CPU vs CPU / Practice / CPU kicker: execute kickoff touch when live and ready
     if (!kickoffPresentation.active && !gameState.menuVisible && gameState.isKickoff && gameState.kickoffState === 'READY' && gameState.isLive && elapsed >= kickoffLawState.kickoffAllowedAt) {
-      if (gameState.cpuVsCpu) {
+      if (gameState.cpuVsCpu || gameState.practiceModeEnabled) {
         executeKickoffTouch();
       } else {
         const kickerTeam = kickoffLawState.kicker?.team;
@@ -10682,6 +11927,24 @@ export function initGame(container: HTMLElement) {
           beginCurrentRestart();
           _notLiveSince = 0;
           _lastTuningEventAt = elapsed; // reset drought timer
+          if (gameState.practiceModeEnabled) _lastPracticeEventAt = elapsed;
+        }
+      }
+
+      // ── Practice Rep Auto-Reset Watchdog ──
+      if (gameState.practiceModeEnabled && gameState.isLive && !delayedRestartState.active) {
+        const practiceDrought = elapsed - (_lastPracticeEventAt || 0);
+        if (practiceDrought >= PRACTICE_AUTO_RESET_SECONDS) {
+          console.warn(`[PracticeWatchdog] No practice events for ${practiceDrought.toFixed(1)}s — Auto-Resetting rep.`);
+          
+          // Log a quick summary of the failed rep before resetting
+          const lastFew = tuningEventLog.slice(-3).map(e => e.type).join(' -> ') || 'Incomplete';
+          console.log(`%c[Lab] Rep #${_practiceRepCount} summary: ${lastFew} (Drought reset)`, "color: #fbbf24; font-weight: bold;");
+
+          incrementPracticeRep();
+          resetBall(false); // Just reset ball to center, keep same teams/plays
+          beginCurrentRestart();
+          _lastPracticeEventAt = elapsed;
         }
       }
     }
@@ -11385,11 +12648,16 @@ export function initGame(container: HTMLElement) {
       }
     }
 
-    const { controlA, controlB } = getHumanControlFlags();
-
-    const _suppressedBannerMessages = ['KICK-OFF', 'KICK-OFF RETAKE', '1ST HALF KICK-OFF', '2ND HALF KICK-OFF', 'GOAL!'];
+    const _suppressedBannerMessages = ['KICK-OFF', 'KICK-OFF RETAKE', '1ST HALF KICK-OFF', '2ND HALF KICK-OFF'];
+    if (practiceModeEnabled && _suppressedBannerMessages.includes('GOAL!')) {
+      // Allow GOAL! in practice mode
+    } else {
+      // Default behavior or non-practice
+      // Actually let's just modify the list directly to be cleaner
+    }
     const _rawMsg = (gameState.menuVisible || splashSceneMode) ? '' : gameState.message;
-    const activeBannerMessage = _suppressedBannerMessages.includes(_rawMsg) ? '' : _rawMsg;
+    const activeBannerMessage = (practiceModeEnabled ? ['KICK-OFF'] : _suppressedBannerMessages).includes(_rawMsg) ? '' : _rawMsg;
+
 
     if (activeBannerMessage !== lastMessage) {
       lastMessage = activeBannerMessage;
@@ -11689,6 +12957,7 @@ export function initGame(container: HTMLElement) {
         right.set(1, 0, 0);
       }
 
+      const { controlA, controlB } = getHumanControlFlags();
       const targetVel = new THREE.Vector3(0, 0, 0);
       if (controlA) {
         if (keys['w'] || keys['W']) targetVel.addScaledVector(forward, moveSpeed);
@@ -12477,7 +13746,18 @@ export function initGame(container: HTMLElement) {
 
             if (carryDir.lengthSq() > 0.02) {
               const dribbleSkill = getDribbleSkill(cpuCarrier);
-              if (earlyWingerWaiting) {
+              // Overlap: winger holds/dribbles infield during POSSESSION_WIDE through WINGER_ACTION
+              const overlapHoldStates = ['POSSESSION_WIDE', 'OVERLAP_TRIGGER', 'FULLBACK_RUN', 'DEFENDER_DECISION', 'WINGER_ACTION'];
+              const overlapWingerHold = _overlapRun.active && cpuCarrier === _overlapRun.carrier && overlapHoldStates.includes(_overlapFSM.state);
+              if (overlapWingerHold) {
+                // Overlap active: dribble INFIELD to drag the defender and create space on the wing
+                const holdTarget = cpuCarrier.pos.clone();
+                holdTarget.x += attackSign * 1.0; // gentle forward drift
+                holdTarget.z *= 0.6; // pull toward center (z=0)
+                const holdSpeed = (3.2 + dribbleSkill * 1.2) * GAME_SPEED_SCALE;
+                setPlayerAIState(cpuCarrier, 'CARRY');
+                steerPlayerTowards(cpuCarrier, holdTarget, dt, holdSpeed, 20, 5.0, 0.10);
+              } else if (earlyWingerWaiting) {
                 // Hold: jog slowly along the touchline, don't rush toward goal
                 const holdTarget = cpuCarrier.pos.clone();
                 holdTarget.x += attackSign * 1.5; // gentle forward drift
@@ -12505,6 +13785,7 @@ export function initGame(container: HTMLElement) {
               const dribbleSkill = getDribbleSkill(cpuCarrier);
               const shotSkill = getShotSkill(cpuCarrier);
               const roleProfile = getRoleDecisionProfile(cpuCarrier);
+              const activeAIStyle = getActiveAIStyle();
               const pressurePassBoost = closePressure >= 3 ? 0.18 : (closePressure === 2 ? 0.1 : (closePressure === 1 ? 0.04 : 0));
               const lanePassBoost = carryLanePressure > 2.1 ? 0.16 : (carryLanePressure > 1.1 ? 0.08 : 0);
               const inShootingLane = Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 0.78;
@@ -12519,7 +13800,7 @@ export function initGame(container: HTMLElement) {
               if (inTapInZone) shotSpamSuppression *= 0.15;
               else if (inPrimeZone) shotSpamSuppression *= 0.45;
               const insidePenaltyArea = distToGoal < penaltyDepth;
-              const basePassChance = distToGoal > 26 ? aiStyle.passChanceFar : aiStyle.passChanceNear;
+              const basePassChance = distToGoal > 26 ? activeAIStyle.passChanceFar : activeAIStyle.passChanceNear;
               const passChance = THREE.MathUtils.clamp(
                 basePassChance
                   + pressurePassBoost
@@ -12536,7 +13817,7 @@ export function initGame(container: HTMLElement) {
               const shotUrgencyBoost = inTapInZone ? 0.30 : (insidePenaltyArea ? 0.18 : (inPrimeZone ? 0.06 : 0));
               const cappedUrgencyBoost = Math.min(shotUrgencyBoost + roleProfile.shootBias, 0.35);
               const shootChance = THREE.MathUtils.clamp(
-                (distToGoal < penaltyDepth ? aiStyle.shootChanceNear : aiStyle.shootChanceFar)
+                (distToGoal < penaltyDepth ? activeAIStyle.shootChanceNear : activeAIStyle.shootChanceFar)
                   - pressureShotPenalty
                   - shotSpamSuppression
                   + (distToGoal < 6 ? 0.18 : (distToGoal < penaltyDepth ? 0.10 : 0))
@@ -12559,11 +13840,15 @@ export function initGame(container: HTMLElement) {
 
             // ── Risk tolerance: derived from role + awareness ──
             // Playmakers/wingers are braver; CBs/DMs play safe
+            const aiStyle = getActiveAIStyle();
+            const aiStyleRiskBoost = aiStyle === 'AGGRESSIVE' ? 0.22 : (aiStyle === 'CONSERVATIVE' ? -0.15 : 0);
+            
             const riskTolerance = THREE.MathUtils.clamp(
               (roleProfile.progressivePass - 0.5) * 0.5
               + (awareness - 0.5) * 0.4
-              + (roleProfile.dribbleIntent - 0.5) * 0.1,
-              -0.3, 0.4,
+              + (roleProfile.dribbleIntent - 0.5) * 0.1
+              + aiStyleRiskBoost,
+              -0.4, 0.6,
             );
 
             // Support awareness: suppress long-range shots when teammates are making runs toward the box
@@ -12615,16 +13900,59 @@ export function initGame(container: HTMLElement) {
             // Strikers get a shot boost inside the box but it's no longer an unconditional override
             const isStriker = (cpuCarrier.displayRole || cpuCarrier.role || '').toUpperCase() === 'ST';
             const strikerBoxBoost = isStriker && insidePenaltyArea ? 0.35 : 0;
+
+            // Pattern Pattern Overrides
+            let patternShotOverride = false;
+            let patternPassOverride = false;
+            let patternTargetOverride: any = null;
+
+            if (practiceModeEnabled && activePracticeTemplate) {
+               if (activePracticeTemplate === 'OVERLAP' && cpuCarrier === overlapWinger) {
+                  // Only pass if fullback is actually overlapping
+                  const fbX = overlapFullback.pos.x * attackSign;
+                  const wingerX = overlapWinger.pos.x * attackSign;
+                  if (fbX > wingerX + 2) {
+                     patternPassOverride = true;
+                     patternTargetOverride = overlapFullback;
+                  }
+               } else if (activePracticeTemplate === 'GIVE_AND_GO') {
+                  const fsmSt = _giveGoFSM.state;
+                  if (cpuCarrier === giveAndGoA && giveAndGoB && (fsmSt === 'A_HAS_BALL' || fsmSt === 'PASS_TO_B' || fsmSt === 'IDLE')) {
+                     // Step 1: A passes to B
+                     patternPassOverride = true;
+                     patternTargetOverride = giveAndGoB;
+                  } else if (cpuCarrier === giveAndGoB && giveAndGoA && (fsmSt === 'A_RUNS_FORWARD' || fsmSt === 'B_LAYOFF')) {
+                     // Step 3: B lays off to A (one-touch return)
+                     patternPassOverride = true;
+                     patternTargetOverride = giveAndGoA;
+                  }
+               } else if (activePracticeTemplate === 'THIRD_MAN_RUN') {
+                   if (cpuCarrier === thirdManA) {
+                      patternPassOverride = true;
+                      patternTargetOverride = thirdManB;
+                   } else if (cpuCarrier === thirdManB) {
+                      patternPassOverride = true;
+                      patternTargetOverride = thirdManC;
+                   }
+               } else if (activePracticeTemplate === 'SWITCH_OF_PLAY' && cpuCarrier === switchCarrier) {
+                   // Switch of play: Carrier looks to switch to the far-side target
+                   if (switchTarget && cpuCarrier.pos.distanceTo(switchTarget.pos) > 15) {
+                      patternPassOverride = true;
+                      patternTargetOverride = switchTarget;
+                   }
+               }
+            }
+
             // Shot quality gate: wide-angle long-range shots are heavily suppressed
             const goalZ = 0; // goal center
             const angleToGoal = Math.abs(Math.atan2(cpuCarrier.pos.z - goalZ, Math.abs(goalX - cpuCarrier.pos.x)));
             const tightAnglePenalty = (!inTapInZone && distToGoal > 14 && angleToGoal > 0.55) ? 0.15 : 0;
-            const shouldShoot = !wingerWaiting && (distToGoal < maxShootDistance || atGoalLineForce) && (forceShotNow || atGoalLineForce || Math.random() < (shootChance + strikerBoxBoost - supportIncomingSuppression - flankShotPenalty - tightAnglePenalty));
-            const passTarget = bestPassTarget;
+            const shouldShoot = !wingerWaiting && (distToGoal < maxShootDistance || atGoalLineForce) && (forceShotNow || atGoalLineForce || Math.random() < (shootChance + strikerBoxBoost - supportIncomingSuppression - flankShotPenalty - tightAnglePenalty)) || patternShotOverride;
+            const passTarget = patternTargetOverride || bestPassTarget;
             // Flank carriers should prefer passing/crossing into the box
             const flankPassBoost = onFlank && hasForwardPassOption ? 0.25 : 0;
             // Strikers can still pass in the box (removes old "never pass" rule)
-            const shouldPass = !wingerWaiting && !shouldShoot && !!passTarget && (closePressure >= 2 || Math.random() < passChance + riskTolerance * 0.15 + flankPassBoost);
+            const shouldPass = !wingerWaiting && !shouldShoot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < passChance + riskTolerance * 0.15 + flankPassBoost);
             // Max-carry timer: if held too long, override dribble hold in favor of pass/shot
             const carryTimerExpired = _carrierHoldTime >= MAX_CARRY_SECONDS && !isGoalkeeper(cpuCarrier);
             const shouldHoldDribble = !carryTimerExpired && !shouldShoot && !shouldPass && (!hasForwardPassOption || Math.random() < holdDribbleChanceAdjusted);
@@ -12907,12 +14235,13 @@ export function initGame(container: HTMLElement) {
           const p = route.player;
           if (!p || (p === controlledPlayer && controlA) || (p === controlledPlayerB && controlB)) return;
 
-          // Practice play: steer off-ball players toward their designated run target
+          // Practice play steering
           if (practiceModeEnabled && practicePlayActive && p !== ballState.heldBy && !isGoalkeeper(p)) {
             const practTarget = practicePlayerTargets.get(p);
             if (practTarget) {
               _loopDir.subVectors(practTarget, p.pos).setY(0);
-              if (_loopDir.length() > 0.5) {
+              const distToTarget = _loopDir.length();
+              if (distToTarget > 0.5) {
                 p.vel.lerp(_loopDir.normalize().multiplyScalar(getUniformPlayerRunSpeed()), dt * 8);
                 p.pos.addScaledVector(p.vel, dt);
               } else {
@@ -12920,22 +14249,71 @@ export function initGame(container: HTMLElement) {
                 if (!practiceReachedTargets.has(p)) {
                   practiceReachedTargets.add(p);
                   if (practiceReachedTargets.size >= practicePlayerTargets.size) {
-                    sounds.whistle();
-                    practicePlayCompleteCallback?.();
+                    // FSM-driven plays handle their own resets — don't fire the generic completion
+                    if (activePracticeTemplate === 'GIVE_AND_GO' || activePracticeTemplate === 'OVERLAP') {
+                      console.log('[PRACTICE] All reached but FSM play — skipping generic completion');
+                    } else {
+                      console.log('[PRACTICE] All', practiceReachedTargets.size, 'players reached targets — whistle + callback, template:', activePracticeTemplate);
+                      sounds.whistle();
+                      practicePlayCompleteCallback?.();
+                    }
                   }
                 }
               }
-              return;
+
+              // Pattern Logic inside Loop
+              if (activePracticeTemplate === 'OVERLAP') {
+                if (p === overlapFullback && !runningOverlapPattern && ballState.heldBy === overlapWinger) {
+                  const distW = p.pos.distanceTo(overlapWinger.pos);
+                  if (distW < 10) runningOverlapPattern = true; // start the sprint
+                }
+              } else if (activePracticeTemplate === 'GIVE_AND_GO') {
+                const fsmSt = _giveGoFSM.state;
+                if (p === giveAndGoA) {
+                  // During A_RUNS_FORWARD / B_LAYOFF: override target to run-behind-defender space
+                  if ((fsmSt === 'A_RUNS_FORWARD' || fsmSt === 'B_LAYOFF') && _giveGoFSM.runTarget) {
+                    practTarget.copy(_giveGoFSM.runTarget);
+                    // Sprint speed boost
+                    const dirToTarget = _loopDir.subVectors(practTarget, p.pos).setY(0);
+                    if (dirToTarget.length() > 0.3) {
+                      p.vel.lerp(dirToTarget.normalize().multiplyScalar(getUniformPlayerRunSpeed() * 1.35), dt * 10);
+                      p.pos.addScaledVector(p.vel, dt);
+                    }
+                  }
+                } else if (p === giveAndGoB) {
+                  // Wall player holds position until the layoff
+                  if (fsmSt === 'PASS_TO_B' || fsmSt === 'A_RUNS_FORWARD' || fsmSt === 'B_LAYOFF') {
+                    // Stay put — don't move toward route target yet
+                    p.vel.multiplyScalar(0.1);
+                  }
+                }
+              } else if (activePracticeTemplate === 'SWITCH_OF_PLAY') {
+                // Switch of Play: Far side players hold their width and don't bunch
+                const fieldSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
+                const isFarSide = Math.sign(p.homePos.z) !== Math.sign(ballState.pos.z);
+                if (isFarSide && Math.abs(p.pos.x - ballState.pos.x) < 15) {
+                   // Ensure they stay wide
+                   practTarget.z = Math.sign(p.homePos.z) * (FIELD_D * 0.45);
+                }
+              }
+
+              // After movement, don't return! Let the AI logic below run so they can still receive practices
+              // but we skip the "default" support behavior.
             }
           }
 
+          // Move the 'return' from the practice block to only happen if we don't want standard AI
+          const skipStandardAI = practiceModeEnabled && practicePlayActive && practicePlayerTargets.has(p);
+
           // Don't override players already assigned to chase a loose ball
           if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
-          // Kickoff freeze: players outside the center circle stay stationary
+          // Kickoff freeze
           if (isKickoffFrozen(p)) { p.vel.x = 0; p.vel.z = 0; return; }
 
-          // Goalkeeper: stay near goal regardless of possession — never run support routes
-          if (isGoalkeeper(p)) {
+          if (skipStandardAI) {
+            // Fall through to allow being a pass target or shooting, but don't do regular support logic
+          } else if (isGoalkeeper(p)) {
+            // Goalkeeper: stay near goal
             if (ballState.heldBy === p) {
               p.vel.multiplyScalar(Math.max(0, 1 - dt * 8));
               return;
@@ -12961,35 +14339,35 @@ export function initGame(container: HTMLElement) {
               p.vel.multiplyScalar(Math.max(0, 1 - dt * 10));
             }
             return;
-          }
-
-          const isTransitionTeam = gameState.transitionDefenseTeam === p.team && elapsed < gameState.transitionDefenseExpiry;
-
-          let supportTarget: THREE.Vector3;
-          if (isTransitionTeam && !ballState.heldBy?.team) {
-            // Sprint straight home to recover defensive shape
-            supportTarget = p.homePos.clone();
           } else {
-            supportTarget = getSupportRunTarget(route, controlledPlayer);
+            const isTransitionTeam = gameState.transitionDefenseTeam === p.team && elapsed < gameState.transitionDefenseExpiry;
+
+            let supportTarget: THREE.Vector3;
+            if (isTransitionTeam && !ballState.heldBy?.team) {
+              // Sprint straight home to recover defensive shape
+              supportTarget = p.homePos.clone();
+            } else {
+              supportTarget = getSupportRunTarget(route, controlledPlayer);
+            }
+
+            const toTarget = _loopDir.subVectors(supportTarget, p.pos);
+            toTarget.y = 0;
+            const dist = toTarget.length();
+
+            if (dist < 0.2) {
+              p.vel.multiplyScalar(Math.max(0, 1 - dt * 5.0));
+              p.glow.visible = false;
+              // Return inside the loop is fine here as it's the arrow function for forEach
+            } else {
+              const dir = toTarget.normalize();
+              const speed = getUniformPlayerRunSpeed();
+
+              p.glow.visible = false;
+
+              p.vel.lerp(dir.multiplyScalar(speed), dt * (dist > 4 ? 4.8 : 7.0));
+              p.pos.addScaledVector(p.vel, dt);
+            }
           }
-
-          const toTarget = _loopDir.subVectors(supportTarget, p.pos);
-          toTarget.y = 0;
-          const dist = toTarget.length();
-
-          if (dist < 0.2) {
-            p.vel.multiplyScalar(Math.max(0, 1 - dt * 5.0));
-            p.glow.visible = false;
-            return;
-          }
-
-          const dir = toTarget.normalize();
-          const speed = getUniformPlayerRunSpeed();
-
-          p.glow.visible = false;
-
-          p.vel.lerp(dir.multiplyScalar(speed), dt * (dist > 4 ? 4.8 : 7.0));
-          p.pos.addScaledVector(p.vel, dt);
         });
 
         // Dynamic pressure from the non-possession side.
@@ -13083,7 +14461,11 @@ export function initGame(container: HTMLElement) {
                   pushTuningEvent(elapsed, matchClock.half, 'TACKLE', p.team, tRole, {
                     vs: liveCarrier.name || '?', vsRole: getRoleKey(liveCarrier),
                     x: Math.round(p.pos.x * 10) / 10, z: Math.round(p.pos.z * 10) / 10,
-                  }); }
+                  }); 
+                  pushTuningEvent(elapsed, matchClock.half, 'TURNOVER', liveCarrier.team, getRoleKey(liveCarrier), {
+                    cause: 'TACKLE', x: Math.round(liveCarrier.pos.x * 10) / 10, z: Math.round(liveCarrier.pos.z * 10) / 10
+                  });
+                }
                 pushTelemEvent(p.team, 'TACKLE', `${p.name || 'Unknown'} wins ball from ${liveCarrier.name || 'Unknown'}`);
                 markKickoffTouch(p);
                 soccerRestart.lastTouchTeam = p.team;
@@ -14041,6 +15423,18 @@ export function initGame(container: HTMLElement) {
           if ((!throwInPresentation.active || ballState.heldBy !== throwInPresentation.thrower) && !penaltyPresentation.active) {
             updateDribbleBallPosition(ballState.heldBy, elapsed, dt);
           }
+
+          // --- PRACTICE WORKFLOW: BOX ENTRY DETECTION ---
+          if (practiceModeEnabled && ballState.heldBy && isInsideOpponentBox(ballState.heldBy, ballState.heldBy.pos)) {
+            const hasAlreadyEntered = _practiceRepEvents.some(e => e.type === 'BOX_ENTRY' && e.role === ballState.heldBy.name);
+            if (!hasAlreadyEntered) {
+              pushTuningEvent(elapsed, matchClock.half, 'BOX_ENTRY', ballState.heldBy.team as 'A'|'B', ballState.heldBy.name, {
+                pos: ballState.heldBy.pos.clone(),
+                time: elapsed
+              });
+            }
+          }
+
           // Ball spin while dribbling: roll from dribble velocity, but damp in keeper's hands
           const keeperHands = isGoalkeeper(ballState.heldBy) && isInsideOwnPenaltyArea(ballState.heldBy, ballState.heldBy.pos);
           if (keeperHands) {
@@ -14925,6 +16319,7 @@ export function initGame(container: HTMLElement) {
     const canSelect = !gameState.isLive || (gameState.isLive && ballState.heldBy && ballState.heldBy.team === 'A');
     
     // Determine the currently-controlled Team A field player for marker
+    const { controlA, controlB } = getHumanControlFlags();
     const teamAFieldMarker = players.filter((p: any) => p.team === 'A' && !isGoalkeeper(p));
     const humanControlled = (!ballState.heldBy || ballState.heldBy.team !== 'A')
       ? (teamAFieldMarker[Math.min(gameState.humanPlayerIndex, teamAFieldMarker.length - 1)] || null)
@@ -15369,6 +16764,214 @@ export function initGame(container: HTMLElement) {
 
   let onResetCallback: (() => void) | null = null;
 
+  function restartPracticeRep() {
+    if (!practicePlayActive) return;
+    console.log('[PRACTICE] restartPracticeRep called, template:', activePracticeTemplate, 'fsmState:', _giveGoFSM.state);
+    incrementPracticeRep();
+    practiceReachedTargets.clear();
+    runningOverlapPattern = false;
+    runningGiveGoPattern = false;
+
+    // Capture the old role identities before setupFormation destroys the player objects
+    const oldGiveGoARole = giveAndGoA?.displayRole || giveAndGoA?.role || null;
+    const oldGiveGoBRole = giveAndGoB?.displayRole || giveAndGoB?.role || null;
+    const oldOverlapWingerRole = overlapWinger?.displayRole || overlapWinger?.role || null;
+    const oldOverlapFbRole = overlapFullback?.displayRole || overlapFullback?.role || null;
+
+    const center = new THREE.Vector3(0, 0, 0);
+    // Place ball at the play initiator based on template
+    let startPos = center.clone();
+    if (activePracticeTemplate === 'OVERLAP' && overlapWinger) {
+      startPos.copy(overlapWinger.homePos);
+    } else if (activePracticeTemplate === 'GIVE_AND_GO' && giveAndGoA) {
+      startPos.copy(giveAndGoA.homePos);
+    } else if (practicePlayerTargets.size > 0) {
+      const firstEntry = Array.from(practicePlayerTargets.entries())[0];
+      if (firstEntry) startPos.copy(firstEntry[0].pos);
+    }
+    // Reset FSMs for fresh rep
+    if (activePracticeTemplate === 'GIVE_AND_GO') resetGiveGoFSM();
+    if (activePracticeTemplate === 'OVERLAP') resetOverlapFSM();
+
+    startSoccerRestart('KICK_OFF', 'A', startPos.x, startPos.z, 'PRACTICE RESTART');
+    relocateToFormation();
+    for (const p of players) {
+      p.pos.copy(p.homePos);
+      p.mesh.position.copy(p.pos);
+    }
+
+    // Re-match key player references to the newly created player objects by role
+    const teamAPlayers = players.filter((p: any) => p.team === 'A');
+    const findByRole = (role: string | null) => role ? teamAPlayers.find((p: any) => (p.displayRole || p.role) === role) || null : null;
+
+    if (activePracticeTemplate === 'GIVE_AND_GO') {
+      // Use smart role-based matching (CM/ST) rather than stale old roles
+      const ggEntries: Array<[any, THREE.Vector3]> = teamAPlayers
+        .filter((p: any) => !isGoalkeeper(p))
+        .map((p: any) => [p, p.homePos.clone()] as [any, THREE.Vector3]);
+      if (ggEntries.length >= 2) {
+        const pick = pickGiveGoPlayers(ggEntries);
+        giveAndGoA = pick.a;
+        giveAndGoB = pick.b;
+      } else {
+        giveAndGoA = findByRole(oldGiveGoARole);
+        giveAndGoB = findByRole(oldGiveGoBRole);
+      }
+      console.log('[PRACTICE] Re-matched GG players:', 'A=', giveAndGoA?.displayRole, giveAndGoA?.name, 'B=', giveAndGoB?.displayRole, giveAndGoB?.name);
+      if (giveAndGoA) recolorPositionLabel(giveAndGoA, 'rgba(211,47,47,0.75)');
+      if (giveAndGoB) recolorPositionLabel(giveAndGoB, 'rgba(21,101,192,0.75)');
+    } else if (activePracticeTemplate === 'OVERLAP') {
+      overlapWinger = findByRole(oldOverlapWingerRole);
+      overlapFullback = findByRole(oldOverlapFbRole);
+      if (overlapWinger) recolorPositionLabel(overlapWinger, 'rgba(0,137,123,0.75)');
+      if (overlapFullback) recolorPositionLabel(overlapFullback, 'rgba(2,119,189,0.75)');
+    }
+
+    // Rebuild practice targets from fresh routes
+    if (activePracticeRoutes.length > 0) {
+      practicePlayerTargets.clear();
+      for (const r of activePracticeRoutes) {
+        let best: any = null;
+        let bestDist = Infinity;
+        for (const p of players) {
+          if (p.team !== 'A' || isGoalkeeper(p)) continue;
+          const dx = p.pos.x - r.fromX;
+          const dz = p.pos.z - r.fromZ;
+          const d = Math.sqrt(dx * dx + dz * dz);
+          if (d < bestDist && d < 4.0) { bestDist = d; best = p; }
+        }
+        if (best) practicePlayerTargets.set(best, new THREE.Vector3(r.toX, 0.15, r.toZ));
+      }
+      practicePlayActive = practicePlayerTargets.size > 0;
+    }
+
+    beginCurrentRestart();
+  }
+
+  /** Called from the UI after activatePracticePlay — snaps everything into place and redraws routes. */
+  function resetAndStartPracticePlay(
+    routesFn: () => Array<{ fromX: number; fromZ: number; toX: number; toZ: number; color: number }>
+  ) {
+    // 1. Snap all players to their formation home positions
+    relocateToFormation();
+    for (const p of players) {
+      p.pos.copy(p.homePos);
+      p.mesh.position.copy(p.pos);
+    }
+
+    // 2. Recalculate routes from the snapped player positions
+    const freshRoutes = routesFn();
+    activePracticeRoutes = freshRoutes;
+
+    // 3. Re-match routes to actual player objects now that positions are snapped
+    practicePlayerTargets.clear();
+    practiceReachedTargets.clear();
+    for (const r of freshRoutes) {
+      let best: any = null;
+      let bestDist = Infinity;
+      for (const p of players) {
+        if (p.team !== 'A' || isGoalkeeper(p)) continue;
+        const dx = p.pos.x - r.fromX;
+        const dz = p.pos.z - r.fromZ;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        if (d < bestDist && d < 4.0) { bestDist = d; best = p; }
+      }
+      if (best) practicePlayerTargets.set(best, new THREE.Vector3(r.toX, 0.15, r.toZ));
+    }
+    practicePlayActive = practicePlayerTargets.size > 0;
+
+    // Re-init pattern-specific player roles from freshly matched targets
+    if (activePracticeTemplate === 'OVERLAP') {
+      const entries = Array.from(practicePlayerTargets.entries());
+      entries.sort((a, b) => (b[1].x - b[0].pos.x) - (a[1].x - a[0].pos.x));
+      if (entries.length >= 2) { overlapFullback = entries[0][0]; overlapWinger = entries[1][0]; }
+    } else if (activePracticeTemplate === 'GIVE_AND_GO') {
+      const entries = Array.from(practicePlayerTargets.entries());
+      if (entries.length >= 2) {
+        const pick = pickGiveGoPlayers(entries);
+        giveAndGoA = pick.a;
+        giveAndGoB = pick.b;
+        console.log('[GG] resetAndStart picked A=', giveAndGoA?.displayRole, giveAndGoA?.name, 'B=', giveAndGoB?.displayRole, giveAndGoB?.name);
+      }
+    } else if (activePracticeTemplate === 'THIRD_MAN_RUN') {
+      const entries = Array.from(practicePlayerTargets.entries());
+      entries.sort((a, b) => b[1].x - a[1].x);
+      if (entries.length >= 3) { thirdManC = entries[0][0]; thirdManB = entries[1][0]; thirdManA = entries[2][0]; }
+    } else if (activePracticeTemplate === 'SWITCH_OF_PLAY') {
+      const entries = Array.from(practicePlayerTargets.entries());
+      if (entries.length >= 2) { switchCarrier = entries[0][0]; switchTarget = entries[1][0]; }
+    }
+
+    // 4. Draw route arrows on the field
+    for (const obj of practiceRouteObjects) scene.remove(obj);
+    practiceRouteObjects = [];
+    for (const r of freshRoutes) {
+      const dx = r.toX - r.fromX;
+      const dz = r.toZ - r.fromZ;
+      const len = Math.sqrt(dx * dx + dz * dz);
+      if (len < 0.1) continue;
+      const dir = new THREE.Vector3(dx, 0, dz).normalize();
+      const arrow = new THREE.ArrowHelper(
+        dir,
+        new THREE.Vector3(r.fromX, 0.18, r.fromZ),
+        len,
+        r.color,
+        Math.min(0.9, len * 0.28),
+        Math.min(0.45, len * 0.14),
+      );
+      scene.add(arrow);
+      practiceRouteObjects.push(arrow);
+    }
+
+    // 4b. OVERLAP extra visuals: zones, curved run, labels, decision markers
+    //     Only draw if not already present (they persist across rep resets)
+    if (activePracticeTemplate === 'OVERLAP' && overlapWinger && overlapFullback && practiceOverlayObjects.length === 0) {
+      const wingerRole = (overlapWinger.displayRole || overlapWinger.role || '').toString().toUpperCase();
+      const side: 'L' | 'R' = (wingerRole === 'LM' || wingerRole === 'LW') ? 'L' : 'R';
+      drawOverlapPracticeVisuals(overlapWinger, overlapFullback, side);
+      recolorPositionLabel(overlapWinger, 'rgba(0,137,123,0.75)');
+      recolorPositionLabel(overlapFullback, 'rgba(2,119,189,0.75)');
+    }
+    if (activePracticeTemplate === 'OVERLAP') resetOverlapFSM();
+
+    // 4c. GIVE_AND_GO extra visuals
+    if (activePracticeTemplate === 'GIVE_AND_GO' && giveAndGoA && giveAndGoB && practiceOverlayObjects.length === 0) {
+      drawGiveGoPracticeVisuals(giveAndGoA, giveAndGoB);
+      recolorPositionLabel(giveAndGoA, 'rgba(211,47,47,0.75)');
+      recolorPositionLabel(giveAndGoB, 'rgba(21,101,192,0.75)');
+    }
+    if (activePracticeTemplate === 'GIVE_AND_GO') resetGiveGoFSM();
+
+    // 5. Place ball at the play initiator and begin play
+    let startPos = new THREE.Vector3(0, 0, 0);
+    if (activePracticeTemplate === 'OVERLAP' && overlapWinger) {
+      startPos.copy(overlapWinger.pos);
+    } else if (activePracticeTemplate === 'GIVE_AND_GO' && giveAndGoA) {
+      startPos.copy(giveAndGoA.pos);
+    } else if (practicePlayerTargets.size > 0) {
+      const firstEntry = Array.from(practicePlayerTargets.entries())[0];
+      if (firstEntry) startPos.copy(firstEntry[0].pos);
+    }
+    // Move ball to the initiator
+    ballState.pos.set(startPos.x, 0.3, startPos.z);
+    ballState.vel.set(0, 0, 0);
+    ballState.isFlying = false;
+    ballState.isRolling = false;
+    ballState.heldBy = null;
+    ballState.lastHeldBy = null;
+    ballGroup.position.copy(ballState.pos);
+
+    // Set game state for restart
+    gameState.isLive = false;
+    gameState.isKickoff = true;
+    gameState.kickoffState = 'READY';
+    gameState.status = 'PLAYING';
+    soccerRestart.type = 'KICK_OFF';
+    soccerRestart.team = 'A';
+
+    beginCurrentRestart();
+  }
+
   return {
     setLighting: (preset: string) => {
       const key = preset as keyof typeof LIGHTING_PRESETS;
@@ -15401,6 +17004,7 @@ export function initGame(container: HTMLElement) {
       scoreBug.style.display = (visible || splashSceneMode) ? 'none' : 'flex';
       _miniMapMenuUp = visible || splashSceneMode;
       applyMiniMapVisibility();
+      applyPositionLabelVisibility();
       // Reset lighting to NOON when returning to menu so the attract-mode
       // scene isn't stuck on a dark NIGHT or LATE preset.
       if (visible) {
@@ -15433,6 +17037,7 @@ export function initGame(container: HTMLElement) {
       applyMiniMapVisibility();
       applyFPSVisibility();
       applyAIStateOverlayVisibility();
+      applyPositionLabelVisibility();
       applyPauseUI();
       updateTimerDisplay();
     },
@@ -15447,9 +17052,15 @@ export function initGame(container: HTMLElement) {
     },
     setShowPositionLabels: (visible: boolean) => {
       showPositionLabels = !!visible;
-      players.forEach((p: any) => {
-        if (p.positionLabel) p.positionLabel.visible = showPositionLabels;
-      });
+      applyPositionLabelVisibility();
+    },
+    setShowAIStateLabels: (visible: boolean) => {
+      showAIStateLabels = !!visible;
+      applyPositionLabelVisibility();
+      // Immediately draw all sprites when toggled on so there's no 180ms blank gap
+      if (showAIStateLabels) {
+        for (const p of players) updateAIStateLabelSprite(p);
+      }
     },
     startKickoffPresentation: (autoKick: boolean = true) => {
       startKickoffPresentationSequence(autoKick);
@@ -15526,18 +17137,29 @@ export function initGame(container: HTMLElement) {
     setHotSeatMode: (enabled: boolean) => { gameState.hotSeatMode = enabled; },
     setPracticeMode: (enabled: boolean) => {
       practiceModeEnabled = enabled;
+      gameState.practiceModeEnabled = enabled; // Synchronize with the state object the UI reads
       updateTimerDisplay();
       if (enabled) {
+        _practiceRepCount = 0;
+        gameState._practiceRepCount = 0;
         showPositionLabels = true;
         players.forEach((p: any) => { if (p.positionLabel) p.positionLabel.visible = true; });
       } else {
         practicePlayActive = false;
         practicePlayerTargets.clear();
+        for (const obj of practiceRouteObjects) scene.remove(obj);
+        practiceRouteObjects = [];
+        for (const obj of practiceOverlayObjects) scene.remove(obj);
+        practiceOverlayObjects = [];
       }
     },
     drawPracticeRoutes: (routes: Array<{ fromX: number; fromZ: number; toX: number; toZ: number; color: number }>) => {
+      activePracticeRoutes = routes;
       for (const obj of practiceRouteObjects) scene.remove(obj);
       practiceRouteObjects = [];
+      // Clear persistent overlays too (they'll be redrawn if the new play needs them)
+      for (const obj of practiceOverlayObjects) scene.remove(obj);
+      practiceOverlayObjects = [];
       for (const r of routes) {
         const dx = r.toX - r.fromX;
         const dz = r.toZ - r.fromZ;
@@ -15557,8 +17179,8 @@ export function initGame(container: HTMLElement) {
       }
     },
     clearPracticeRoutes: () => {
-      for (const obj of practiceRouteObjects) scene.remove(obj);
-      practiceRouteObjects = [];
+      // NOTE: We no longer clear objects here so they persist throughout the session
+      // until a new play is drawn or practice mode is exited.
       practicePlayActive = false;
       practicePlayerTargets.clear();
       practiceReachedTargets.clear();
@@ -15566,9 +17188,16 @@ export function initGame(container: HTMLElement) {
     setPracticePlayCompleteCallback: (cb: (() => void) | null) => {
       practicePlayCompleteCallback = cb;
     },
-    activatePracticePlay: (routes: Array<{ fromX: number; fromZ: number; toX: number; toZ: number }>) => {
+    activatePracticePlay: (routes: Array<{ fromX: number; fromZ: number; toX: number; toZ: number }>, playTemplate?: any) => {
       practicePlayerTargets.clear();
       practiceReachedTargets.clear();
+      activePracticeTemplate = playTemplate;
+      runningOverlapPattern = false;
+      runningUnderlapPattern = false;
+      runningGiveGoPattern = false;
+      runningSwitchPattern = false;
+      runningThirdManPattern = false;
+
       for (const r of routes) {
         let best: any = null;
         let bestDist = Infinity;
@@ -15577,16 +17206,119 @@ export function initGame(container: HTMLElement) {
           const dx = p.pos.x - r.fromX;
           const dz = p.pos.z - r.fromZ;
           const d = Math.sqrt(dx * dx + dz * dz);
-          if (d < bestDist && d < 1.0) { bestDist = d; best = p; }
+          if (d < bestDist && d < 4.0) { bestDist = d; best = p; }
         }
         if (best) practicePlayerTargets.set(best, new THREE.Vector3(r.toX, 0.15, r.toZ));
       }
       practicePlayActive = practicePlayerTargets.size > 0;
+
+      // Pattern Init Logic
+      if (activePracticeTemplate === 'OVERLAP') {
+        // Find Winger (the one with the ball at start usually, or closest to ball)
+        // Find Fullback (the one with the longest forward route usually)
+        const entries = Array.from(practicePlayerTargets.entries());
+        // Sort by how far they move forward
+        entries.sort((a, b) => {
+          const ad = a[1].x - a[0].pos.x;
+          const bd = b[1].x - b[0].pos.x;
+          return bd - ad;
+        });
+        if (entries.length >= 2) {
+          overlapFullback = entries[0][0];
+          overlapWinger = entries[1][0];
+        }
+        // Draw overlap practice visuals (zones, curved run, labels, etc.)
+        if (overlapWinger && overlapFullback) {
+          const wr = (overlapWinger.displayRole || overlapWinger.role || '').toString().toUpperCase();
+          const sd: 'L' | 'R' = (wr === 'LM' || wr === 'LW') ? 'L' : 'R';
+          drawOverlapPracticeVisuals(overlapWinger, overlapFullback, sd);
+          recolorPositionLabel(overlapWinger, 'rgba(0,137,123,0.75)');
+          recolorPositionLabel(overlapFullback, 'rgba(2,119,189,0.75)');
+          resetOverlapFSM();
+        }
+      } else if (activePracticeTemplate === 'UNDERLAP') {
+        const entries = Array.from(practicePlayerTargets.entries());
+        entries.sort((a, b) => {
+          const ad = a[1].x - a[0].pos.x;
+          const bd = b[1].x - b[0].pos.x;
+          return bd - ad;
+        });
+        if (entries.length >= 2) {
+          underlapFullback = entries[0][0];
+          underlapWinger = entries[1][0];
+        }
+      } else if (activePracticeTemplate === 'THIRD_MAN_RUN') {
+        const entries = Array.from(practicePlayerTargets.entries());
+        entries.sort((a, b) => b[1].x - a[1].x); // C is deepest
+        if (entries.length >= 3) {
+          thirdManC = entries[0][0];
+          thirdManB = entries[1][0];
+          thirdManA = entries[2][0];
+        }
+      } else if (activePracticeTemplate === 'GIVE_AND_GO') {
+        const entries = Array.from(practicePlayerTargets.entries());
+        if (entries.length >= 2) {
+          const pick = pickGiveGoPlayers(entries);
+          giveAndGoA = pick.a;
+          giveAndGoB = pick.b;
+        }
+        if (giveAndGoA && giveAndGoB) {
+          drawGiveGoPracticeVisuals(giveAndGoA, giveAndGoB);
+          recolorPositionLabel(giveAndGoA, 'rgba(211,47,47,0.75)');
+          recolorPositionLabel(giveAndGoB, 'rgba(21,101,192,0.75)');
+          resetGiveGoFSM();
+        }
+      } else if (activePracticeTemplate === 'SWITCH_OF_PLAY') {
+        const entries = Array.from(practicePlayerTargets.entries());
+        // Carrier is on one side, target on the other
+        if (entries.length >= 2) {
+          switchCarrier = entries[0][0];
+          switchTarget = entries[1][0];
+        }
+      }
     },
     deactivatePracticePlay: () => {
       practicePlayActive = false;
       practicePlayerTargets.clear();
       practiceReachedTargets.clear();
+      // Reset any coloured position labels back to default
+      for (const p of players) recolorPositionLabel(p, null);
+    },
+    restartPracticeRep,
+    resetAndStartPracticePlay,
+    getPracticePlayActive: () => practicePlayActive,
+    getActivePracticePlayTemplate: () => activePracticeTemplate,
+    getOverlapFSMState: () => ({ ..._overlapFSM }),
+    getGiveGoFSMState: () => ({ ..._giveGoFSM }),
+    recalculatePracticeRoutes: (getPlayRoutesFn: (template: string, players: any[]) => any[]) => {
+      if (!practicePlayActive || !activePracticeTemplate) return;
+      const routes = getPlayRoutesFn(activePracticeTemplate, players);
+      activePracticeRoutes = routes;
+      for (const obj of practiceRouteObjects) scene.remove(obj);
+      practiceRouteObjects = [];
+      for (const r of routes) {
+        const dx = r.toX - r.fromX;
+        const dz = r.toZ - r.fromZ;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.1) continue;
+        const dir = new THREE.Vector3(dx, 0, dz).normalize();
+        const arrow = new THREE.ArrowHelper(
+          dir,
+          new THREE.Vector3(r.fromX, 0.18, r.fromZ),
+          len,
+          r.color,
+          Math.min(0.9, len * 0.28),
+          Math.min(0.45, len * 0.14),
+        );
+        scene.add(arrow);
+        practiceRouteObjects.push(arrow);
+      }
+      // Re-draw overlap visuals only if they were cleared (e.g. play switch)
+      if (activePracticeTemplate === 'OVERLAP' && overlapWinger && overlapFullback && practiceOverlayObjects.length === 0) {
+        const wr = (overlapWinger.displayRole || overlapWinger.role || '').toString().toUpperCase();
+        const sd: 'L' | 'R' = (wr === 'LM' || wr === 'LW') ? 'L' : 'R';
+        drawOverlapPracticeVisuals(overlapWinger, overlapFullback, sd);
+      }
     },
     setOnReset: (cb: (() => void) | null) => { onResetCallback = cb; },
     getOnReset: () => onResetCallback,
@@ -15761,7 +17493,9 @@ export function initGame(container: HTMLElement) {
       setupFormation();
     },
     getPlayers: () => players.map(p => ({
+      id: p.id,
       role: p.role,
+      displayRole: p.displayRole,
       team: p.team,
       name: p.name,
       stats: p.stats,
@@ -15771,6 +17505,60 @@ export function initGame(container: HTMLElement) {
         z: p.pos?.z ?? 0,
       },
     })),
+    getGameState: () => ({ 
+      ...gameState, 
+      practiceStats: _practiceReport, 
+      _practiceRepCount 
+    }),
+    exportPracticeReport: () => {
+      const summaryData = {
+        generatedAt: new Date().toISOString(),
+        team: gameState.offensiveTeam,
+        playKey: (gameState as any).activePracticePlayTemplate || "default",
+        reps: _practiceReport.totalReps,
+        totals: {
+          passAtt: _practiceReport.totalPasses,
+          passComp: _practiceReport.completions,
+          shots: _practiceReport.shots,
+          shotsOnTarget: _practiceReport.shotsOnTarget,
+          recoveries: 0,
+          interceptions: 0, 
+          turnovers: _practiceReport.turnovers,
+          progressivePasses: _practiceReport.progressivePasses,
+          boxEntries: _practiceReport.boxEntries
+        },
+        repHistory: _practiceRepHistory,
+        summary: {
+           sampleReps: _practiceReport.totalReps,
+           passPct: _practiceReport.totalPasses > 0 ? Math.round((_practiceReport.completions / _practiceReport.totalPasses) * 1000) / 10 : 0,
+           sotPct: _practiceReport.shots > 0 ? Math.round((_practiceReport.shotsOnTarget / _practiceReport.shots) * 1000) / 10 : 0,
+           turnoversPerRep: Math.round((_practiceReport.turnovers / _practiceReport.totalReps) * 10) / 10 || 0,
+           progressivePerRep: Math.round((_practiceReport.progressivePasses / _practiceReport.totalReps) * 10) / 10 || 0,
+           profile: "balanced",
+           recommendations: [
+             "Keep current tuning and test under stronger defensive pressure.",
+             "Tighten shot trigger to improve shot-on-target quality."
+           ]
+        }
+      };
+      const blob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `practice-report-${gameState.offensiveTeam}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    updateGameState: (patch: any) => {
+      Object.assign(gameState, patch);
+      if (patch.practiceModeEnabled !== undefined) {
+        practiceModeEnabled = patch.practiceModeEnabled;
+      }
+    },
+    setPracticeModeEnabled: (val: boolean) => { 
+      practiceModeEnabled = val; 
+      gameState.practiceModeEnabled = val;
+    },
     isPracticePlayActive: () => practicePlayActive,
     getRenderFps: () => smoothedFPS,
     getOrbitViewTexture: () => orbitRenderTarget.texture,

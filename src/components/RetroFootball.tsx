@@ -4,6 +4,7 @@ import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
 import MatchHistoryDashboard from './MatchHistoryDashboard';
 import LiveTelemetry from './LiveTelemetry';
+import TuningLab from './TuningLab';
 import SeasonHub from './SeasonHub';
 import {
   buildDriftDashboard,
@@ -40,7 +41,7 @@ function applyPracticePlay(
   const routes = getPlayRoutes(play, allPlayers);
   // 5. Draw arrows + execute play
   gameRef.current?.drawPracticeRoutes?.(routes);
-  gameRef.current?.activatePracticePlay?.(routes);
+  gameRef.current?.activatePracticePlay?.(routes, play.template);
 }
 
 const MLS_TEAM_OPTIONS = [
@@ -221,6 +222,7 @@ const RetroFootball: React.FC = () => {
   const [isGrassVisible, setIsGrassVisible] = useState(true);
   const [showAIStateOverlay, setShowAIStateOverlay] = useState(false);
   const [showPositionLabels, setShowPositionLabels] = useState(false);
+  const [showAIStateLabels, setShowAIStateLabels] = useState(false);
   const [showAnimInspector, setShowAnimInspector] = useState(false);
   const [teamAKit, setTeamAKit] = useState<'home' | 'away'>('home');
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
@@ -234,7 +236,7 @@ const RetroFootball: React.FC = () => {
   const [selectedPracticePlay, setSelectedPracticePlay] = useState<string | null>(null);
   const [practiceActive, setPracticeActive] = useState(false);
   const [practiceFormation, setPracticeFormation] = useState<string>(PRACTICE_PLAYS[0].formation);
-  const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('STANDARD');
+  const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('AGGRESSIVE');
   const [showPracticeComplete, setShowPracticeComplete] = useState(false);
   const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
@@ -1591,13 +1593,13 @@ const RetroFootball: React.FC = () => {
       {/* In-game Practice Panel */}
       {gameMode === 'practice' && hasActiveMatchSession && (() => {
         const currentPlay = PRACTICE_PLAYS.find(p => p.key === selectedPracticePlay);
-        const clubGroups = PRACTICE_PLAYS.reduce<Record<string, typeof PRACTICE_PLAYS>>((acc, play) => {
-          if (!acc[play.club]) acc[play.club] = [];
-          acc[play.club].push(play);
+        const categoryGroups = PRACTICE_PLAYS.reduce<Record<string, typeof PRACTICE_PLAYS>>((acc, play) => {
+          if (!acc[play.category]) acc[play.category] = [];
+          acc[play.category].push(play);
           return acc;
         }, {});
         return (
-          <div className="absolute top-2 right-2 z-30 bg-black/70 border border-emerald-500/40 rounded-lg p-3 flex flex-col gap-2 w-52 text-white">
+          <div className="absolute top-2 right-[calc(0.5rem+150px)] z-30 bg-black/70 border border-emerald-500/40 rounded-lg p-3 flex flex-col gap-2 w-52 text-white">
             <div className="flex justify-between items-center">
               <p className="text-emerald-400 text-[9px] uppercase tracking-widest">Practice</p>
               {practiceActive && (
@@ -1616,6 +1618,7 @@ const RetroFootball: React.FC = () => {
                     setSelectedPracticePlay(null);
                     setPracticeActive(false);
                     gameRef.current?.deactivatePracticePlay?.();
+                    gameRef.current?.drawPracticeRoutes?.([]); // Clear routes
                     return;
                   }
                   const play = PRACTICE_PLAYS.find(p => p.key === key)!;
@@ -1624,13 +1627,25 @@ const RetroFootball: React.FC = () => {
                   setPracticeFormation(play.formation);
                   setShowPositionLabels(true);
                   gameRef.current?.setShowPositionLabels?.(true);
-                  applyPracticePlay(gameRef, play, play.formation, practiceAggressiveness);
+                  // Ensure players are in their formation positions before calculating routes
+                  gameRef.current?.setTeamFormations?.(play.formation, play.formation);
+                  const players = gameRef.current?.getPlayers?.() || [];
+                  const sortedPlayers = [...players].sort((a, b) => (a.id || 0) - (b.id || 0));
+                  const routes = getPlayRoutes(play, sortedPlayers);
+                  gameRef.current?.drawPracticeRoutes?.(routes);
+                  gameRef.current?.activatePracticePlay?.(routes, play.template);
+                  // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start
+                  gameRef.current?.resetAndStartPracticePlay?.(() => {
+                    const freshPlayers = gameRef.current?.getPlayers?.() || [];
+                    const sorted = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
+                    return getPlayRoutes(play, sorted);
+                  });
                 }}
                 className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
               >
                 <option value="none" className="text-white/50 italic">None Selected</option>
-                {Object.entries(clubGroups).map(([club, plays]) => (
-                  <optgroup key={club} label={club}>
+                {Object.entries(categoryGroups).map(([cat, plays]) => (
+                  <optgroup key={cat} label={cat}>
                     {plays.map(play => (
                       <option key={play.key} value={play.key}>{play.label}</option>
                     ))}
@@ -1672,13 +1687,13 @@ const RetroFootball: React.FC = () => {
                 onChange={(e) => {
                   const key = e.target.value as AggressivenessKey;
                   setPracticeAggressiveness(key);
-                  const agg = PRACTICE_AGGRESSIVENESS[key];
+                  const agg = PRACTICE_AGGRESSIVENESS[key] as any;
                   gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
                 }}
                 className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
               >
                 {(Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[]).map(k => (
-                  <option key={k} value={k}>{PRACTICE_AGGRESSIVENESS[k].label}</option>
+                  <option key={k} value={k}>{k}</option>
                 ))}
               </select>
             </div>
@@ -2029,6 +2044,19 @@ const RetroFootball: React.FC = () => {
                         />
                         Show Position Labels
                       </label>
+                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showAIStateLabels}
+                          onChange={(e) => {
+                            const enabled = e.target.checked;
+                            setShowAIStateLabels(enabled);
+                            gameRef.current?.setShowAIStateLabels?.(enabled);
+                          }}
+                          className="accent-white"
+                        />
+                        Show AI State Labels
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -2348,13 +2376,19 @@ const RetroFootball: React.FC = () => {
 
       {/* Press ESC Hint */}
       {!isOptionsOpen && (
-        <div className="absolute top-4 left-4 bg-black/40 px-3 py-1.5 rounded border border-white/10 backdrop-blur-sm pointer-events-none">
-          <p className="text-white/40 text-[9px] uppercase tracking-widest">Press [ESC] for Options</p>
+        <div className="absolute top-4 left-4 flex flex-col gap-4 pointer-events-none">
+          <div className="bg-black/40 px-3 py-1.5 rounded border border-white/10 backdrop-blur-sm ml-[0px]">
+            <p className="text-white/40 text-[9px] uppercase tracking-widest">Press [ESC] for Options</p>
+          </div>
+          
+          <div className="pointer-events-auto ml-[0px]">
+            <TuningLab gameRef={gameRef} />
+          </div>
         </div>
       )}
 
       {/* Bottom-right toggle buttons */}
-      {!showSplash && !isOptionsOpen && (
+      {false && !showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
           <button
             onClick={() => {
