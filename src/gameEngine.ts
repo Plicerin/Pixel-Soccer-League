@@ -1241,12 +1241,6 @@ export function initGame(container: HTMLElement) {
     gameState.message = goalAwardTeam ? 'GOAL!' : message;
     if (goalAwardTeam) {
       armGoalDeadBallLock();
-    } else {
-      // Non-goal restart: stop the ball so it doesn't sail far past the boundary
-      // during the delay.  Reduces the visual teleport when the restart fires.
-      ballState.vel.set(0, 0, 0);
-      ballState.isFlying = false;
-      ballState.isRolling = false;
     }
   }
 
@@ -5930,11 +5924,24 @@ export function initGame(container: HTMLElement) {
         collided = true;
       }
     }
+    
+    else {
+      // Endline walls: bounce during live play and dead-ball
+      if (ballState.pos.x < minX) {
+        ballState.pos.x = minX;
+        ballState.vel.x = Math.abs(ballState.vel.x) * STADIUM_WALL_RESTITUTION;
+        collided = true;
+      } else if (ballState.pos.x > maxX) {
+        ballState.pos.x = maxX;
+        ballState.vel.x = -Math.abs(ballState.vel.x) * STADIUM_WALL_RESTITUTION;
+        collided = true;
+      }
+    }
     // Ball outside goal mouth past the endline: no X bounce — handleSoccerOutOfPlay handles it
 
     // Z-axis (sideline) walls: only bounce during goal dead-ball (net settling).
     // During live play, ball reaching the wall is out of play — handleSoccerOutOfPlay rules it dead.
-    if (isGoalDeadBallActive()) {
+    if (true) { // Sidewall bounce enabled always
       if (ballState.pos.z < minZ) {
         ballState.pos.z = minZ;
         ballState.vel.z = Math.abs(ballState.vel.z) * STADIUM_WALL_RESTITUTION;
@@ -6269,21 +6276,21 @@ export function initGame(container: HTMLElement) {
       cpuShotAimErrorRad: 0.48,
       cpuShotPressureError: 0.15,
     },
-    POSSESSION: {
-      pressureCount: 3,
-      looseBallChasers: 2,
-      chaseSpeedLead: 6.2,
-      chaseSpeedSupport: 5.2,
-      carryBias: 4.2,
-      passChanceFar: 0.88,
-      passChanceNear: 0.72,
-      shootChanceFar: 0.20,
-      shootChanceNear: 0.34,
-      cooldownShoot: 1.6,
-      cooldownPass: 0.14,
-      cpuShotAimErrorRad: 0.40,
-      cpuShotPressureError: 0.08,
-    },
+      POSSESSION: {
+        pressureCount: 3,
+        looseBallChasers: 2,
+        chaseSpeedLead: 6.2,
+        chaseSpeedSupport: 5.2,
+        carryBias: 4.8,
+        passChanceFar: 0.65,
+        passChanceNear: 0.70,
+        shootChanceFar: 0.35,
+        shootChanceNear: 0.36,
+        cooldownShoot: 1.5,
+        cooldownPass: 0.14,
+        cpuShotAimErrorRad: 0.40,
+        cpuShotPressureError: 0.08,
+      },
   };
 
   function getActiveAIStyle() {
@@ -9215,7 +9222,7 @@ export function initGame(container: HTMLElement) {
     // ── Apply Tuning Lab Weights if in Practice ──
     const progressWeight = gameState.practiceModeEnabled
       ? (gameState as any).tuningProgressWeight
-      : THREE.MathUtils.lerp(0.64, 0.92, progressiveBlend) + phaseProgressBoost;
+      : THREE.MathUtils.lerp(0.85, 1.15, progressiveBlend) + phaseProgressBoost;
     const spaceWeight = gameState.practiceModeEnabled
       ? (gameState as any).tuningSpaceWeight
       : THREE.MathUtils.lerp(0.72, 0.48, progressiveBlend) + phaseSpaceBoost;
@@ -9281,7 +9288,7 @@ export function initGame(container: HTMLElement) {
       // Pass is "open" if the lane isn't heavily blocked AND receiver has some space
       const isOpen = lanePressure < 3.8 && receiverDanger < 4 && supportSpace > 1.2;
       // Backward penalty — graduated: any backward pass penalised, deep backs heavily
-      const backwardPenalty = progress < -1 ? (Math.abs(progress) + 0.5) * 2.6 : (progress < 0 ? (Math.abs(progress) + 0.4) * 1.8 : 0);
+      const backwardPenalty = progress < -1 ? (Math.abs(progress) + 0.5) * 4.0 : (progress < 0 ? (Math.abs(progress) + 0.4) * 3.0 : 0);
       // Hard gate: no backward passes inside opponent penalty area — shoot instead
       const carrierInBox = carrierDistToGoal < penaltyDepth && Math.abs(carrier.pos.z) <= penaltyHalfZ;
       if (carrierInBox && progress < 1.0) return; // skip backward/lateral/marginal-forward candidates in the box
@@ -16294,20 +16301,6 @@ export function initGame(container: HTMLElement) {
       }
     }
 
-    // ── Soft sideline clamp: prevent ball from overshooting sideline by more than 2 units ──
-    // Without Z-wall bounce during live play, fast balls can sail far past the sideline
-    // before handleSoccerOutOfPlay catches them, creating a large position jump.
-    if (gameState.isLive && !isGoalDeadBallActive()) {
-      const sideLimit = FIELD_D / 2 + 2.0;
-      if (ballState.pos.z > sideLimit) {
-        ballState.pos.z = sideLimit;
-        ballState.vel.z = 0;
-      } else if (ballState.pos.z < -sideLimit) {
-        ballState.pos.z = -sideLimit;
-        ballState.vel.z = 0;
-      }
-    }
-
     runGoalPlaneMonitor();
 
       // ── Track when lastHeldBy / keeperDistributor change (auto-stamp for expiry) ──
@@ -18106,5 +18099,9 @@ export function initGame(container: HTMLElement) {
     triggerKeeperTraining,
   };
 }
+
+
+
+
 
 
