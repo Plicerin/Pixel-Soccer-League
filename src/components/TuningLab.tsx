@@ -108,7 +108,7 @@ export default function TuningLab({ gameRef }: Props) {
                 // Redraw routes from fresh (snapped) player positions
                 const freshPlayers = gameRef.current?.getPlayers?.() || [];
                 const sortedPlayers = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
-                const routes = getPlayRoutes(play, sortedPlayers);
+                const routes = getPlayRoutes(play, sortedPlayers, gameRef.current?.getTeamAAttackSign?.() ?? 1);
                 gameRef.current?.drawPracticeRoutes?.(routes);
              }
            }}

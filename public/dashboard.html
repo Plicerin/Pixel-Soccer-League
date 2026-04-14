@@ -254,6 +254,14 @@ input[type="file"]{display:none}
   </div>
 </div>
 
+<!-- ══════ BUG #1 — TELEPORTATION ══════ -->
+<div class="panel full-width" id="panelTeleport">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-red)"></span>BUG #1 — TELEPORTATION<button class="copy-btn" onclick="copySection('teleport')">Copy</button></div>
+  <div class="panel-body" id="teleportBody">
+    <p class="dim" style="font-size:.8rem;color:var(--fg3)">Waiting for data…</p>
+  </div>
+</div>
+
 <!-- ══════ 9. MATCH COMPARISON ══════ -->
 <div class="panel" id="panelComparison" style="display:none">
   <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH COMPARISON</div>
@@ -295,14 +303,14 @@ function copySection(key) {
       `Shots / SOT: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
       `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
       `Def Actions: ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
-      `Transitions: ${a.transitions||0} \u2013 ${b.transitions||0}`,
+      `Transitions: ${transA} \u2013 ${transB}`,
       `Saves: ${a.saves} – ${b.saves}`,
       `Shots bar: ${a.shots||0} – ${b.shots||0}`,
       `SOT bar: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
       `Passes bar: ${a.passes||0} – ${b.passes||0}`,
       `Tackles bar: ${a.tackles||0} – ${b.tackles||0}`,
       `Fouls bar: ${a.fouls||0} – ${b.fouls||0}`,
-      `Transitions bar: ${a.transitions||0} – ${b.transitions||0}`,
+      `Transitions bar: ${transA} – ${transB}`,
       `Offsides bar: ${a.offsides||0} – ${b.offsides||0}`,
       `Corners bar: ${a.corners||0} – ${b.corners||0}`,
     ].join('\n');
@@ -521,6 +529,18 @@ function copySection(key) {
     text = [
       `KEEPER EXPERIENCE — ${nameA} vs ${nameB}`,
       ...ke.slice(0,80).map(t=>`[${t.team||'?'}] s:${JSON.stringify(t.state||{})} a:${t.action||'?'} r:${t.reward??'?'}`),
+    ].join('\n');
+  } else if (key === 'teleport') {
+    const tp = D.teleportation || {};
+    const log = tp.log || [];
+    text = [
+      `BUG #1 — TELEPORTATION — ${nameA} vs ${nameB}`,
+      `Teleports detected: ${tp.detected || 0}`,
+      `Teleports reverted: ${tp.reverted || 0}`,
+      `Restart repositions: ${tp.restartRepositions || 0}`,
+      `Total >3-unit jumps: ${log.length}`,
+      '',
+      ...log.map(e => `[${(e.time||0).toFixed(1)}s] jump=${(e.jump||0).toFixed(1)} from=(${e.from?.x?.toFixed(1)},${e.from?.z?.toFixed(1)}) to=(${e.to?.x?.toFixed(1)},${e.to?.z?.toFixed(1)}) ${e.wasReverted ? 'TELEPORT(reverted)' : 'restart'} state=${e.fly?'fly':e.roll?'roll':e.held!=='none'?'held('+e.held+')':'loose'}`),
     ].join('\n');
   } else if (key === 'insights') {
     text = $('insightsBody').innerText || 'No insights';
@@ -763,7 +783,7 @@ function renderOverview() {
     statCard('Shots / SOT', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`),
     statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
     statCard('Def Actions', `${(a.tackles||0)+intA+recA} — ${(b.tackles||0)+intB+recB}`, `T/I/R`),
-    statCard('Transitions', `${a.transitions || 0} — ${b.transitions || 0}`),
+    statCard('Transitions', `${transA} — ${transB}`),
     statCard('Saves', `${a.saves} — ${b.saves}`),
   ].join('');
 
@@ -773,7 +793,7 @@ function renderOverview() {
     compBar('Passes', a.passes || 0, b.passes || 0, 'Passes'),
     compBar('Tackles', a.tackles || 0, b.tackles || 0, 'Tackles'),
     compBar('Fouls', a.fouls || 0, b.fouls || 0, 'Fouls'),
-    compBar('Transitions', a.transitions || 0, b.transitions || 0, 'Transitions'),
+    compBar('Transitions', transA, transB, 'Transitions'),
     compBar('Offsides', a.offsides || 0, b.offsides || 0, 'Offsides'),
     compBar('Corners', a.corners || 0, b.corners || 0, 'Corners'),
   ].join('');
@@ -1714,6 +1734,72 @@ function renderKeeper() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   RENDER: BUG #1 — TELEPORTATION
+   ═══════════════════════════════════════════════════════════ */
+function renderTeleport() {
+  const el = $('teleportBody');
+  if (!el) return;
+  const tp = D?.teleportation;
+  if (!tp) { el.innerHTML = '<p class="dim" style="font-size:.8rem;color:var(--fg3)">No teleportation data — engine may not be reporting yet.</p>'; return; }
+
+  const detected = tp.detected || 0;
+  const reverted = tp.reverted || 0;
+  const restarts = tp.restartRepositions || 0;
+  const log = tp.log || [];
+  const anomalies = log.filter(e => !e.wasReverted === false || e.wasReverted); // non-restart
+  const restartEntries = log.filter(e => !e.wasReverted);
+
+  // Status badge
+  let statusBadge = '';
+  if (detected === 0) {
+    statusBadge = '<span style="color:var(--accent-green);font-weight:700">✅ CLEAN — No teleportation detected</span>';
+  } else if (detected === reverted) {
+    statusBadge = `<span style="color:var(--accent-yellow);font-weight:700">⚠️ ${detected} teleport(s) detected &amp; reverted</span>`;
+  } else {
+    statusBadge = `<span style="color:var(--accent-red);font-weight:700">🚨 ${detected} teleport(s) — ${detected - reverted} NOT reverted!</span>`;
+  }
+
+  let html = `<div style="margin-bottom:10px">${statusBadge}</div>`;
+
+  // Summary stat cards
+  html += '<div class="stat-row" style="margin-bottom:10px">';
+  html += `<div class="stat-card"><div class="label">Teleports</div><div class="value" style="color:${detected > 0 ? 'var(--accent-red)' : 'var(--accent-green)'}">${detected}</div><div class="sub">unexpected jumps</div></div>`;
+  html += `<div class="stat-card"><div class="label">Reverted</div><div class="value" style="color:${reverted > 0 ? 'var(--accent-yellow)' : 'var(--fg3)'}">${reverted}</div><div class="sub">position restored</div></div>`;
+  html += `<div class="stat-card"><div class="label">Restarts</div><div class="value" style="color:var(--fg2)">${restarts}</div><div class="sub">expected repositions</div></div>`;
+  html += `<div class="stat-card"><div class="label">Total Jumps</div><div class="value">${log.length}</div><div class="sub">&gt;3 unit moves</div></div>`;
+  html += '</div>';
+
+  // Log table
+  if (log.length > 0) {
+    html += '<div style="font-size:.72rem;color:var(--fg2);margin-bottom:4px;font-weight:600">TELEPORT LOG (most recent first)</div>';
+    html += '<div style="max-height:220px;overflow-y:auto;font-size:.72rem">';
+    html += '<table style="width:100%;border-collapse:collapse">';
+    html += '<tr style="border-bottom:1px solid var(--bg3);color:var(--fg3);text-align:left"><th style="padding:3px 6px">Time</th><th>Jump</th><th>From</th><th>To</th><th>Type</th><th>State</th></tr>';
+    const sorted = [...log].reverse();
+    for (const entry of sorted) {
+      const t = (entry.time || 0).toFixed(1);
+      const j = (entry.jump || 0).toFixed(1);
+      const fromStr = `(${entry.from?.x?.toFixed(1)||'?'}, ${entry.from?.z?.toFixed(1)||'?'})`;
+      const toStr = `(${entry.to?.x?.toFixed(1)||'?'}, ${entry.to?.z?.toFixed(1)||'?'})`;
+      const typeLabel = entry.wasReverted ? '<span style="color:var(--accent-red)">TELEPORT</span>' : '<span style="color:var(--fg3)">Restart</span>';
+      const stateStr = entry.fly ? 'Flying' : (entry.roll ? 'Rolling' : (entry.held !== 'none' ? `Held(${entry.held})` : 'Loose'));
+      const rowBg = entry.wasReverted ? 'rgba(231,76,90,0.08)' : 'transparent';
+      html += `<tr style="border-bottom:1px solid var(--bg3);background:${rowBg}">`;
+      html += `<td style="padding:3px 6px;font-variant-numeric:tabular-nums">${t}s</td>`;
+      html += `<td style="font-weight:600;color:${entry.jump > 10 ? 'var(--accent-red)' : 'var(--fg)'}">${j}</td>`;
+      html += `<td style="color:var(--fg2)">${fromStr}</td>`;
+      html += `<td style="color:var(--fg2)">${toStr}</td>`;
+      html += `<td>${typeLabel}</td>`;
+      html += `<td style="color:var(--fg3)">${stateStr}</td>`;
+      html += '</tr>';
+    }
+    html += '</table></div>';
+  }
+
+  el.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
    RENDER: 9. TUNING INSIGHTS
    ═══════════════════════════════════════════════════════════ */
 function renderInsights() {
@@ -1907,6 +1993,7 @@ function renderAll() {
   renderSpatial();
   renderPositioning();
   renderKeeper();
+  renderTeleport();
   renderInsights();
   if (prevD) renderComparison();
 }

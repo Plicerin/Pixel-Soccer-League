@@ -61,6 +61,8 @@ type MatchSnapshotLike = {
   teamBName?: string;
   teamAFormation?: string;
   teamBFormation?: string;
+  lastShotTelemetry?: any;
+  lastKeeperKickTelemetry?: any;
 };
 
 type PlayerPositionLike = {

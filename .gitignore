@@ -14,3 +14,6 @@ telemetry-snapshots.json
 keeper-experience.ndjson
 shot-events.ndjson
 tmp-rl-train-log.jsonl
+
+# Temporary patcher scripts
+tmp-*.cjs

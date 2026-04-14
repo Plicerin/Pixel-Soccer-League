@@ -165,6 +165,7 @@ const ROUTE_TEMPLATES: Record<PlayTemplate, TemplateSpec> = {
 export function getPlayRoutes(
   play: PracticePlay,
   players: Array<{ role: string; displayRole?: string; team: string; pos: { x: number; y: number; z: number } }>,
+  attackSign: number = 1,
 ): RouteData[] {
   const template = ROUTE_TEMPLATES[play.template];
   const routes: RouteData[] = [];
@@ -178,7 +179,8 @@ export function getPlayRoutes(
     let dz = 0;
     if (spec.latDir === "out") dz = sideSign * spec.lat;
     else if (spec.latDir === "in") dz = -sideSign * spec.lat;
-    const toX = Math.min(30, p.pos.x + spec.fwd * 1);
+    const rawX = p.pos.x + spec.fwd * attackSign;
+    const toX = attackSign > 0 ? Math.min(30, rawX) : Math.max(-30, rawX);
     const toZ = Math.max(-20, Math.min(20, p.pos.z + dz));
     routes.push({ fromX: p.pos.x, fromZ: p.pos.z, toX, toZ, color: spec.color });
   }

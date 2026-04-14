@@ -209,11 +209,6 @@ const FootballGame: React.FC = () => {
           return newScore;
         });
         setGameState('TOUCHDOWN');
-      }
-
-      // Example: End the game after a certain condition (e.g., after a touchdown, or timer, or user action)
-      // Here, for demo, end after touchdown (TOUCHDOWN state triggers GAME_OVER after 2s)
-      if (gameState === 'TOUCHDOWN') {
         setTimeout(() => handleGameOver(), 2000);
       }
     };
@@ -231,7 +226,7 @@ const FootballGame: React.FC = () => {
         ctx.fillStyle = '#ffffff';
         ctx.font = '40px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('RETRO GRIDIRON', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
+        ctx.fillText('PIXEL SOCCER LEAGUE', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
         ctx.font = '20px monospace';
 
         ctx.fillText('USE ARROWS OR WASD TO MOVE', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
@@ -272,7 +267,7 @@ const FootballGame: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-900 text-white font-mono p-4">
       <div className="mb-6 text-center">
-        <h1 className="text-4xl font-bold tracking-tighter mb-2 italic">RETRO GRIDIRON</h1>
+        <h1 className="text-4xl font-bold tracking-tighter mb-2 italic">PIXEL SOCCER LEAGUE</h1>
         <div className="flex gap-8 justify-center text-xl">
           <div className="flex flex-col">
             <span className="text-xs opacity-50 uppercase">Score</span>

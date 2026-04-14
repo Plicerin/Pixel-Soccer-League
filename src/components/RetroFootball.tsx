@@ -38,7 +38,8 @@ function applyPracticePlay(
   gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
   // 4. Compute routes from fresh player positions
   const allPlayers = gameRef.current?.getPlayers?.() ?? [];
-  const routes = getPlayRoutes(play, allPlayers);
+  const attackSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
+  const routes = getPlayRoutes(play, allPlayers, attackSign);
   // 5. Draw arrows + execute play
   gameRef.current?.drawPracticeRoutes?.(routes);
   gameRef.current?.activatePracticePlay?.(routes, play.template);
@@ -1631,14 +1632,15 @@ const RetroFootball: React.FC = () => {
                   gameRef.current?.setTeamFormations?.(play.formation, play.formation);
                   const players = gameRef.current?.getPlayers?.() || [];
                   const sortedPlayers = [...players].sort((a, b) => (a.id || 0) - (b.id || 0));
-                  const routes = getPlayRoutes(play, sortedPlayers);
+                  const atkSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
+                  const routes = getPlayRoutes(play, sortedPlayers, atkSign);
                   gameRef.current?.drawPracticeRoutes?.(routes);
                   gameRef.current?.activatePracticePlay?.(routes, play.template);
                   // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start
                   gameRef.current?.resetAndStartPracticePlay?.(() => {
                     const freshPlayers = gameRef.current?.getPlayers?.() || [];
                     const sorted = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
-                    return getPlayRoutes(play, sorted);
+                    return getPlayRoutes(play, sorted, gameRef.current?.getTeamAAttackSign?.() ?? 1);
                   });
                 }}
                 className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"

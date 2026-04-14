@@ -15,7 +15,7 @@ const FootballGame3D: React.FC = () => {
       {/* 2D UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-8 z-10 pointer-events-none flex flex-col items-center">
         <h1 className="text-4xl font-black italic tracking-tighter text-white drop-shadow-lg mb-2">
-          RETRO GRIDIRON 3D
+          PIXEL SOCCER LEAGUE
         </h1>
         <div className="flex gap-12 text-2xl">
           <div className="flex flex-col items-center">
