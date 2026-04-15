@@ -235,7 +235,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <select
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {MLS_TEAM_NAMES.map((t) => (
               <option key={t} value={t}>
@@ -277,7 +277,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <select
             value={formation}
             onChange={(e) => onFormationChange(e.target.value)}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {SOCCER_FORMATION_OPTIONS.map((f) => (
               <option key={f} value={f}>
@@ -293,7 +293,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <select
             value={aggressiveness}
             onChange={(e) => onAggressivenessChange(e.target.value as AggressivenessKey)}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {aggressivenessOptions.map((opt) => (
               <option key={opt} value={opt}>
@@ -304,9 +304,9 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
         </div>
 
         {/* Lineup Preview (placeholder) */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 pointer-events-auto">
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Starting XI</label>
-          <div className="bg-zinc-800/50 border border-white/10 rounded p-2 text-white/50 text-[9px]">
+          <div className="bg-zinc-800/50 border border-white/10 rounded p-2 text-white/50 text-[9px] hover:bg-zinc-800 hover:border-white/20 cursor-pointer transition-colors">
             <div className="text-center py-1">Team {team} Starting Lineup</div>
           </div>
         </div>
@@ -315,8 +315,8 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto">
+      <div className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6 pointer-events-auto">
         <div className="text-center">
           <h2 className="text-white text-2xl font-bold uppercase tracking-widest mb-1">Pre-Match Setup</h2>
           <p className="text-white/40 text-[11px] uppercase tracking-widest">Configure teams, formations, and difficulty</p>
