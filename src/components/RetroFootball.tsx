@@ -184,6 +184,7 @@ interface PreMatchSetupScreenProps {
   onTeamBPreMatchKitChange: (kit: number) => void;
   onRandomize: () => void;
   onStartMatch: () => void;
+  onClose: () => void;
 }
 
 const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
@@ -207,6 +208,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onTeamBPreMatchKitChange,
   onRandomize,
   onStartMatch,
+  onClose,
 }) => {
   const aggressivenessOptions = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
 
@@ -365,7 +367,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
       onMouseDown={(e) => {
         // Don't close modal if clicking inside
         if (e.target === e.currentTarget) {
-          setShowPreMatchSetup(false);
+          onClose();
         }
       }}
     >
@@ -2913,6 +2915,7 @@ const RetroFootball: React.FC = () => {
           onTeamBPreMatchKitChange={setTeamBPreMatchKit}
           onRandomize={handlePreMatchSetupRandomize}
           onStartMatch={handlePreMatchSetupStart}
+          onClose={() => setShowPreMatchSetup(false)}
         />
       )}
 
