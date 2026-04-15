@@ -247,21 +247,12 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
       <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4 relative">
         {/* Team Name and Home/Away */}
         <div className="flex items-center gap-3 relative z-50">
-          <select
+          <CustomDropdown
             value={name}
-            onChange={(e) => {
-              e.stopPropagation();
-              onNameChange(e.target.value);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-50"
-          >
-            {MLS_TEAM_NAMES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={onNameChange}
+            options={MLS_TEAM_NAMES}
+            className="flex-1"
+          />
           {onHomeChange && (
             <button
               onClick={() => onHomeChange(!isHome)}
@@ -313,41 +304,21 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
         {/* Formation */}
         <div className="flex flex-col gap-1.5 relative z-40">
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Formation</label>
-          <select
+          <CustomDropdown
             value={formation}
-            onChange={(e) => {
-              e.stopPropagation();
-              onFormationChange(e.target.value);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-40"
-          >
-            {SOCCER_FORMATION_OPTIONS.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
+            onChange={onFormationChange}
+            options={SOCCER_FORMATION_OPTIONS}
+          />
         </div>
 
         {/* Aggressiveness */}
         <div className="flex flex-col gap-1.5 relative z-40">
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
-          <select
+          <CustomDropdown
             value={aggressiveness}
-            onChange={(e) => {
-              e.stopPropagation();
-              onAggressivenessChange(e.target.value as AggressivenessKey);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-40"
-          >
-            {aggressivenessOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+            onChange={onAggressivenessChange}
+            options={aggressivenessOptions}
+          />
         </div>
 
         {/* Lineup Preview (placeholder) */}
@@ -431,6 +402,57 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
 
 // Memoize to prevent dropdown from closing on parent re-renders
 const MemoizedPreMatchSetupScreen = React.memo(PreMatchSetupScreen);
+
+/** Custom Dropdown Component */
+const CustomDropdown: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  className?: string;
+}> = ({ value, onChange, options, className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className="w-full bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer text-left flex justify-between items-center hover:border-white/40 transition-colors"
+      >
+        <span>{value}</span>
+        <span className="text-[8px] ml-2">{isOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-white/20 rounded z-50 max-h-48 overflow-y-auto shadow-lg"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {options.map((option) => (
+            <button
+              key={option}
+              onClick={() => {
+                onChange(option);
+                setIsOpen(false);
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              className={`w-full text-left px-3 py-2 text-[11px] transition-colors ${
+                value === option
+                  ? 'bg-cyan-500/40 text-cyan-200'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
