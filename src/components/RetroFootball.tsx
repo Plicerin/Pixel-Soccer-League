@@ -411,14 +411,27 @@ const CustomDropdown: React.FC<{
   className?: string;
 }> = ({ value, onChange, options, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        onMouseDown={(e) => {
-          e.preventDefault();
+        onClick={(e) => {
           e.stopPropagation();
+          setIsOpen(!isOpen);
         }}
         className="w-full bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer text-left flex justify-between items-center hover:border-white/40 transition-colors"
       >
@@ -428,17 +441,18 @@ const CustomDropdown: React.FC<{
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-white/20 rounded z-50 max-h-48 overflow-y-auto shadow-lg"
+          className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-white/20 rounded z-[9999] max-h-48 overflow-y-auto shadow-lg"
+          onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
           {options.map((option) => (
             <button
               key={option}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onChange(option);
                 setIsOpen(false);
               }}
-              onMouseDown={(e) => e.preventDefault()}
               className={`w-full text-left px-3 py-2 text-[11px] transition-colors ${
                 value === option
                   ? 'bg-cyan-500/40 text-cyan-200'
