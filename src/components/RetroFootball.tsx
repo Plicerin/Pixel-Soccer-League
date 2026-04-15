@@ -595,7 +595,12 @@ const RetroFootball: React.FC = () => {
       if (!bundle) return;
       const live2 = g.getLiveTelemetry?.();
       const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now() };
-      
+
+      // Debug log when phase changes
+      if (isPhaseChange) {
+        console.log(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
+      }
+
       try { dashChannel?.postMessage(payload); } catch (e) {}
       
       // Disk operations are expensive; skip unless phase changed
@@ -671,6 +676,7 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
       gameRef.current = initGame(containerRef.current);
+      (window as any).pslGame = gameRef.current;
       const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
       const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
@@ -2390,7 +2396,7 @@ const RetroFootball: React.FC = () => {
       )}
 
       {/* Bottom-right toggle buttons */}
-      {false && !showSplash && !isOptionsOpen && (
+      {!showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
           <button
             onClick={() => {
@@ -2618,9 +2624,10 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
 
-
     </div>
   );
 };
+
+/** Pass Log Panel Component - displays recent pass telemetry */
 
 export default RetroFootball;
