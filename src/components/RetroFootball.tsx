@@ -162,6 +162,211 @@ const MLS_TEAM_LOGOS: Record<string, string> = {
   'Vancouver Whitecaps':     '/assets/logos/vancouver-whitecaps.png',
 };
 
+/** Pre-Match Setup Screen Component */
+interface PreMatchSetupScreenProps {
+  teamAName: string;
+  teamBName: string;
+  teamAFormation: string;
+  teamBFormation: string;
+  teamAAggressiveness: AggressivenessKey;
+  teamBAggressiveness: AggressivenessKey;
+  teamAHome: boolean;
+  onTeamANameChange: (name: string) => void;
+  onTeamBNameChange: (name: string) => void;
+  onTeamAFormationChange: (formation: string) => void;
+  onTeamBFormationChange: (formation: string) => void;
+  onTeamAAggressivenessChange: (agg: AggressivenessKey) => void;
+  onTeamBAggressivenessChange: (agg: AggressivenessKey) => void;
+  onTeamAHomeChange: (isHome: boolean) => void;
+  onRandomize: () => void;
+  onStartMatch: () => void;
+}
+
+const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
+  teamAName,
+  teamBName,
+  teamAFormation,
+  teamBFormation,
+  teamAAggressiveness,
+  teamBAggressiveness,
+  teamAHome,
+  onTeamANameChange,
+  onTeamBNameChange,
+  onTeamAFormationChange,
+  onTeamBFormationChange,
+  onTeamAAggressivenessChange,
+  onTeamBAggressivenessChange,
+  onTeamAHomeChange,
+  onRandomize,
+  onStartMatch,
+}) => {
+  const aggressivenessOptions = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
+
+  const TeamSetupSection: React.FC<{
+    team: 'A' | 'B';
+    name: string;
+    formation: string;
+    aggressiveness: AggressivenessKey;
+    isHome: boolean;
+    onNameChange: (name: string) => void;
+    onFormationChange: (formation: string) => void;
+    onAggressivenessChange: (agg: AggressivenessKey) => void;
+    onHomeChange?: (isHome: boolean) => void;
+  }> = ({
+    team,
+    name,
+    formation,
+    aggressiveness,
+    isHome,
+    onNameChange,
+    onFormationChange,
+    onAggressivenessChange,
+    onHomeChange,
+  }) => {
+    const teamColor = getTeamColor(name);
+    const kit = MLS_TEAM_KITS[name] ?? MLS_TEAM_KITS['Inter Miami'];
+    const homeKit = kit.home;
+    const shirtColor = `#${homeKit.shirt.toString(16).padStart(6, '0')}`;
+
+    return (
+      <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4">
+        {/* Team Name and Home/Away */}
+        <div className="flex items-center gap-3">
+          <select
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+          >
+            {MLS_TEAM_NAMES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          {onHomeChange && (
+            <button
+              onClick={() => onHomeChange(!isHome)}
+              className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${
+                isHome
+                  ? 'bg-emerald-500/30 border-emerald-400 text-emerald-300'
+                  : 'bg-blue-500/30 border-blue-400 text-blue-300'
+              }`}
+            >
+              {isHome ? '🏠 HOME' : '✈️ AWAY'}
+            </button>
+          )}
+        </div>
+
+        {/* Uniform Preview */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2">
+            <span className="text-white/40 text-[9px] uppercase tracking-widest">Kit</span>
+            <div
+              className="w-12 h-8 rounded border border-white/20"
+              style={{
+                background: `linear-gradient(90deg, ${shirtColor} 50%, white 50%)`,
+              }}
+              title={`Shirt: ${homeKit.shirt.toString(16)} | Pants: ${homeKit.pants.toString(16)}`}
+            />
+          </div>
+        </div>
+
+        {/* Formation */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-white/40 text-[9px] uppercase tracking-widest">Formation</label>
+          <select
+            value={formation}
+            onChange={(e) => onFormationChange(e.target.value)}
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+          >
+            {SOCCER_FORMATION_OPTIONS.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Aggressiveness */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
+          <select
+            value={aggressiveness}
+            onChange={(e) => onAggressivenessChange(e.target.value as AggressivenessKey)}
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+          >
+            {aggressivenessOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Lineup Preview (placeholder) */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-white/40 text-[9px] uppercase tracking-widest">Starting XI</label>
+          <div className="bg-zinc-800/50 border border-white/10 rounded p-2 text-white/50 text-[9px]">
+            <div className="text-center py-1">Team {team} Starting Lineup</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6">
+        <div className="text-center">
+          <h2 className="text-white text-2xl font-bold uppercase tracking-widest mb-1">Pre-Match Setup</h2>
+          <p className="text-white/40 text-[11px] uppercase tracking-widest">Configure teams, formations, and difficulty</p>
+        </div>
+
+        {/* Team Setup Sections */}
+        <div className="grid grid-cols-2 gap-4">
+          <TeamSetupSection
+            team="A"
+            name={teamAName}
+            formation={teamAFormation}
+            aggressiveness={teamAAggressiveness}
+            isHome={teamAHome}
+            onNameChange={onTeamANameChange}
+            onFormationChange={onTeamAFormationChange}
+            onAggressivenessChange={onTeamAAggressivenessChange}
+            onHomeChange={onTeamAHomeChange}
+          />
+          <TeamSetupSection
+            team="B"
+            name={teamBName}
+            formation={teamBFormation}
+            aggressiveness={teamBAggressiveness}
+            isHome={false}
+            onNameChange={onTeamBNameChange}
+            onFormationChange={onTeamBFormationChange}
+            onAggressivenessChange={onTeamBAggressivenessChange}
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onRandomize}
+            className="flex-1 bg-purple-500/30 border border-purple-400 text-purple-200 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-purple-500/50 transition-colors"
+          >
+            🎲 Randomize All
+          </button>
+          <button
+            onClick={onStartMatch}
+            className="flex-1 bg-cyan-500/40 border border-cyan-400 text-cyan-100 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-cyan-500/60 transition-colors"
+          >
+            ⚽ Start Match
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<any>(null);
@@ -179,6 +384,11 @@ const RetroFootball: React.FC = () => {
   const [teamBName, setTeamBName] = useState('LA Galaxy');
   const [teamAFormation, setTeamAFormation] = useState('3-4-3');
   const [teamBFormation, setTeamBFormation] = useState('3-4-3');
+  const [teamAAggressiveness, setTeamAAggressiveness] = useState<AggressivenessKey>('BALANCED');
+  const [teamBAggressiveness, setTeamBAggressiveness] = useState<AggressivenessKey>('BALANCED');
+  const [teamAHome, setTeamAHome] = useState(true);
+  const [showPreMatchSetup, setShowPreMatchSetup] = useState(false);
+  const [cpuVsCpuPending, setCpuVsCpuPending] = useState<{ a: string; b: string } | null>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
@@ -952,6 +1162,27 @@ const RetroFootball: React.FC = () => {
     });
   };
 
+  const handlePreMatchSetupStart = () => {
+    setShowPreMatchSetup(false);
+    // Apply aggressiveness presets to the CPU shot tuning
+    const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
+    const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
+    gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    // Start the match with CPU vs CPU mode
+    handleKickOff('cpu', { a: teamAName, b: teamBName });
+  };
+
+  const handlePreMatchSetupRandomize = () => {
+    const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
+    setTeamAName(shuffled[0]);
+    setTeamBName(shuffled[1]);
+    setTeamAFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
+    setTeamBFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
+    setTeamAAggressiveness(Object.keys(PRACTICE_AGGRESSIVENESS)[Math.floor(Math.random() * 3)] as AggressivenessKey);
+    setTeamBAggressiveness(Object.keys(PRACTICE_AGGRESSIVENESS)[Math.floor(Math.random() * 3)] as AggressivenessKey);
+    setTeamAUniform(Math.floor(Math.random() * 2)); // 0=home, 1=away
+  };
+
   // Keep gamepad menu refs in sync
   handleKickOffRef.current = handleKickOff;
   setSeasonModeActiveRef.current = setSeasonModeActive;
@@ -1440,7 +1671,9 @@ const RetroFootball: React.FC = () => {
               <button
                 onClick={() => {
                   const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-                  handleKickOff('cpu', { a: shuffled[0], b: shuffled[1] });
+                  setTeamAName(shuffled[0]);
+                  setTeamBName(shuffled[1]);
+                  setShowPreMatchSetup(true);
                 }}
                 className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
                   menuFocusIndex === 4 ? 'bg-white/80 text-black border-white' : 'border-white/20 text-white/50 hover:bg-white/10 hover:text-white'
@@ -1927,38 +2160,6 @@ const RetroFootball: React.FC = () => {
                           {style}
                         </button>
                       ))}
-                    </div>
-                    <div className="mt-3 space-y-2 border border-white/10 rounded p-2 bg-zinc-950/40">
-                      <div>
-                        <div className="flex justify-between text-[9px] text-white/60 uppercase tracking-widest mb-1">
-                          <span>CPU Shot Spread</span>
-                          <span>{cpuShotAimErrorRad.toFixed(2)} rad</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={0.45}
-                          step={0.01}
-                          value={cpuShotAimErrorRad}
-                          onChange={(e) => handleCPUShotTuningChange('aimErrorRad', Number(e.target.value))}
-                          className="w-full accent-white"
-                        />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[9px] text-white/60 uppercase tracking-widest mb-1">
-                          <span>Pressure Penalty</span>
-                          <span>{cpuShotPressureError.toFixed(2)}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={0.2}
-                          step={0.01}
-                          value={cpuShotPressureError}
-                          onChange={(e) => handleCPUShotTuningChange('pressureError', Number(e.target.value))}
-                          className="w-full accent-white"
-                        />
-                      </div>
                     </div>
                   </div>
 
@@ -2622,6 +2823,28 @@ const RetroFootball: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pre-Match Setup Screen */}
+      {showPreMatchSetup && (
+        <PreMatchSetupScreen
+          teamAName={teamAName}
+          teamBName={teamBName}
+          teamAFormation={teamAFormation}
+          teamBFormation={teamBFormation}
+          teamAAggressiveness={teamAAggressiveness}
+          teamBAggressiveness={teamBAggressiveness}
+          teamAHome={teamAHome}
+          onTeamANameChange={setTeamAName}
+          onTeamBNameChange={setTeamBName}
+          onTeamAFormationChange={setTeamAFormation}
+          onTeamBFormationChange={setTeamBFormation}
+          onTeamAAggressivenessChange={setTeamAAggressiveness}
+          onTeamBAggressivenessChange={setTeamBAggressiveness}
+          onTeamAHomeChange={setTeamAHome}
+          onRandomize={handlePreMatchSetupRandomize}
+          onStartMatch={handlePreMatchSetupStart}
+        />
       )}
 
     </div>
