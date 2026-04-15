@@ -242,9 +242,9 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
     const pantsColor = `#${selectedKit.pants.toString(16).padStart(6, '0')}`;
 
     return (
-      <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4">
+      <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4 relative">
         {/* Team Name and Home/Away */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative z-50">
           <select
             value={name}
             onChange={(e) => {
@@ -252,7 +252,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
               onNameChange(e.target.value);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
+            className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-50"
           >
             {MLS_TEAM_NAMES.map((t) => (
               <option key={t} value={t}>
@@ -309,7 +309,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
         </div>
 
         {/* Formation */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 relative z-40">
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Formation</label>
           <select
             value={formation}
@@ -318,7 +318,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
               onFormationChange(e.target.value);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-40"
           >
             {SOCCER_FORMATION_OPTIONS.map((f) => (
               <option key={f} value={f}>
@@ -329,7 +329,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
         </div>
 
         {/* Aggressiveness */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 relative z-40">
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
           <select
             value={aggressiveness}
@@ -338,7 +338,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
               onAggressivenessChange(e.target.value as AggressivenessKey);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
+            className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer relative z-40"
           >
             {aggressivenessOptions.map((opt) => (
               <option key={opt} value={opt}>
