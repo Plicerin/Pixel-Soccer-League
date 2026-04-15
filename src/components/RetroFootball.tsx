@@ -247,7 +247,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
         <div className="flex items-center gap-3">
           <select
             value={name}
-            onChange={(e) => onNameChange(e.target.value)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onNameChange(e.target.value);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="flex-1 bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {MLS_TEAM_NAMES.map((t) => (
@@ -309,7 +313,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Formation</label>
           <select
             value={formation}
-            onChange={(e) => onFormationChange(e.target.value)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onFormationChange(e.target.value);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {SOCCER_FORMATION_OPTIONS.map((f) => (
@@ -325,7 +333,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
           <select
             value={aggressiveness}
-            onChange={(e) => onAggressivenessChange(e.target.value as AggressivenessKey)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onAggressivenessChange(e.target.value as AggressivenessKey);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer"
           >
             {aggressivenessOptions.map((opt) => (
@@ -348,8 +360,19 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto">
-      <div className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6 pointer-events-auto">
+    <div
+      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto"
+      onMouseDown={(e) => {
+        // Don't close modal if clicking inside
+        if (e.target === e.currentTarget) {
+          setShowPreMatchSetup(false);
+        }
+      }}
+    >
+      <div
+        className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6 pointer-events-auto"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="text-center">
           <h2 className="text-white text-2xl font-bold uppercase tracking-widest mb-1">Pre-Match Setup</h2>
           <p className="text-white/40 text-[11px] uppercase tracking-widest">Configure teams, formations, and difficulty</p>
