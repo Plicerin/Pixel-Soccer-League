@@ -98,23 +98,31 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   let fz = 0;
 
   // ── FORCE 1: Formation pull ───────────────────────────────────────────
-  // Defenders pulled harder, attackers freer to roam.
-  const homePull = hasPossession
-    ? (0.34 - mindset * 0.14)
-    : (0.7 - mindset * 0.2);
+  // Compute distance to home position once; use for both pull and forward-force scaling
   const toHomeX = homePos.x - playerPos.x;
   const toHomeZ = homePos.z - playerPos.z;
   const homeDist = Math.sqrt(toHomeX * toHomeX + toHomeZ * toHomeZ);
+
+  const homePull = hasPossession
+    ? 0.6  // Restored to pre-test level; forward forces now help anchor
+    : 0.6;
   if (homeDist > 0.5) {
     const cap = Math.min(homeDist, 18);
     fx += (toHomeX / homeDist) * homePull * cap;
     fz += (toHomeZ / homeDist) * homePull * cap;
   }
 
+  // ── PROXIMITY SCALING FACTOR ─────────────────────────────────────────
+  // Forward forces (depth shift & forward run) scale down as players move away from home.
+  // At home (homeDist=0): full forward drive. At 20+ yards away: zero forward drive.
+  // This creates natural settlement back to formation while preserving attacking intent.
+  const proximityToHome = Math.max(0, 1 - (homeDist / 20));
+
   // ── FORCE 1b: Possession depth shift ──────────────────────────────────
   // Nudge the whole team upfield when in possession.
+  // Scales with proximity to home: full strength when at home, fades as players drift away.
   if (hasPossession) {
-    const depthShift = 3 + mindset * 8;
+    const depthShift = (3 + mindset * 8) * proximityToHome;
     fx += attackSign * depthShift;
   }
 
@@ -191,8 +199,10 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   }
 
   // ── FORCE 6: Forward attacking runs ───────────────────────────────────
+  // Scales with proximity to home: full strength at home, fades as players move away.
+  // Encourages aggressive runs from formation while preventing endless drift.
   if (hasPossession && mindset > 0.2) {
-    const runStrength = (mindset - 0.1) * 22;
+    const runStrength = (mindset - 0.1) * 22 * proximityToHome;
     fx += attackSign * runStrength;
   }
 

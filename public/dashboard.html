@@ -557,6 +557,7 @@ let D = null;        // current tuning bundle
 let snap = null;     // current match snapshot
 let live = null;     // current live telemetry
 let prevD = null;    // comparison match data
+let _historyModeActive = false;  // flag: viewing historical match, don't overwrite with live data
 let lastUpdate = 0;
 let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
 let activeTeamStyleTab = 'buildup';
@@ -592,6 +593,7 @@ ch.onmessage = (e) => {
   _msgCount++;
   console.log('[PSL-Dashboard] Received message #' + _msgCount, e.data?.type);
   if (e.data?.type === 'tuning') {
+    if (_historyModeActive) return;  // Don't overwrite historical match with live data
     if (!shouldAcceptLivePayload(e.data)) return;
     D = e.data.bundle;
     snap = e.data.snapshot;
@@ -607,6 +609,7 @@ ch.onmessageerror = (e) => {
 
 // Fallback: poll localStorage + window.opener every 2s
 setInterval(() => {
+  if (_historyModeActive) return;  // Don't poll when viewing historical match
   if (D && Date.now() - lastUpdate < 4000) return;
   // Fallback 1: localStorage (most reliable)
   try {
@@ -820,8 +823,13 @@ function renderTimeline() {
   ctx.strokeStyle = '#2a3248'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l, H - pad.b); ctx.lineTo(W - pad.r, H - pad.b); ctx.stroke();
   ctx.fillStyle = '#565e72'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
-  for (let m = 0; m <= 90; m += 15) {
-    const x = pad.l + (m / 90) * gw;
+
+  // Axis labels based on actual match duration (not hardcoded 90 min)
+  const maxMinutes = halfDur * 2 / 60;  // Convert seconds to minutes
+  const tickInterval = maxMinutes <= 10 ? 2 : (maxMinutes <= 20 ? 5 : 15);
+
+  for (let m = 0; m <= maxMinutes; m += tickInterval) {
+    const x = pad.l + (m / maxMinutes) * gw;
     ctx.fillText(m + "'", x, H - 4);
     ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, H - pad.b);
     ctx.strokeStyle = '#1a1f2e'; ctx.stroke();
@@ -841,8 +849,8 @@ function renderTimeline() {
     ctx.beginPath();
     ctx.moveTo(pad.l, H - pad.b);
     for (const s of shapeA) {
-      const rawT = s.half === 1 ? s.t : halfDur + s.t;
-      const x = pad.l + (rawT / totalDur) * gw;
+      // t is elapsed time since match start
+      const x = pad.l + (s.t / totalDur) * gw;
       const poss = clamp(0.3 + (s.compactness || 5) / 20, 0.1, 0.9);
       ctx.lineTo(x, H - pad.b - poss * gh);
     }
@@ -853,8 +861,8 @@ function renderTimeline() {
 
   // Event markers
   const evtToX = (ev) => {
-    const rawT = ev.half === 1 ? ev.t : halfDur + ev.t;
-    return pad.l + (rawT / totalDur) * gw;
+    // t is elapsed time since match start (not reset at halftime)
+    return pad.l + (ev.t / totalDur) * gw;
   };
 
   for (const ev of events) {
@@ -863,7 +871,13 @@ function renderTimeline() {
     const baseY = isA ? pad.t + gh * 0.25 : pad.t + gh * 0.65;
     const r = 3;
 
-    if (ev.type === 'SHOT') {
+    if (ev.type === 'GOAL') {
+      ctx.beginPath(); ctx.arc(x, baseY, r + 2, 0, Math.PI * 2);
+      ctx.fillStyle = isA ? '#3b82f6' : '#e74c5a';
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, baseY, r + 3, 0, Math.PI * 2); ctx.stroke();
+    } else if (ev.type === 'SHOT') {
       ctx.beginPath(); ctx.arc(x, baseY, r + 1, 0, Math.PI * 2);
       ctx.fillStyle = ev.detail?.style === 'PENALTY' ? '#f97316' : (isA ? '#3b82f6' : '#e74c5a');
       ctx.fill();
@@ -885,8 +899,8 @@ function renderTimeline() {
     const bw = totalDur / buckets;
     const counts = new Array(buckets).fill(0);
     for (const ev of events) {
-      const rawT = ev.half === 1 ? ev.t : halfDur + ev.t;
-      const bi = clamp(Math.floor(rawT / bw), 0, buckets - 1);
+      // t is elapsed time since match start
+      const bi = clamp(Math.floor(ev.t / bw), 0, buckets - 1);
       counts[bi] += (ev.team === 'A' ? 1 : -1);
     }
     ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
@@ -906,14 +920,21 @@ function renderTimeline() {
   ctx.textAlign = 'right';
   ctx.fillText('Team B ↓', W - pad.r, pad.t + gh - 2);
   // Legend icons
-  const lx = pad.l + 60, ly = pad.t + 5;
-  ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(lx, ly, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left'; ctx.fillText('Shot', lx + 6, ly + 3);
-  ctx.fillStyle = '#22c55e'; ctx.fillRect(lx + 35, ly - 2, 4, 4);
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Tackle', lx + 42, ly + 3);
+  const lx = pad.l + 40, ly = pad.t + 5;
+  ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left'; ctx.fillText('Goal', lx + 10, ly + 3);
+  ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(lx + 45, ly, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Shot', lx + 55, ly + 3);
+  ctx.fillStyle = '#22c55e'; ctx.fillRect(lx + 92, ly - 2, 4, 4);
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Tackle', lx + 100, ly + 3);
   ctx.fillStyle = '#eab308';
-  ctx.beginPath(); ctx.moveTo(lx + 82, ly - 3); ctx.lineTo(lx + 85, ly + 2); ctx.lineTo(lx + 79, ly + 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Foul', lx + 88, ly + 3);
+  ctx.beginPath(); ctx.moveTo(lx + 145, ly - 3); ctx.lineTo(lx + 148, ly + 2); ctx.lineTo(lx + 142, ly + 2); ctx.fill();
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Foul', lx + 155, ly + 3);
+  ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(lx + 195, ly - 2); ctx.lineTo(lx + 199, ly + 2);
+  ctx.moveTo(lx + 199, ly - 2); ctx.lineTo(lx + 195, ly + 2); ctx.stroke();
+  ctx.fillStyle = '#8890a0'; ctx.fillText('Intercept', lx + 205, ly + 3);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2067,20 +2088,33 @@ function loadFromHistory() {
   if (idx === '') return;
   try {
     const entry = _matchHistoryCache[Number(idx)];
-    if (!entry?.bundle_json) { alert('Invalid history entry.'); return; }
-    const bundle = typeof entry.bundle_json === 'string' ? JSON.parse(entry.bundle_json) : entry.bundle_json;
-    if (D) {
-      // Load as comparison
-      prevD = bundle;
-      renderComparison();
-      $('statusText').textContent += ' — loaded history match for comparison';
+    if (!entry) { alert('Invalid history entry'); return; }
+
+    // Extract bundle_json
+    let bundle;
+    if (entry.bundle_json) {
+      bundle = typeof entry.bundle_json === 'string' ? JSON.parse(entry.bundle_json) : entry.bundle_json;
     } else {
-      // Load as primary
-      D = bundle;
-      lastUpdate = Date.now();
-      renderAll();
+      // Fallback: construct bundle from database fields
+      bundle = {
+        teamA: { name: entry.team_a_name, score: entry.score_a, shots: entry.shots_a, shotsOnTarget: entry.shots_on_target_a, saves: entry.saves_a },
+        teamB: { name: entry.team_b_name, score: entry.score_b, shots: entry.shots_b, shotsOnTarget: entry.shots_on_target_b, saves: entry.saves_b },
+        metadata: { matchPhase: entry.phase || 'FULL_TIME' }
+      };
     }
-  } catch (e) { alert('Error loading history: ' + e.message); }
+
+    if (!bundle) { alert('No bundle data available'); return; }
+
+    D = bundle;
+    prevD = null;  // Clear comparison
+    _historyModeActive = true;  // Prevent live polling from overwriting
+    lastUpdate = Date.now();
+    setTimeout(renderAll, 0);  // Defer to next frame
+    $('statusText').textContent = `Loaded: ${bundle.teamA.name} ${bundle.teamA.score} - ${bundle.teamB.score} ${bundle.teamB.name}`;
+  } catch (e) {
+    console.error('Error loading history:', e);
+    alert('Error loading history: ' + e.message);
+  }
   sel.value = '';
 }
 

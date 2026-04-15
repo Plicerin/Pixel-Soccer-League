@@ -130,12 +130,12 @@ function telemetryMirrorPlugin(): Plugin {
             latestSummaryAt: latestSummary?.timestamp || (summaryStats ? summaryStats.mtimeMs : null),
             latestSnapshotEventType: latestSnapshot?.eventType || null,
             latestPhase: latestBatch?.matchSnapshot?.phase || latestSnapshot?.match?.phase || latestSummary?.phase || null,
-            latestScore: latestBatch?.matchSnapshot
-              ? { scoreA: latestBatch.matchSnapshot.scoreA ?? 0, scoreB: latestBatch.matchSnapshot.scoreB ?? 0 }
-              : latestSnapshot?.match
-                ? { scoreA: latestSnapshot.match.scoreA ?? 0, scoreB: latestSnapshot.match.scoreB ?? 0 }
-                : latestSummary
-                  ? { scoreA: latestSummary.finalScoreA ?? 0, scoreB: latestSummary.finalScoreB ?? 0 }
+            latestScore: latestSummary
+              ? { scoreA: latestSummary.finalScoreA ?? 0, scoreB: latestSummary.finalScoreB ?? 0 }
+              : latestBatch?.matchSnapshot
+                ? { scoreA: latestBatch.matchSnapshot.scoreA ?? 0, scoreB: latestBatch.matchSnapshot.scoreB ?? 0 }
+                : latestSnapshot?.match
+                  ? { scoreA: latestSnapshot.match.scoreA ?? 0, scoreB: latestSnapshot.match.scoreB ?? 0 }
                   : null,
           };
         });
