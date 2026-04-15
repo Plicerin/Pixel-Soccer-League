@@ -171,6 +171,8 @@ interface PreMatchSetupScreenProps {
   teamAAggressiveness: AggressivenessKey;
   teamBAggressiveness: AggressivenessKey;
   teamAHome: boolean;
+  teamAPreMatchKit: number;
+  teamBPreMatchKit: number;
   onTeamANameChange: (name: string) => void;
   onTeamBNameChange: (name: string) => void;
   onTeamAFormationChange: (formation: string) => void;
@@ -178,6 +180,8 @@ interface PreMatchSetupScreenProps {
   onTeamAAggressivenessChange: (agg: AggressivenessKey) => void;
   onTeamBAggressivenessChange: (agg: AggressivenessKey) => void;
   onTeamAHomeChange: (isHome: boolean) => void;
+  onTeamAPreMatchKitChange: (kit: number) => void;
+  onTeamBPreMatchKitChange: (kit: number) => void;
   onRandomize: () => void;
   onStartMatch: () => void;
 }
@@ -190,6 +194,8 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   teamAAggressiveness,
   teamBAggressiveness,
   teamAHome,
+  teamAPreMatchKit,
+  teamBPreMatchKit,
   onTeamANameChange,
   onTeamBNameChange,
   onTeamAFormationChange,
@@ -197,6 +203,8 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onTeamAAggressivenessChange,
   onTeamBAggressivenessChange,
   onTeamAHomeChange,
+  onTeamAPreMatchKitChange,
+  onTeamBPreMatchKitChange,
   onRandomize,
   onStartMatch,
 }) => {
@@ -208,9 +216,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
     formation: string;
     aggressiveness: AggressivenessKey;
     isHome: boolean;
+    kitIndex: number;
     onNameChange: (name: string) => void;
     onFormationChange: (formation: string) => void;
     onAggressivenessChange: (agg: AggressivenessKey) => void;
+    onKitChange: (kitIndex: number) => void;
     onHomeChange?: (isHome: boolean) => void;
   }> = ({
     team,
@@ -218,15 +228,18 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
     formation,
     aggressiveness,
     isHome,
+    kitIndex,
     onNameChange,
     onFormationChange,
     onAggressivenessChange,
+    onKitChange,
     onHomeChange,
   }) => {
     const teamColor = getTeamColor(name);
     const kit = MLS_TEAM_KITS[name] ?? MLS_TEAM_KITS['Inter Miami'];
-    const homeKit = kit.home;
-    const shirtColor = `#${homeKit.shirt.toString(16).padStart(6, '0')}`;
+    const selectedKit = kitIndex === 0 ? kit.home : kit.away;
+    const shirtColor = `#${selectedKit.shirt.toString(16).padStart(6, '0')}`;
+    const pantsColor = `#${selectedKit.pants.toString(16).padStart(6, '0')}`;
 
     return (
       <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4">
@@ -257,18 +270,38 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           )}
         </div>
 
-        {/* Uniform Preview */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2">
-            <span className="text-white/40 text-[9px] uppercase tracking-widest">Kit</span>
-            <div
-              className="w-12 h-8 rounded border border-white/20"
-              style={{
-                background: `linear-gradient(90deg, ${shirtColor} 50%, white 50%)`,
-              }}
-              title={`Shirt: ${homeKit.shirt.toString(16)} | Pants: ${homeKit.pants.toString(16)}`}
-            />
+        {/* Uniform Kit Selection */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-white/40 text-[9px] uppercase tracking-widest">Kit</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onKitChange(0)}
+              className={`flex-1 py-2 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                kitIndex === 0
+                  ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
+                  : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
+              }`}
+            >
+              HOME
+            </button>
+            <button
+              onClick={() => onKitChange(1)}
+              className={`flex-1 py-2 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                kitIndex === 1
+                  ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
+                  : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
+              }`}
+            >
+              AWAY
+            </button>
           </div>
+          <div
+            className="w-full h-10 rounded border border-white/20"
+            style={{
+              background: `linear-gradient(90deg, ${shirtColor} 50%, ${pantsColor} 50%)`,
+            }}
+            title={`Shirt: ${selectedKit.shirt.toString(16)} | Pants: ${selectedKit.pants.toString(16)}`}
+          />
         </div>
 
         {/* Formation */}
@@ -330,9 +363,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
             formation={teamAFormation}
             aggressiveness={teamAAggressiveness}
             isHome={teamAHome}
+            kitIndex={teamAPreMatchKit}
             onNameChange={onTeamANameChange}
             onFormationChange={onTeamAFormationChange}
             onAggressivenessChange={onTeamAAggressivenessChange}
+            onKitChange={onTeamAPreMatchKitChange}
             onHomeChange={onTeamAHomeChange}
           />
           <TeamSetupSection
@@ -341,9 +376,11 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
             formation={teamBFormation}
             aggressiveness={teamBAggressiveness}
             isHome={false}
+            kitIndex={teamBPreMatchKit}
             onNameChange={onTeamBNameChange}
             onFormationChange={onTeamBFormationChange}
             onAggressivenessChange={onTeamBAggressivenessChange}
+            onKitChange={onTeamBPreMatchKitChange}
           />
         </div>
 
@@ -367,6 +404,9 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   );
 };
 
+// Memoize to prevent dropdown from closing on parent re-renders
+const MemoizedPreMatchSetupScreen = React.memo(PreMatchSetupScreen);
+
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<any>(null);
@@ -389,6 +429,8 @@ const RetroFootball: React.FC = () => {
   const [teamAHome, setTeamAHome] = useState(true);
   const [showPreMatchSetup, setShowPreMatchSetup] = useState(false);
   const [cpuVsCpuPending, setCpuVsCpuPending] = useState<{ a: string; b: string } | null>(null);
+  const [teamAPreMatchKit, setTeamAPreMatchKit] = useState(0); // 0=home, 1=away
+  const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
@@ -2827,7 +2869,7 @@ const RetroFootball: React.FC = () => {
 
       {/* Pre-Match Setup Screen */}
       {showPreMatchSetup && (
-        <PreMatchSetupScreen
+        <MemoizedPreMatchSetupScreen
           teamAName={teamAName}
           teamBName={teamBName}
           teamAFormation={teamAFormation}
@@ -2835,6 +2877,8 @@ const RetroFootball: React.FC = () => {
           teamAAggressiveness={teamAAggressiveness}
           teamBAggressiveness={teamBAggressiveness}
           teamAHome={teamAHome}
+          teamAPreMatchKit={teamAPreMatchKit}
+          teamBPreMatchKit={teamBPreMatchKit}
           onTeamANameChange={setTeamAName}
           onTeamBNameChange={setTeamBName}
           onTeamAFormationChange={setTeamAFormation}
@@ -2842,6 +2886,8 @@ const RetroFootball: React.FC = () => {
           onTeamAAggressivenessChange={setTeamAAggressiveness}
           onTeamBAggressivenessChange={setTeamBAggressiveness}
           onTeamAHomeChange={setTeamAHome}
+          onTeamAPreMatchKitChange={setTeamAPreMatchKit}
+          onTeamBPreMatchKitChange={setTeamBPreMatchKit}
           onRandomize={handlePreMatchSetupRandomize}
           onStartMatch={handlePreMatchSetupStart}
         />
