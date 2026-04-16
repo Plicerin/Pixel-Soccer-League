@@ -5364,7 +5364,8 @@ export function initGame(container: HTMLElement) {
   function goalMonitorLog(msg: string) {
     const ts = (performance.now() / 1000).toFixed(2);
     const entry = `[${ts}] ${msg}`;
-    console.warn('[GoalMonitor]', entry);
+    // Disable console logging — expensive in software rendering
+    // console.warn('[GoalMonitor]', entry);
     goalPlaneMonitor.log.push(entry);
     if (goalPlaneMonitor.log.length > goalPlaneMonitor.maxLog) goalPlaneMonitor.log.shift();
     updateGoalMonitorOverlay();
