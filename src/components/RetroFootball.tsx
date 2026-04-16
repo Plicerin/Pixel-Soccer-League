@@ -1251,25 +1251,43 @@ const RetroFootball: React.FC = () => {
     setSessionMenuLock(true);
     setHotSeatMode(isHotSeat || isTesting);
     setTestingMode(isTesting);
-    telemetryRecorderRef.current?.setContext({
-      teamAName: nextTeamAName,
-      teamBName: nextTeamBName,
-      teamAFormation,
-      teamBFormation,
-    });
-    telemetryRecorderRef.current?.recordEvent('mode_selected', {
-      mode,
-      cpuVsCpu: isCpu,
-      testingMode: isTesting,
-      hotSeatMode: isHotSeat || isTesting,
-      teamAName: nextTeamAName,
-      teamBName: nextTeamBName,
-    });
-    telemetryRecorderRef.current?.recordEvent('selected_teams_locked', {
-      mode,
-      teamAName: nextTeamAName,
-      teamBName: nextTeamBName,
-    });
+
+    const kickoffTelemetry = async () => {
+      const previousRecorder = telemetryRecorderRef.current;
+      if (previousRecorder?.isRecording()) {
+        await previousRecorder.stop();
+      }
+
+      const recorder = new TelemetryRecorder();
+      recorder.setContext({
+        teamAName: nextTeamAName,
+        teamBName: nextTeamBName,
+        teamAFormation,
+        teamBFormation,
+        notes: 'Fresh session at kickoff',
+      });
+      await recorder.start(() => gameRef.current, 500);
+      telemetryRecorderRef.current = recorder;
+
+      await recorder.recordEvent('mode_selected', {
+        mode,
+        cpuVsCpu: isCpu,
+        testingMode: isTesting,
+        hotSeatMode: isHotSeat || isTesting,
+        teamAName: nextTeamAName,
+        teamBName: nextTeamBName,
+      });
+      await recorder.recordEvent('selected_teams_locked', {
+        mode,
+        teamAName: nextTeamAName,
+        teamBName: nextTeamBName,
+      });
+      await recorder.recordEvent('kickoff_presentation_started', {
+        autoKick: true,
+        mode,
+      });
+    };
+    void kickoffTelemetry();
     // AI state overlay is off by default; user can toggle it manually
     gameRef.current?.setHotSeatMode?.(isHotSeat || isTesting);
     gameRef.current?.setTestingMode?.(isTesting);
@@ -1285,10 +1303,6 @@ const RetroFootball: React.FC = () => {
     setIsFullTime(false);
     setFullTimeScore(null);
     try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
-    telemetryRecorderRef.current?.recordEvent('kickoff_presentation_started', {
-      autoKick: true,
-      mode,
-    });
   };
 
   const handlePreMatchSetupStart = () => {

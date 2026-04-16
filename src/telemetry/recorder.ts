@@ -63,6 +63,7 @@ type MatchSnapshotLike = {
   teamBFormation?: string;
   lastShotTelemetry?: any;
   lastKeeperKickTelemetry?: any;
+  lastPassLoopTelemetry?: any;
 };
 
 type PlayerPositionLike = {
@@ -244,6 +245,51 @@ export class TelemetryRecorder {
   private fullTimeCaptured = false;
   private context: TelemetryContext = {};
 
+  private async rotateSessionForMatch(match: MatchSnapshotLike, reason: string) {
+    const previousSessionId = this.sessionId;
+    if (previousSessionId) {
+      await telemetryDb.sessions.update(previousSessionId, { endedAt: Date.now() });
+    }
+
+    this.context = {
+      ...this.context,
+      teamAName: match.teamAName || this.context.teamAName,
+      teamBName: match.teamBName || this.context.teamBName,
+      teamAFormation: match.teamAFormation || this.context.teamAFormation,
+      teamBFormation: match.teamBFormation || this.context.teamBFormation,
+      notes: `Auto-rotated telemetry session (${reason})`,
+    };
+
+    const newSession: TelemetrySession = {
+      id: createId(),
+      startedAt: Date.now(),
+      teamAName: this.context.teamAName,
+      teamBName: this.context.teamBName,
+      teamAFormation: this.context.teamAFormation,
+      teamBFormation: this.context.teamBFormation,
+      notes: this.context.notes,
+    };
+
+    await telemetryDb.sessions.put(newSession);
+    this.sessionId = newSession.id;
+    this.prevMatchSnapshot = null;
+    this.fullTimeCaptured = false;
+    this.lastHeartbeatAt = Date.now();
+
+    await telemetryDb.telemetryEvents.add({
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+      eventType: 'session_rotated',
+      payloadJson: JSON.stringify({
+        reason,
+        previousSessionId,
+        nextSessionId: this.sessionId,
+        teamAName: this.context.teamAName,
+        teamBName: this.context.teamBName,
+      }),
+    });
+  }
+
   isRecording() {
     return this.sessionId !== null && this.timerId !== null;
   }
@@ -290,6 +336,19 @@ export class TelemetryRecorder {
       const now = Date.now();
 
       const match = api.getMatchSnapshot?.() || null;
+
+      if (match && match.teamAName && match.teamBName) {
+        const contextTeamA = this.context.teamAName;
+        const contextTeamB = this.context.teamBName;
+        const teamsMismatch =
+          !!contextTeamA &&
+          !!contextTeamB &&
+          (match.teamAName !== contextTeamA || match.teamBName !== contextTeamB);
+        if (teamsMismatch) {
+          await this.rotateSessionForMatch(match, 'team_name_mismatch');
+        }
+      }
+
       const offense = api.getSelectedPlayerStats?.() || null;
       const defense = api.getSelectedDefensePlayerStats?.() || null;
       const allPlayers = api.getPlayers?.() || [];
@@ -500,6 +559,17 @@ export class TelemetryRecorder {
             });
           }
 
+          const prevPassLoopSeq = (this.prevMatchSnapshot as any).lastPassLoopTelemetry?.seq ?? 0;
+          const nextPassLoopSeq = (match as any).lastPassLoopTelemetry?.seq ?? 0;
+          if (nextPassLoopSeq > prevPassLoopSeq && (match as any).lastPassLoopTelemetry) {
+            eventRows.push({
+              sessionId: this.sessionId,
+              timestamp: now,
+              eventType: 'pass_loop_detected',
+              payloadJson: JSON.stringify((match as any).lastPassLoopTelemetry),
+            });
+          }
+
           if (!!match.isLive !== !!this.prevMatchSnapshot.isLive) {
             const positionSnapshot = toPositionSnapshot(allPlayers);
             eventRows.push({
@@ -603,6 +673,7 @@ export class TelemetryRecorder {
           elapsedInHalf: match.elapsedInHalf,
           lastShotTelemetry: (match as any).lastShotTelemetry || null,
           lastKeeperKickTelemetry: (match as any).lastKeeperKickTelemetry || null,
+          lastPassLoopTelemetry: (match as any).lastPassLoopTelemetry || null,
         };
       }
 

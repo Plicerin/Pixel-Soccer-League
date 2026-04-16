@@ -11,6 +11,7 @@ import { chromium } from 'playwright-core'
 const DEFAULT_URL = 'http://127.0.0.1:5173/'
 const FALLBACK_SERVER_PORT = 4173
 const FALLBACK_SERVER_URL = `http://127.0.0.1:${FALLBACK_SERVER_PORT}/`
+const ALLOWED_GAME_QUANTITIES = [5, 10, 20]
 
 const MLS_TEAMS = [
   'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
@@ -31,9 +32,11 @@ Usage:
   npm run sim:headless -- --games 10
 
 Options:
+  --quantity <n>     Preset game quantity: 5, 10, or 20
   --games <n>        Number of CPU vs CPU games to run (default: 10)
   --url <url>        Existing dev server URL (default: ${DEFAULT_URL})
   --speed <n>        Game speed multiplier (default: 20)
+  --allow-unsafe-speed  Allow speed > 40 (not recommended for telemetry tuning)
   --timeout-ms <ms>  Total timeout for the run
   --verbose          Print browser/server diagnostics
   --headed           Show the browser window
@@ -51,10 +54,12 @@ function parseArgs(argv) {
     games: 10,
     url: DEFAULT_URL,
     speed: 20,
+    maxSafeSpeed: 40,
     timeoutMs: null,
     verbose: false,
     customUrl: false,
     headed: false,
+    allowUnsafeSpeed: false,
     help: false,
   }
 
@@ -64,6 +69,13 @@ function parseArgs(argv) {
       const next = Number(argv[i + 1])
       if (!Number.isFinite(next) || next <= 0) throw new Error('Expected a positive number after --games')
       options.games = Math.floor(next)
+      i += 1
+    } else if (arg === '--quantity') {
+      const next = Number(argv[i + 1])
+      if (!Number.isFinite(next) || !ALLOWED_GAME_QUANTITIES.includes(next)) {
+        throw new Error(`Expected one of ${ALLOWED_GAME_QUANTITIES.join(', ')} after --quantity`)
+      }
+      options.games = next
       i += 1
     } else if (arg === '--url') {
       const next = argv[i + 1]
@@ -76,6 +88,8 @@ function parseArgs(argv) {
       if (!Number.isFinite(next) || next <= 0) throw new Error('Expected a positive number after --speed')
       options.speed = next
       i += 1
+    } else if (arg === '--allow-unsafe-speed') {
+      options.allowUnsafeSpeed = true
     } else if (arg === '--timeout-ms') {
       const next = Number(argv[i + 1])
       if (!Number.isFinite(next) || next <= 0) throw new Error('Expected a positive number after --timeout-ms')
@@ -94,6 +108,13 @@ function parseArgs(argv) {
 
   if (!options.timeoutMs) {
     options.timeoutMs = options.games * 5 * 60 * 1000
+  }
+
+  if (!options.allowUnsafeSpeed && options.speed > options.maxSafeSpeed) {
+    throw new Error(
+      `Requested --speed ${options.speed} exceeds safe telemetry limit ${options.maxSafeSpeed}. ` +
+      `Use --allow-unsafe-speed to override (not recommended for tuning runs).`
+    )
   }
 
   return options

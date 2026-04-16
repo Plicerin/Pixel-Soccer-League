@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "sim:headless": "node scripts/headless-sim.mjs"
+    "sim:headless": "node scripts/headless-sim.mjs",
+    "sim:headless:5": "node scripts/headless-sim.mjs --quantity 5",
+    "sim:headless:10": "node scripts/headless-sim.mjs --quantity 10",
+    "sim:headless:20": "node scripts/headless-sim.mjs --quantity 20"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
