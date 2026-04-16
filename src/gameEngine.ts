@@ -2559,6 +2559,14 @@ export function initGame(container: HTMLElement) {
             queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'RESET', 0.8);
             return true;
           }
+          // Ball already behind endline in regular mode — bounce it out as a goal-kick or corner
+          if (soccerRestart.lastTouchTeam === attackingTeam) {
+            const goalKickDepth = 6 * X_PER_YARD;
+            queueDelayedRestart('GOAL_KICK', defendingTeam, rightGoal ? FIELD_W / 2 - goalKickDepth : -FIELD_W / 2 + goalKickDepth, 0, 'GOAL KICK (ball stuck in net)', outOfPlayRestartDelaySec);
+          } else {
+            queueDelayedRestart('CORNER', attackingTeam, rightGoal ? FIELD_W / 2 : -FIELD_W / 2, z >= 0 ? FIELD_D / 2 : -FIELD_D / 2, 'CORNER (clearance)', outOfPlayRestartDelaySec);
+          }
+          return true;
         // ── Goal-entry validation: ball must cross endline between posts AND under bar ──
         // Interpolate Z and Y at the exact frame the ball crossed the endline.
         const endlineX = rightGoal ? FIELD_W / 2 : -FIELD_W / 2;
