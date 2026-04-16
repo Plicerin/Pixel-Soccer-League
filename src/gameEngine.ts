@@ -822,7 +822,8 @@ export function initGame(container: HTMLElement) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 1);
   renderer.domElement.style.display = 'block';
-  renderer.shadowMap.enabled = true;
+  // Disable shadows — too expensive for software WebGL fallback (SwiftShader)
+  renderer.shadowMap.enabled = false;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
