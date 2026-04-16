@@ -1966204,5 +1966204,3479 @@
         "z": 10.472431786106753
       }
     ]
+  },
+  {
+    "sessionId": "138c3686-ba5d-4f09-8d9c-9558c315e2f2",
+    "timestamp": 1776294993289,
+    "eventType": "full_time_positions_captured",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FULL_TIME",
+      "half": 2,
+      "elapsedInHalf": 300,
+      "isLive": false,
+      "teamAName": "New York City FC",
+      "teamBName": "LAFC"
+    },
+    "positions": [
+      {
+        "name": "Matt Freese",
+        "team": "A",
+        "role": "QB",
+        "x": 29.029425964521383,
+        "y": 0.15,
+        "z": 0.3596487305028924
+      },
+      {
+        "name": "Raul Gustavo Pereira Bicalho",
+        "team": "A",
+        "role": "CB",
+        "x": 10.796932688754334,
+        "y": 0.15,
+        "z": -6.177080950512133
+      },
+      {
+        "name": "Thiago Martins Bueno",
+        "team": "A",
+        "role": "CB",
+        "x": 12.96628562235518,
+        "y": 0.15,
+        "z": -1.9153465095892124
+      },
+      {
+        "name": "Tayvon Gray",
+        "team": "A",
+        "role": "CB",
+        "x": 14.896644182691489,
+        "y": 0.15,
+        "z": 2.7077645696720785
+      },
+      {
+        "name": "Nicolás Fernández",
+        "team": "A",
+        "role": "WR",
+        "x": 6.029587704769936,
+        "y": 0.15,
+        "z": 0.6214612305753779
+      },
+      {
+        "name": "Maxi Moralez",
+        "team": "A",
+        "role": "LB",
+        "x": 6.797039034422303,
+        "y": 0.15,
+        "z": -0.16658601205339602
+      },
+      {
+        "name": "Keaton Parks",
+        "team": "A",
+        "role": "LB",
+        "x": 9.716340014791509,
+        "y": 0.15,
+        "z": 5.0579111401735215
+      },
+      {
+        "name": "Hannes Wolf",
+        "team": "A",
+        "role": "LB",
+        "x": 1.447928817266829,
+        "y": 0.15,
+        "z": 3.25710751017022
+      },
+      {
+        "name": "Agustín Ojeda",
+        "team": "A",
+        "role": "WR",
+        "x": 5.280076009967203,
+        "y": 0.15,
+        "z": 10.564198132773033
+      },
+      {
+        "name": "Alonso Martínez",
+        "team": "A",
+        "role": "RB",
+        "x": -3.877545663823493,
+        "y": 0.15,
+        "z": -3.3736404077987525
+      },
+      {
+        "name": "Malachi Jones",
+        "team": "A",
+        "role": "RB",
+        "x": -2.023622460183858,
+        "y": 0.15,
+        "z": 1.8852332850318796
+      },
+      {
+        "name": "Hugo Lloris",
+        "team": "B",
+        "role": "QB",
+        "x": -28.96808354322549,
+        "y": 0.15,
+        "z": -0.12780972498143706
+      },
+      {
+        "name": "Ryan Hollingshead",
+        "team": "B",
+        "role": "CB",
+        "x": -9.26472636070183,
+        "y": 0.15,
+        "z": 8.726110019553545
+      },
+      {
+        "name": "Aaron Long",
+        "team": "B",
+        "role": "CB",
+        "x": -13.92170887321964,
+        "y": 0.15,
+        "z": -7.767209275094369
+      },
+      {
+        "name": "Ryan Porteous",
+        "team": "B",
+        "role": "CB",
+        "x": -14.621541029875104,
+        "y": 0.15,
+        "z": -2.546651836876209
+      },
+      {
+        "name": "Sergi Palencia Hurtado",
+        "team": "B",
+        "role": "CB",
+        "x": -12.557704494120394,
+        "y": 0.15,
+        "z": 4.517639244599412
+      },
+      {
+        "name": "Mark Delgado",
+        "team": "B",
+        "role": "LB",
+        "x": -5.585947364597523,
+        "y": 0.15,
+        "z": -0.7391899781198958
+      },
+      {
+        "name": "Timothy Tillman",
+        "team": "B",
+        "role": "LB",
+        "x": 4.509640300906814,
+        "y": 0.15,
+        "z": 0.40742321995950026
+      },
+      {
+        "name": "Frankie Amaya",
+        "team": "B",
+        "role": "LB",
+        "x": 9.351006893587234,
+        "y": 0.15,
+        "z": -5.444840552210331
+      },
+      {
+        "name": "Heung Min Son",
+        "team": "B",
+        "role": "WR",
+        "x": 0.7830118789910647,
+        "y": 0.15,
+        "z": -1.4154173041187867
+      },
+      {
+        "name": "Denis Bouanga",
+        "team": "B",
+        "role": "RB",
+        "x": 8.726007764575401,
+        "y": 0.15,
+        "z": 1.902391261697854
+      },
+      {
+        "name": "David Martínez",
+        "team": "B",
+        "role": "WR",
+        "x": 9.121722260438327,
+        "y": 0.15,
+        "z": 10.80118635175808
+      }
+    ]
+  },
+  {
+    "sessionId": "643adc1e-d6da-4c09-bfef-192789d0376b",
+    "timestamp": 1776295018961,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "HALFTIME",
+      "half": 1,
+      "elapsedInHalf": 300,
+      "isLive": false,
+      "teamAName": "Minnesota United",
+      "teamBName": "New England Revolution"
+    },
+    "positions": [
+      {
+        "name": "Matt Turner",
+        "team": "B",
+        "role": "QB",
+        "x": 28.61311735072274,
+        "y": 0.15,
+        "z": 0.5241937424323717
+      },
+      {
+        "name": "Mamadou Fofana",
+        "team": "B",
+        "role": "CB",
+        "x": 18.297311349347257,
+        "y": 0.15,
+        "z": -0.35111385835863784
+      },
+      {
+        "name": "Brandon Bye",
+        "team": "B",
+        "role": "CB",
+        "x": 12.065976181086498,
+        "y": 0.15,
+        "z": -4.665529206740422
+      },
+      {
+        "name": "Matt Polster",
+        "team": "B",
+        "role": "CB",
+        "x": 13.712960152529849,
+        "y": 0.15,
+        "z": 1.8555750227637442
+      },
+      {
+        "name": "Carles Gil Pareja",
+        "team": "B",
+        "role": "WR",
+        "x": 5.812510073063648,
+        "y": 0.15,
+        "z": 3.351946395519759
+      },
+      {
+        "name": "Alhassan Yusuf",
+        "team": "B",
+        "role": "LB",
+        "x": 4.3492089673494565,
+        "y": 0.15,
+        "z": -0.35959540124646494
+      },
+      {
+        "name": "Jackson Yueill",
+        "team": "B",
+        "role": "LB",
+        "x": 9.986565732100953,
+        "y": 0.15,
+        "z": 1.3021465571134927
+      },
+      {
+        "name": "Eric Klein",
+        "team": "B",
+        "role": "LB",
+        "x": 2.811398336493615,
+        "y": 0.15,
+        "z": 7.998613715587772
+      },
+      {
+        "name": "Tomás Chancalay",
+        "team": "B",
+        "role": "WR",
+        "x": 5.555473881989453,
+        "y": 0.15,
+        "z": 12.160183324277279
+      },
+      {
+        "name": "Ignatius Ganago",
+        "team": "B",
+        "role": "RB",
+        "x": -2.2308457846520153,
+        "y": 0.15,
+        "z": -2.523402158327315
+      },
+      {
+        "name": "Leonardo Campana",
+        "team": "B",
+        "role": "RB",
+        "x": -0.901835160042282,
+        "y": 0.15,
+        "z": 2.370270358129814
+      },
+      {
+        "name": "Dayne St. Clair",
+        "team": "A",
+        "role": "QB",
+        "x": -28.62186245110477,
+        "y": 0.15,
+        "z": 0.6284968904759445
+      },
+      {
+        "name": "Bongokuhle Hlongwane",
+        "team": "A",
+        "role": "CB",
+        "x": -11.530976406911229,
+        "y": 0.15,
+        "z": -3.6636131840956523
+      },
+      {
+        "name": "Ho Yeon Jung",
+        "team": "A",
+        "role": "CB",
+        "x": -10.858812394894743,
+        "y": 0.15,
+        "z": 1.823324020010845
+      },
+      {
+        "name": "Michael Boxall",
+        "team": "A",
+        "role": "CB",
+        "x": -6.567508112589985,
+        "y": 0.15,
+        "z": -7.7838133880172
+      },
+      {
+        "name": "Joaquín Pereyra",
+        "team": "A",
+        "role": "WR",
+        "x": -3.3324070797191108,
+        "y": 0.15,
+        "z": 2.8396567932999757
+      },
+      {
+        "name": "Robin Lod",
+        "team": "A",
+        "role": "LB",
+        "x": 1.7851823784604322,
+        "y": 0.15,
+        "z": 2.847608603849022
+      },
+      {
+        "name": "Julian Gressel",
+        "team": "A",
+        "role": "LB",
+        "x": 3.479058896054282,
+        "y": 0.15,
+        "z": 7.132292223776431
+      },
+      {
+        "name": "Jefferson Díaz",
+        "team": "A",
+        "role": "WR",
+        "x": 8.239420504001963,
+        "y": 0.15,
+        "z": 11.875582230191638
+      },
+      {
+        "name": "Joseph Rosales",
+        "team": "A",
+        "role": "WR",
+        "x": -1.920936566083177,
+        "y": 0.15,
+        "z": -1.4688436928127764
+      },
+      {
+        "name": "Kelvin Yeboah",
+        "team": "A",
+        "role": "RB",
+        "x": 9.233970878883435,
+        "y": 0.15,
+        "z": 2.328562888275746
+      },
+      {
+        "name": "David Justin Taylor",
+        "team": "A",
+        "role": "WR",
+        "x": 14.69060847305949,
+        "y": 0.15,
+        "z": 1.3641979734442686
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776295392849,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 32.563500000047846,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -30.690340695598145,
+        "y": 0.15,
+        "z": 3.1937965040378327
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": -16.46251262573055,
+        "y": 0.15,
+        "z": 21.074561478324597
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": -13.369893840729425,
+        "y": 0.15,
+        "z": 13.543912927708526
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": -14.342331752398856,
+        "y": 0.15,
+        "z": 14.081872448177098
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -2.1636282986381294,
+        "y": 0.15,
+        "z": 8.316175492025303
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -6.791849720104676,
+        "y": 0.15,
+        "z": 14.313003797841912
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": -2.3237209552471594,
+        "y": 0.15,
+        "z": 4.639203968792532
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 1.3475525450052737,
+        "y": 0.15,
+        "z": 13.642183734916324
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": -6.001570875062847,
+        "y": 0.15,
+        "z": 11.013492878291448
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -1.1329553111796504,
+        "y": 0.15,
+        "z": 9.164510406848558
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 0.3127879999332155,
+        "y": 0.15,
+        "z": 14.785473438060642
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 29.302044834030006,
+        "y": 0.15,
+        "z": 1.5536980349636265
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 15.263286246222409,
+        "y": 0.15,
+        "z": -5.547460132673534
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 15.201549346637888,
+        "y": 0.15,
+        "z": 2.5688949348950603
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 16.52556905877831,
+        "y": 0.15,
+        "z": 7.095932310211409
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": -3.0381447786527005,
+        "y": 0.15,
+        "z": -2.9373469425515224
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 3.0966468969233496,
+        "y": 0.15,
+        "z": -3.1175150458120604
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 2.852475265507427,
+        "y": 0.15,
+        "z": 0.9385414346722982
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": -7.776444964115621,
+        "y": 0.15,
+        "z": 15.712641481383557
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": -4.377125034860461,
+        "y": 0.15,
+        "z": -7.064023422865113
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -8.829265364867428,
+        "y": 0.15,
+        "z": 2.9988243124361023
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -4.525760995424673,
+        "y": 0.15,
+        "z": 15.187256335663172
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776295570794,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 51.527100000071904,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -28.987429856370092,
+        "y": 0.15,
+        "z": 0.30675713856856934
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": -2.6192225945888543,
+        "y": 0.15,
+        "z": -2.440259526587231
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": -1.9296008630509593,
+        "y": 0.15,
+        "z": -9.791624401920748
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": -8.709242019829121,
+        "y": 0.15,
+        "z": -5.385418584720191
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 7.136218074896117,
+        "y": 0.15,
+        "z": -4.792225508108595
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 7.326260735287362,
+        "y": 0.15,
+        "z": 6.112135544079456
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 12.345297647968684,
+        "y": 0.15,
+        "z": 4.7941921719820435
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 17.750079430087382,
+        "y": 0.15,
+        "z": 8.002878068666519
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 11.809977721251915,
+        "y": 0.15,
+        "z": -1.7475165095574745
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 20.884504278518058,
+        "y": 0.15,
+        "z": 3.275903237476654
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 21.294707145480857,
+        "y": 0.15,
+        "z": 5.168849670499955
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 30.164680420043005,
+        "y": 0.15,
+        "z": 1.3169005257237003
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 20.632742557135455,
+        "y": 0.15,
+        "z": 4.350325033204154
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 19.631191309083526,
+        "y": 0.15,
+        "z": 3.8954678055759397
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 13.423615448088992,
+        "y": 0.15,
+        "z": 7.571559335276003
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 8.22803527140633,
+        "y": 0.15,
+        "z": -6.776587632106426
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 12.752129372004724,
+        "y": 0.15,
+        "z": -2.4028800555204692
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 8.301293702994634,
+        "y": 0.15,
+        "z": 4.2111926845443755
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 3.4623858090881727,
+        "y": 0.15,
+        "z": 4.912256475337456
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 1.3480739987845225,
+        "y": 0.15,
+        "z": -7.125024384095807
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 5.191034934481235,
+        "y": 0.15,
+        "z": -2.0132328982810734
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 3.082280629099136,
+        "y": 0.15,
+        "z": 10.511887117285058
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776295890844,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 86.02290000032134,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -29.02855335964229,
+        "y": 0.15,
+        "z": -0.6446179762188893
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": -11.82527476254561,
+        "y": 0.15,
+        "z": -7.548714584523467
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": -3.4055457359271375,
+        "y": 0.15,
+        "z": -0.28695379885529854
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 0.32913219944659244,
+        "y": 0.15,
+        "z": -6.400947443720841
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 5.268714476756166,
+        "y": 0.15,
+        "z": -4.512583545021689
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 11.001375361169686,
+        "y": 0.15,
+        "z": -1.0223876327058916
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": -1.003398389720927,
+        "y": 0.15,
+        "z": -6.161424031044432
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": -9.591581522993513,
+        "y": 0.15,
+        "z": -0.6764700256051115
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 1.794056713935402,
+        "y": 0.15,
+        "z": 1.038677467027464
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -2.2907416460061234,
+        "y": 0.15,
+        "z": 6.399707360769786
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -9.476785826546047,
+        "y": 0.15,
+        "z": 9.093167664263182
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 28.992119261778075,
+        "y": 0.15,
+        "z": -0.3853338269238466
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 19.102135041967166,
+        "y": 0.15,
+        "z": -3.0818877854013214
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 13.721112484398388,
+        "y": 0.15,
+        "z": -8.813856270391442
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 13.225202335045147,
+        "y": 0.15,
+        "z": -0.43953788116026016
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 0.1708055649194749,
+        "y": 0.15,
+        "z": -5.309712244927086
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 8.114533807577818,
+        "y": 0.15,
+        "z": -7.164890428265999
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 4.128537513089446,
+        "y": 0.15,
+        "z": -9.310934424295349
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 3.6007944170471005,
+        "y": 0.15,
+        "z": 3.772376545938905
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": -3.546525308412826,
+        "y": 0.15,
+        "z": -10.879879143200538
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -1.5356005256004712,
+        "y": 0.15,
+        "z": -5.198739821884828
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -0.24461411754210752,
+        "y": 0.15,
+        "z": 7.491466549171669
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776296218999,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 121.09709999995005,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -29.27334323217853,
+        "y": 0.15,
+        "z": 1.4989144111063577
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 12.181213950976673,
+        "y": 0.15,
+        "z": -12.503251794674563
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": -6.786027870470271,
+        "y": 0.15,
+        "z": -3.651870858967207
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": -6.878690543895432,
+        "y": 0.15,
+        "z": 2.2039674719927356
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 22.056281772738217,
+        "y": 0.15,
+        "z": -0.7787655334855326
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 14.691066809469065,
+        "y": 0.15,
+        "z": 9.237119330867056
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 16.53355672970867,
+        "y": 0.15,
+        "z": -4.120158330475531
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 23.16430067786789,
+        "y": 0.15,
+        "z": 13.553617347594754
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 21.92870851938343,
+        "y": 0.15,
+        "z": -7.951485989716305
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 19.730845640214913,
+        "y": 0.15,
+        "z": 3.997395764623705
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 23.275516266047855,
+        "y": 0.15,
+        "z": 17.171966561365497
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 31.632232282787637,
+        "y": 0.15,
+        "z": 3.6403220860632124
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 18.651197053069776,
+        "y": 0.15,
+        "z": 11.205442553985293
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 20.904791478683737,
+        "y": 0.15,
+        "z": 9.45058536304267
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 22.26423809883346,
+        "y": 0.15,
+        "z": 12.921250876454886
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 10.019207904648816,
+        "y": 0.15,
+        "z": 11.209104808078676
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 17.65531480641561,
+        "y": 0.15,
+        "z": 6.803755736082239
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 20.796509665114804,
+        "y": 0.15,
+        "z": 6.334274239608661
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 19.994700034485778,
+        "y": 0.15,
+        "z": 13.689069286465791
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 12.735054688937055,
+        "y": 0.15,
+        "z": 0.2772486850432331
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 13.044533900213473,
+        "y": 0.15,
+        "z": 5.516243710061531
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 12.487164273489013,
+        "y": 0.15,
+        "z": 15.166599718492785
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776296249515,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 123.74610000000958,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -29.16766176279866,
+        "y": 0.15,
+        "z": 1.211889050670807
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 10.831676525842242,
+        "y": 0.15,
+        "z": -4.862813843462393
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 0.9328710864828533,
+        "y": 0.15,
+        "z": 0.8665179415029858
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 0.7892066742183613,
+        "y": 0.15,
+        "z": 6.41795398012129
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 18.748424168421707,
+        "y": 0.15,
+        "z": 2.3935664299442734
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 14.908950790363843,
+        "y": 0.15,
+        "z": 7.787800761069227
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 14.631703195510127,
+        "y": 0.15,
+        "z": 1.8043458771214236
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 21.772958862794063,
+        "y": 0.15,
+        "z": 13.77790222891182
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 18.1495356247566,
+        "y": 0.15,
+        "z": -1.481081418709584
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 18.040853630507357,
+        "y": 0.15,
+        "z": 8.435435498842663
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 20.704680961425787,
+        "y": 0.15,
+        "z": 15.89573252935399
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 30.4283375242739,
+        "y": 0.15,
+        "z": 2.9966593722050545
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 12.677901858276911,
+        "y": 0.15,
+        "z": 13.352346969655454
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 18.482341480291694,
+        "y": 0.15,
+        "z": 9.44295149300494
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 23.80595281312726,
+        "y": 0.15,
+        "z": 21.07266538578269
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 11.215398509833848,
+        "y": 0.15,
+        "z": 8.159528175161594
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 14.215657773664978,
+        "y": 0.15,
+        "z": 10.481395501094656
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 21.79947746368915,
+        "y": 0.15,
+        "z": 10.477127293833293
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 21.559801752714208,
+        "y": 0.15,
+        "z": 15.203801584601361
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 13.728469275283725,
+        "y": 0.15,
+        "z": 1.1765174886644774
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 14.18716283570276,
+        "y": 0.15,
+        "z": 5.773901437425144
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 13.670050580876552,
+        "y": 0.15,
+        "z": 15.10944530749201
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776296426783,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FIRST_HALF",
+      "half": 1,
+      "elapsedInHalf": 141.26829999993726,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 28.977978227252887,
+        "y": 0.15,
+        "z": 0.19414839040398058
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 16.47017552141778,
+        "y": 0.15,
+        "z": -3.0735518306420557
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 11.38691702517631,
+        "y": 0.15,
+        "z": 0.7157452233895585
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 16.993876382386482,
+        "y": 0.15,
+        "z": 2.0817680446635096
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 11.145872513348506,
+        "y": 0.15,
+        "z": 1.7886791334029148
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 7.02382567967504,
+        "y": 0.15,
+        "z": -7.134261384856607
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 5.223118034679603,
+        "y": 0.15,
+        "z": -0.905345799373868
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 8.138333541572303,
+        "y": 0.15,
+        "z": 9.369460752889708
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 3.0575199618420976,
+        "y": 0.15,
+        "z": 3.1614997851663538
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -4.073989862282381,
+        "y": 0.15,
+        "z": -2.4775543702902763
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 1.0919439788894776,
+        "y": 0.15,
+        "z": 8.537212367232803
+      },
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -28.975481652311345,
+        "y": 0.15,
+        "z": 0.12006667865944083
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": -15.394503367752165,
+        "y": 0.15,
+        "z": -4.770671306730972
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": -13.2096892695982,
+        "y": 0.15,
+        "z": -0.4266403288756311
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": -5.835485817418199,
+        "y": 0.15,
+        "z": -11.383224199802253
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -1.4805450747663826,
+        "y": 0.15,
+        "z": -1.5184130083719607
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 0.36320637775659437,
+        "y": 0.15,
+        "z": 6.882780908437833
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 5.601148378226779,
+        "y": 0.15,
+        "z": 3.167523866734236
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 13.742375662749339,
+        "y": 0.15,
+        "z": 10.356209483335228
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 5.998827916777612,
+        "y": 0.15,
+        "z": -5.655625724537229
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 12.394927431546426,
+        "y": 0.15,
+        "z": 1.4549506508702699
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 10.402014229324493,
+        "y": 0.15,
+        "z": 0.22588148445465983
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776297791079,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "HALFTIME",
+      "half": 1,
+      "elapsedInHalf": 300,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": 28.592840917168463,
+        "y": 0.15,
+        "z": -0.25179859138925986
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 23.43763294380536,
+        "y": 0.15,
+        "z": 5.048234321846106
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 19.395260417086376,
+        "y": 0.15,
+        "z": 2.0499636397555863
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 17.049620647658887,
+        "y": 0.15,
+        "z": -3.1599897293645833
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 7.289325052960306,
+        "y": 0.15,
+        "z": -7.637806576144938
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 11.815782506322998,
+        "y": 0.15,
+        "z": -1.048535302132105
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 8.884077285031728,
+        "y": 0.15,
+        "z": -2.1806146454917528
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 5.62579411846944,
+        "y": 0.15,
+        "z": 10.20633617533957
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 4.538052751383084,
+        "y": 0.15,
+        "z": -8.185418972488693
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 1.4441652674638916,
+        "y": 0.15,
+        "z": 2.9497101573492763
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 7.958322567281192,
+        "y": 0.15,
+        "z": 6.024172294881524
+      },
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": -28.694382792907003,
+        "y": 0.15,
+        "z": -0.44483284428383957
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 5.973459189143727,
+        "y": 0.15,
+        "z": -9.969142749047556
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 8.33457267210363,
+        "y": 0.15,
+        "z": 1.3737031848486796
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": -1.6561702159935439,
+        "y": 0.15,
+        "z": -7.487642063685656
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 19.42887944997765,
+        "y": 0.15,
+        "z": 0.390970030528469
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 8.646202589916035,
+        "y": 0.15,
+        "z": -6.710104106084072
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 10.381494366404677,
+        "y": 0.15,
+        "z": -4.282921586493464
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 12.82503049384957,
+        "y": 0.15,
+        "z": 5.696008120085188
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 14.362096954090779,
+        "y": 0.15,
+        "z": -6.067265217481252
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 20.34941921179662,
+        "y": 0.15,
+        "z": 1.5074096542450894
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 4.371859026607986,
+        "y": 0.15,
+        "z": 1.6439042006810807
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776298533848,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 72.00890000027432,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 30.154847338887148,
+        "y": 0.15,
+        "z": 0.41047168576780624
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 20.871210984272096,
+        "y": 0.15,
+        "z": 1.4073060007452682
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 21.26822688679395,
+        "y": 0.15,
+        "z": 2.4462142472030313
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 17.57492369575381,
+        "y": 0.15,
+        "z": -5.086289721451329
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 2.0280095438054953,
+        "y": 0.15,
+        "z": -9.269669222074716
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 12.56411966428333,
+        "y": 0.15,
+        "z": 0.7847075481198743
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 12.233814542449416,
+        "y": 0.15,
+        "z": -5.989257049068337
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 8.507918521145598,
+        "y": 0.15,
+        "z": 1.8067990203021749
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 6.14114098118374,
+        "y": 0.15,
+        "z": -4.650157271479779
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -2.1472561684552085,
+        "y": 0.15,
+        "z": 0.5244085128939662
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 7.353452752325172,
+        "y": 0.15,
+        "z": 5.472006334268344
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -28.971349022266793,
+        "y": 0.15,
+        "z": 0.07242546284904844
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -9.898664466158596,
+        "y": 0.15,
+        "z": -6.502212926943681
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -8.137217902639618,
+        "y": 0.15,
+        "z": -0.36848153234604814
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -3.5137507144109086,
+        "y": 0.15,
+        "z": -5.072662940643926
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 8.68218495987431,
+        "y": 0.15,
+        "z": -4.214386951306928
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 11.146906583152303,
+        "y": 0.15,
+        "z": 1.9817419248359855
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 14.211181790321655,
+        "y": 0.15,
+        "z": -3.6477834435210212
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 22.267206388668672,
+        "y": 0.15,
+        "z": 1.9882495928691486
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 19.01957334163791,
+        "y": 0.15,
+        "z": -7.563559997359954
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 21.876857893075844,
+        "y": 0.15,
+        "z": 0.9598391436863257
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 20.66231158735299,
+        "y": 0.15,
+        "z": 9.333267372471445
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776298727840,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 91.09800000005873,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 29.03117965585579,
+        "y": 0.15,
+        "z": -0.6624571086371345
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 2.321502409040283,
+        "y": 0.15,
+        "z": -7.629511655995248
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 11.760497681173343,
+        "y": 0.15,
+        "z": -0.5288388837728067
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 8.602514143457894,
+        "y": 0.15,
+        "z": -6.701979115634914
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -14.885906517232403,
+        "y": 0.15,
+        "z": -8.290470718438048
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -5.074768426116966,
+        "y": 0.15,
+        "z": -8.165478679086611
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": -0.5839896042454162,
+        "y": 0.15,
+        "z": -2.482692751523616
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": -6.532227996193655,
+        "y": 0.15,
+        "z": 5.299587096823199
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": -12.850183538757902,
+        "y": 0.15,
+        "z": -8.377724049201799
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -12.239824420408489,
+        "y": 0.15,
+        "z": -0.5411454899669218
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -8.565520456549676,
+        "y": 0.15,
+        "z": 9.329015949106632
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -29.281863698839565,
+        "y": 0.15,
+        "z": -1.5022143711201452
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -8.805898327807789,
+        "y": 0.15,
+        "z": -1.128044495315673
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -3.7845751750142633,
+        "y": 0.15,
+        "z": 8.313717509090193
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -4.427049286491392,
+        "y": 0.15,
+        "z": -11.569673051954831
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": -3.126467216298551,
+        "y": 0.15,
+        "z": -3.0134640405219746
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": -13.869678697577887,
+        "y": 0.15,
+        "z": -7.964650664507734
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": -6.257929512414499,
+        "y": 0.15,
+        "z": 3.9210217305037505
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": -12.381501923624207,
+        "y": 0.15,
+        "z": 3.5512971427996005
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 0.005935120650856968,
+        "y": 0.15,
+        "z": 0.9111614826520469
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -14.442665843683445,
+        "y": 0.15,
+        "z": -6.352412405694752
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -16.804093652674947,
+        "y": 0.15,
+        "z": 4.359674471368743
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776299062003,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 124.08529999959225,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 30.61333333333333,
+        "y": 0.15,
+        "z": 0
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 25.14666666666666,
+        "y": 0.15,
+        "z": -8.746666666666666
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 25.14666666666666,
+        "y": 0.15,
+        "z": 8.746666666666666
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 22.959999999999997,
+        "y": 0.15,
+        "z": -3.28
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 22.959999999999997,
+        "y": 0.15,
+        "z": 3.28
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 19.679999999999996,
+        "y": 0.15,
+        "z": -12.026666666666666
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 19.679999999999996,
+        "y": 0.15,
+        "z": 12.026666666666666
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 15.306666666666663,
+        "y": 0.15,
+        "z": -5.466666666666667
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 15.306666666666663,
+        "y": 0.15,
+        "z": 5.466666666666667
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 10.93333333333333,
+        "y": 0.15,
+        "z": -1.0933333333333333
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 6.559999999999999,
+        "y": 0.15,
+        "z": 1.0933333333333333
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -30.61333333333333,
+        "y": 0.15,
+        "z": 0
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 17.493333333333332,
+        "y": 0.15,
+        "z": -5.466666666666667
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 17.493333333333332,
+        "y": 0.15,
+        "z": 5.466666666666667
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 14.213333333333331,
+        "y": 0.15,
+        "z": 0
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 10.93333333333333,
+        "y": 0.15,
+        "z": -9.84
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 10.93333333333333,
+        "y": 0.15,
+        "z": 9.84
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 7.653333333333329,
+        "y": 0.15,
+        "z": -3.28
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 7.653333333333329,
+        "y": 0.15,
+        "z": 3.28
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 4.373333333333331,
+        "y": 0.15,
+        "z": -10.933333333333334
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 4.373333333333331,
+        "y": 0.15,
+        "z": 10.933333333333334
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 1.0933333333333302,
+        "y": 0.15,
+        "z": 0
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776299291298,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 148.13929999965066,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 31.345503084799347,
+        "y": 0.15,
+        "z": -3.6764841509679
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 27.17463382392227,
+        "y": 0.15,
+        "z": -13.006533610869154
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 19.247783907364788,
+        "y": 0.15,
+        "z": 0.15723334593291521
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 27.651245080362862,
+        "y": 0.15,
+        "z": -11.960275093145478
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 18.89520423664445,
+        "y": 0.15,
+        "z": -4.659866607789903
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 15.150196505839581,
+        "y": 0.15,
+        "z": -2.794071148701965
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 18.114136689235796,
+        "y": 0.15,
+        "z": -1.6636075621609534
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 15.005235502273386,
+        "y": 0.15,
+        "z": 1.1275762914079324
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 22.247810698265404,
+        "y": 0.15,
+        "z": -8.043000070484137
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": 17.036603409188974,
+        "y": 0.15,
+        "z": -5.895803556710424
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 13.548676463685904,
+        "y": 0.15,
+        "z": 1.9102670644837088
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -29.290038902997196,
+        "y": 0.15,
+        "z": -1.5514875844969411
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": 9.479842691668283,
+        "y": 0.15,
+        "z": 3.010275470549018
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": 14.851885577138988,
+        "y": 0.15,
+        "z": 3.4149735727574653
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": 12.514441137934703,
+        "y": 0.15,
+        "z": -12.262603714668716
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 28.136327854198754,
+        "y": 0.15,
+        "z": -13.604113729797744
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 22.01173236503168,
+        "y": 0.15,
+        "z": -4.520620152341649
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 18.551850770182774,
+        "y": 0.15,
+        "z": -9.093982932435477
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 23.925781769403436,
+        "y": 0.15,
+        "z": 10.07548708342608
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 23.172796945368262,
+        "y": 0.15,
+        "z": -9.978661100883846
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 25.842877911215837,
+        "y": 0.15,
+        "z": 0.07035959155304397
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 21.80637404225171,
+        "y": 0.15,
+        "z": 5.122369302969728
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776299847166,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 208.41840000008878,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 29.411233122518748,
+        "y": 0.15,
+        "z": 0.43243931160807947
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 13.520800739545376,
+        "y": 0.15,
+        "z": 4.157976995026335
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 16.407424233698027,
+        "y": 0.15,
+        "z": 2.5433099658357783
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 16.1178948654447,
+        "y": 0.15,
+        "z": -3.010189771337429
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 1.3099901162123218,
+        "y": 0.15,
+        "z": -5.544387808456335
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": 3.930583631835141,
+        "y": 0.15,
+        "z": 4.446627119119205
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 7.693947589838804,
+        "y": 0.15,
+        "z": -1.3267743489224677
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 6.8230209224449725,
+        "y": 0.15,
+        "z": 8.7494843842899
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 5.530218616348124,
+        "y": 0.15,
+        "z": -9.8948290932164
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -6.511673624998701,
+        "y": 0.15,
+        "z": 2.3195938710859596
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": 1.1414163044457153,
+        "y": 0.15,
+        "z": 6.043991987574958
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -29.356067147083724,
+        "y": 0.15,
+        "z": 0.5904182464272079
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -8.103546583683077,
+        "y": 0.15,
+        "z": 1.2680469583670761
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -7.723904959286516,
+        "y": 0.15,
+        "z": 4.251572483676773
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -5.995006090624264,
+        "y": 0.15,
+        "z": 7.1056210243598885
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 4.650921826740779,
+        "y": 0.15,
+        "z": 0.5190495381386783
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 1.6235469374968332,
+        "y": 0.15,
+        "z": 6.044160661351289
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 2.553755281395675,
+        "y": 0.15,
+        "z": -4.351587416564375
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 4.298986745622509,
+        "y": 0.15,
+        "z": 7.688350371995091
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 10.040903383895008,
+        "y": 0.15,
+        "z": -0.8602175331901112
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 9.821746633608331,
+        "y": 0.15,
+        "z": 4.051513360554409
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 10.636579250996741,
+        "y": 0.15,
+        "z": 5.037461670312227
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776300027928,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 225.92240000002826,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 28.99004524061154,
+        "y": 0.15,
+        "z": 0.38826878120225583
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 2.261007747314611,
+        "y": 0.15,
+        "z": -5.837964227101331
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 5.10897055285696,
+        "y": 0.15,
+        "z": 4.453218459188433
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 4.803658750910418,
+        "y": 0.15,
+        "z": -1.3118464804640013
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -9.687665081323926,
+        "y": 0.15,
+        "z": -7.557504625320021
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -9.674128743942074,
+        "y": 0.15,
+        "z": 4.545125673425703
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": -10.097156333110432,
+        "y": 0.15,
+        "z": 2.9251832759736134
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": -9.443908154843358,
+        "y": 0.15,
+        "z": 10.042092360817882
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": -14.69416050882898,
+        "y": 0.15,
+        "z": -8.71836672230028
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -17.18217391279511,
+        "y": 0.15,
+        "z": 0.8045496354088905
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -13.387029313106767,
+        "y": 0.15,
+        "z": 4.742751842496175
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -29.061471247261867,
+        "y": 0.15,
+        "z": 0.7120306720835441
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -4.013033282913062,
+        "y": 0.15,
+        "z": 2.730681893552566
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -10.720906841321636,
+        "y": 0.15,
+        "z": 4.876219761260972
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -4.164521563887068,
+        "y": 0.15,
+        "z": -10.177485233275773
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": -8.871878035861178,
+        "y": 0.15,
+        "z": 5.297717064144267
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": -15.06490401445987,
+        "y": 0.15,
+        "z": -5.516639135313101
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": -9.437870349094183,
+        "y": 0.15,
+        "z": -0.22661928891478353
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": -7.449358027478602,
+        "y": 0.15,
+        "z": 11.457959343237045
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": -14.040736072678518,
+        "y": 0.15,
+        "z": -9.95155713100047
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -16.110423780340184,
+        "y": 0.15,
+        "z": 1.0522422949344492
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -18.705182360221734,
+        "y": 0.15,
+        "z": 6.505066825249539
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776300578063,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "SECOND_HALF",
+      "half": 2,
+      "elapsedInHalf": 282.8623999996146,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 28.994074204486875,
+        "y": 0.15,
+        "z": 0.37877533915129197
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 13.932795739482605,
+        "y": 0.15,
+        "z": 3.885262625437588
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 12.9190128858628,
+        "y": 0.15,
+        "z": -2.1699301013100127
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 10.70757312559831,
+        "y": 0.15,
+        "z": 8.685715663373044
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": 4.602280846594174,
+        "y": 0.15,
+        "z": 2.5819260301174447
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -0.4424927807884715,
+        "y": 0.15,
+        "z": -4.936125801524373
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 6.290809868009256,
+        "y": 0.15,
+        "z": -0.5581968483623329
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 4.931318923746739,
+        "y": 0.15,
+        "z": 9.687416417428913
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": 2.662562277353166,
+        "y": 0.15,
+        "z": -6.861150314053423
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -3.224910830413501,
+        "y": 0.15,
+        "z": 0.6985283995870959
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -0.8102283583198788,
+        "y": 0.15,
+        "z": 7.90821214022035
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -28.980908356213394,
+        "y": 0.15,
+        "z": 0.24062035806705345
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -9.989609039275729,
+        "y": 0.15,
+        "z": -3.4856087354098664
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -13.480811580810123,
+        "y": 0.15,
+        "z": -1.0341767018897683
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -5.482617299283846,
+        "y": 0.15,
+        "z": -8.346076261394332
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": -5.377347006600874,
+        "y": 0.15,
+        "z": 1.1584931397592524
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 3.583365378307348,
+        "y": 0.15,
+        "z": 2.1674248015476874
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": 0.5856928904704071,
+        "y": 0.15,
+        "z": 7.79745072437057
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": 8.340731153700414,
+        "y": 0.15,
+        "z": 7.059063977369585
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 4.82799384506988,
+        "y": 0.15,
+        "z": 0.2432861013614847
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": 13.331201618226174,
+        "y": 0.15,
+        "z": -1.0752303431777324
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": 13.051316707479533,
+        "y": 0.15,
+        "z": 8.741191508634385
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776300752928,
+    "eventType": "play_stopped",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FULL_TIME",
+      "half": 2,
+      "elapsedInHalf": 300,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 28.979530981533337,
+        "y": 0.15,
+        "z": -0.22024720994521044
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 12.607555926971301,
+        "y": 0.15,
+        "z": -2.847924658890355
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 6.372696046281692,
+        "y": 0.15,
+        "z": -0.49102115839961946
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 12.46093192526834,
+        "y": 0.15,
+        "z": 3.087874240852981
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -5.330706534949804,
+        "y": 0.15,
+        "z": -2.6954244390922226
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -4.020591744954074,
+        "y": 0.15,
+        "z": -1.5823406769201285
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 1.1923816231770035,
+        "y": 0.15,
+        "z": -1.6087604329702143
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 0.6882863117672999,
+        "y": 0.15,
+        "z": 8.328625043646547
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": -1.953919627949845,
+        "y": 0.15,
+        "z": -9.519544702451642
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -7.89460310576644,
+        "y": 0.15,
+        "z": 2.5750028256984465
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -5.872042010762842,
+        "y": 0.15,
+        "z": 8.725669430664885
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -28.995207309276527,
+        "y": 0.15,
+        "z": -0.41263343020087573
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -4.031578569637554,
+        "y": 0.15,
+        "z": -2.715478032918336
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -5.5123371387504205,
+        "y": 0.15,
+        "z": -1.1853138397800136
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -8.548599824225764,
+        "y": 0.15,
+        "z": -10.888604494622529
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 7.92623410170498,
+        "y": 0.15,
+        "z": -8.541211773993295
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 0.44620230602975397,
+        "y": 0.15,
+        "z": 1.9384183892352451
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": -0.37046389335415064,
+        "y": 0.15,
+        "z": 6.809523026767732
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": -13.355361106963056,
+        "y": 0.15,
+        "z": 2.8350897922373717
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 0.03184892134596871,
+        "y": 0.15,
+        "z": -4.56138911762337
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -7.028204271996449,
+        "y": 0.15,
+        "z": 7.662857472749656
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -11.612625699015075,
+        "y": 0.15,
+        "z": 8.689599828778901
+      }
+    ]
+  },
+  {
+    "sessionId": "f0d00b29-961c-4a79-a190-4639b0be4611",
+    "timestamp": 1776300752928,
+    "eventType": "full_time_positions_captured",
+    "match": {
+      "scoreA": 0,
+      "scoreB": 0,
+      "phase": "FULL_TIME",
+      "half": 2,
+      "elapsedInHalf": 300,
+      "isLive": false,
+      "teamAName": "Inter Miami",
+      "teamBName": "LA Galaxy"
+    },
+    "positions": [
+      {
+        "name": "Oscar Ustari",
+        "team": "A",
+        "role": "QB",
+        "x": 28.979530981533337,
+        "y": 0.15,
+        "z": -0.22024720994521044
+      },
+      {
+        "name": "Sergio Busquets Burgos",
+        "team": "A",
+        "role": "CB",
+        "x": 12.607555926971301,
+        "y": 0.15,
+        "z": -2.847924658890355
+      },
+      {
+        "name": "Jordi Alba Ramos",
+        "team": "A",
+        "role": "CB",
+        "x": 6.372696046281692,
+        "y": 0.15,
+        "z": -0.49102115839961946
+      },
+      {
+        "name": "Maximiliano Falcón",
+        "team": "A",
+        "role": "CB",
+        "x": 12.46093192526834,
+        "y": 0.15,
+        "z": 3.087874240852981
+      },
+      {
+        "name": "Lionel Messi",
+        "team": "A",
+        "role": "WR",
+        "x": -5.330706534949804,
+        "y": 0.15,
+        "z": -2.6954244390922226
+      },
+      {
+        "name": "Rodrigo De Paul",
+        "team": "A",
+        "role": "LB",
+        "x": -4.020591744954074,
+        "y": 0.15,
+        "z": -1.5823406769201285
+      },
+      {
+        "name": "Luis Suárez",
+        "team": "A",
+        "role": "LB",
+        "x": 1.1923816231770035,
+        "y": 0.15,
+        "z": -1.6087604329702143
+      },
+      {
+        "name": "Tadeo Allende",
+        "team": "A",
+        "role": "WR",
+        "x": 0.6882863117672999,
+        "y": 0.15,
+        "z": 8.328625043646547
+      },
+      {
+        "name": "Baltasar Rodríguez",
+        "team": "A",
+        "role": "WR",
+        "x": -1.953919627949845,
+        "y": 0.15,
+        "z": -9.519544702451642
+      },
+      {
+        "name": "Fabrice-Jean Picault",
+        "team": "A",
+        "role": "RB",
+        "x": -7.89460310576644,
+        "y": 0.15,
+        "z": 2.5750028256984465
+      },
+      {
+        "name": "Marcelo Weigandt",
+        "team": "A",
+        "role": "WR",
+        "x": -5.872042010762842,
+        "y": 0.15,
+        "z": 8.725669430664885
+      },
+      {
+        "name": "JT Marcinkowski",
+        "team": "B",
+        "role": "QB",
+        "x": -28.995207309276527,
+        "y": 0.15,
+        "z": -0.41263343020087573
+      },
+      {
+        "name": "Miki Yamane",
+        "team": "B",
+        "role": "CB",
+        "x": -4.031578569637554,
+        "y": 0.15,
+        "z": -2.715478032918336
+      },
+      {
+        "name": "Mathias Jørgensen",
+        "team": "B",
+        "role": "CB",
+        "x": -5.5123371387504205,
+        "y": 0.15,
+        "z": -1.1853138397800136
+      },
+      {
+        "name": "Maya Yoshida",
+        "team": "B",
+        "role": "CB",
+        "x": -8.548599824225764,
+        "y": 0.15,
+        "z": -10.888604494622529
+      },
+      {
+        "name": "Ricard Puig Martí",
+        "team": "B",
+        "role": "WR",
+        "x": 7.92623410170498,
+        "y": 0.15,
+        "z": -8.541211773993295
+      },
+      {
+        "name": "Marco Reus",
+        "team": "B",
+        "role": "LB",
+        "x": 0.44620230602975397,
+        "y": 0.15,
+        "z": 1.9384183892352451
+      },
+      {
+        "name": "Diego Fagúndez",
+        "team": "B",
+        "role": "LB",
+        "x": -0.37046389335415064,
+        "y": 0.15,
+        "z": 6.809523026767732
+      },
+      {
+        "name": "Gabriel Fortes Chaves",
+        "team": "B",
+        "role": "WR",
+        "x": -13.355361106963056,
+        "y": 0.15,
+        "z": 2.8350897922373717
+      },
+      {
+        "name": "Joseph Paintsil",
+        "team": "B",
+        "role": "WR",
+        "x": 0.03184892134596871,
+        "y": 0.15,
+        "z": -4.56138911762337
+      },
+      {
+        "name": "Christian Ramirez",
+        "team": "B",
+        "role": "RB",
+        "x": -7.028204271996449,
+        "y": 0.15,
+        "z": 7.662857472749656
+      },
+      {
+        "name": "Mauricio Cuevas",
+        "team": "B",
+        "role": "WR",
+        "x": -11.612625699015075,
+        "y": 0.15,
+        "z": 8.689599828778901
+      }
+    ]
   }
 ]

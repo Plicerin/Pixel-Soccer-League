@@ -334,17 +334,17 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto"
-      onMouseDown={(e) => {
-        // Don't close modal if clicking inside
+      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-none"
+      onClick={(e) => {
+        // Only close if clicking on the background itself, not the content
         if (e.target === e.currentTarget) {
+          console.log('Closing modal from background click');
           onClose();
         }
       }}
     >
       <div
         className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6 pointer-events-auto"
-        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="text-center">
           <h2 className="text-white text-2xl font-bold uppercase tracking-widest mb-1">Pre-Match Setup</h2>
@@ -412,25 +412,51 @@ const CustomDropdown: React.FC<{
 }> = ({ value, onChange, options, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const skipNextClickRef = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      console.log('handleClickOutside fired, skipNextClickRef:', skipNextClickRef.current);
+      console.log('e.target:', e.target, 'dropdownRef contains target:', dropdownRef.current?.contains(e.target as Node));
+
+      if (skipNextClickRef.current) {
+        skipNextClickRef.current = false;
+        console.log('Skipping click outside (same event that opened dropdown)');
+        return;
+      }
+
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        console.log('Dropdown click outside detected, closing');
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      console.log('Dropdown opened, adding document listener');
+      // Delay to ensure we're past the opening event cycle
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 50);
+
+      return () => {
+        clearTimeout(timeoutId);
+        console.log('Removing document listener');
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
   }, [isOpen]);
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
+        onMouseDown={(e) => {
+          skipNextClickRef.current = true;
+          console.log('Dropdown button mousedown, setting skip flag');
+        }}
         onClick={(e) => {
+          console.log('Dropdown button clicked, isOpen:', isOpen);
           e.stopPropagation();
+          e.preventDefault();
           setIsOpen(!isOpen);
         }}
         className="w-full bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer text-left flex justify-between items-center hover:border-white/40 transition-colors"

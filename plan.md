@@ -15,6 +15,7 @@
 
 ## Active Bugs
 
+- [ ] **Pre-match setup dropdown closes immediately** — custom dropdown in PreMatchSetupScreen opens then auto-closes on Chrome/Edge; likely modal event handler interference or React state timing issue
 - [ ] **Ball snaps to kickoff spot** — race between `stuckRestartTimer`, `restartAutoStartTimer`, and restart state flags during CPU-vs-CPU
 - [ ] **Off-site penalty ball disappears** — ball invisible during flight arc for away penalties
 - [ ] **Ball teleports on penalty** — related to above; ball skips trajectory and appears at destination
@@ -23,6 +24,7 @@
 
 ## Gameplay — High Priority
 
+- [ ] **Winger pass-first bias** — encourage wingers to pass/cross instead of forcing shots; code applied (crossTargetBonus=4.5, flankShotPenalty=0.20, flankPassBoost=0.40); needs test match verification
 - [ ] Tune foul frequency by tackle angle/speed — realistic free kick cadence
 - [ ] Keeper distribution improvements — quick distribution, no pickpocketing in-box
 - [ ] Reduce GK punt/goal-kick out-of-bounds frequency
