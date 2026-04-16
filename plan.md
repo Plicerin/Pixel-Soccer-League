@@ -12,6 +12,7 @@
 - [x] CPU goalkeeper distribution out-of-bounds fix
 - [x] CPU won't restart after goal fix
 - [x] Goal through side netting fix (interpolation check)
+- [x] **Goal detection console spam** — fixed wasBehindEndline logic to prevent re-validation loop
 
 ## Active Bugs
 
