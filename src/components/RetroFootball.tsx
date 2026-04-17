@@ -579,6 +579,10 @@ const RetroFootball: React.FC = () => {
   const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('AGGRESSIVE');
   const [showPracticeComplete, setShowPracticeComplete] = useState(false);
   const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [ifpEvents, setIfpEvents] = useState<any[]>([]);
+  const [latestIfpFlash, setLatestIfpFlash] = useState<any>(null);
+  const latestIfpFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ifpSeenCountRef = useRef(0);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -916,34 +920,40 @@ const RetroFootball: React.FC = () => {
       _dashTick++;
       // Skip broadcasting during splash/menu — only track real matches
       if (!hasActiveMatchSessionRef.current) {
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: no active match session');
         return;
       }
       const g = (window as any).__gameRef;
-      if (!g) return;
-      
-      const snap2 = g.getMatchSnapshot?.();
-      const phase = snap2?.phase || '';
-      
-      // OPTIMIZATION: Only broadcast and disk-sync at 1Hz (every 10 ticks) or on phase change
-      const isPhaseChange = phase !== prevPhase;
-      const shouldTick = _dashTick % 10 === 0 || isPhaseChange;
-      
-      if (!shouldTick) return;
-
-      const bundle = g.getTuningBundle?.();
-      if (!bundle) return;
-      const live2 = g.getLiveTelemetry?.();
-      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now() };
-
-      // Debug log when phase changes
-      if (isPhaseChange) {
-        console.log(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
+      if (!g) {
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: __gameRef not set');
+        return;
       }
 
-      try { dashChannel?.postMessage(payload); } catch (e) {}
-      
-      // Disk operations are expensive; skip unless phase changed
+      const snap2 = g.getMatchSnapshot?.();
+      const phase = snap2?.phase || '';
+      const isPhaseChange = phase !== prevPhase;
+
+      const bundle = g.getTuningBundle?.();
+      if (!bundle) {
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: getTuningBundle returned null, phase=', phase);
+        return;
+      }
+      const live2 = g.getLiveTelemetry?.();
+      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: true };
+
+      // Live in-memory channels: send every tick (2s) so dashboard gets data quickly
+      if (_dashTick % 5 === 0) {
+        console.log('[PSL-Bridge] posting tick=' + _dashTick + ' phase=' + phase + ' isLive=' + snap2?.isLive + ' score=' + bundle.teamA?.score + '-' + bundle.teamB?.score);
+      }
+      try { dashChannel?.postMessage(payload); } catch (e) { console.warn('[PSL-Bridge] BroadcastChannel post failed:', e); }
+      try { (window as any).sendDashboardUpdate?.('tuning', bundle, snap2); } catch (e) {}
+
+      // Expensive disk/network ops: rate-limit to once every 20s or on phase change
+      const shouldSync = _dashTick % 10 === 0 || isPhaseChange;
+      if (!shouldSync) return;
+
       if (isPhaseChange) {
+        console.log(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
         try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
           try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
         }
@@ -1479,6 +1489,42 @@ const RetroFootball: React.FC = () => {
     refreshDriftDashboard();
   }, [isOptionsOpen, activeTab, driftThresholdPct]);
 
+  // Poll ISOLATED_FORWARD_PASS events during CPU vs CPU
+  useEffect(() => {
+    if (gameMode !== 'cpu' || !hasActiveMatchSession) return;
+    // Reset for this game session — clear both React state and window arrays
+    (window as any).ISOLATED_FORWARD_PASS_EVENTS = [];
+    (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS = [];
+    (window as any)._ISOLATED_FORWARD_PASS_TOTAL = 0;
+    ifpSeenCountRef.current = 0;
+    setIfpEvents([]);
+    setLatestIfpFlash(null);
+    const id = window.setInterval(() => {
+      const resolved: any[] = (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS ?? [];
+      const pending: any[] = (window as any).ISOLATED_FORWARD_PASS_EVENTS ?? [];
+      // Flash on newly resolved events
+      if (resolved.length > ifpSeenCountRef.current) {
+        const latest = resolved[resolved.length - 1];
+        if (latest) {
+          if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
+          setLatestIfpFlash({ ...latest });
+          latestIfpFlashTimerRef.current = setTimeout(() => setLatestIfpFlash(null), 3500);
+        }
+        ifpSeenCountRef.current = resolved.length;
+      }
+      // Log shows resolved + any still-pending (newest first, max 8)
+      const all = [
+        ...resolved.map(e => ({ ...e })),
+        ...pending.filter(e => e.outcome === 'PENDING').map(e => ({ ...e })),
+      ];
+      setIfpEvents(all.slice(-8).reverse());
+    }, 300);
+    return () => {
+      window.clearInterval(id);
+      if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
+    };
+  }, [gameMode, hasActiveMatchSession]);
+
   // Poll telemetry counts while the floating window is open
   useEffect(() => {
     if (!showTelemetry) return;
@@ -1970,6 +2016,63 @@ const RetroFootball: React.FC = () => {
           <div className="px-8 py-3 bg-emerald-500 text-white text-sm font-bold rounded-full tracking-[0.2em] uppercase shadow-2xl border border-emerald-300/60 animate-pulse">
             Play Set
           </div>
+        </div>
+      )}
+
+      {/* Isolated Forward Pass Overlay — CPU vs CPU only */}
+      {gameMode === 'cpu' && hasActiveMatchSession && (
+        <div className="absolute top-16 left-4 z-40 pointer-events-none flex flex-col gap-1.5 w-60">
+          {/* Always-visible header */}
+          <div className="bg-black/70 border border-orange-500/40 rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-orange-300 text-[9px] font-bold uppercase tracking-widest">Isolated Fwd Pass</span>
+              <span className="text-orange-200 text-[9px] tabular-nums">
+                {(window as any)._ISOLATED_FORWARD_PASS_TOTAL ?? 0} total
+              </span>
+            </div>
+            {ifpEvents.length === 0 && (
+              <div className="text-white/30 text-[8px] mt-1">Listening for events…</div>
+            )}
+          </div>
+
+          {/* Flash badge for latest resolved event */}
+          {latestIfpFlash && (() => {
+            const outcomeColor =
+              latestIfpFlash.outcome === 'INTERCEPTED' ? 'bg-red-600/90 border-red-400'
+              : latestIfpFlash.outcome === 'SELF_CAUGHT' ? 'bg-amber-500/90 border-amber-300'
+              : 'bg-emerald-600/90 border-emerald-400';
+            return (
+              <div className={`px-3 py-2 ${outcomeColor} border text-white text-[10px] font-bold rounded-lg shadow-xl animate-pulse`}>
+                <div>{latestIfpFlash.carrierName} ({latestIfpFlash.carrierRole})</div>
+                <div className="opacity-80 text-[9px]">→ {latestIfpFlash.passTargetName}</div>
+                <div className="mt-1 text-[9px] font-normal opacity-90">
+                  {latestIfpFlash.outcome}
+                  {latestIfpFlash.shotPossible ? ' · shot was on' : ' · no shot geom'}
+                  {' · '}P={latestIfpFlash.closePressure}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Log of last 8 events */}
+          {ifpEvents.length > 0 && (
+            <div className="bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 flex flex-col gap-0.5">
+              {ifpEvents.map((ev, i) => {
+                const dot =
+                  ev.outcome === 'INTERCEPTED' ? 'bg-red-400'
+                  : ev.outcome === 'SELF_CAUGHT' ? 'bg-amber-400'
+                  : ev.outcome === 'COMPLETED' ? 'bg-emerald-400'
+                  : 'bg-white/20';
+                return (
+                  <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/70">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+                    <span className="truncate">{ev.carrierName} ({ev.carrierRole})</span>
+                    <span className="shrink-0 text-white/40">{ev.outcome ?? '…'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

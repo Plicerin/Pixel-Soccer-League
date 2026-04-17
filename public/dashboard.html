@@ -279,6 +279,61 @@ input[type="file"]{display:none}
 </div><!-- /dashboard -->
 
 <script>
+
+// ══════ WEBSOCKET CLIENT FOR LIVE UPDATES ══════
+// WebSocket client for live updates from ws-server.js
+(function() {
+  const WS_URL = 'ws://localhost:8081';
+  let ws;
+  let reconnectTimeout = null;
+  function connectWS() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      console.log('[PSL-Dashboard] WebSocket connected:', WS_URL);
+      document.getElementById('liveDot').style.display = '';
+      document.getElementById('statusText').textContent = 'Live connection established';
+    };
+    ws.onmessage = (event) => {
+      // Debug: log raw message size and content type
+      try {
+        const rawLen = event.data?.length || 0;
+        console.log('[PSL-Debug] WS message received. Size:', rawLen, 'bytes');
+        // Try to parse JSON
+        const msg = JSON.parse(event.data);
+        console.log('[PSL-Debug] Parsed message type:', msg.type, 'Keys:', Object.keys(msg));
+        // Optionally log a sample of the payload
+        if (msg.type === 'tuning') {
+          console.log('[PSL-Debug] Tuning bundle keys:', Object.keys(msg.bundle || {}));
+          if (msg.bundle) {
+            console.log('[PSL-Debug] TeamA:', msg.bundle.teamA?.name, 'score:', msg.bundle.teamA?.score, '| TeamB:', msg.bundle.teamB?.name, 'score:', msg.bundle.teamB?.score);
+          }
+        }
+        // Expecting { type: 'tuning', ...payload } or { type: 'event', ... }
+        if (msg.type === 'tuning' && shouldAcceptLivePayload(msg)) {
+          if (!_historyModeActive) setDFromPayload(msg);
+        } else if (msg.type === 'event' && msg.event) {
+          // Optionally handle single event updates here
+          // For now, just log
+          console.log('[PSL-Dashboard] Live event:', msg.event);
+        }
+      } catch (e) {
+        console.warn('[PSL-Dashboard] WebSocket message error:', e, 'Raw event:', event.data?.slice?.(0, 200));
+      }
+    };
+    ws.onclose = () => {
+      console.warn('[PSL-Dashboard] WebSocket closed. Reconnecting in 2s...');
+      document.getElementById('liveDot').style.display = 'none';
+      document.getElementById('statusText').textContent = 'Reconnecting to live server...';
+      if (!reconnectTimeout) reconnectTimeout = setTimeout(connectWS, 2000);
+    };
+    ws.onerror = (err) => {
+      console.error('[PSL-Dashboard] WebSocket error:', err);
+      ws.close();
+    };
+  }
+  connectWS();
+})();
+
 /* ═══════════════════════════════════════════════════════════
    DATA LAYER
    ═══════════════════════════════════════════════════════════ */
@@ -553,6 +608,7 @@ function copySection(key) {
   if (btn) { btn.textContent='✓'; btn.classList.add('ok'); setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('ok');},2000); }
 }
 
+
 let D = null;        // current tuning bundle
 let snap = null;     // current match snapshot
 let live = null;     // current live telemetry
@@ -565,6 +621,43 @@ let activeSpatialTab = 'heatmap';
 let activePosTab = 'homeError';
 let selectedRole = '';
 let selectedTeam = 'A';
+
+// Fetch telemetry events from the database for the current session
+async function fetchTelemetryEvents(sessionId) {
+  if (!sessionId) return [];
+  try {
+    const res = await fetch(`/__db/telemetry-events?session_id=${encodeURIComponent(sessionId)}&limit=10000`);
+    if (!res.ok) return [];
+    const events = await res.json();
+    // Parse payload JSON if present
+    return events.map(ev => {
+      let detail = undefined;
+      try { detail = ev.payload ? JSON.parse(ev.payload) : undefined; } catch {}
+      return {
+        ...ev,
+        type: ev.event_type,
+        minute: detail?.minute ?? undefined,
+        team: detail?.team ?? undefined,
+        detail
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Patch: When D is set from any source, also try to fetch events from DB if session_id is present
+async function setDFromPayload(payload) {
+  D = payload.bundle || payload;
+  snap = payload.snapshot || null;
+  live = payload.live || null;
+  if (D && D.sessionId) {
+    const dbEvents = await fetchTelemetryEvents(D.sessionId);
+    if (dbEvents.length > 0) D.events = dbEvents;
+  }
+  lastUpdate = Date.now();
+  renderAll();
+}
 
 function hasMeaningfulMatchState(bundle, snapshot, livePayload) {
   if (!bundle) return false;
@@ -580,7 +673,9 @@ function hasMeaningfulMatchState(bundle, snapshot, livePayload) {
 
 function shouldAcceptLivePayload(payload) {
   if (!payload?.bundle) return false;
-  // New bridge packets include explicit sessionActive. If false, this is splash/background telemetry.
+  // Explicit sessionActive=true means the bridge confirmed a match is running — accept immediately
+  if (payload.sessionActive === true) return true;
+  // Explicit sessionActive=false means splash/menu telemetry — always reject
   if (payload.sessionActive === false) return false;
   return hasMeaningfulMatchState(payload.bundle, payload.snapshot, payload.live);
 }
@@ -591,15 +686,17 @@ const ch = new BroadcastChannel('psl-telemetry');
 console.log('[PSL-Dashboard] BroadcastChannel created on origin:', location.origin);
 ch.onmessage = (e) => {
   _msgCount++;
-  console.log('[PSL-Dashboard] Received message #' + _msgCount, e.data?.type);
+  console.log('[PSL-Dashboard] Received message #' + _msgCount, 'type=' + e.data?.type + ' sessionActive=' + e.data?.sessionActive + ' historyMode=' + _historyModeActive);
   if (e.data?.type === 'tuning') {
-    if (_historyModeActive) return;  // Don't overwrite historical match with live data
-    if (!shouldAcceptLivePayload(e.data)) return;
-    D = e.data.bundle;
-    snap = e.data.snapshot;
-    live = e.data.live;
-    lastUpdate = Date.now();
-    renderAll();
+    if (_historyModeActive) { console.log('[PSL-Dashboard] rejected: history mode active'); return; }
+    if (!shouldAcceptLivePayload(e.data)) { console.log('[PSL-Dashboard] rejected by shouldAcceptLivePayload'); return; }
+    try {
+      setDFromPayload(e.data);
+      $('debugText').textContent = 'via BroadcastChannel #' + _msgCount;
+      console.log('[PSL-Dashboard] setDFromPayload OK, score=' + (e.data.bundle?.teamA?.score ?? '?') + '-' + (e.data.bundle?.teamB?.score ?? '?'));
+    } catch (err) {
+      console.error('[PSL-Dashboard] setDFromPayload threw:', err);
+    }
   }
 };
 ch.onmessageerror = (e) => {
@@ -620,12 +717,8 @@ setInterval(() => {
       if (payload?.ts && payload.ts !== _lastLSTs && (Date.now() - payload.ts) < 10000) {
         if (!shouldAcceptLivePayload(payload)) return;
         _lastLSTs = payload.ts;
-        D = payload.bundle;
-        snap = payload.snapshot;
-        live = payload.live;
-        lastUpdate = Date.now();
+        setDFromPayload(payload);
         $('debugText').textContent = 'via localStorage';
-        renderAll();
         return;
       }
     }
@@ -638,12 +731,8 @@ setInterval(() => {
       const nextSnap = g.getMatchSnapshot?.();
       const nextLive = g.getLiveTelemetry?.();
       if (hasMeaningfulMatchState(nextD, nextSnap, nextLive)) {
-        D = nextD;
-        snap = nextSnap;
-        live = nextLive;
-        lastUpdate = Date.now();
+        setDFromPayload({ bundle: nextD, snapshot: nextSnap, live: nextLive });
         $('debugText').textContent = 'via window.opener';
-        renderAll();
         return;
       }
     }
@@ -658,12 +747,8 @@ setInterval(() => {
       if (payload.ts && payload.ts === _lastRelayTs) return;
       if (!shouldAcceptLivePayload(payload)) return;
       _lastRelayTs = payload.ts || 0;
-      D = payload.bundle;
-      snap = payload.snapshot;
-      live = payload.live;
-      lastUpdate = Date.now();
+      setDFromPayload(payload);
       $('debugText').textContent = 'via server relay';
-      renderAll();
     }).catch(() => {});
   } catch {}
   // Show waiting status
