@@ -25,7 +25,7 @@ class SimpleSoccerEnv:
         self.state[1] = 0.5  # ball_y
         self.state[2] = 1.0  # possession (team A has ball)
         self.steps = 0
-        self.max_steps = 500
+        self.max_steps = 100  # Reduced from 500 for faster training
         return self.state, {}
 
     def step(self, action):
@@ -196,7 +196,7 @@ def train(episodes=100, use_gfootball=False):
             steps += 1
             state = next_state
 
-            if done or truncated or steps >= 500:
+            if done or truncated or steps >= 100:
                 break
 
         episode_rewards.append(total_reward)
@@ -206,6 +206,8 @@ def train(episodes=100, use_gfootball=False):
         if (episode + 1) % 10 == 0:
             print(f"Episode {episode+1}/{episodes} | Reward: {total_reward:.2f} | Avg: {avg_reward:.2f} | Steps: {steps} | Epsilon: {agent.epsilon:.3f}")
             agent.update_target_network()
+        elif (episode + 1) % 1 == 0:
+            print(f"  Episode {episode+1} completed | Steps: {steps} | Reward: {total_reward:.2f}", end='\r')
 
     # Save model
     agent.model.save('soccer_dqn_model.h5')
