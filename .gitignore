@@ -15,6 +15,11 @@ keeper-experience.ndjson
 shot-events.ndjson
 tmp-rl-train-log.jsonl
 
+# Database files (too large for GitHub)
+psl.db
+psl.db-shm
+psl.db-wal
+
 # Temporary patcher scripts
 tmp-*.cjs
 
