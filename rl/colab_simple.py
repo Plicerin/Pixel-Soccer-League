@@ -233,6 +233,5 @@ def train(episodes=100, use_gfootball=False):
     return agent
 
 
-if __name__ == "__main__":
-    # Run in Colab with: train(episodes=100)
-    agent = train(episodes=100, use_gfootball=False)
+# Run training (works in Colab and local)
+agent = train(episodes=100, use_gfootball=False)
