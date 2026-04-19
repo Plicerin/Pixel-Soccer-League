@@ -9,6 +9,7 @@ import os
 import json
 import numpy as np
 from datetime import datetime
+from typing import Tuple
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(__file__))
