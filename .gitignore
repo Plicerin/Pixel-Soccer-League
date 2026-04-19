@@ -17,3 +17,17 @@ tmp-rl-train-log.jsonl
 
 # Temporary patcher scripts
 tmp-*.cjs
+
+# Python / RL
+venv_rl/
+*.pyc
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# RL models and logs
+rl/models/
+rl/logs/
+
+# VSCode
+.claude/worktrees/
