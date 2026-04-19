@@ -20,11 +20,17 @@ class PSLGameEnvironment:
     def _get_game_state(self) -> Dict[str, Any]:
         """Fetch current game state from server"""
         try:
-            response = requests.get(f"{self.server_url}/recover-latest", timeout=5)
+            response = requests.get(f"{self.server_url}/recover-latest", timeout=15)
             if response.status_code == 200:
-                return response.json()
+                data = response.json()
+                if data:  # Make sure response is not empty
+                    return data
+        except requests.exceptions.Timeout:
+            print(f"Warning: Game server timeout (taking >15s to respond)")
+        except requests.exceptions.ConnectionError:
+            print(f"Error: Cannot connect to game server at {self.server_url}")
         except Exception as e:
-            print(f"Error fetching game state: {e}")
+            pass  # Suppress other errors, return None
         return None
 
     def _extract_state_vector(self, game_state: Dict) -> np.ndarray:
@@ -95,7 +101,7 @@ class PSLGameEnvironment:
         3 = move to position
         """
         self.steps += 1
-        time.sleep(0.1)  # Small delay to allow game to progress
+        time.sleep(0.5)  # Wait for game to process frame
 
         game_state = self._get_game_state()
         if game_state is None:
