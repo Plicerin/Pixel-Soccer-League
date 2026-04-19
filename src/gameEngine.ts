@@ -14707,10 +14707,10 @@ export function initGame(container: HTMLElement) {
               showPlayPatternTag('RECYCLE', 'rgba(180,220,255,0.85)');
               (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
               }
-            } else if (shouldHoldDribble) {
-              (gameState as any)[cooldownKey] = 0.45 + Math.random() * 0.35;
             } else {
-              (gameState as any)[cooldownKey] = 0.40 + Math.random() * 0.25;
+              // No decision made (no shot, no pass, no recycle) — continue dribbling naturally
+              // Don't set cooldown; let dribble movement continue uninterrupted
+              (gameState as any)[cooldownKey] = 0.35 + Math.random() * 0.15;
             }
 
             // Give-and-go return pass: if give-and-go receiver now has ball, pass back to the sprinting passer
