@@ -2851,13 +2851,13 @@ const RetroFootball: React.FC = () => {
               setShowAIStateOverlay(next);
               gameRef.current?.setShowAIStateOverlay?.(next);
             }}
-            className="bg-black/60 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
+            className="hidden bg-black/60 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
           >
             {showAIStateOverlay ? 'Hide AI State' : '🧠 AI State'}
           </button>
           <button
             onClick={() => setShowTelemetry((v) => !v)}
-            className="bg-black/60 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
+            className="hidden bg-black/60 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
           >
             {showTelemetry ? 'Hide Telemetry' : '⚡ Telemetry'}
           </button>

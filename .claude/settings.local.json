@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "WebFetch(domain:localhost)"
     ]
   }
 }
