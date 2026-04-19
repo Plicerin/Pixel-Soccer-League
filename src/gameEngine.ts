@@ -14355,37 +14355,17 @@ export function initGame(container: HTMLElement) {
                 bestPassTarget = chooseAIPassTarget(cpuCarrier, visibleTeammates, team, attackSign);
               }
 
-              // ── Tiered pass certainty gate: forward strict, backward loose ──
+              // ── Simple pass logic: if target exists, check basic safety ──
               const opponents = players.filter((p: any) => p.team !== team && !isGoalkeeper(p));
-              let hasForwardSafePass = false;
-              let hasBackwardSafePass = false;
-
               if (bestPassTarget) {
-                const passDist = cpuCarrier.pos.distanceTo(bestPassTarget.pos);
-                const passVec = new THREE.Vector3().subVectors(bestPassTarget.pos, cpuCarrier.pos);
-                const forwardProg = passVec.x * attackSign;
-                const lanePressure = getPassLanePressure(cpuCarrier.pos, bestPassTarget.pos, team);
-                let receiverDanger = 0;
+                // Simple check: if receiver has 1+ opponent nearby (within 3m), prefer dribble
+                let receiverPressure = 0;
                 opponents.forEach((opp: any) => {
-                  const d = opp.pos.distanceTo(bestPassTarget.pos);
-                  if (d < 4) receiverDanger += 1;
+                  if (opp.pos.distanceTo(bestPassTarget.pos) < 3) receiverPressure++;
                 });
-                const supportSpace = getClosestOpponentDistance(bestPassTarget.pos, team);
-
-                // Forward/lateral pass: strict gate (high completion certainty)
-                const isForwardPass = forwardProg >= 0;
-                const isForwardSafe = isForwardPass && lanePressure < 1.5 && receiverDanger === 0 && supportSpace > 3.5;
-
-                // Backward pass: loose gate (maintain possession)
-                const isBackwardPass = forwardProg < 0;
-                const isBackwardSafe = isBackwardPass && lanePressure < 2.5 && receiverDanger <= 1 && supportSpace > 2.0;
-
-                if (isForwardSafe) {
-                  hasForwardSafePass = true;
-                } else if (isBackwardSafe) {
-                  hasBackwardSafePass = true;
-                } else {
-                  bestPassTarget = null; // Reject unsafe passes
+                // If receiver is heavily pressed, reject the pass; otherwise keep it
+                if (receiverPressure > 2) {
+                  bestPassTarget = null;
                 }
               }
               const closePressure = opponents.filter((opp: any) => opp.pos.distanceTo(cpuCarrier.pos) < 6.5).length;
@@ -14473,8 +14453,7 @@ export function initGame(container: HTMLElement) {
             const supportIncomingSuppression = !insidePenaltyArea && attackersMakingRuns >= 2 ? 0.08
               : (!insidePenaltyArea && attackersMakingRuns >= 1 ? 0.03 : 0);
 
-            // ── Force dribble only when no safe pass exists (forward or backward) ──
-            const mustDribbleToGoal = !bestPassTarget && distToGoal > 8;
+            // No forced dribble—let simple logic handle it (pass → dribble → shoot)
 
             // Rebound suppression: prevent shot cascade after a recent team shot
             const _lastShotKey = team === 'A' ? '_lastShotTimeA' : '_lastShotTimeB';
@@ -14592,12 +14571,11 @@ export function initGame(container: HTMLElement) {
             const flankPassBoost = onFlank && hasForwardPassOption ? 0.40 : 0;
             // Reduce pass bonus in penalty area to encourage shooting
             const passBaseBonus = insidePenaltyArea ? 0.08 : 0.18;
-            // Strikers can still pass in the box (removes old "never pass" rule)
-            // MLS tuning: further increase passChance and riskTolerance for more passing
-            const shouldPass = !mustDribbleToGoal && !wingerWaiting && !shouldShoot && !desperationShot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < (passChance + passBaseBonus) + (riskTolerance + 0.18) * 0.22 + flankPassBoost);
-            // Max-carry timer: if held too long, override dribble hold in favor of pass/shot
+            // Simple decision: pass if available, otherwise dribble or shoot
+            const shouldPass = !shouldShoot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < passChance);
+            // Max-carry timer: if held too long, force a decision
             const carryTimerExpired = _carrierHoldTime >= MAX_CARRY_SECONDS && !isGoalkeeper(cpuCarrier);
-            const shouldHoldDribble = (mustDribbleToGoal) || (!carryTimerExpired && !shouldShoot && !shouldPass && (!hasForwardPassOption || Math.random() < holdDribbleChanceAdjusted));
+            const shouldHoldDribble = (!carryTimerExpired && !shouldShoot && !shouldPass && Math.random() < holdDribbleChanceAdjusted);
             // At the goal line: force a shot even if pass was chosen — don't pass into dead space
             const goalLineShot = !wingerWaiting && !shouldShoot && nearGoalLine && distToGoal < 10;
             // No emergency passes — only use 100% certain passes
