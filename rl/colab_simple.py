@@ -20,7 +20,10 @@ class SimpleSoccerEnv:
 
     def reset(self):
         """Reset to start of episode"""
-        self.state = np.random.random(self.state_size).astype(np.float32)
+        self.state = np.zeros(self.state_size, dtype=np.float32)
+        self.state[0] = 0.5  # ball_x (center field)
+        self.state[1] = 0.5  # ball_y
+        self.state[2] = 1.0  # possession (team A has ball)
         self.steps = 0
         self.max_steps = 500
         return self.state, {}
@@ -28,31 +31,45 @@ class SimpleSoccerEnv:
     def step(self, action):
         """Take action, return new state and reward"""
         self.steps += 1
-
-        # Reward based on action choice
         reward = 0.0
 
-        # Action values (agent should learn to shoot more)
+        # Simulate ball progression based on action
         # 0=pass, 1=shoot, 2=dribble, 3=move
-        if action == 0:  # pass
+        if action == 0:  # pass - advance by small amount
+            self.state[0] += np.random.uniform(0.05, 0.15)  # advance toward goal
             reward = 0.05
-        elif action == 1:  # shoot
-            reward = 0.15
-            # Increased chance of scoring with random variation
-            if np.random.random() < 0.2:
-                reward = 1.0  # Goal!
-        elif action == 2:  # dribble
+        elif action == 1:  # shoot - chance to score
+            if self.state[0] > 0.7:  # near opponent goal
+                reward = 0.2
+                if np.random.random() < 0.25:  # 25% shot accuracy
+                    reward = 1.0  # Goal!
+                    self.state[0] = 0.5  # reset to center
+                    self.state[2] = 1.0  # we keep possession
+            else:
+                reward = -0.1  # shooting from bad position
+        elif action == 2:  # dribble - advance further
+            self.state[0] += np.random.uniform(0.08, 0.20)
             reward = 0.08
-        elif action == 3:  # move
-            reward = 0.02
+        elif action == 3:  # move - defensive
+            self.state[0] -= np.random.uniform(0.05, 0.10)
+            reward = 0.01
 
-        # Small state progression
-        self.state = np.random.random(self.state_size).astype(np.float32)
+        # Ball bounds
+        self.state[0] = np.clip(self.state[0], 0.0, 1.0)
+        self.state[1] = np.clip(self.state[1], 0.0, 1.0)
+
+        # Small possession loss chance (turnover)
+        if np.random.random() < 0.05:
+            self.state[2] = 0.0  # lost possession
+            reward -= 0.1
+
+        # Random noise in other state dimensions
+        self.state[3:] = np.random.random(self.state_size - 3).astype(np.float32) * 0.1
 
         done = self.steps >= self.max_steps
         truncated = False
 
-        return self.state, reward, done, truncated, {}
+        return self.state.copy(), reward, done, truncated, {}
 
 
 class DQNAgent:
