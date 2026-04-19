@@ -11488,13 +11488,8 @@ export function initGame(container: HTMLElement) {
     if (overrideAimZ !== undefined) {
       baseAimZ = overrideAimZ;
     } else if (isStriker) {
-      // Perfect striker shots: aim for far top corner
-      const oppTeam = shooter.team === 'A' ? 'B' : 'A';
-      const oppKeeper = players.find((p: any) => p.team === oppTeam && isGoalkeeper(p));
-      const keeperZ = oppKeeper ? oppKeeper.pos.z : 0;
-      const farSide = keeperZ >= 0 ? -1 : 1;
-      baseAimZ = farSide * goalMouthWidth * 0.45;
-      console.log(`[ARC CALC STRIKER] ${shooter.name} | keeperZ=${keeperZ.toFixed(2)} | farSide=${farSide} | baseAimZ=${baseAimZ.toFixed(2)}`);
+      // DEBUG: Strikers aim for goal CENTER first to test if aiming system works at all
+      baseAimZ = 0;
     } else {
       // --- Keeper-aware aiming: pick the corner AWAY from the keeper ---
       const oppTeam = shooter.team === 'A' ? 'B' : 'A';
