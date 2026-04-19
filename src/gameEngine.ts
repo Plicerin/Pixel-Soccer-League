@@ -10031,8 +10031,12 @@ export function initGame(container: HTMLElement) {
         return (Math.random() * 2 - 1) * maxAimError;
       })();
 
+      if (isStriker && Math.random() < 0.05) {
+        console.log(`[STRIKER SHOT DEBUG] ${shooter.name} (${shooter.team}) | aimError=${aimError} | role=${shooter.displayRole || shooter.role}`);
+      }
+
       // Shot aiming: natural aiming error based on composure, no forced misses
-      const arc = computeShotArc(shooter, powerScale, undefined, undefined);
+      const arc = computeShotArc(shooter, powerScale, undefined, undefined, isStriker);
       const launchDir = shooter.vel.clone().setY(0);
       if (launchDir.lengthSq() < 0.01) {
         const toGoal = new THREE.Vector3(arc.targetPos.x - shooter.pos.x, 0, arc.targetPos.z - shooter.pos.z);
@@ -10148,6 +10152,9 @@ export function initGame(container: HTMLElement) {
       // DEBUG: Strikers get zero spin for perfect shots
       if (isStriker) {
         ballState.angularVel.set(0, 0, 0);
+        if (Math.random() < 0.05) {
+          console.log(`[STRIKER SHOT] ${shooter.name} | shotStyle=${shotStyle} | spin=ZERO | targetZ=${baseAimZ.toFixed(2)}`);
+        }
       } else {
         const attackSign = teamAttacksRight(shooter.team) ? 1 : -1;
         const curlSide = shooter.pos.z >= 0 ? -1 : 1; // curl toward opposite post
@@ -11460,7 +11467,7 @@ export function initGame(container: HTMLElement) {
   let shotAimCurrentZ = 0;          // lateral position updated every frame during charge
   const SHOT_AIM_SWEEP_SPEED = 2.8; // rad/s  →  full L-R-L cycle ≈ 2.24 s
 
-  function computeShotArc(shooter: any, powerScale: number, overrideAimZ?: number, overrideTargetY?: number) {
+  function computeShotArc(shooter: any, powerScale: number, overrideAimZ?: number, overrideTargetY?: number, forceStrikerAim: boolean = false) {
     const isGoaliePracticeShot = practiceModeEnabled && isGoalkeeper(shooter);
     const attackRight = teamAttacksRight(shooter.team);
     const goalX = isGoaliePracticeShot
@@ -11471,7 +11478,7 @@ export function initGame(container: HTMLElement) {
     const composure = THREE.MathUtils.clamp(shotSkill * 0.85, 0.20, 0.98);
 
     // DEBUG: Strikers target top corner
-    const isStriker = ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
+    const isStriker = forceStrikerAim || ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
 
     let baseAimZ: number;
     if (overrideAimZ !== undefined) {
