@@ -10067,14 +10067,14 @@ export function initGame(container: HTMLElement) {
           speedMul = 1.18;
           liftMul = 0.82;
           releaseY = 0.21;
-          extraAimScale = 0.82;
+          extraAimScale = isStriker ? 1.0 : 0.82;
           break;
         case 'PLACED':
           shotLabel = 'PLACED SHOT';
           speedMul = 0.88;
           liftMul = 0.92;
           releaseY = 0.22;
-          extraAimScale = 0.42;
+          extraAimScale = isStriker ? 1.0 : 0.42;
           break;
         case 'CHIP':
           shotLabel = 'CHIPPED SHOT';
@@ -10102,8 +10102,8 @@ export function initGame(container: HTMLElement) {
           speedMul = 0.96;
           liftMul = 1.02;
           releaseY = 0.24;
-          extraCurve = (shooter.pos.z >= 0 ? -1 : 1) * 2.15 * GAME_SPEED_SCALE;
-          extraAimScale = 0.72;
+          extraCurve = isStriker ? 0 : ((shooter.pos.z >= 0 ? -1 : 1) * 2.15 * GAME_SPEED_SCALE);
+          extraAimScale = isStriker ? 1.0 : 0.72;
           break;
         case 'TOE_POKE':
           shotLabel = 'TOE POKE';
@@ -10145,38 +10145,43 @@ export function initGame(container: HTMLElement) {
       ballState.vel.z *= weather.shotSpeedMul;
 
       // --- Set angular velocity (spin) based on shot type for Magnus deflection ---
-      const attackSign = teamAttacksRight(shooter.team) ? 1 : -1;
-      const curlSide = shooter.pos.z >= 0 ? -1 : 1; // curl toward opposite post
-      switch (shotStyle) {
-        case 'CURLED':
-          // Strong sidespin for lateral curve
-          ballState.angularVel.set(0, curlSide * 7.5, 0);
-          break;
-        case 'LACES_DRIVE':
-          // Topspin for dipping trajectory
-          ballState.angularVel.set(-attackSign * 4.0, 0, 0);
-          break;
-        case 'CHIP':
-          // Backspin causes the ball to float longer
-          ballState.angularVel.set(attackSign * 5.5, 0, 0);
-          break;
-        case 'PLACED':
-          // Mild sidespin toward far post
-          ballState.angularVel.set(0, curlSide * 3.0, 0);
-          break;
-        case 'VOLLEY':
-        case 'HALF_VOLLEY':
-          // Topspin for a dipping strike
-          ballState.angularVel.set(-attackSign * 5.0, curlSide * 1.5, 0);
-          break;
-        case 'HEADER':
-        case 'TOE_POKE':
-          // Minimal spin
-          ballState.angularVel.set(0, 0, 0);
-          break;
-        default:
-          ballState.angularVel.set(0, 0, 0);
-          break;
+      // DEBUG: Strikers get zero spin for perfect shots
+      if (isStriker) {
+        ballState.angularVel.set(0, 0, 0);
+      } else {
+        const attackSign = teamAttacksRight(shooter.team) ? 1 : -1;
+        const curlSide = shooter.pos.z >= 0 ? -1 : 1; // curl toward opposite post
+        switch (shotStyle) {
+          case 'CURLED':
+            // Strong sidespin for lateral curve
+            ballState.angularVel.set(0, curlSide * 7.5, 0);
+            break;
+          case 'LACES_DRIVE':
+            // Topspin for dipping trajectory
+            ballState.angularVel.set(-attackSign * 4.0, 0, 0);
+            break;
+          case 'CHIP':
+            // Backspin causes the ball to float longer
+            ballState.angularVel.set(attackSign * 5.5, 0, 0);
+            break;
+          case 'PLACED':
+            // Mild sidespin toward far post
+            ballState.angularVel.set(0, curlSide * 3.0, 0);
+            break;
+          case 'VOLLEY':
+          case 'HALF_VOLLEY':
+            // Topspin for a dipping strike
+            ballState.angularVel.set(-attackSign * 5.0, curlSide * 1.5, 0);
+            break;
+          case 'HEADER':
+          case 'TOE_POKE':
+            // Minimal spin
+            ballState.angularVel.set(0, 0, 0);
+            break;
+          default:
+            ballState.angularVel.set(0, 0, 0);
+            break;
+        }
       }
 
       gameState.lastShotTelemetrySeq += 1;
