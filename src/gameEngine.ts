@@ -14445,7 +14445,7 @@ export function initGame(container: HTMLElement) {
                 0.08,
                 0.35,
               );
-              const maxShootDistance = THREE.MathUtils.clamp(roleProfile.shotRange + (shotSkill - 0.5) * 3, 5, 14);
+              const maxShootDistance = THREE.MathUtils.clamp(roleProfile.shotRange + (shotSkill - 0.5) * 3, 5, 10);
 
             // ── Risk tolerance: derived from role + awareness ──
             // Playmakers/wingers are braver; CBs/DMs play safe
@@ -14474,7 +14474,7 @@ export function initGame(container: HTMLElement) {
               : (!insidePenaltyArea && attackersMakingRuns >= 1 ? 0.03 : 0);
 
             // ── Force dribble only when no safe pass exists (forward or backward) ──
-            const mustDribbleToGoal = !bestPassTarget && distToGoal > 9;
+            const mustDribbleToGoal = !bestPassTarget && distToGoal > 8;
 
             // Rebound suppression: prevent shot cascade after a recent team shot
             const _lastShotKey = team === 'A' ? '_lastShotTimeA' : '_lastShotTimeB';
