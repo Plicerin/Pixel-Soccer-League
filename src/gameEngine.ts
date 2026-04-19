@@ -15596,9 +15596,9 @@ export function initGame(container: HTMLElement) {
               if (wasShot && isKeeperClaim) {
                 const shotSpeed = ballState.vel.length();
                 const reachFraction = effectiveDist / flyingCollectRadius; // 0 = dead center, 1 = edge of reach
-                // Base save chance: 78% at center, drops toward edges and for powerful shots
+                // Base save chance: 65% at center, drops toward edges and for powerful shots
                 const speedPenalty = THREE.MathUtils.clamp((shotSpeed - 10) * 0.025, 0, 0.22);
-                const saveChance = THREE.MathUtils.clamp(0.78 - reachFraction * 0.36 - speedPenalty, 0.25, 0.82);
+                const saveChance = THREE.MathUtils.clamp(0.65 - reachFraction * 0.28 - speedPenalty, 0.22, 0.70);
                 if (Math.random() > saveChance) {
                   // Shot beats the keeper — deflect but don't claim
                   const deflect = (Math.random() - 0.5) * 2.5;
