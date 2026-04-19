@@ -10058,6 +10058,10 @@ export function initGame(container: HTMLElement) {
       ballState.pos.y = 0.24;
       ballState.vel.copy(arc.vel);
 
+      if (isStriker && Math.random() < 0.1) {
+        console.log(`[POST-ARC] ${shooter.name} | vel=${arc.vel.x.toFixed(2)},${arc.vel.z.toFixed(2)} | targetZ=${arc.targetPos.z.toFixed(2)}`);
+      }
+
       let shotLabel = 'SHOT';
       let speedMul = 1.0;
       let liftMul = 1.0;
@@ -11490,6 +11494,7 @@ export function initGame(container: HTMLElement) {
       const keeperZ = oppKeeper ? oppKeeper.pos.z : 0;
       const farSide = keeperZ >= 0 ? -1 : 1;
       baseAimZ = farSide * goalMouthWidth * 0.45;
+      console.log(`[ARC CALC STRIKER] ${shooter.name} | keeperZ=${keeperZ.toFixed(2)} | farSide=${farSide} | baseAimZ=${baseAimZ.toFixed(2)}`);
     } else {
       // --- Keeper-aware aiming: pick the corner AWAY from the keeper ---
       const oppTeam = shooter.team === 'A' ? 'B' : 'A';
