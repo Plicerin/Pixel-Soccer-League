@@ -10022,11 +10022,14 @@ export function initGame(container: HTMLElement) {
         ? chooseAIShotStyle(shooter, closePressure, distToGoal, inShootingLane, inTapInZone)
         : requestedStyle;
       if (shotStyle === 'HEADER') recordHeader(shooter.team);
-      const distanceError = THREE.MathUtils.clamp((distToGoal - 12) * 0.008, 0, 0.12);
-      const composureFloor = distToGoal < 6 ? 0.20 : 0.35;
-      // MLS tuning: reduce maxAimError for better shot accuracy
-      const maxAimError = THREE.MathUtils.lerp(cpuShotAimErrorRad * 0.85, cpuShotAimErrorRad * composureFloor * 0.85, composure) + distanceError * 0.85;
-      const aimError = (Math.random() * 2 - 1) * maxAimError;
+      // DEBUG: Strikers get perfect shots to test aiming system
+      const isStriker = ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
+      const aimError = isStriker ? 0 : (() => {
+        const distanceError = THREE.MathUtils.clamp((distToGoal - 12) * 0.008, 0, 0.12);
+        const composureFloor = distToGoal < 6 ? 0.20 : 0.35;
+        const maxAimError = THREE.MathUtils.lerp(cpuShotAimErrorRad * 0.85, cpuShotAimErrorRad * composureFloor * 0.85, composure) + distanceError * 0.85;
+        return (Math.random() * 2 - 1) * maxAimError;
+      })();
 
       // Shot aiming: natural aiming error based on composure, no forced misses
       const arc = computeShotArc(shooter, powerScale, undefined, undefined);
@@ -11462,9 +11465,19 @@ export function initGame(container: HTMLElement) {
     // Use full skill for aiming accuracy (no pressure penalty) — shooter already decided to shoot
     const composure = THREE.MathUtils.clamp(shotSkill * 0.85, 0.20, 0.98);
 
+    // DEBUG: Strikers target top corner
+    const isStriker = ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
+
     let baseAimZ: number;
     if (overrideAimZ !== undefined) {
       baseAimZ = overrideAimZ;
+    } else if (isStriker) {
+      // Perfect striker shots: aim for far top corner
+      const oppTeam = shooter.team === 'A' ? 'B' : 'A';
+      const oppKeeper = players.find((p: any) => p.team === oppTeam && isGoalkeeper(p));
+      const keeperZ = oppKeeper ? oppKeeper.pos.z : 0;
+      const farSide = keeperZ >= 0 ? -1 : 1;
+      baseAimZ = farSide * goalMouthWidth * 0.45;
     } else {
       // --- Keeper-aware aiming: pick the corner AWAY from the keeper ---
       const oppTeam = shooter.team === 'A' ? 'B' : 'A';
@@ -11484,6 +11497,9 @@ export function initGame(container: HTMLElement) {
     let targetY: number;
     if (overrideTargetY !== undefined) {
       targetY = overrideTargetY;
+    } else if (isStriker) {
+      // Strikers always aim for top corner (0.82 = 82% of goal height)
+      targetY = goalMouthHeight * 0.82;
     } else {
       // --- Height variety: low/mid/high corners instead of fixed 1.1 ---
       const heightRoll = Math.random();
