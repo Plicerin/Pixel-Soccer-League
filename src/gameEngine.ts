@@ -10022,21 +10022,14 @@ export function initGame(container: HTMLElement) {
         ? chooseAIShotStyle(shooter, closePressure, distToGoal, inShootingLane, inTapInZone)
         : requestedStyle;
       if (shotStyle === 'HEADER') recordHeader(shooter.team);
-      // DEBUG: Strikers get perfect shots to test aiming system
-      const isStriker = ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
-      const aimError = isStriker ? 0 : (() => {
-        const distanceError = THREE.MathUtils.clamp((distToGoal - 12) * 0.008, 0, 0.12);
-        const composureFloor = distToGoal < 6 ? 0.20 : 0.35;
-        const maxAimError = THREE.MathUtils.lerp(cpuShotAimErrorRad * 0.85, cpuShotAimErrorRad * composureFloor * 0.85, composure) + distanceError * 0.85;
-        return (Math.random() * 2 - 1) * maxAimError;
-      })();
-
-      if (isStriker && Math.random() < 0.05) {
-        console.log(`[STRIKER SHOT DEBUG] ${shooter.name} (${shooter.team}) | aimError=${aimError} | role=${shooter.displayRole || shooter.role}`);
-      }
+      const distanceError = THREE.MathUtils.clamp((distToGoal - 12) * 0.008, 0, 0.12);
+      const composureFloor = distToGoal < 6 ? 0.20 : 0.35;
+      // MLS tuning: reduce maxAimError for better shot accuracy
+      const maxAimError = THREE.MathUtils.lerp(cpuShotAimErrorRad * 0.85, cpuShotAimErrorRad * composureFloor * 0.85, composure) + distanceError * 0.85;
+      const aimError = (Math.random() * 2 - 1) * maxAimError;
 
       // Shot aiming: natural aiming error based on composure, no forced misses
-      const arc = computeShotArc(shooter, powerScale, undefined, undefined, isStriker);
+      const arc = computeShotArc(shooter, powerScale, undefined, undefined);
       const launchDir = shooter.vel.clone().setY(0);
       if (launchDir.lengthSq() < 0.01) {
         const toGoal = new THREE.Vector3(arc.targetPos.x - shooter.pos.x, 0, arc.targetPos.z - shooter.pos.z);
@@ -10058,10 +10051,6 @@ export function initGame(container: HTMLElement) {
       ballState.pos.y = 0.24;
       ballState.vel.copy(arc.vel);
 
-      if (isStriker && Math.random() < 0.1) {
-        console.log(`[POST-ARC] ${shooter.name} | vel=${arc.vel.x.toFixed(2)},${arc.vel.z.toFixed(2)} | targetZ=${arc.targetPos.z.toFixed(2)}`);
-      }
-
       let shotLabel = 'SHOT';
       let speedMul = 1.0;
       let liftMul = 1.0;
@@ -10075,14 +10064,14 @@ export function initGame(container: HTMLElement) {
           speedMul = 1.18;
           liftMul = 0.82;
           releaseY = 0.21;
-          extraAimScale = isStriker ? 1.0 : 0.82;
+          extraAimScale = 0.82;
           break;
         case 'PLACED':
           shotLabel = 'PLACED SHOT';
           speedMul = 0.88;
           liftMul = 0.92;
           releaseY = 0.22;
-          extraAimScale = isStriker ? 1.0 : 0.42;
+          extraAimScale = 0.42;
           break;
         case 'CHIP':
           shotLabel = 'CHIPPED SHOT';
@@ -10110,8 +10099,8 @@ export function initGame(container: HTMLElement) {
           speedMul = 0.96;
           liftMul = 1.02;
           releaseY = 0.24;
-          extraCurve = isStriker ? 0 : ((shooter.pos.z >= 0 ? -1 : 1) * 2.15 * GAME_SPEED_SCALE);
-          extraAimScale = isStriker ? 1.0 : 0.72;
+          extraCurve = (shooter.pos.z >= 0 ? -1 : 1) * 2.15 * GAME_SPEED_SCALE;
+          extraAimScale = 0.72;
           break;
         case 'TOE_POKE':
           shotLabel = 'TOE POKE';
@@ -10153,46 +10142,38 @@ export function initGame(container: HTMLElement) {
       ballState.vel.z *= weather.shotSpeedMul;
 
       // --- Set angular velocity (spin) based on shot type for Magnus deflection ---
-      // DEBUG: Strikers get zero spin for perfect shots
-      if (isStriker) {
-        ballState.angularVel.set(0, 0, 0);
-        if (Math.random() < 0.05) {
-          console.log(`[STRIKER SHOT] ${shooter.name} | shotStyle=${shotStyle} | spin=ZERO | targetZ=${baseAimZ.toFixed(2)}`);
-        }
-      } else {
-        const attackSign = teamAttacksRight(shooter.team) ? 1 : -1;
-        const curlSide = shooter.pos.z >= 0 ? -1 : 1; // curl toward opposite post
-        switch (shotStyle) {
-          case 'CURLED':
-            // Strong sidespin for lateral curve
-            ballState.angularVel.set(0, curlSide * 7.5, 0);
-            break;
-          case 'LACES_DRIVE':
-            // Topspin for dipping trajectory
-            ballState.angularVel.set(-attackSign * 4.0, 0, 0);
-            break;
-          case 'CHIP':
-            // Backspin causes the ball to float longer
-            ballState.angularVel.set(attackSign * 5.5, 0, 0);
-            break;
-          case 'PLACED':
-            // Mild sidespin toward far post
-            ballState.angularVel.set(0, curlSide * 3.0, 0);
-            break;
-          case 'VOLLEY':
-          case 'HALF_VOLLEY':
-            // Topspin for a dipping strike
-            ballState.angularVel.set(-attackSign * 5.0, curlSide * 1.5, 0);
-            break;
-          case 'HEADER':
-          case 'TOE_POKE':
-            // Minimal spin
-            ballState.angularVel.set(0, 0, 0);
-            break;
-          default:
-            ballState.angularVel.set(0, 0, 0);
-            break;
-        }
+      const attackSign = teamAttacksRight(shooter.team) ? 1 : -1;
+      const curlSide = shooter.pos.z >= 0 ? -1 : 1; // curl toward opposite post
+      switch (shotStyle) {
+        case 'CURLED':
+          // Strong sidespin for lateral curve
+          ballState.angularVel.set(0, curlSide * 7.5, 0);
+          break;
+        case 'LACES_DRIVE':
+          // Topspin for dipping trajectory
+          ballState.angularVel.set(-attackSign * 4.0, 0, 0);
+          break;
+        case 'CHIP':
+          // Backspin causes the ball to float longer
+          ballState.angularVel.set(attackSign * 5.5, 0, 0);
+          break;
+        case 'PLACED':
+          // Mild sidespin toward far post
+          ballState.angularVel.set(0, curlSide * 3.0, 0);
+          break;
+        case 'VOLLEY':
+        case 'HALF_VOLLEY':
+          // Topspin for a dipping strike
+          ballState.angularVel.set(-attackSign * 5.0, curlSide * 1.5, 0);
+          break;
+        case 'HEADER':
+        case 'TOE_POKE':
+          // Minimal spin
+          ballState.angularVel.set(0, 0, 0);
+          break;
+        default:
+          ballState.angularVel.set(0, 0, 0);
+          break;
       }
 
       gameState.lastShotTelemetrySeq += 1;
@@ -11471,7 +11452,7 @@ export function initGame(container: HTMLElement) {
   let shotAimCurrentZ = 0;          // lateral position updated every frame during charge
   const SHOT_AIM_SWEEP_SPEED = 2.8; // rad/s  →  full L-R-L cycle ≈ 2.24 s
 
-  function computeShotArc(shooter: any, powerScale: number, overrideAimZ?: number, overrideTargetY?: number, forceStrikerAim: boolean = false) {
+  function computeShotArc(shooter: any, powerScale: number, overrideAimZ?: number, overrideTargetY?: number) {
     const isGoaliePracticeShot = practiceModeEnabled && isGoalkeeper(shooter);
     const attackRight = teamAttacksRight(shooter.team);
     const goalX = isGoaliePracticeShot
@@ -11481,15 +11462,9 @@ export function initGame(container: HTMLElement) {
     // Use full skill for aiming accuracy (no pressure penalty) — shooter already decided to shoot
     const composure = THREE.MathUtils.clamp(shotSkill * 0.85, 0.20, 0.98);
 
-    // DEBUG: Strikers target top corner
-    const isStriker = forceStrikerAim || ['ST', 'CF', 'LW', 'RW', 'CAM'].includes((shooter.displayRole || shooter.role || '').toUpperCase());
-
     let baseAimZ: number;
     if (overrideAimZ !== undefined) {
       baseAimZ = overrideAimZ;
-    } else if (isStriker) {
-      // DEBUG: Strikers aim for goal CENTER first to test if aiming system works at all
-      baseAimZ = 0;
     } else {
       // --- Keeper-aware aiming: pick the corner AWAY from the keeper ---
       const oppTeam = shooter.team === 'A' ? 'B' : 'A';
@@ -11509,9 +11484,6 @@ export function initGame(container: HTMLElement) {
     let targetY: number;
     if (overrideTargetY !== undefined) {
       targetY = overrideTargetY;
-    } else if (isStriker) {
-      // DEBUG: Strikers aim for goal CENTER
-      targetY = goalMouthHeight * 0.5;
     } else {
       // --- Height variety: low/mid/high corners instead of fixed 1.1 ---
       const heightRoll = Math.random();
