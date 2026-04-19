@@ -22,9 +22,13 @@ def install_gfootball():
     """Install Google Research Football in Colab"""
     try:
         import gfootball
+        print("gfootball already installed")
     except ImportError:
         print("Installing google-research-football...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-research-football", "-q"])
+        # Install build dependencies first
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "cmake", "patchelf"])
+        # Then install gfootball
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "google-research-football==2.11.0"])
 
 install_gfootball()
 
@@ -57,7 +61,7 @@ class DQNAgent:
             keras.layers.Dropout(0.2),
             keras.layers.Dense(self.action_size, activation='linear')
         ])
-        model.compile(optimizer=keras.optimizers.Adam(lr=self.learning_rate), loss='mse')
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate), loss='mse')
         return model
 
     def update_target_network(self):
