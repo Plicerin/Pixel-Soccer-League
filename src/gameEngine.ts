@@ -11510,8 +11510,8 @@ export function initGame(container: HTMLElement) {
     if (overrideTargetY !== undefined) {
       targetY = overrideTargetY;
     } else if (isStriker) {
-      // Strikers always aim for top corner (0.82 = 82% of goal height)
-      targetY = goalMouthHeight * 0.82;
+      // DEBUG: Strikers aim for goal CENTER
+      targetY = goalMouthHeight * 0.5;
     } else {
       // --- Height variety: low/mid/high corners instead of fixed 1.1 ---
       const heightRoll = Math.random();
