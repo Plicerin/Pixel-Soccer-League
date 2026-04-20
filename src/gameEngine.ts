@@ -4,6 +4,7 @@ import { OFFENSE_FORMATIONS, DEFENSE_FORMATIONS, PASS_PLAYBOOK, DEFENSE_PLAYBOOK
 import { MLS_PLAYER_RATINGS, type MLSPlayerRating } from './mlsRatings.ts';
 import { getMLS2025TeamModifiers } from './mlsTeamStats2025.ts';
 import { keeperNet, encodeKeeperState, KEEPER_ACTIONS, type KeeperExperience, type KeeperNetWeights } from './ai/keeperNet.ts';
+import { outfieldNet, encodeOutfieldState, type OutfieldNetWeights } from './ai/outfieldNet.ts';
 import { computeAttackingRunTarget } from './ai/attackingLanes.ts';
 import { computeIdealTacticalPosition } from './ai/tacticalPositioning.ts';
 import { computeForceFieldNudge } from './ai/forceFieldPositioning.ts';
@@ -5396,6 +5397,12 @@ export function initGame(container: HTMLElement) {
     .then(r => { if (r.ok) return r.json(); throw new Error('no model'); })
     .then((w: KeeperNetWeights) => { keeperNet.loadWeights(w); console.log('[KeeperNet] Weights loaded'); })
     .catch(() => { /* No model yet — will run in rule-based fallback mode */ });
+
+  // Load outfield DQN weights
+  fetch('/assets/outfield-model/weights.json')
+    .then(r => { if (r.ok) return r.json(); throw new Error('no model'); })
+    .then((w: OutfieldNetWeights) => { outfieldNet.loadWeights(w); console.log('[OutfieldNet] Weights loaded'); })
+    .catch(() => { /* No model — rule-based fallback */ });
 
   function getAttackPhase(team: 'A' | 'B'): 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD' {
     const carrier = ballState.heldBy;
@@ -14575,7 +14582,33 @@ export function initGame(container: HTMLElement) {
             const shouldPass = !shouldShoot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < passChance);
             // Max-carry timer: if held too long, force a decision
             const carryTimerExpired = _carrierHoldTime >= MAX_CARRY_SECONDS && !isGoalkeeper(cpuCarrier);
-            const shouldHoldDribble = (!carryTimerExpired && !shouldShoot && !shouldPass && Math.random() < holdDribbleChanceAdjusted);
+            let shouldHoldDribble = (!carryTimerExpired && !shouldShoot && !shouldPass && Math.random() < holdDribbleChanceAdjusted);
+
+            // ── RL tiebreaker: consult outfield net when rule-based decision is uncertain ──
+            if (outfieldNet.loaded && !shouldShoot && !patternPassOverride && !patternShotOverride) {
+              const _rlHalfDur = getHalfDurationSeconds();
+              const _rlElapsed = (matchClock.half === 1 ? 0 : _rlHalfDur) + matchClock.elapsedInHalf;
+              const scoreDiff = team === 'A' ? gameState.scoreA - gameState.scoreB : gameState.scoreB - gameState.scoreA;
+              const rlState = encodeOutfieldState({
+                ballX: THREE.MathUtils.clamp((cpuCarrier.pos.x * attackSign + 60) / 120, 0, 1),
+                ballY: THREE.MathUtils.clamp((cpuCarrier.pos.z + 40) / 80, 0, 1),
+                possession: 1,
+                distToGoal,
+                closePressure,
+                inFinalThird: distToGoal < 30,
+                inPenaltyArea: insidePenaltyArea,
+                inShootingLane,
+                passOptionCount: teammates.filter((t: any) => t !== cpuCarrier).length,
+                scoreDiff,
+                timeRemainingFrac: 1 - THREE.MathUtils.clamp(_rlElapsed / (_rlHalfDur * 2), 0, 1),
+              });
+              const rlAction = outfieldNet.bestAction(rlState);
+              // RL says pass when rule-based held dribble — give it a 30% chance to override
+              if (rlAction === 0 && !!passTarget && shouldHoldDribble && Math.random() < 0.30) {
+                shouldHoldDribble = false;
+              }
+            }
+
             // At the goal line: force a shot even if pass was chosen — don't pass into dead space
             const goalLineShot = !wingerWaiting && !shouldShoot && nearGoalLine && distToGoal < 10;
             // No emergency passes — only use 100% certain passes
