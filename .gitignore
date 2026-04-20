@@ -31,7 +31,8 @@ __pycache__/
 .pytest_cache/
 
 # RL models and logs
-rl/models/
+rl/models/*.h5
+rl/models/training_stats.json
 rl/logs/
 
 # VSCode
