@@ -9943,7 +9943,7 @@ export function initGame(container: HTMLElement) {
     const attackRight = teamAttacksRight(collector.team);
     const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
     const distToGoal = Math.abs(goalX - collector.pos.x);
-    if (distToGoal > 22) return false;
+    if (distToGoal > 14) return false;
 
     // Must be within a viable shooting lane (wider at close range)
     const laneWidth = distToGoal < 10 ? goalMouthWidth * 1.6 : goalMouthWidth * 1.1;
@@ -9957,7 +9957,7 @@ export function initGame(container: HTMLElement) {
     const roleBonus = roleLabel === 'ST' ? 0.12 : (['CM', 'LM', 'RM'].includes(roleLabel) ? 0.05 : 0);
     const crossWindow = gameState.crossAssistTeam === collector.team && nowElapsed <= gameState.crossAssistUntil;
     const crossBonus = crossWindow ? 0.12 : 0;
-    const distFactor = THREE.MathUtils.clamp(1 - distToGoal / 22, 0, 1);
+    const distFactor = THREE.MathUtils.clamp(1 - distToGoal / 14, 0, 1);
     const flyingBonus = wasFlying ? 0.08 : 0;
 
     const chance = THREE.MathUtils.clamp(
