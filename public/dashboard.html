@@ -66,7 +66,7 @@ input[type="file"]{display:none}
 .ev-type.PASS{background:#1e3a5f;color:#60a5fa}.ev-type.SHOT{background:#5f1e1e;color:#f87171}
 .ev-type.TACKLE{background:#1e5f2e;color:#4ade80}.ev-type.INTERCEPTION{background:#4a1e5f;color:#c084fc}
 .ev-type.FOUL{background:#5f4a1e;color:#fbbf24}.ev-type.CLEARANCE{background:#1e4a5f;color:#22d3ee}
-.ev-type.RECOVERY{background:#2e5f1e;color:#86efac}
+.ev-type.RECOVERY{background:#2e5f1e;color:#86efac}.ev-type.MIDFIELD_SUPPORT{background:#7c3aed;color:#f5f3ff}
 
 /* ── Role stats ── */
 .role-select{margin-bottom:10px}
@@ -213,7 +213,24 @@ input[type="file"]{display:none}
   </div>
 </div>
 
-<!-- ══════ 6. SPATIAL INTELLIGENCE ══════ -->
+<!-- ══════ 6. SHOT DECISION TELEMETRY ══════ -->
+<div class="panel full-width" id="panelShotDecisions">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>SHOT DECISION TELEMETRY<button class="copy-btn" onclick="copySection('shotDecisions')">Copy</button></div>
+  <div class="panel-body">
+    <div id="shotDecisionList"></div>
+  </div>
+</div>
+
+<!-- ══════ 7. PASS DECISION TELEMETRY ══════ -->
+<div class="panel full-width" id="panelPassDecisions">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>PASS DECISION TELEMETRY<button class="copy-btn" onclick="copySection('passDecisions')">Copy</button></div>
+  <div class="panel-body">
+    <div id="passDecisionList"></div>
+  </div>
+</div>
+
+
+<!-- ══════ 8. SPATIAL INTELLIGENCE ══════ -->
 <div class="panel" id="panelSpatial">
   <div class="panel-header"><span class="dot" style="background:var(--accent-brown)"></span>SPATIAL INTELLIGENCE<button class="copy-btn" onclick="copySection('spatial')">Copy</button></div>
   <div class="panel-body">
@@ -311,10 +328,27 @@ input[type="file"]{display:none}
         // Expecting { type: 'tuning', ...payload } or { type: 'event', ... }
         if (msg.type === 'tuning' && shouldAcceptLivePayload(msg)) {
           if (!_historyModeActive) setDFromPayload(msg);
-        } else if (msg.type === 'event' && msg.event) {
-          // Optionally handle single event updates here
-          // For now, just log
-          console.log('[PSL-Dashboard] Live event:', msg.event);
+        } else if (msg.type === 'event' && (msg.event || msg.snapshot?.event)) {
+          try {
+            const liveEv = { ...(msg.event || msg.snapshot.event) };
+            if (D && Array.isArray(D.events)) {
+              D.events.push(liveEv);
+            } else if (D) {
+              D.events = [liveEv];
+            } else {
+              D = { events: [liveEv] };
+            }
+            const halfDur = D.metadata?.halfDuration || 2700;
+            liveEv.minute = liveEv.minute ?? Math.min(
+              liveEv.half === 1 ? Math.floor(liveEv.t / 60) : 45 + Math.floor((liveEv.t - halfDur) / 60),
+              90
+            );
+            renderEventList();
+            renderTimeline();
+            console.log('[PSL-Dashboard] Live event appended:', liveEv);
+          } catch (err) {
+            console.warn('[PSL-Dashboard] Failed to append live event', err, msg.event);
+          }
         }
       } catch (e) {
         console.warn('[PSL-Dashboard] WebSocket message error:', e, 'Raw event:', event.data?.slice?.(0, 200));
@@ -471,6 +505,34 @@ function copySection(key) {
         `Fouls: ${r.fouls}  Fouled: ${r.fouled}`,
       ].join('\n');
     }
+  } else if (key === 'passDecisions') {
+    const decisions = Array.isArray(D.passDecisions) ? D.passDecisions : [];
+    text = [`PASS DECISIONS — ${nameA} vs ${nameB}`];
+    if (!decisions.length) {
+      text.push('No pass decision telemetry recorded.');
+    } else {
+      text.push(`Total decisions: ${decisions.length}`);
+      text.push(...decisions.slice(-50).reverse().map(d => {
+        const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+        const parts = [
+          `team:${d.team||'?'}`,
+          `passer:${d.passer||d.passerRole||'?'}`,
+          `target:${d.target||'?'}`,
+          `style:${d.passStyle||'PASS'}`,
+          `passChance:${d.passChance != null ? d.passChance : 'null'}`,
+          `forwardProg:${d.forwardProg != null ? d.forwardProg : 'null'}`,
+          `passDist:${d.passDist != null ? d.passDist : 'null'}`,
+          `inFinalThird:${d.inFinalThird}`,
+          `insidePenaltyArea:${d.insidePenaltyArea}`,
+          `hasForwardPassOption:${d.hasForwardPassOption != null ? d.hasForwardPassOption : 'null'}`,
+          `passSkill:${d.passSkill != null ? d.passSkill : 'null'}`,
+          `progressivePass:${d.progressivePass != null ? d.progressivePass : 'null'}`,
+          `decisionType:${d.decisionType || 'UNKNOWN'}`,
+        ];
+        return `${timeLabel} [${d.team||'?'}] ${parts.join(' · ')}`;
+      }));
+    }
+    text = text.join('\n');
   } else if (key === 'events') {
     const evs = D.events || [];
     const visible = evs.filter(e=>activeEventFilters.has(e.type));
@@ -478,6 +540,42 @@ function copySection(key) {
       `EVENT STREAM — ${nameA} vs ${nameB} (${visible.length} events shown)`,
       ...visible.slice(0,200).map(e=>`${String(e.minute??'?').padStart(3,'\u00a0')}'  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
     ].join('\n');
+  } else if (key === 'shotDecisions') {
+    const decisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+    text = [`SHOT DECISIONS — ${nameA} vs ${nameB}`];
+    if (!decisions.length) {
+      text.push('No shot decision telemetry recorded.');
+    } else {
+      text.push(`Total decisions: ${decisions.length}`);
+      text.push(...decisions.slice(-50).reverse().map(d => {
+        const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+        const isLowEv = d.shotChance != null && d.passChance != null && d.shotChance < d.passChance;
+        const isBelowThreshold = d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot;
+        const parts = [
+          `team:${d.team||'?'}`,
+          `shooter:${d.shooter||d.role||'?'}`,
+          `style:${d.style||'SHOT'}`,
+          `shotChance:${d.shotChance != null ? d.shotChance : 'null'}`,
+          `passChance:${d.passChance != null ? d.passChance : 'null'}`,
+          `threshold:${d.shotThreshold != null ? d.shotThreshold : 'null'}`,
+          `lowEv:${isLowEv}`,
+          `belowThreshold:${isBelowThreshold}`,
+          `passTarget:${d.passTarget != null ? d.passTarget : 'null'}`,
+          `hasForwardPassOption:${d.hasForwardPassOption != null ? d.hasForwardPassOption : 'null'}`,
+          `onFlank:${d.onFlank != null ? d.onFlank : 'null'}`,
+          `supportIncomingSuppression:${d.supportIncomingSuppression != null ? d.supportIncomingSuppression : 'null'}`,
+          `flankShotPenalty:${d.flankShotPenalty != null ? d.flankShotPenalty : 'null'}`,
+          `tightAnglePenalty:${d.tightAnglePenalty != null ? d.tightAnglePenalty : 'null'}`,
+          `reboundSuppression:${d.reboundSuppression != null ? d.reboundSuppression : 'null'}`,
+          `forceShotNow:${d.forceShotNow != null ? d.forceShotNow : 'null'}`,
+          `desperationShot:${d.desperationShot != null ? d.desperationShot : 'null'}`,
+          `shouldShoot:${d.shouldShoot != null ? d.shouldShoot : 'null'}`,
+          `decisionType:${d.decisionType || 'UNKNOWN'}`,
+        ];
+        return `${timeLabel} [${d.team||'?'}] ${parts.join(' · ')}`;
+      }));
+    }
+    text = text.join('\n');
   } else if (key === 'spatial') {
     text = `SPATIAL INTELLIGENCE — ${nameA} vs ${nameB}\n(Heatmap/shape data is visual; see shapeA/shapeB arrays in saved JSON)`;
   } else if (key === 'positioning') {
@@ -615,7 +713,7 @@ let live = null;     // current live telemetry
 let prevD = null;    // comparison match data
 let _historyModeActive = false;  // flag: viewing historical match, don't overwrite with live data
 let lastUpdate = 0;
-let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
+let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT']);
 let activeTeamStyleTab = 'buildup';
 let activeSpatialTab = 'heatmap';
 let activePosTab = 'homeError';
@@ -975,6 +1073,21 @@ function renderTimeline() {
       ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(x - 2, baseY - 2); ctx.lineTo(x + 2, baseY + 2);
       ctx.moveTo(x + 2, baseY - 2); ctx.lineTo(x - 2, baseY + 2); ctx.stroke();
+    } else if (ev.type === 'MIDFIELD_SUPPORT') {
+      const followState = ev.detail?.supportFollowsStriker;
+      ctx.fillStyle = followState === false ? '#f59e0b' : '#7c3aed';
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 4);
+      ctx.lineTo(x + 4, baseY);
+      ctx.lineTo(x, baseY + 4);
+      ctx.lineTo(x - 4, baseY);
+      ctx.closePath();
+      ctx.fill();
+      if (followState === false) {
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
   }
 
@@ -1399,7 +1512,7 @@ function renderRolePanel() {
    RENDER: 5. EVENT STREAM
    ═══════════════════════════════════════════════════════════ */
 function renderEventFilters() {
-  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT'];
   $('eventFilters').innerHTML = types.map(t =>
     `<button class="${activeEventFilters.has(t) ? 'active' : ''}" onclick="toggleEventFilter('${t}')">${t}</button>`
   ).join('') + `<button onclick="toggleAllEvents()">ALL</button>`;
@@ -1413,7 +1526,7 @@ function toggleEventFilter(type) {
 }
 
 function toggleAllEvents() {
-  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT'];
   if (activeEventFilters.size === all.length) activeEventFilters.clear();
   else all.forEach(t => activeEventFilters.add(t));
   renderEventFilters();
@@ -1440,12 +1553,20 @@ function renderEventList() {
 
   $('eventList').innerHTML = sorted.slice(0, 200).map(ev => {
     const detail = ev.detail || {};
+    const noteParts = [];
+    if (ev.type === 'MIDFIELD_SUPPORT') {
+      if (detail.supportFollowsStriker === false) noteParts.push('NOT FOLLOWING STRIKER');
+      else if (detail.supportFollowsStriker === true) noteParts.push('FOLLOWING STRIKER');
+      if (detail.supportTargetStrikerDist != null) noteParts.push(`d1:${f1(detail.supportTargetStrikerDist)}`);
+      if (detail.finalTargetStrikerDist != null) noteParts.push(`d2:${f1(detail.finalTargetStrikerDist)}`);
+    }
     const detailStr = Object.entries(detail).map(([k, v]) => `${k}:${v}`).join(' · ');
-    return `<div class="event-item" title="${detailStr}">
+    const notes = noteParts.concat(detailStr ? [detailStr] : []).join(' · ');
+    return `<div class="event-item" title="${notes}">
       <span class="ev-time">${formatTime(ev)}</span>
       <span class="ev-team" style="color:${ev.team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${ev.team}</span>
       <span class="ev-type ${ev.type}">${ev.type}</span>
-      <span style="color:var(--fg2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.role} ${detailStr ? '— ' + detailStr : ''}</span>
+      <span style="color:var(--fg2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.role} ${notes ? '— ' + notes : ''}</span>
     </div>`;
   }).join('');
 }
@@ -1453,6 +1574,123 @@ function renderEventList() {
 /* ═══════════════════════════════════════════════════════════
    RENDER: 6. SPATIAL INTELLIGENCE
    ═══════════════════════════════════════════════════════════ */
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderShotDecisions() {
+  if (!D) return;
+  const decisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+  const listEl = $('shotDecisionList');
+  if (!listEl) return;
+  if (!decisions.length) {
+    listEl.innerHTML = '<div class="dim">No shot decision telemetry available.</div>';
+    return;
+  }
+
+  const latest = decisions.slice(-30).reverse();
+  const lowEvShots = latest.filter(d => d.shotChance != null && d.passChance != null && d.shotChance < d.passChance).length;
+  const belowThresholdShots = latest.filter(d => d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot).length;
+  const rows = latest.map(d => {
+    const team = d.team || '?';
+    const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+    const isLowEv = d.shotChance != null && d.passChance != null && d.shotChance < d.passChance;
+    const isBelowThreshold = d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot;
+    const notes = [];
+    if (d.shotChance != null) notes.push(`shotChance:${d.shotChance}`);
+    if (d.passChance != null) notes.push(`passChance:${d.passChance}`);
+    if (d.shotThreshold != null) notes.push(`threshold:${d.shotThreshold}`);
+    if (isLowEv) notes.push('LOW EV');
+    if (isBelowThreshold) notes.push('BELOW THRESHOLD');
+    if (d.passTarget != null) notes.push(`passTarget:${d.passTarget}`);
+    if (d.hasForwardPassOption != null) notes.push(`hasForwardPassOption:${d.hasForwardPassOption}`);
+    if (d.onFlank != null) notes.push(`onFlank:${d.onFlank}`);
+    if (d.supportIncomingSuppression != null) notes.push(`supportIncomingSuppression:${d.supportIncomingSuppression}`);
+    if (d.flankShotPenalty != null) notes.push(`flankShotPenalty:${d.flankShotPenalty}`);
+    if (d.tightAnglePenalty != null) notes.push(`tightAnglePenalty:${d.tightAnglePenalty}`);
+    if (d.reboundSuppression != null) notes.push(`reboundSuppression:${d.reboundSuppression}`);
+    if (d.forceShotNow != null) notes.push(`forceShot:${d.forceShotNow}`);
+    if (d.desperationShot != null) notes.push(`desperation:${d.desperationShot}`);
+    if (d.shouldShoot != null) notes.push(`shouldShoot:${d.shouldShoot}`);
+    if (d.decisionType) notes.push(d.decisionType);
+    if (d.inShootingLane) notes.push('lane');
+    if (d.insidePenaltyArea) notes.push('penalty');
+
+    const detailLine = notes.join(' · ');
+    const shooter = escapeHTML(d.shooter || d.role || 'Unknown');
+    const style = escapeHTML(d.style || 'SHOT');
+    const title = escapeHTML(JSON.stringify(d));
+
+    return `<div class="event-item" title="${title}">
+      <span class="ev-time">${escapeHTML(timeLabel)}</span>
+      <span class="ev-team" style="color:${team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${escapeHTML(team)}</span>
+      <span class="ev-type SHOT">SHOT</span>
+      <span style="color:var(--fg2);font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shooter} ${style}${detailLine ? ' — ' + escapeHTML(detailLine) : ''}</span>
+    </div>`;
+  });
+
+  listEl.innerHTML = `<div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div>${decisions.length} shot decisions recorded</div>
+    <div style="color:var(--fg2);font-size:.85rem">showing last ${latest.length}</div>
+  </div>
+  <div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div style="color:${lowEvShots ? 'var(--accent-red)' : 'var(--fg2)'}">Low EV shots: ${lowEvShots}</div>
+    <div style="color:${belowThresholdShots ? 'var(--accent-yellow)' : 'var(--fg2)'}">Below threshold: ${belowThresholdShots}</div>
+  </div>${rows.join('')}`;
+}
+
+function renderPassDecisions() {
+  if (!D) return;
+  const decisions = Array.isArray(D.passDecisions) ? D.passDecisions : [];
+  const listEl = $('passDecisionList');
+  if (!listEl) return;
+  if (!decisions.length) {
+    listEl.innerHTML = '<div class="dim">No pass decision telemetry available.</div>';
+    return;
+  }
+
+  const latest = decisions.slice(-30).reverse();
+  const rows = latest.map(d => {
+    const team = d.team || '?';
+    const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+    const notes = [];
+    if (d.passChance != null) notes.push(`passChance:${d.passChance}`);
+    if (d.passDist != null) notes.push(`passDist:${d.passDist}`);
+    if (d.forwardProg != null) notes.push(`forwardProg:${d.forwardProg}`);
+    if (d.inFinalThird) notes.push('finalThird');
+    if (d.insidePenaltyArea) notes.push('penaltyArea');
+    if (d.hasForwardPassOption != null) notes.push(`forwardOption:${d.hasForwardPassOption}`);
+    if (d.progressivePass != null) notes.push(`progPass:${d.progressivePass}`);
+    if (d.passSkill != null) notes.push(`passSkill:${d.passSkill}`);
+    if (d.supportIncomingSuppression != null) notes.push(`supportSupp:${d.supportIncomingSuppression}`);
+    if (d.shotSpamSuppression != null) notes.push(`shotSpam:${d.shotSpamSuppression}`);
+    if (d.decisionType) notes.push(d.decisionType);
+
+    const detailLine = notes.join(' · ');
+    const passer = escapeHTML(d.passer || d.passerRole || 'Unknown');
+    const target = escapeHTML(d.target || 'Unknown');
+    const style = escapeHTML(d.passStyle || 'PASS');
+    const title = escapeHTML(JSON.stringify(d));
+
+    return `<div class="event-item" title="${title}">
+      <span class="ev-time">${escapeHTML(timeLabel)}</span>
+      <span class="ev-team" style="color:${team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${escapeHTML(team)}</span>
+      <span class="ev-type PASS">PASS</span>
+      <span style="color:var(--fg2);font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${passer} → ${target} ${style}${detailLine ? ' — ' + escapeHTML(detailLine) : ''}</span>
+    </div>`;
+  });
+
+  listEl.innerHTML = `<div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div>${decisions.length} pass decisions recorded</div>
+    <div style="color:var(--fg2);font-size:.85rem">showing last ${latest.length}</div>
+  </div>${rows.join('')}`;
+}
+
 function setSpatialTab(tab) {
   activeSpatialTab = tab;
   document.querySelectorAll('#spatialTabs button').forEach((b, i) => {
@@ -1913,8 +2151,15 @@ function renderInsights() {
   const insights = [];
   const a = D.teamA, b = D.teamB;
 
+  if (D.tuning) {
+    insights.push({ cls: 'info', text: `Tuning marker: ${D.tuning.label} — ${D.tuning.description}` });
+  }
+
   // MLS baselines
   const MLS_SHOTS = 13.16, MLS_PASS_PCT = 0.76, MLS_GOALS = 1.89;
+  const shotDecisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+  const lowEvShots = shotDecisions.filter(d => d.shotChance != null && d.passChance != null && d.shotChance < d.passChance).length;
+  const belowThresholdShots = shotDecisions.filter(d => d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot).length;
 
   // Goals per game comparison
   const totalGoals = (a.score || 0) + (b.score || 0);
@@ -1925,6 +2170,8 @@ function renderInsights() {
   const avgShots = ((a.shots || 0) + (b.shots || 0)) / 2;
   if (avgShots < MLS_SHOTS * 0.5) insights.push({ cls: 'bad', text: `Low shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may not be attempting enough shots.` });
   else if (avgShots > MLS_SHOTS * 1.5) insights.push({ cls: 'warn', text: `High shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may be shooting from poor positions.` });
+  if (lowEvShots > 0) insights.push({ cls: 'warn', text: `${lowEvShots} shot decision${lowEvShots === 1 ? '' : 's'} had lower shotChance than passChance — review shot gating.` });
+  if (belowThresholdShots > 0) insights.push({ cls: 'warn', text: `${belowThresholdShots} shot decision${belowThresholdShots === 1 ? '' : 's'} were taken below the configured shot threshold.` });
 
   // Pass completion
   for (const [name, team] of [['A', a], ['B', b]]) {
@@ -2096,6 +2343,8 @@ function renderAll() {
   renderRolePanel();
   renderEventFilters();
   renderEventList();
+  renderShotDecisions();
+  renderPassDecisions();
   renderSpatial();
   renderPositioning();
   renderKeeper();

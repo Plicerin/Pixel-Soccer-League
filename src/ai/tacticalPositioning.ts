@@ -132,7 +132,7 @@ export function computeIdealTacticalPosition(params: TacticalPositionParams) {
   }
 
   if (normalizedRole === 'CM') {
-    ideal.x = THREE.MathUtils.lerp(ideal.x, homePos.x + attackSign * 1.8, 0.18);
+    ideal.x = THREE.MathUtils.lerp(ideal.x, homePos.x + attackSign * 1.4, 0.18);
   }
 
   if (normalizedRole === 'DM') {

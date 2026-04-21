@@ -182,6 +182,8 @@ interface PreMatchSetupScreenProps {
   onTeamAHomeChange: (isHome: boolean) => void;
   onTeamAPreMatchKitChange: (kit: number) => void;
   onTeamBPreMatchKitChange: (kit: number) => void;
+  halfLengthMinutes: number;
+  onHalfLengthMinutesChange: (minutes: number) => void;
   onRandomize: () => void;
   onStartMatch: () => void;
   onClose: () => void;
@@ -206,6 +208,8 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onTeamAHomeChange,
   onTeamAPreMatchKitChange,
   onTeamBPreMatchKitChange,
+  halfLengthMinutes,
+  onHalfLengthMinutesChange,
   onRandomize,
   onStartMatch,
   onClose,
@@ -316,7 +320,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
           <CustomDropdown
             value={aggressiveness}
-            onChange={onAggressivenessChange}
+            onChange={(value) => onAggressivenessChange(value as AggressivenessKey)}
             options={aggressivenessOptions}
           />
         </div>
@@ -380,6 +384,24 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           />
         </div>
 
+        {/* Match Length */}
+        <div className="bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-white text-xs uppercase tracking-[0.25em] text-white/40">Half Length</div>
+              <div className="text-white text-sm font-semibold">Match half duration</div>
+            </div>
+            <div className="w-32">
+              <CustomDropdown
+                value={`${halfLengthMinutes}`}
+                onChange={(value) => onHalfLengthMinutesChange(Number(value))}
+                options={['5', '10', '15', '20', '30', '45']}
+              />
+            </div>
+          </div>
+          <div className="text-white/50 text-[10px] uppercase tracking-[0.2em]">Applies to the CPU vs CPU match timer.</div>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
@@ -404,12 +426,17 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
 const MemoizedPreMatchSetupScreen = React.memo(PreMatchSetupScreen);
 
 /** Custom Dropdown Component */
-const CustomDropdown: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
+const CustomDropdown = <T extends string>({
+  value,
+  onChange,
+  options,
+  className = '',
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: T[];
   className?: string;
-}> = ({ value, onChange, options, className = '' }) => {
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const skipNextClickRef = useRef(false);
@@ -518,6 +545,7 @@ const RetroFootball: React.FC = () => {
   const [cpuVsCpuPending, setCpuVsCpuPending] = useState<{ a: string; b: string } | null>(null);
   const [teamAPreMatchKit, setTeamAPreMatchKit] = useState(0); // 0=home, 1=away
   const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
+  const [halfLengthMinutes, setHalfLengthMinutes] = useState(5);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const [crowdVolume, setCrowdVolume] = useState(0.60);
@@ -1321,6 +1349,7 @@ const RetroFootball: React.FC = () => {
     const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
     const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     // Start the match with CPU vs CPU mode
     handleKickOff('cpu', { a: teamAName, b: teamBName });
   };
@@ -3083,6 +3112,8 @@ const RetroFootball: React.FC = () => {
           teamAHome={teamAHome}
           teamAPreMatchKit={teamAPreMatchKit}
           teamBPreMatchKit={teamBPreMatchKit}
+          halfLengthMinutes={halfLengthMinutes}
+          onHalfLengthMinutesChange={setHalfLengthMinutes}
           onTeamANameChange={setTeamAName}
           onTeamBNameChange={setTeamBName}
           onTeamAFormationChange={setTeamAFormation}

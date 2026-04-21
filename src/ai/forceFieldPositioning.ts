@@ -104,7 +104,7 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   const homeDist = Math.sqrt(toHomeX * toHomeX + toHomeZ * toHomeZ);
 
   const homePull = hasPossession
-    ? 0.6  // Restored to pre-test level; forward forces now help anchor
+    ? (nRole === 'CM' || nRole === 'DM') ? 0.28 : 0.6
     : 0.6;
   if (homeDist > 0.5) {
     const cap = Math.min(homeDist, 18);
@@ -122,7 +122,7 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // Nudge the whole team upfield when in possession.
   // Scales with proximity to home: full strength when at home, fades as players drift away.
   if (hasPossession) {
-    const depthShift = (3 + mindset * 8) * proximityToHome;
+    const depthShift = (4 + mindset * 9.5) * proximityToHome;
     fx += attackSign * depthShift;
   }
 
@@ -133,11 +133,11 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
     const toBallX = ballPos.x - playerPos.x;
     const toBallZ = ballPos.z - playerPos.z;
     const ballDist = Math.sqrt(toBallX * toBallX + toBallZ * toBallZ);
-    if (ballDist > 5 && ballDist < 25) {
-      const attract = 0.18 + mindset * 0.25;
-      fx += (toBallX / ballDist) * attract * 2.2;
+    if (ballDist > 3 && ballDist < 40) {
+      const attract = 0.30 + mindset * 0.45;
+      fx += (toBallX / ballDist) * attract * 4.4;
       if (!isWideRole(role)) {
-        fz += (toBallZ / ballDist) * attract * 2.2;
+        fz += (toBallZ / ballDist) * attract * 4.4;
       }
     }
   }
@@ -202,7 +202,7 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // Scales with proximity to home: full strength at home, fades as players move away.
   // Encourages aggressive runs from formation while preventing endless drift.
   if (hasPossession && mindset > 0.2) {
-    const runStrength = (mindset - 0.1) * 22 * proximityToHome;
+    const runStrength = (mindset - 0.1) * 28 * proximityToHome;
     fx += attackSign * runStrength;
   }
 
