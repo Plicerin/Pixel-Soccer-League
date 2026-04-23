@@ -6,13 +6,20 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "node scripts/preview.mjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
     "sim:headless": "node scripts/headless-sim.mjs",
+    "sim:match": "node scripts/headless-sim.mjs --games 1",
+    "sim:smoke": "node scripts/headless-sim.mjs --games 1 --mode smoke",
+    "sim:browser": "node scripts/browser-harness-fixture.mjs",
+    "browser:open": "node scripts/open-debug-browser.mjs",
     "sim:headless:5": "node scripts/headless-sim.mjs --quantity 5",
     "sim:headless:10": "node scripts/headless-sim.mjs --quantity 10",
-    "sim:headless:20": "node scripts/headless-sim.mjs --quantity 20"
+    "sim:headless:20": "node scripts/headless-sim.mjs --quantity 20",
+    "telemetry:analyze": "node --import tsx scripts/telemetry-analyze-latest.mjs",
+    "iterate:overnight": "node scripts/iterate-overnight.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -32,7 +39,8 @@
     "react-dom": "^19.0.0",
     "three": "^0.183.2",
     "troika-three-text": "^0.52.4",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

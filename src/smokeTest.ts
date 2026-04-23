@@ -1,10 +1,15 @@
 /**
- * Smoke Test Runner — Automates N CPU-vs-CPU matches with telemetry recording.
+ * Smoke Test Runner — Automates CPU-vs-CPU matches inside the already-open app window.
  *
  * Usage (browser console):
- *   window.pslSmokeTest.run(10)          // 10 games, randomize teams
- *   window.pslSmokeTest.run(5, false)    // 5 games, same default teams
- *   window.pslSmokeTest.stop()           // abort early
+ *   window.pslSmokeTest.run(10)                         // 10 games, randomize teams
+ *   window.pslSmokeTest.run(5, false)                  // 5 games, same default teams
+ *   window.pslSmokeTest.runFixture({                   // one fixed-fixture match in the current tab
+ *     homeTeam: 'DC United',
+ *     awayTeam: 'Seattle Sounders',
+ *     halfSeconds: 120,
+ *   })
+ *   window.pslSmokeTest.stop()                         // abort early
  */
 import { findRecentCompletedMatches } from './telemetry';
 
@@ -36,6 +41,40 @@ type SmokeTestState = {
   aborted: boolean;
   gamesPlayed: number;
   gamesTotal: number;
+};
+
+type FixtureRunOptions = {
+  homeTeam?: string;
+  awayTeam?: string;
+  formationA?: string;
+  formationB?: string;
+  speedMul?: number;
+  halfSeconds?: number;
+  timeoutMs?: number;
+  randomizeTeams?: boolean;
+};
+
+type FixtureRunResult = {
+  teamA: string;
+  teamB: string;
+  formA: string;
+  formB: string;
+  finished: boolean;
+  timedOut: boolean;
+  scoreA: number;
+  scoreB: number;
+  shotsA: number;
+  shotsB: number;
+  shotsOnTargetA: number;
+  shotsOnTargetB: number;
+  savesA: number;
+  savesB: number;
+  sessionId: string | null;
+  phase: string;
+  half: number;
+  elapsedInHalf: number;
+  startedAt: number;
+  completedAt: number;
 };
 
 // Store state on window so HMR module reloads don't lose it
@@ -79,6 +118,112 @@ async function waitForPhase(phase: string, timeoutMs: number = 10_000): Promise<
   return false;
 }
 
+function normalizeFixtureOptions(input: FixtureRunOptions = {}): Required<FixtureRunOptions> {
+  const [fallbackHome, fallbackAway] = input.randomizeTeams === false
+    ? ['Inter Miami', 'LA Galaxy']
+    : pickTwoTeams();
+  return {
+    homeTeam: input.homeTeam || fallbackHome,
+    awayTeam: input.awayTeam || fallbackAway,
+    formationA: input.formationA || pickRandom(FORMATIONS),
+    formationB: input.formationB || pickRandom(FORMATIONS),
+    speedMul: Math.max(1, input.speedMul ?? 1),
+    halfSeconds: Math.max(30, Math.floor(input.halfSeconds ?? 300)),
+    timeoutMs: Math.max(30_000, Math.floor(input.timeoutMs ?? 900_000)),
+    randomizeTeams: input.randomizeTeams ?? true,
+  };
+}
+
+async function configureFixture(game: any, options: Required<FixtureRunOptions>): Promise<void> {
+  game.resetMatch?.();
+  await sleep(300);
+  game.setTeamNames?.(options.homeTeam, options.awayTeam);
+  game.setTeamFormations?.(options.formationA, options.formationB);
+  game.setCpuVsCpu?.(true);
+  game.setHalfDurationSeconds?.(options.halfSeconds);
+  game.setSeriesSpeedMul?.(options.speedMul);
+  game.setRestartDelays?.(options.speedMul > 1 ? 0.2 : 0.8, options.speedMul > 1 ? 0.3 : 1.2);
+  game.setMenuVisible?.(false);
+  game.startKickoffPresentation?.(true);
+}
+
+function buildFixtureResult(game: any, options: Required<FixtureRunOptions>, finished: boolean): FixtureRunResult {
+  const snap = game.getMatchSnapshot?.() || {};
+  const bundle = game.getTuningBundle?.() || {};
+  return {
+    teamA: options.homeTeam,
+    teamB: options.awayTeam,
+    formA: options.formationA,
+    formB: options.formationB,
+    finished,
+    timedOut: !finished,
+    scoreA: snap.scoreA ?? 0,
+    scoreB: snap.scoreB ?? 0,
+    shotsA: snap.shotsA ?? 0,
+    shotsB: snap.shotsB ?? 0,
+    shotsOnTargetA: snap.shotsOnTargetA ?? 0,
+    shotsOnTargetB: snap.shotsOnTargetB ?? 0,
+    savesA: snap.savesA ?? 0,
+    savesB: snap.savesB ?? 0,
+    sessionId: bundle?.metadata?.sessionId || snap?.sessionId || null,
+    phase: snap.phase ?? 'UNKNOWN',
+    half: snap.half ?? 0,
+    elapsedInHalf: snap.elapsedInHalf ?? 0,
+    startedAt: Date.now(),
+    completedAt: Date.now(),
+  };
+}
+
+export async function runFixture(input: FixtureRunOptions = {}): Promise<FixtureRunResult | null> {
+  const game = getGameRef();
+  if (!game) {
+    console.error('[SmokeTest] No game ref found. Make sure the game is loaded.');
+    return null;
+  }
+  const st = getState();
+  if (st.running) {
+    console.warn('[SmokeTest] Already running.');
+    return null;
+  }
+
+  const options = normalizeFixtureOptions({ ...input, randomizeTeams: false });
+  st.running = true;
+  st.aborted = false;
+  st.gamesPlayed = 0;
+  st.gamesTotal = 1;
+  game.setSmokeTestMode?.(true);
+
+  console.log(
+    `%c[SmokeTest] Fixture: ${options.homeTeam} (${options.formationA}) vs ${options.awayTeam} (${options.formationB}) | half=${options.halfSeconds}s speed=${options.speedMul}x`,
+    'color: #0af'
+  );
+
+  try {
+    await configureFixture(game, options);
+    const finished = await waitForFullTime(options.timeoutMs);
+    const result = buildFixtureResult(game, options, finished);
+    (window as any).__lastSmokeFixtureResult = result;
+    if (finished) {
+      console.log(
+        `%c[SmokeTest] FINAL: ${result.teamA} ${result.scoreA} - ${result.scoreB} ${result.teamB} | Shots: ${result.shotsA}-${result.shotsB} | SOG: ${result.shotsOnTargetA}-${result.shotsOnTargetB}`,
+        'color: #ff0'
+      );
+    } else {
+      console.warn(
+        `%c[SmokeTest] Fixture timed out at ${result.phase} half=${result.half} clock=${result.elapsedInHalf.toFixed(1)}`,
+        'color: #f80'
+      );
+    }
+    st.gamesPlayed = 1;
+    return result;
+  } finally {
+    game.setSmokeTestMode?.(false);
+    game.setSeriesSpeedMul?.(1);
+    game.setRestartDelays?.(2.0, 3.0);
+    st.running = false;
+  }
+}
+
 export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolean = true, speedMul: number = 1): Promise<void> {
   const game = getGameRef();
   if (!game) {
@@ -109,26 +254,17 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
     }
 
     // Pick teams
-    const [teamA, teamB] = randomizeTeams ? pickTwoTeams() : ['Inter Miami', 'LA Galaxy'];
-    const formA = pickRandom(FORMATIONS);
-    const formB = pickRandom(FORMATIONS);
+    const options = normalizeFixtureOptions({
+      randomizeTeams,
+      speedMul,
+      homeTeam: randomizeTeams ? undefined : 'Inter Miami',
+      awayTeam: randomizeTeams ? undefined : 'LA Galaxy',
+    });
+    const { homeTeam: teamA, awayTeam: teamB, formationA: formA, formationB: formB } = options;
 
     console.log(`%c[SmokeTest] Game ${i + 1}/${numGames}: ${teamA} (${formA}) vs ${teamB} (${formB})`, 'color: #0af');
 
-    // Reset the match (callback clears full-time UI but preserves CPU mode)
-    game.resetMatch?.();
-    await sleep(300);
-
-    // Configure teams
-    game.setTeamNames?.(teamA, teamB);
-    game.setTeamFormations?.(formA, formB);
-
-    // Start CPU vs CPU at requested speed
-    game.setCpuVsCpu?.(true);
-    game.setSeriesSpeedMul?.(Math.max(1, speedMul));
-    game.setRestartDelays?.(speedMul > 1 ? 0.2 : 0.8, speedMul > 1 ? 0.3 : 1.2);
-    game.setMenuVisible?.(false);
-    game.startKickoffPresentation?.(true);
+    await configureFixture(game, options);
 
     // Wait for full time
     const finished = await waitForFullTime();
@@ -235,6 +371,7 @@ export function getTestState(): SmokeTestState {
 export function installSmokeTestApi(): void {
   (window as any).pslSmokeTest = {
     run: runSmokeTest,
+    runFixture,
     stop: stopSmokeTest,
     state: getTestState,
   };

@@ -1,10 +1,26 @@
 // Simple WebSocket server for live dashboard updates
 // Run: npm install ws
 
+const http = require('http');
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8081 });
+const port = Number(process.env.WS_PORT || 8081);
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
 
-console.log('WebSocket server running on ws://localhost:8081');
+server.on('error', err => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`WebSocket server could not start: port ${port} is already in use.`);
+    console.error(`Stop the existing process on ${port} or rerun with WS_PORT set to another port.`);
+    process.exit(1);
+  }
+
+  console.error('WebSocket server failed:', err);
+  process.exit(1);
+});
+
+server.listen(port, () => {
+  console.log(`WebSocket server running on ws://localhost:${port}`);
+});
 
 // Broadcast helper
 function broadcast(data) {

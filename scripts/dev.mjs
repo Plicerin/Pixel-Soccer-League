@@ -1,33 +1,45 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
+const nodeExec = process.execPath;
+const viteCli = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
 
-// Start Vite dev server
+function spawnManaged(label, command, args) {
+  const child = spawn(command, args, {
+    cwd: rootDir,
+    stdio: 'inherit',
+    windowsHide: true,
+  });
+
+  child.on('error', (err) => {
+    console.error(`${label} error:`, err);
+  });
+
+  child.on('exit', (code, signal) => {
+    if (code === 0 || signal === 'SIGTERM' || signal === 'SIGINT') return;
+    console.error(`${label} exited unexpectedly${code != null ? ` with code ${code}` : ''}${signal ? ` (${signal})` : ''}.`);
+  });
+
+  return child;
+}
+
 console.log('Starting Vite dev server on port 3001...');
-const vite = spawn('vite', ['--port=3001', '--host=0.0.0.0'], {
-  cwd: rootDir,
-  stdio: 'inherit',
-  shell: true
-});
+const vite = spawnManaged('Vite', nodeExec, [viteCli, '--port=3001', '--host=0.0.0.0']);
 
-// Start WebSocket server
 console.log('Starting WebSocket server on port 8081...');
-const ws = spawn('node', [path.join(__dirname, 'ws-server.cjs')], {
-  cwd: rootDir,
-  stdio: 'inherit'
-});
+const ws = spawnManaged('WebSocket server', nodeExec, [path.join(__dirname, 'ws-server.cjs')]);
 
-// Handle cleanup on exit
-process.on('SIGINT', () => {
+const shutdown = () => {
   console.log('\nShutting down servers...');
-  vite.kill();
-  ws.kill();
+  vite.kill('SIGTERM');
+  ws.kill('SIGTERM');
   process.exit(0);
-});
+};
 
-vite.on('error', (err) => console.error('Vite error:', err));
-ws.on('error', (err) => console.error('WebSocket server error:', err));
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

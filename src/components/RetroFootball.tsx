@@ -186,6 +186,9 @@ interface PreMatchSetupScreenProps {
   onHalfLengthMinutesChange: (minutes: number) => void;
   onRandomize: () => void;
   onStartMatch: () => void;
+  onRunWatchedFixture: () => void;
+  watchedFixtureRunning: boolean;
+  watchedFixtureMessage: string;
   onClose: () => void;
 }
 
@@ -212,6 +215,9 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onHalfLengthMinutesChange,
   onRandomize,
   onStartMatch,
+  onRunWatchedFixture,
+  watchedFixtureRunning,
+  watchedFixtureMessage,
   onClose,
 }) => {
   const aggressivenessOptions = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
@@ -411,12 +417,24 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
             🎲 Randomize All
           </button>
           <button
+            onClick={onRunWatchedFixture}
+            disabled={watchedFixtureRunning}
+            className="flex-1 bg-emerald-500/30 border border-emerald-400 text-emerald-100 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-emerald-500/50 disabled:opacity-50 disabled:hover:bg-emerald-500/30 transition-colors"
+          >
+            {watchedFixtureRunning ? '👀 Running Test…' : '👀 Run Watched CPU Test'}
+          </button>
+          <button
             onClick={onStartMatch}
             className="flex-1 bg-cyan-500/40 border border-cyan-400 text-cyan-100 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-cyan-500/60 transition-colors"
           >
             ⚽ Start Match
           </button>
         </div>
+        {watchedFixtureMessage ? (
+          <div className="text-center text-[10px] uppercase tracking-[0.2em] text-emerald-200/80">
+            {watchedFixtureMessage}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -542,6 +560,8 @@ const RetroFootball: React.FC = () => {
   const [teamBAggressiveness, setTeamBAggressiveness] = useState<AggressivenessKey>('BALANCED');
   const [teamAHome, setTeamAHome] = useState(true);
   const [showPreMatchSetup, setShowPreMatchSetup] = useState(false);
+  const [watchedFixtureRunning, setWatchedFixtureRunning] = useState(false);
+  const [watchedFixtureMessage, setWatchedFixtureMessage] = useState('');
   const [cpuVsCpuPending, setCpuVsCpuPending] = useState<{ a: string; b: string } | null>(null);
   const [teamAPreMatchKit, setTeamAPreMatchKit] = useState(0); // 0=home, 1=away
   const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
@@ -799,6 +819,19 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     hasActiveMatchSessionRef.current = hasActiveMatchSession;
   }, [hasActiveMatchSession]);
+
+  useEffect(() => {
+    const recorder = telemetryRecorderRef.current;
+    if (!recorder) return;
+    if (smokeTestActiveRef.current) return;
+    if (showSplash || !hasActiveMatchSession) {
+      void recorder.stop().then(() => {
+        if (telemetryRecorderRef.current === recorder) {
+          telemetryRecorderRef.current = null;
+        }
+      });
+    }
+  }, [hasActiveMatchSession, showSplash]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1114,19 +1147,6 @@ const RetroFootball: React.FC = () => {
         }
       };
 
-      if (!telemetryRecorderRef.current) {
-        const recorder = new TelemetryRecorder();
-        recorder.setContext({
-          teamAName,
-          teamBName,
-          teamAFormation,
-          teamBFormation,
-          notes: 'Telemetry capture armed; gameplay starts only after mode selection',
-        });
-        recorder.start(() => gameRef.current, 500);
-        telemetryRecorderRef.current = recorder;
-      }
-
       gameRef.current?.setOnReset?.(() => {
         // Always clear full-time overlay and UI latches
         setIsLive(false);
@@ -1163,16 +1183,7 @@ const RetroFootball: React.FC = () => {
           timestamp: Date.now(),
         }).then(() => {
           rec.stop().then(() => {
-            const nextRec = new TelemetryRecorder();
-            nextRec.setContext({
-              teamAName,
-              teamBName,
-              teamAFormation,
-              teamBFormation,
-              notes: 'Session restarted via R key',
-            });
-            nextRec.start(() => gameRef.current, 500);
-            telemetryRecorderRef.current = nextRec;
+            telemetryRecorderRef.current = null;
           });
         });
       });
@@ -1352,6 +1363,66 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     // Start the match with CPU vs CPU mode
     handleKickOff('cpu', { a: teamAName, b: teamBName });
+  };
+
+  const handleRunWatchedFixture = async () => {
+    if (watchedFixtureRunning) return;
+    const runner = (window as any).pslSmokeTest?.runFixture;
+    if (typeof runner !== 'function') {
+      setWatchedFixtureMessage('Fixture runner unavailable. Reload the page.');
+      return;
+    }
+
+    setShowPreMatchSetup(false);
+    setWatchedFixtureRunning(true);
+    setWatchedFixtureMessage(`Watching ${teamAName} vs ${teamBName}`);
+
+    const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
+    const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
+    gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
+    setGameMode('cpu');
+    setHasActiveMatchSession(true);
+    setAllowMainMenu(false);
+    setSessionMenuLock(true);
+    setHotSeatMode(false);
+    setTestingMode(false);
+    gameRef.current?.setHotSeatMode?.(false);
+    gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setCpuVsCpu?.(true);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setMenuVisible?.(false);
+    setIsFullTime(false);
+    setFullTimeScore(null);
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+
+    try {
+      const result = await runner({
+        homeTeam: teamAName,
+        awayTeam: teamBName,
+        formationA: teamAFormation,
+        formationB: teamBFormation,
+        halfSeconds: halfLengthMinutes * 60,
+        speedMul: 1,
+        timeoutMs: Math.max(420000, halfLengthMinutes * 120000),
+      });
+
+      if (!result) {
+        setWatchedFixtureMessage('Fixture run did not start.');
+      } else if (result.timedOut) {
+        setWatchedFixtureMessage(`Timed out at ${result.phase} ${result.elapsedInHalf?.toFixed?.(1) ?? '0.0'}s`);
+      } else {
+        setWatchedFixtureMessage(`Final ${result.teamA} ${result.scoreA}-${result.scoreB} ${result.teamB}`);
+      }
+    } catch (error) {
+      setWatchedFixtureMessage(`Fixture failed: ${String(error)}`);
+    } finally {
+      setWatchedFixtureRunning(false);
+    }
   };
 
   const handlePreMatchSetupRandomize = () => {
@@ -2894,6 +2965,15 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
 
+      {!showSplash && watchedFixtureMessage && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 bg-black/75 border border-emerald-400/40 rounded-lg backdrop-blur-sm">
+          <div className="text-[9px] uppercase tracking-[0.24em] text-emerald-200">
+            {watchedFixtureRunning ? 'Watched Fixture Running' : 'Watched Fixture'}
+          </div>
+          <div className="text-[10px] text-white/85 mt-1">{watchedFixtureMessage}</div>
+        </div>
+      )}
+
 
 
       {/* Floating Telemetry Window */}
@@ -3125,6 +3205,9 @@ const RetroFootball: React.FC = () => {
           onTeamBPreMatchKitChange={setTeamBPreMatchKit}
           onRandomize={handlePreMatchSetupRandomize}
           onStartMatch={handlePreMatchSetupStart}
+          onRunWatchedFixture={handleRunWatchedFixture}
+          watchedFixtureRunning={watchedFixtureRunning}
+          watchedFixtureMessage={watchedFixtureMessage}
           onClose={() => setShowPreMatchSetup(false)}
         />
       )}

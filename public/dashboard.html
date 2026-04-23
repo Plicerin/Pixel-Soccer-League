@@ -338,11 +338,7 @@ input[type="file"]{display:none}
             } else {
               D = { events: [liveEv] };
             }
-            const halfDur = D.metadata?.halfDuration || 2700;
-            liveEv.minute = liveEv.minute ?? Math.min(
-              liveEv.half === 1 ? Math.floor(liveEv.t / 60) : 45 + Math.floor((liveEv.t - halfDur) / 60),
-              90
-            );
+            liveEv.minute = liveEv.minute ?? getEventMinute(liveEv, D.metadata);
             renderEventList();
             renderTimeline();
             console.log('[PSL-Dashboard] Live event appended:', liveEv);
@@ -372,6 +368,54 @@ input[type="file"]{display:none}
    DATA LAYER
    ═══════════════════════════════════════════════════════════ */
 /* ─── Copy section helper ─── */
+function getEventSecondsInHalf(ev, metadata) {
+  const halfDur = metadata?.halfDuration ?? 2700;
+  const regularHalfDur = 45 * 60;
+  const rawT = typeof ev.t === 'number' && !Number.isNaN(ev.t) ? ev.t : null;
+  const rawElapsed = typeof ev.elapsedInHalf === 'number' && !Number.isNaN(ev.elapsedInHalf)
+    ? ev.elapsedInHalf
+    : (typeof ev.detail?.elapsedInHalf === 'number' && !Number.isNaN(ev.detail.elapsedInHalf) ? ev.detail.elapsedInHalf : null);
+  const rawMinute = typeof ev.minute === 'number' && !Number.isNaN(ev.minute) ? ev.minute : null;
+
+  if (rawElapsed !== null) {
+    return clamp(rawElapsed, 0, halfDur);
+  }
+  if (rawT !== null) {
+    if (rawT <= halfDur + 1) {
+      return clamp(rawT, 0, halfDur);
+    }
+    if (rawT <= regularHalfDur + 1) {
+      return clamp(rawT * (halfDur / regularHalfDur), 0, halfDur);
+    }
+    return clamp(rawT, 0, halfDur);
+  }
+  if (rawMinute !== null) {
+    const totalActualDuration = halfDur * 2;
+    const totalScaledSec = clamp(rawMinute * 60, 0, 90 * 60) * (totalActualDuration / (90 * 60));
+    if (ev.half === 2) {
+      return clamp(totalScaledSec - halfDur, 0, halfDur);
+    }
+    return clamp(totalScaledSec, 0, halfDur);
+  }
+  return 0;
+}
+
+function getEventSecondsTotal(ev, metadata) {
+  const halfDur = metadata?.halfDuration ?? 2700;
+  return (ev.half === 2 ? halfDur : 0) + getEventSecondsInHalf(ev, metadata);
+}
+
+function getEventMinute(ev, metadata) {
+  return Math.floor(getEventSecondsTotal(ev, metadata) / 60);
+}
+
+function formatEventTime(ev, metadata) {
+  const totalSec = getEventSecondsTotal(ev, metadata);
+  const min = Math.floor(totalSec / 60);
+  const sec = Math.floor(totalSec % 60);
+  return `${min}:${String(sec).padStart(2, '0')}`;
+}
+
 function copySection(key) {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
@@ -404,7 +448,7 @@ function copySection(key) {
       `Corners bar: ${a.corners||0} – ${b.corners||0}`,
     ].join('\n');
   } else if (key === 'timeline') {
-    const evs = D.events || [];
+    const evs = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
     const shots = evs.filter(e=>e.type==='SHOT');
     const tackles = evs.filter(e=>e.type==='TACKLE');
     const fouls = evs.filter(e=>e.type==='FOUL');
@@ -415,7 +459,7 @@ function copySection(key) {
       `Shots: ${shotA.length} (A) / ${shotB.length} (B)`,
       `Tackles: ${tackles.filter(e=>e.team==='A').length} (A) / ${tackles.filter(e=>e.team==='B').length} (B)`,
       `Fouls: ${fouls.filter(e=>e.team==='A').length} (A) / ${fouls.filter(e=>e.team==='B').length} (B)`,
-      ...shots.map(s=>`  Shot @${s.minute ?? '?'}' [${s.team}] ${s.detail?.onTarget ? 'ON TARGET' : 'off target'}${s.detail?.isGoal ? ' GOAL' : ''}`),
+      ...shots.map(s=>`  Shot @${formatEventTime(s, D.metadata)} [${s.team}] ${s.detail?.onTarget ? 'ON TARGET' : 'off target'}${s.detail?.isGoal ? ' GOAL' : ''}`),
     ].join('\n');
   } else if (key === 'teamstyle') {
     const tab = activeTeamStyleTab;
@@ -538,7 +582,7 @@ function copySection(key) {
     const visible = evs.filter(e=>activeEventFilters.has(e.type));
     text = [
       `EVENT STREAM — ${nameA} vs ${nameB} (${visible.length} events shown)`,
-      ...visible.slice(0,200).map(e=>`${String(e.minute??'?').padStart(3,'\u00a0')}'  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
+      ...visible.slice(0,200).map(e=>`${formatEventTime(e, D.metadata)}  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
     ].join('\n');
   } else if (key === 'shotDecisions') {
     const decisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
@@ -713,7 +757,7 @@ let live = null;     // current live telemetry
 let prevD = null;    // comparison match data
 let _historyModeActive = false;  // flag: viewing historical match, don't overwrite with live data
 let lastUpdate = 0;
-let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT']);
+let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
 let activeTeamStyleTab = 'buildup';
 let activeSpatialTab = 'heatmap';
 let activePosTab = 'homeError';
@@ -759,6 +803,7 @@ async function setDFromPayload(payload) {
 
 function hasMeaningfulMatchState(bundle, snapshot, livePayload) {
   if (!bundle) return false;
+  if (bundle.sessionActive === false) return false;
   if (snapshot?.isLive || livePayload?.isLive) return true;
   if ((snapshot?.elapsedInHalf || 0) > 0.5) return true;
   if ((snapshot?.scoreA || 0) !== 0 || (snapshot?.scoreB || 0) !== 0) return true;
@@ -828,8 +873,14 @@ setInterval(() => {
       const nextD = g.getTuningBundle?.();
       const nextSnap = g.getMatchSnapshot?.();
       const nextLive = g.getLiveTelemetry?.();
-      if (hasMeaningfulMatchState(nextD, nextSnap, nextLive)) {
-        setDFromPayload({ bundle: nextD, snapshot: nextSnap, live: nextLive });
+      const openerPayload = {
+        bundle: nextD,
+        snapshot: nextSnap,
+        live: nextLive,
+        sessionActive: nextD?.sessionActive,
+      };
+      if (shouldAcceptLivePayload(openerPayload)) {
+        setDFromPayload(openerPayload);
         $('debugText').textContent = 'via window.opener';
         return;
       }
@@ -996,7 +1047,7 @@ function renderTimeline() {
   ctx.clearRect(0, 0, W, H);
   if (!D) return;
 
-  const events = D.events || [];
+  const events = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
   const halfDur = D.metadata?.halfDuration || 2700;
   const totalDur = halfDur * 2;
   const pad = { l: 40, r: 10, t: 14, b: 22 };
@@ -1042,19 +1093,32 @@ function renderTimeline() {
     ctx.globalAlpha = 1;
   }
 
+  const eventSecondsInHalf = (ev) => getEventSecondsInHalf(ev, D.metadata);
+  const eventSecondsTotal = (ev) => getEventSecondsTotal(ev, D.metadata);
+
   // Event markers
   const evtToX = (ev) => {
-    // t is elapsed time since match start (not reset at halftime)
-    return pad.l + (ev.t / totalDur) * gw;
+    const tSec = eventSecondsTotal(ev);
+    return pad.l + (tSec / totalDur) * gw;
   };
 
   for (const ev of events) {
-    const x = evtToX(ev);
+    const x = clamp(evtToX(ev), pad.l, W - pad.r);
     const isA = ev.team === 'A';
     const baseY = isA ? pad.t + gh * 0.25 : pad.t + gh * 0.65;
     const r = 3;
 
-    if (ev.type === 'GOAL') {
+    if (ev.type === 'PASS') {
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, baseY);
+      ctx.lineTo(x + 2, baseY);
+      ctx.lineTo(x, baseY - 2);
+      ctx.moveTo(x + 2, baseY);
+      ctx.lineTo(x, baseY + 2);
+      ctx.stroke();
+    } else if (ev.type === 'GOAL') {
       ctx.beginPath(); ctx.arc(x, baseY, r + 2, 0, Math.PI * 2);
       ctx.fillStyle = isA ? '#3b82f6' : '#e74c5a';
       ctx.fill();
@@ -1073,6 +1137,21 @@ function renderTimeline() {
       ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(x - 2, baseY - 2); ctx.lineTo(x + 2, baseY + 2);
       ctx.moveTo(x + 2, baseY - 2); ctx.lineTo(x - 2, baseY + 2); ctx.stroke();
+    } else if (ev.type === 'CLEARANCE') {
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 4);
+      ctx.lineTo(x + 3.5, baseY + 2.5);
+      ctx.lineTo(x - 3.5, baseY + 2.5);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (ev.type === 'RECOVERY') {
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, baseY, 3, 0, Math.PI * 2);
+      ctx.stroke();
     } else if (ev.type === 'MIDFIELD_SUPPORT') {
       const followState = ev.detail?.supportFollowsStriker;
       ctx.fillStyle = followState === false ? '#f59e0b' : '#7c3aed';
@@ -1098,7 +1177,7 @@ function renderTimeline() {
     const counts = new Array(buckets).fill(0);
     for (const ev of events) {
       // t is elapsed time since match start
-      const bi = clamp(Math.floor(ev.t / bw), 0, buckets - 1);
+      const bi = clamp(Math.floor(eventSecondsTotal(ev) / bw), 0, buckets - 1);
       counts[bi] += (ev.team === 'A' ? 1 : -1);
     }
     ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
@@ -1119,20 +1198,66 @@ function renderTimeline() {
   ctx.fillText('Team B ↓', W - pad.r, pad.t + gh - 2);
   // Legend icons
   const lx = pad.l + 40, ly = pad.t + 5;
-  ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left'; ctx.fillText('Goal', lx + 10, ly + 3);
-  ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(lx + 45, ly, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Shot', lx + 55, ly + 3);
-  ctx.fillStyle = '#22c55e'; ctx.fillRect(lx + 92, ly - 2, 4, 4);
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Tackle', lx + 100, ly + 3);
-  ctx.fillStyle = '#eab308';
-  ctx.beginPath(); ctx.moveTo(lx + 145, ly - 3); ctx.lineTo(lx + 148, ly + 2); ctx.lineTo(lx + 142, ly + 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Foul', lx + 155, ly + 3);
-  ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(lx + 195, ly - 2); ctx.lineTo(lx + 199, ly + 2);
-  ctx.moveTo(lx + 199, ly - 2); ctx.lineTo(lx + 195, ly + 2); ctx.stroke();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Intercept', lx + 205, ly + 3);
+  const legendText = (text, x, y) => {
+    ctx.fillStyle = '#8890a0';
+    ctx.fillText(text, x, y);
+  };
+  const legendItems = [
+    { label: 'Pass', width: 34, draw: (x, y) => {
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y);
+      ctx.lineTo(x + 2, y);
+      ctx.lineTo(x, y - 2);
+      ctx.moveTo(x + 2, y);
+      ctx.lineTo(x, y + 2);
+      ctx.stroke();
+    }},
+    { label: 'Goal', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+    }},
+    { label: 'Shot', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    }},
+    { label: 'Tackle', width: 42, draw: (x, y) => {
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+    }},
+    { label: 'Foul', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x + 3, y + 2); ctx.lineTo(x - 3, y + 2); ctx.fill();
+    }},
+    { label: 'Intercept', width: 52, draw: (x, y) => {
+      ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 2, y - 2); ctx.lineTo(x + 2, y + 2);
+      ctx.moveTo(x + 2, y - 2); ctx.lineTo(x - 2, y + 2); ctx.stroke();
+    }},
+    { label: 'Clearance', width: 54, draw: (x, y) => {
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x + 3.5, y + 2.5);
+      ctx.lineTo(x - 3.5, y + 2.5);
+      ctx.closePath();
+      ctx.stroke();
+    }},
+    { label: 'Recovery', width: 50, draw: (x, y) => {
+      ctx.strokeStyle = '#10b981'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }},
+  ];
+  const legendGap = 12;
+  const totalLegendWidth = legendItems.reduce((sum, item) => sum + item.width, 0) + legendGap * (legendItems.length - 1);
+  let legendX = Math.max(lx, W - pad.r - totalLegendWidth);
+  for (const item of legendItems) {
+    item.draw(legendX, ly);
+    legendText(item.label, legendX + 8, ly + 3);
+    legendX += item.width + legendGap;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1512,7 +1637,7 @@ function renderRolePanel() {
    RENDER: 5. EVENT STREAM
    ═══════════════════════════════════════════════════════════ */
 function renderEventFilters() {
-  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT'];
+  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
   $('eventFilters').innerHTML = types.map(t =>
     `<button class="${activeEventFilters.has(t) ? 'active' : ''}" onclick="toggleEventFilter('${t}')">${t}</button>`
   ).join('') + `<button onclick="toggleAllEvents()">ALL</button>`;
@@ -1526,7 +1651,7 @@ function toggleEventFilter(type) {
 }
 
 function toggleAllEvents() {
-  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY','MIDFIELD_SUPPORT'];
+  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
   if (activeEventFilters.size === all.length) activeEventFilters.clear();
   else all.forEach(t => activeEventFilters.add(t));
   renderEventFilters();
@@ -1535,17 +1660,19 @@ function toggleAllEvents() {
 
 function renderEventList() {
   if (!D) return;
-  const events = (D.events || []).filter(e => activeEventFilters.has(e.type));
+  const events = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
   const _evHalfDur = D.metadata?.halfDuration || 2700;
+  const eventSecondsInHalf = (ev) => getEventSecondsInHalf(ev, D.metadata);
+  const eventSeconds = (ev) => getEventSecondsTotal(ev, D.metadata);
+
   const sorted = [...events].sort((a, b) => {
-    const aT = a.half === 1 ? a.t : _evHalfDur + a.t;
-    const bT = b.half === 1 ? b.t : _evHalfDur + b.t;
+    const aT = eventSeconds(a);
+    const bT = eventSeconds(b);
     return bT - aT;
   });
 
   const formatTime = (ev) => {
-    const halfDur = D.metadata?.halfDuration || 2700;
-    const totalSec = ev.half === 1 ? ev.t : halfDur + ev.t;
+    const totalSec = eventSeconds(ev);
     const min = Math.floor(totalSec / 60);
     const sec = Math.floor(totalSec % 60);
     return `${min}:${String(sec).padStart(2, '0')}`;

@@ -1,0 +1,978 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+import Database from 'better-sqlite3'
+import { MLS_2025_GLOBAL_AVERAGES, MLS_2025_TEAM_BASELINES } from '../src/telemetry/mls2025-baselines.ts'
+
+const TEAM_ALIASES = new Map([
+  ['dc united', 'D.C. United'],
+  ['d.c. united', 'D.C. United'],
+  ['sporting kc', 'Sporting Kansas City'],
+  ['st. louis city sc', 'St. Louis CITY SC'],
+  ['st. louis city', 'St. Louis CITY SC'],
+  ['montreal', 'CF Montreal'],
+])
+
+function parseArgs(argv) {
+  const options = {
+    sessionId: '',
+    homeTeam: '',
+    awayTeam: '',
+    latest: false,
+    reportJson: '',
+    reportMd: '',
+  }
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--session-id') {
+      options.sessionId = argv[++i] || ''
+    } else if (arg === '--home') {
+      options.homeTeam = argv[++i] || ''
+    } else if (arg === '--away') {
+      options.awayTeam = argv[++i] || ''
+    } else if (arg === '--latest') {
+      options.latest = true
+    } else if (arg === '--report-json') {
+      options.reportJson = argv[++i] || ''
+    } else if (arg === '--report-md') {
+      options.reportMd = argv[++i] || ''
+    } else if (arg === '--help' || arg === '-h') {
+      printHelp()
+      process.exit(0)
+    } else {
+      throw new Error(`Unknown argument: ${arg}`)
+    }
+  }
+
+  if ((options.homeTeam && !options.awayTeam) || (!options.homeTeam && options.awayTeam)) {
+    throw new Error('Use --home and --away together when filtering by matchup')
+  }
+
+  if (!options.latest && !options.sessionId && !options.homeTeam) {
+    options.latest = true
+  }
+
+  if (!options.reportJson) {
+    options.reportJson = 'telemetry/latest-report.json'
+  }
+  if (!options.reportMd) {
+    options.reportMd = 'telemetry/latest-report.md'
+  }
+
+  return options
+}
+
+function printHelp() {
+  console.log(`Analyze the latest saved telemetry package and produce a full report
+
+Usage:
+  npm run telemetry:analyze -- --latest
+  npm run telemetry:analyze -- --home "Inter Miami" --away "Nashville SC"
+  npm run telemetry:analyze -- --session-id ft-123456
+
+Options:
+  --latest            Analyze the most recent saved bundle
+  --home <team>       Filter by the latest matching fixture
+  --away <team>       Filter by the latest matching fixture
+  --session-id <id>   Analyze one exact session
+  --report-json <p>   Write the machine-readable report JSON
+  --report-md <p>     Write the human-readable markdown report
+`)
+}
+
+function normalizeTeamName(name) {
+  if (!name) return ''
+  const trimmed = name.trim()
+  return TEAM_ALIASES.get(trimmed.toLowerCase()) || trimmed
+}
+
+function buildTeamBaselineMap() {
+  const map = new Map()
+  for (const row of MLS_2025_TEAM_BASELINES) {
+    map.set(normalizeTeamName(row.team).toLowerCase(), row)
+  }
+  return map
+}
+
+function round(value, digits = 2) {
+  if (!Number.isFinite(Number(value))) return 0
+  return +Number(value).toFixed(digits)
+}
+
+function pct(count, total, digits = 1) {
+  if (!total) return 0
+  return round((count / total) * 100, digits)
+}
+
+function countByType(events, type) {
+  return events.filter((event) => event.type === type).length
+}
+
+function angleDelta(a, b) {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null
+  let delta = a - b
+  while (delta > Math.PI) delta -= Math.PI * 2
+  while (delta < -Math.PI) delta += Math.PI * 2
+  return delta
+}
+
+function getRoleLabel(entry) {
+  return (entry?.role || entry?.passerRole || entry?.displayRole || '').toString().toUpperCase()
+}
+
+function summarizePasses(passLog, team) {
+  const passes = passLog.filter((event) => event.team === team)
+  const byRole = {}
+  let totalProgress = 0
+  let backward = 0
+  let forward = 0
+  let lateral = 0
+
+  for (const pass of passes) {
+    const detail = pass.detail || {}
+    const progress = Number(detail.progress ?? 0)
+    const direction = detail.passDirection || (progress > 1 ? 'forward' : (progress < -1 ? 'backward' : 'lateral'))
+    const role = pass.role || detail.passerRole || '?'
+    totalProgress += progress
+    byRole[role] ??= { total: 0, backward: 0, forward: 0, lateral: 0 }
+    byRole[role].total += 1
+
+    if (direction === 'forward') {
+      forward += 1
+      byRole[role].forward += 1
+    } else if (direction === 'backward') {
+      backward += 1
+      byRole[role].backward += 1
+    } else {
+      lateral += 1
+      byRole[role].lateral += 1
+    }
+  }
+
+  const topRoles = Object.fromEntries(
+    Object.entries(byRole)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 8),
+  )
+
+  return {
+    total: passes.length,
+    avgProgress: passes.length ? round(totalProgress / passes.length) : 0,
+    backwardPct: pct(backward, passes.length),
+    forwardPct: pct(forward, passes.length),
+    lateralPct: pct(lateral, passes.length),
+    topRoles,
+  }
+}
+
+function summarizeShotSupport(events) {
+  const relevant = events.filter((event) => event.type === 'SHOT_POSITION_SNAPSHOT' || event.type === 'SHOT_ON_TARGET_POSITION_SNAPSHOT')
+  return relevant.map((event) => {
+    const players = Array.isArray(event.detail?.players) ? event.detail.players : []
+    const shooter = event.detail?.shooter || {}
+    const midfielders = players
+      .filter((player) => player.team === shooter.team && player.name !== shooter.name && player.isMidfielder)
+      .sort((a, b) => (a.distToShooter ?? 999) - (b.distToShooter ?? 999))
+    return {
+      type: event.type,
+      minute: event.minute,
+      shooter: shooter.name || 'Unknown',
+      shooterRole: shooter.role || '?',
+      nearestMid: midfielders[0] ? round(midfielders[0].distToShooter, 1) : null,
+      secondMid: midfielders[1] ? round(midfielders[1].distToShooter, 1) : null,
+    }
+  })
+}
+
+function summarizePassDecisions(passDecisions) {
+  const attackerBackpasses = passDecisions.filter((decision) => {
+    const role = getRoleLabel({ role: decision.passerRole })
+    return ['ST', 'CF', 'CAM', 'LM', 'RM'].includes(role)
+      && decision.passStyle === 'BACK'
+      && decision.inFinalThird
+  })
+  const attackerBoxBackpasses = attackerBackpasses.filter((decision) => decision.insidePenaltyArea)
+  const directBlockers = passDecisions.filter((decision) => decision.passDirectBlocker)
+  const vetoCounts = {}
+
+  for (const decision of passDecisions) {
+    const reason = decision.holdReason || 'none'
+    vetoCounts[reason] = (vetoCounts[reason] || 0) + 1
+  }
+
+  return {
+    total: passDecisions.length,
+    attackerBackpassesInFinalThird: attackerBackpasses.length,
+    attackerBackpassesInBox: attackerBoxBackpasses.length,
+    directBlockerPassDecisions: directBlockers.length,
+    topHoldReasons: Object.fromEntries(
+      Object.entries(vetoCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8),
+    ),
+    recentAttackerBackpasses: attackerBackpasses.slice(-12),
+  }
+}
+
+function summarizeCarrierMovement(events) {
+  const carrierTraces = events.filter((event) => event.type === 'CARRIER_TRACE')
+  const attackerZoneTraces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
+  const byCarrier = new Map()
+
+  carrierTraces.forEach((event, index) => {
+    const detail = event.detail || {}
+    const carrier = detail.carrier || 'Unknown'
+    const team = event.team || detail.team || '?'
+    const key = `${team}:${carrier}`
+    if (!byCarrier.has(key)) {
+      byCarrier.set(key, {
+        carrier,
+        team,
+        role: event.role || detail.role || '?',
+        traces: [],
+      })
+    }
+    byCarrier.get(key).traces.push({
+      index,
+      minute: event.minute ?? 0,
+      detail,
+    })
+  })
+
+  let totalLateralFlips = 0
+  let totalForwardCarrySamples = 0
+  let totalSwitchRequests = 0
+  let totalBlockedSwitches = 0
+  let totalCarryLockSamples = 0
+  let totalFacingMovementMismatch = 0
+  let totalDesiredSteerMismatch = 0
+  let totalFacingSamples = 0
+  let totalDesiredSamples = 0
+  let totalForwardProgressAtFlip = 0
+  const offenders = []
+
+  for (const group of byCarrier.values()) {
+    let prevLateralSign = 0
+    let lateralFlips = 0
+    let forwardSamples = 0
+    let switchRequests = 0
+    let blockedSwitches = 0
+    let carryLockSamples = 0
+    let facingMovementMismatch = 0
+    let desiredSteerMismatch = 0
+    let facingSamples = 0
+    let desiredSamples = 0
+    let forwardProgressAtFlip = 0
+    let prevDistToGoal = null
+
+    for (const trace of group.traces) {
+      const detail = trace.detail || {}
+      const movementDirX = Number(detail.movementDirX)
+      const movementDirZ = Number(detail.movementDirZ)
+      const wantsFlip = !!detail.wantsLateralFlip
+      const blockedFlip = wantsFlip && !!detail.steerSwitchLockActive
+      const carryLocked = !!detail.carrySwitchLockActive
+      const facingDelta = angleDelta(Number(detail.facingHeading), Number(detail.currentHeading))
+      const desiredDelta = angleDelta(Number(detail.desiredHeading), Number(detail.steerHeading))
+
+      if (wantsFlip) switchRequests += 1
+      if (blockedFlip) blockedSwitches += 1
+      if (carryLocked) carryLockSamples += 1
+
+      if (Number.isFinite(facingDelta) && Number(detail.speed ?? 0) > 0.25) {
+        facingSamples += 1
+        if (Math.abs(facingDelta) > 0.45) facingMovementMismatch += 1
+      }
+
+      if (Number.isFinite(desiredDelta)) {
+        desiredSamples += 1
+        if (Math.abs(desiredDelta) > 0.55) desiredSteerMismatch += 1
+      }
+
+      if (Number.isFinite(movementDirX) && Number.isFinite(movementDirZ) && Math.abs(movementDirX) > 0.35 && Math.abs(movementDirZ) > 0.18) {
+        forwardSamples += 1
+        const lateralSign = Math.sign(movementDirZ)
+        if (prevLateralSign !== 0 && lateralSign !== 0 && lateralSign !== prevLateralSign) {
+          lateralFlips += 1
+          const distToGoal = Number(detail.distToGoal)
+          if (Number.isFinite(distToGoal) && Number.isFinite(prevDistToGoal)) {
+            forwardProgressAtFlip += Math.max(0, prevDistToGoal - distToGoal)
+          }
+        }
+        prevLateralSign = lateralSign
+      }
+      const distToGoal = Number(detail.distToGoal)
+      prevDistToGoal = Number.isFinite(distToGoal) ? distToGoal : prevDistToGoal
+    }
+
+    totalLateralFlips += lateralFlips
+    totalForwardCarrySamples += forwardSamples
+    totalSwitchRequests += switchRequests
+    totalBlockedSwitches += blockedSwitches
+    totalCarryLockSamples += carryLockSamples
+    totalFacingMovementMismatch += facingMovementMismatch
+    totalDesiredSteerMismatch += desiredSteerMismatch
+    totalFacingSamples += facingSamples
+    totalDesiredSamples += desiredSamples
+    totalForwardProgressAtFlip += forwardProgressAtFlip
+
+    offenders.push({
+      carrier: group.carrier,
+      team: group.team,
+      role: group.role,
+      traces: group.traces.length,
+      forwardCarrySamples: forwardSamples,
+      lateralFlips,
+      lateralFlipRate: forwardSamples > 1 ? round(lateralFlips / Math.max(forwardSamples - 1, 1), 2) : 0,
+      switchRequests,
+      blockedSwitches,
+      carryLockSamples,
+      avgForwardProgressPerFlip: lateralFlips > 0 ? round(forwardProgressAtFlip / lateralFlips, 2) : 0,
+      facingMovementMismatchPct: facingSamples > 0 ? pct(facingMovementMismatch, facingSamples) : 0,
+      desiredSteerMismatchPct: desiredSamples > 0 ? pct(desiredSteerMismatch, desiredSamples) : 0,
+    })
+  }
+
+  offenders.sort((a, b) =>
+    (b.lateralFlips - a.lateralFlips)
+    || (b.switchRequests - a.switchRequests)
+    || (b.facingMovementMismatchPct - a.facingMovementMismatchPct)
+    || (b.traces - a.traces)
+  )
+
+  return {
+    carrierTraceCount: carrierTraces.length,
+    attackerZoneTraceCount: attackerZoneTraces.length,
+    carriersTracked: byCarrier.size,
+    totalForwardCarrySamples,
+    totalLateralFlips,
+    totalSwitchRequests,
+    totalBlockedSwitches,
+    totalCarryLockSamples,
+    avgForwardProgressPerFlip: totalLateralFlips > 0 ? round(totalForwardProgressAtFlip / totalLateralFlips, 2) : 0,
+    facingMovementMismatchPct: totalFacingSamples > 0 ? pct(totalFacingMovementMismatch, totalFacingSamples) : 0,
+    desiredSteerMismatchPct: totalDesiredSamples > 0 ? pct(totalDesiredSteerMismatch, totalDesiredSamples) : 0,
+    topZigzagOffenders: offenders.slice(0, 8),
+  }
+}
+
+function summarizeAttackerBoxBehavior(events) {
+  const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
+  const boxTraces = traces.filter((event) => String(event.detail?.zone || '').startsWith('BOX_'))
+  const byPlayer = new Map()
+
+  for (const event of boxTraces) {
+    const detail = event.detail || {}
+    const player = detail.playerName || 'Unknown'
+    const team = event.team || '?'
+    const key = `${team}:${player}`
+    if (!byPlayer.has(key)) {
+      byPlayer.set(key, {
+        player,
+        team,
+        role: event.role || detail.role || '?',
+        traces: 0,
+        maxBoxDwellSeconds: 0,
+        maxBoxIdleSeconds: 0,
+        maxBoxCampSeconds: 0,
+        crowdedSamples: 0,
+      })
+    }
+    const row = byPlayer.get(key)
+    row.traces += 1
+    row.maxBoxDwellSeconds = Math.max(row.maxBoxDwellSeconds, Number(detail.boxDwellSeconds) || 0)
+    row.maxBoxIdleSeconds = Math.max(row.maxBoxIdleSeconds, Number(detail.boxIdleSeconds) || 0)
+    row.maxBoxCampSeconds = Math.max(row.maxBoxCampSeconds, Number(detail.boxCampSeconds) || 0)
+    if (detail.boxCrowded) row.crowdedSamples += 1
+  }
+
+  const offenders = [...byPlayer.values()]
+    .sort((a, b) =>
+      (b.maxBoxCampSeconds - a.maxBoxCampSeconds)
+      || (b.maxBoxIdleSeconds - a.maxBoxIdleSeconds)
+      || (b.maxBoxDwellSeconds - a.maxBoxDwellSeconds)
+      || (b.crowdedSamples - a.crowdedSamples)
+      || (b.traces - a.traces)
+    )
+    .slice(0, 8)
+    .map((row) => ({
+      ...row,
+      crowdedPct: row.traces > 0 ? pct(row.crowdedSamples, row.traces) : 0,
+      maxBoxDwellSeconds: round(row.maxBoxDwellSeconds, 2),
+      maxBoxIdleSeconds: round(row.maxBoxIdleSeconds, 2),
+      maxBoxCampSeconds: round(row.maxBoxCampSeconds, 2),
+    }))
+
+  return {
+    totalBoxTraces: boxTraces.length,
+    playersTracked: byPlayer.size,
+    topBoxLoiterers: offenders,
+  }
+}
+
+function summarizeShotDecisions(shotDecisions) {
+  const forcedShots = shotDecisions.filter((decision) =>
+    decision.forceShotNow
+    || decision.atGoalLineForce
+    || decision.desperationShot
+    || decision.shotSelectionType === 'forced_shot',
+  )
+  const selectedShots = shotDecisions.filter((decision) =>
+    decision.shouldShoot
+    && !forcedShots.includes(decision),
+  )
+  const aiSimpleDecisions = shotDecisions.filter((decision) => decision.decisionType === 'AI_SIMPLE')
+  const aiSimpleBrokenRows = aiSimpleDecisions.filter((decision) => {
+    const shotChance = decision.shotChance
+    const passChance = decision.passChance
+    const shotThreshold = decision.shotThreshold ?? decision.threshold
+    const zeroed =
+      Number(shotChance) === 0
+      && Number(passChance) === 0
+      && Number(shotThreshold) === 0
+    const nullish =
+      shotChance == null
+      || passChance == null
+      || shotThreshold == null
+    return zeroed || nullish
+  })
+  const forcedAiSimpleBrokenRows = aiSimpleBrokenRows.filter((decision) =>
+    decision.forceShotNow
+    || decision.atGoalLineForce
+    || decision.desperationShot
+    || decision.shotSelectionType === 'forced_shot',
+  )
+  const longRange = shotDecisions.filter((decision) => Number(decision.distToGoalYards ?? 0) >= 24)
+  const pressuredLongRange = longRange.filter((decision) => Number(decision.closePressure ?? 0) >= 2)
+
+  return {
+    total: shotDecisions.length,
+    forcedShots: forcedShots.length,
+    selectedShots: selectedShots.length,
+    desperationShots: shotDecisions.filter((decision) => decision.desperationShot).length,
+    goalLineForces: shotDecisions.filter((decision) => decision.atGoalLineForce).length,
+    longRangeDecisions: longRange.length,
+    pressuredLongRangeDecisions: pressuredLongRange.length,
+    aiSimpleDecisions: aiSimpleDecisions.length,
+    aiSimpleBrokenRows: aiSimpleBrokenRows.length,
+    forcedAiSimpleBrokenRows: forcedAiSimpleBrokenRows.length,
+    aiSimpleBrokenPct: aiSimpleDecisions.length > 0 ? round((aiSimpleBrokenRows.length / aiSimpleDecisions.length) * 100, 1) : 0,
+    recentForcedShots: forcedShots.slice(-10).map((decision) => ({
+      minute: round(decision.elapsedInHalf ?? 0, 1),
+      team: decision.team,
+      shooter: decision.shooter,
+      role: decision.role,
+      distYards: round(decision.distToGoalYards ?? 0, 1),
+      pressure: decision.closePressure ?? 0,
+      style: decision.style || 'AUTO',
+    })),
+  }
+}
+
+function summarizeShape(shapeSamples, teamName) {
+  const samples = Array.isArray(shapeSamples) ? shapeSamples : []
+  const centerLocked = samples.filter((sample) => Math.abs(Number(sample.avgZ ?? 0)) <= 3)
+  const narrow = samples.filter((sample) => Number(sample.width ?? 0) < 18)
+  const centerAndNarrow = samples.filter((sample) => Math.abs(Number(sample.avgZ ?? 0)) <= 3 && Number(sample.width ?? 0) < 18)
+
+  return {
+    team: teamName,
+    snapshots: samples.length,
+    avgWidth: samples.length ? round(samples.reduce((sum, sample) => sum + Number(sample.width ?? 0), 0) / samples.length) : 0,
+    minWidth: samples.length ? round(Math.min(...samples.map((sample) => Number(sample.width ?? 0)))) : 0,
+    maxWidth: samples.length ? round(Math.max(...samples.map((sample) => Number(sample.width ?? 0)))) : 0,
+    avgDepth: samples.length ? round(samples.reduce((sum, sample) => sum + Number(sample.depth ?? 0), 0) / samples.length) : 0,
+    avgCompactness: samples.length ? round(samples.reduce((sum, sample) => sum + Number(sample.compactness ?? 0), 0) / samples.length) : 0,
+    avgAbsAvgZ: samples.length ? round(samples.reduce((sum, sample) => sum + Math.abs(Number(sample.avgZ ?? 0)), 0) / samples.length) : 0,
+    centerLockedPct: pct(centerLocked.length, samples.length),
+    narrowPct: pct(narrow.length, samples.length),
+    centerAndNarrowPct: pct(centerAndNarrow.length, samples.length),
+  }
+}
+
+function summarizeRoleCentrality(teamBundle) {
+  const roleStats = teamBundle?.roleStats || {}
+  let wideTouches = 0
+  let centralTouches = 0
+  let wideShots = 0
+  let centralShots = 0
+
+  for (const [role, stats] of Object.entries(roleStats)) {
+    const touches = Number(stats?.touches ?? 0)
+    const shots = Number(stats?.shots ?? 0)
+    if (['LM', 'RM', 'LB', 'RB', 'LWB', 'RWB'].includes(role)) {
+      wideTouches += touches
+      wideShots += shots
+    }
+    if (['ST', 'CF', 'CAM', 'CM', 'DM', 'CDM'].includes(role)) {
+      centralTouches += touches
+      centralShots += shots
+    }
+  }
+
+  return {
+    wideTouches,
+    centralTouches,
+    wideTouchShareVsCentral: centralTouches > 0 ? round(wideTouches / centralTouches) : null,
+    wideShots,
+    centralShots,
+    wideShotShareVsCentral: centralShots > 0 ? round(wideShots / centralShots) : null,
+  }
+}
+
+function summarizeEventStream(events, passLog) {
+  const shots = events.filter((event) => event.type === 'SHOT')
+  const onTargetShots = shots.filter((event) => !!event.detail?.onTarget)
+  const goals = shots.filter((event) => !!event.detail?.goal)
+  const longRangeOnTarget = onTargetShots
+    .filter((event) => Number(event.detail?.distYards ?? 0) >= 24)
+    .map((event) => ({
+      minute: event.minute,
+      team: event.team,
+      role: event.role,
+      style: event.detail?.style || 'AUTO',
+      distYards: round(event.detail?.distYards ?? 0, 1),
+      pressure: Number(event.detail?.nearbyOppPressure ?? 0),
+      angle: round(event.detail?.angleToGoal ?? 0, 2),
+      goal: !!event.detail?.goal,
+    }))
+  const closeRangeBadAngles = shots
+    .filter((event) => Number(event.detail?.distYards ?? 99) <= 10 && Number(event.detail?.angleToGoal ?? 0) >= 0.75)
+    .map((event) => ({
+      minute: event.minute,
+      team: event.team,
+      role: event.role,
+      style: event.detail?.style || 'AUTO',
+      distYards: round(event.detail?.distYards ?? 0, 1),
+      angle: round(event.detail?.angleToGoal ?? 0, 2),
+      onTarget: !!event.detail?.onTarget,
+      goal: !!event.detail?.goal,
+    }))
+  const toePokesOnTarget = onTargetShots
+    .filter((event) => (event.detail?.style || '').toUpperCase() === 'TOE_POKE')
+    .map((event) => ({
+      minute: event.minute,
+      team: event.team,
+      role: event.role,
+      distYards: round(event.detail?.distYards ?? 0, 1),
+      angle: round(event.detail?.angleToGoal ?? 0, 2),
+      goal: !!event.detail?.goal,
+    }))
+  const attackerResetPasses = passLog
+    .filter((event) => {
+      const role = getRoleLabel(event)
+      const style = (event.detail?.style || '').toString().toUpperCase()
+      return ['ST', 'CF', 'CAM', 'LM', 'RM'].includes(role) && ['BACK', 'WALL'].includes(style)
+    })
+    .map((event) => ({
+      minute: event.minute,
+      team: event.team,
+      role: event.role,
+      style: event.detail?.style || 'UNKNOWN',
+      progress: round(event.detail?.progress ?? 0, 1),
+      distToGoal: round(event.detail?.passerDistToGoal ?? 0, 1),
+    }))
+
+  return {
+    totalShots: shots.length,
+    onTargetShots: onTargetShots.length,
+    goals: goals.length,
+    longRangeOnTargetCount: longRangeOnTarget.length,
+    closeRangeBadAngleCount: closeRangeBadAngles.length,
+    toePokesOnTargetCount: toePokesOnTarget.length,
+    attackerResetPassCount: attackerResetPasses.length,
+    longRangeOnTarget: longRangeOnTarget.slice(0, 12),
+    closeRangeBadAngles: closeRangeBadAngles.slice(0, 12),
+    toePokesOnTarget: toePokesOnTarget.slice(0, 12),
+    attackerResetPasses: attackerResetPasses.slice(0, 16),
+  }
+}
+
+function compareToBaselines(bundle, teamAName, teamBName) {
+  const baselineMap = buildTeamBaselineMap()
+  const baselineA = baselineMap.get(normalizeTeamName(teamAName).toLowerCase()) || null
+  const baselineB = baselineMap.get(normalizeTeamName(teamBName).toLowerCase()) || null
+
+  const global = {
+    totalGoals: {
+      simulated: (bundle.teamA?.score ?? 0) + (bundle.teamB?.score ?? 0),
+      baseline: MLS_2025_GLOBAL_AVERAGES.goalsPerGame,
+    },
+    totalShots: {
+      simulated: (bundle.teamA?.shots ?? 0) + (bundle.teamB?.shots ?? 0),
+      baseline: MLS_2025_GLOBAL_AVERAGES.shotsPerGame * 2,
+    },
+    totalShotsOnTarget: {
+      simulated: (bundle.teamA?.shotsOnTarget ?? 0) + (bundle.teamB?.shotsOnTarget ?? 0),
+      baseline: MLS_2025_GLOBAL_AVERAGES.shotsOnTargetPerGame * 2,
+    },
+    totalCorners: {
+      simulated: (bundle.teamA?.corners ?? 0) + (bundle.teamB?.corners ?? 0),
+      baseline: MLS_2025_GLOBAL_AVERAGES.cornersPerGame * 2,
+    },
+  }
+
+  for (const value of Object.values(global)) {
+    value.drift = round(value.simulated - value.baseline)
+  }
+
+  const teamComparison = [
+    {
+      team: teamAName,
+      simulated: {
+        goals: bundle.teamA?.score ?? 0,
+        shots: bundle.teamA?.shots ?? 0,
+        shotsOnTarget: bundle.teamA?.shotsOnTarget ?? 0,
+        passCompletionPct: bundle.teamA?.passes ? round(((bundle.teamA?.passesCompleted ?? 0) / bundle.teamA.passes) * 100, 1) : 0,
+        possessionPct: bundle.teamA?.possession ?? 50,
+        corners: bundle.teamA?.corners ?? 0,
+      },
+      baseline: baselineA ? {
+        goals: baselineA.goalsFor,
+        shots: baselineA.shotsPerGame,
+        shotsOnTarget: baselineA.shotsOnTargetPerGame,
+        passCompletionPct: round(baselineA.passCompletionRate * 100, 1),
+        possessionPct: round(baselineA.possession * 100, 1),
+        corners: baselineA.corners,
+      } : null,
+    },
+    {
+      team: teamBName,
+      simulated: {
+        goals: bundle.teamB?.score ?? 0,
+        shots: bundle.teamB?.shots ?? 0,
+        shotsOnTarget: bundle.teamB?.shotsOnTarget ?? 0,
+        passCompletionPct: bundle.teamB?.passes ? round(((bundle.teamB?.passesCompleted ?? 0) / bundle.teamB.passes) * 100, 1) : 0,
+        possessionPct: bundle.teamB?.possession ?? 50,
+        corners: bundle.teamB?.corners ?? 0,
+      },
+      baseline: baselineB ? {
+        goals: baselineB.goalsFor,
+        shots: baselineB.shotsPerGame,
+        shotsOnTarget: baselineB.shotsOnTargetPerGame,
+        passCompletionPct: round(baselineB.passCompletionRate * 100, 1),
+        possessionPct: round(baselineB.possession * 100, 1),
+        corners: baselineB.corners,
+      } : null,
+    },
+  ]
+
+  return { global, teamComparison }
+}
+
+function buildRecommendations(report) {
+  const recommendations = []
+  const worstBackpassRate = Math.max(report.passProfile.A.backwardPct, report.passProfile.B.backwardPct)
+  const centerAndNarrowWorst = Math.max(report.shape.A.centerAndNarrowPct, report.shape.B.centerAndNarrowPct)
+  const longRangeOnTarget = report.eventStream.longRangeOnTargetCount
+  const toePokesOnTarget = report.eventStream.toePokesOnTargetCount
+  const totalOnTargetDrift = report.baselines.global.totalShotsOnTarget.drift
+  const attackerBackpasses = report.passDecisionSummary.attackerBackpassesInFinalThird
+  const zigzagFlips = report.movement?.totalLateralFlips ?? 0
+  const zigzagOffender = report.movement?.topZigzagOffenders?.[0] || null
+  const topBoxLoiterer = report.boxBehavior?.topBoxLoiterers?.[0] || null
+  const brokenAiSimpleRows = report.shotDecisionSummary.aiSimpleBrokenRows ?? 0
+  const forcedBrokenAiSimpleRows = report.shotDecisionSummary.forcedAiSimpleBrokenRows ?? 0
+  const brokenAiSimplePct = report.shotDecisionSummary.aiSimpleBrokenPct ?? 0
+
+  if (forcedBrokenAiSimpleRows >= 3 || brokenAiSimplePct >= 20) {
+    recommendations.push('AI_SIMPLE shot decisions are still collapsing into zeroed/null evaluation rows. Separate computed shot/pass values from forced overrides and block forced shots when the real evaluation is missing.')
+  }
+  if (totalOnTargetDrift > 4 || longRangeOnTarget >= 3) {
+    recommendations.push('Long-range shot accuracy is still too clean. Push more off-frame bias onto 20+ yard attempts, especially central shots and pressured strikes.')
+  }
+  if (toePokesOnTarget >= 2) {
+    recommendations.push('TOE_POKE finishes are still too reliable. Add more miss tendency and weaker on-frame bias for toe-poke shots outside true tap-in range.')
+  }
+  if (attackerBackpasses > 12 || worstBackpassRate > 18) {
+    recommendations.push('Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.')
+  }
+  if (centerAndNarrowWorst > 30 || report.shape.A.avgWidth < 18 || report.shape.B.avgWidth < 18) {
+    recommendations.push('Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.')
+  }
+  if ((report.roleCentrality.A.wideShotShareVsCentral ?? 0) < 0.2 || (report.roleCentrality.B.wideShotShareVsCentral ?? 0) < 0.2) {
+    recommendations.push('Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.')
+  }
+  if (report.baselines.global.totalCorners.simulated <= 1) {
+    recommendations.push('Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.')
+  }
+  if (report.shotSupport.some((shot) => shot.nearestMid !== null && shot.nearestMid > 12)) {
+    recommendations.push('Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.')
+  }
+  if (zigzagFlips >= 12 || (zigzagOffender && zigzagOffender.lateralFlips >= 4)) {
+    recommendations.push('Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.')
+  }
+  if (topBoxLoiterer && (topBoxLoiterer.maxBoxCampSeconds >= 0.5 || topBoxLoiterer.maxBoxIdleSeconds >= 0.4 || topBoxLoiterer.maxBoxDwellSeconds >= 1.2)) {
+    recommendations.push('Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes.')
+  }
+  if (recommendations.length === 0) {
+    recommendations.push('No major red flags detected in this latest bundle. Run a few more matches and compare whether the same patterns repeat before retuning again.')
+  }
+
+  return recommendations
+}
+
+function findBundleRow(db, options) {
+  if (options.sessionId) {
+    return db.prepare(`
+      SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+      FROM match_results
+      WHERE session_id = ?
+      LIMIT 1
+    `).get(options.sessionId)
+  }
+
+  if (options.homeTeam && options.awayTeam) {
+    const home = normalizeTeamName(options.homeTeam).toLowerCase()
+    const away = normalizeTeamName(options.awayTeam).toLowerCase()
+    const rows = db.prepare(`
+      SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+      FROM match_results
+      ORDER BY timestamp DESC
+      LIMIT 250
+    `).all()
+    return rows.find((row) => {
+      const a = normalizeTeamName(row.team_a_name).toLowerCase()
+      const b = normalizeTeamName(row.team_b_name).toLowerCase()
+      return (a === home && b === away) || (a === away && b === home)
+    }) || null
+  }
+
+  return db.prepare(`
+    SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+    FROM match_results
+    ORDER BY timestamp DESC
+    LIMIT 1
+  `).get()
+}
+
+function writeReportFile(reportJson, reportMd, report, markdown) {
+  const outJson = path.resolve(process.cwd(), reportJson)
+  const outMd = path.resolve(process.cwd(), reportMd)
+  fs.mkdirSync(path.dirname(outJson), { recursive: true })
+  fs.mkdirSync(path.dirname(outMd), { recursive: true })
+  fs.writeFileSync(outJson, JSON.stringify(report, null, 2))
+  fs.writeFileSync(outMd, markdown)
+}
+
+function formatEventBullet(event) {
+  const bits = []
+  if (event.minute !== undefined && event.minute !== null) bits.push(`${event.minute}'`)
+  if (event.style) bits.push(event.style)
+  if (event.distYards !== undefined) bits.push(`${event.distYards}y`)
+  if (event.angle !== undefined) bits.push(`angle ${event.angle}`)
+  if (event.pressure !== undefined) bits.push(`pressure ${event.pressure}`)
+  if (event.goal) bits.push('goal')
+  if (event.onTarget) bits.push('on target')
+  return bits.join(', ')
+}
+
+function buildMarkdownReport(report) {
+  const global = report.baselines.global
+  const teamA = report.match.teamA
+  const teamB = report.match.teamB
+  const lines = [
+    `# Telemetry Analysis`,
+    ``,
+    `## Match`,
+    `- Fixture: ${teamA} ${report.match.score} ${teamB}`,
+    `- Session: ${report.match.sessionId}`,
+    `- Timestamp: ${new Date(report.match.timestamp).toISOString()}`,
+    `- Shots: ${report.match.shotsA}-${report.match.shotsB}`,
+    `- Shots on target: ${report.match.shotsOnTargetA}-${report.match.shotsOnTargetB}`,
+    ``,
+    `## MLS Baseline Comparison`,
+    `- Total goals: ${global.totalGoals.simulated} vs ${global.totalGoals.baseline} baseline (drift ${global.totalGoals.drift})`,
+    `- Total shots: ${global.totalShots.simulated} vs ${global.totalShots.baseline} baseline (drift ${global.totalShots.drift})`,
+    `- Total shots on target: ${global.totalShotsOnTarget.simulated} vs ${global.totalShotsOnTarget.baseline} baseline (drift ${global.totalShotsOnTarget.drift})`,
+    `- Total corners: ${global.totalCorners.simulated} vs ${global.totalCorners.baseline} baseline (drift ${global.totalCorners.drift})`,
+    ``,
+    `## Match Summary Telemetry`,
+    `- Event count: ${report.counts.events}`,
+    `- Pass log events: ${report.counts.passLog}`,
+    `- Carrier traces: ${report.counts.carrierTraces}`,
+    `- Attacker zone traces: ${report.counts.attackerZoneTraces}`,
+    `- Shot decisions: ${report.counts.shotDecisions}`,
+    `- Pass decisions: ${report.counts.passDecisions}`,
+    `- Interceptions: ${report.counts.interceptions}`,
+    `- Turnovers: ${report.counts.turnovers}`,
+    ``,
+    `## Decision Telemetry`,
+    `- Forced shots: ${report.shotDecisionSummary.forcedShots} of ${report.shotDecisionSummary.total}`,
+    `- AI_SIMPLE broken rows: ${report.shotDecisionSummary.aiSimpleBrokenRows} of ${report.shotDecisionSummary.aiSimpleDecisions}`,
+    `- AI_SIMPLE forced broken rows: ${report.shotDecisionSummary.forcedAiSimpleBrokenRows}`,
+    `- Long-range shot decisions: ${report.shotDecisionSummary.longRangeDecisions}`,
+    `- Pressured long-range shot decisions: ${report.shotDecisionSummary.pressuredLongRangeDecisions}`,
+    `- Attacker final-third backpasses: ${report.passDecisionSummary.attackerBackpassesInFinalThird}`,
+    `- Attacker in-box backpasses: ${report.passDecisionSummary.attackerBackpassesInBox}`,
+    `- Direct-blocker pass decisions: ${report.passDecisionSummary.directBlockerPassDecisions}`,
+    ``,
+    `## Movement / Facing`,
+    `- Carrier traces analyzed: ${report.movement.carrierTraceCount}`,
+    `- Carriers tracked: ${report.movement.carriersTracked}`,
+    `- Forward-carry samples: ${report.movement.totalForwardCarrySamples}`,
+    `- Lateral direction flips: ${report.movement.totalLateralFlips}`,
+    `- Avg forward progress per flip: ${report.movement.avgForwardProgressPerFlip}`,
+    `- Switch requests: ${report.movement.totalSwitchRequests}`,
+    `- Blocked switch requests: ${report.movement.totalBlockedSwitches}`,
+    `- Carry lock samples: ${report.movement.totalCarryLockSamples}`,
+    `- Facing vs movement mismatch: ${report.movement.facingMovementMismatchPct}%`,
+    `- Desired vs steer mismatch: ${report.movement.desiredSteerMismatchPct}%`,
+    ``,
+    `## Box Behavior`,
+    `- Box traces analyzed: ${report.boxBehavior.totalBoxTraces}`,
+    `- Attackers tracked in box: ${report.boxBehavior.playersTracked}`,
+    ``,
+    `## Heat Map / Shape`,
+    `- ${teamA}: avg width ${report.shape.A.avgWidth}, avg |avgZ| ${report.shape.A.avgAbsAvgZ}, center-locked ${report.shape.A.centerLockedPct}%, center+narrow ${report.shape.A.centerAndNarrowPct}%`,
+    `- ${teamB}: avg width ${report.shape.B.avgWidth}, avg |avgZ| ${report.shape.B.avgAbsAvgZ}, center-locked ${report.shape.B.centerLockedPct}%, center+narrow ${report.shape.B.centerAndNarrowPct}%`,
+    `- ${teamA} wide touches vs central touches: ${report.roleCentrality.A.wideTouches} vs ${report.roleCentrality.A.centralTouches}`,
+    `- ${teamB} wide touches vs central touches: ${report.roleCentrality.B.wideTouches} vs ${report.roleCentrality.B.centralTouches}`,
+    `- ${teamA} wide shots vs central shots: ${report.roleCentrality.A.wideShots} vs ${report.roleCentrality.A.centralShots}`,
+    `- ${teamB} wide shots vs central shots: ${report.roleCentrality.B.wideShots} vs ${report.roleCentrality.B.centralShots}`,
+    ``,
+    `## Event Stream Review`,
+    `- Event-stream shots: ${report.eventStream.totalShots}`,
+    `- Event-stream on-target shots: ${report.eventStream.onTargetShots}`,
+    `- Long-range on-target shots: ${report.eventStream.longRangeOnTargetCount}`,
+    `- Close-range bad-angle shots: ${report.eventStream.closeRangeBadAngleCount}`,
+    `- On-target toe pokes: ${report.eventStream.toePokesOnTargetCount}`,
+    `- Attacker reset passes (BACK/WALL): ${report.eventStream.attackerResetPassCount}`,
+  ]
+
+  if (report.eventStream.longRangeOnTarget.length > 0) {
+    lines.push(``, `### Long-Range On-Target Shots`)
+    for (const event of report.eventStream.longRangeOnTarget) {
+      lines.push(`- Team ${event.team} ${event.role}: ${formatEventBullet(event)}`)
+    }
+  }
+
+  if (report.eventStream.closeRangeBadAngles.length > 0) {
+    lines.push(``, `### Close-Range Bad-Angle Shots`)
+    for (const event of report.eventStream.closeRangeBadAngles) {
+      lines.push(`- Team ${event.team} ${event.role}: ${formatEventBullet(event)}`)
+    }
+  }
+
+  if (report.movement.topZigzagOffenders.length > 0) {
+    lines.push(``, `### Top Zigzag Offenders`)
+    for (const offender of report.movement.topZigzagOffenders) {
+      lines.push(`- Team ${offender.team} ${offender.role} ${offender.carrier}: flips ${offender.lateralFlips}, avg progress/flip ${offender.avgForwardProgressPerFlip}, switch requests ${offender.switchRequests}, blocked ${offender.blockedSwitches}, facing mismatch ${offender.facingMovementMismatchPct}%`)
+    }
+  }
+
+  if (report.boxBehavior.topBoxLoiterers.length > 0) {
+    lines.push(``, `### Top Box Loiterers`)
+    for (const offender of report.boxBehavior.topBoxLoiterers) {
+      lines.push(`- Team ${offender.team} ${offender.role} ${offender.player}: max dwell ${offender.maxBoxDwellSeconds}s, max idle ${offender.maxBoxIdleSeconds}s, max camp ${offender.maxBoxCampSeconds}s, crowded ${offender.crowdedPct}%`)
+    }
+  }
+
+  if (report.recommendations.length > 0) {
+    lines.push(``, `## Suggested Improvements`)
+    for (const recommendation of report.recommendations) {
+      lines.push(`- ${recommendation}`)
+    }
+  }
+
+  return `${lines.join('\n')}\n`
+}
+
+function printSummary(report) {
+  const teamA = report.match.teamA
+  const teamB = report.match.teamB
+  const global = report.baselines.global
+
+  console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB} | session ${report.match.sessionId}`)
+  console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
+  console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
+  console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
+  console.log(`Heat map | ${teamA} width ${report.shape.A.avgWidth}, center+narrow ${report.shape.A.centerAndNarrowPct}% | ${teamB} width ${report.shape.B.avgWidth}, center+narrow ${report.shape.B.centerAndNarrowPct}%`)
+  console.log(`Event stream | long-range on-target ${report.eventStream.longRangeOnTargetCount} | bad-angle close shots ${report.eventStream.closeRangeBadAngleCount} | toe pokes on target ${report.eventStream.toePokesOnTargetCount}`)
+  if (report.recommendations.length > 0) {
+    console.log('Top recommendations:')
+    for (const recommendation of report.recommendations) {
+      console.log(`- ${recommendation}`)
+    }
+  }
+}
+
+function main() {
+  const options = parseArgs(process.argv.slice(2))
+  const dbPath = path.resolve(process.cwd(), 'psl.db')
+  const db = new Database(dbPath, { readonly: true })
+  const row = findBundleRow(db, options)
+  if (!row) {
+    throw new Error('No matching telemetry bundle found.')
+  }
+
+  const bundle = JSON.parse(row.bundle_json)
+  const events = Array.isArray(bundle.events) ? bundle.events : []
+  const passLog = Array.isArray(bundle.passLog) ? bundle.passLog : []
+  const shotDecisions = Array.isArray(bundle.shotDecisions) ? bundle.shotDecisions : []
+  const passDecisions = Array.isArray(bundle.passDecisions) ? bundle.passDecisions : []
+  const shapeA = Array.isArray(bundle.shapeA) ? bundle.shapeA : []
+  const shapeB = Array.isArray(bundle.shapeB) ? bundle.shapeB : []
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    match: {
+      sessionId: row.session_id,
+      timestamp: row.timestamp,
+      teamA: row.team_a_name,
+      teamB: row.team_b_name,
+      score: `${bundle.teamA?.score ?? 0}-${bundle.teamB?.score ?? 0}`,
+      shotsA: bundle.teamA?.shots ?? 0,
+      shotsB: bundle.teamB?.shots ?? 0,
+      shotsOnTargetA: bundle.teamA?.shotsOnTarget ?? 0,
+      shotsOnTargetB: bundle.teamB?.shotsOnTarget ?? 0,
+    },
+    counts: {
+      events: events.length,
+      passLog: passLog.length,
+      midfieldSupport: countByType(events, 'MIDFIELD_SUPPORT'),
+      carrierTraces: countByType(events, 'CARRIER_TRACE'),
+      attackerZoneTraces: countByType(events, 'ATTACKER_ZONE_TRACE'),
+      shotSnapshots: countByType(events, 'SHOT_POSITION_SNAPSHOT'),
+      shotOnTargetSnapshots: countByType(events, 'SHOT_ON_TARGET_POSITION_SNAPSHOT'),
+      shotDecisions: shotDecisions.length,
+      passDecisions: passDecisions.length,
+      turnovers: countByType(events, 'TURNOVER'),
+      interceptions: countByType(events, 'INTERCEPTION'),
+      fouls: countByType(events, 'FOUL'),
+      tackles: countByType(events, 'TACKLE'),
+    },
+    passProfile: {
+      A: { team: row.team_a_name, ...summarizePasses(passLog, 'A') },
+      B: { team: row.team_b_name, ...summarizePasses(passLog, 'B') },
+    },
+    passDecisionSummary: summarizePassDecisions(passDecisions),
+    shotDecisionSummary: summarizeShotDecisions(shotDecisions),
+    movement: summarizeCarrierMovement(events),
+    boxBehavior: summarizeAttackerBoxBehavior(events),
+    shotSupport: summarizeShotSupport(events),
+    shape: {
+      A: summarizeShape(shapeA, row.team_a_name),
+      B: summarizeShape(shapeB, row.team_b_name),
+    },
+    roleCentrality: {
+      A: summarizeRoleCentrality(bundle.teamA),
+      B: summarizeRoleCentrality(bundle.teamB),
+    },
+    eventStream: summarizeEventStream(events, passLog),
+    baselines: compareToBaselines(bundle, row.team_a_name, row.team_b_name),
+  }
+
+  report.recommendations = buildRecommendations(report)
+  const markdown = buildMarkdownReport(report)
+
+  printSummary(report)
+  writeReportFile(options.reportJson, options.reportMd, report, markdown)
+  console.log(`Saved telemetry report JSON: ${path.resolve(process.cwd(), options.reportJson)}`)
+  console.log(`Saved telemetry report Markdown: ${path.resolve(process.cwd(), options.reportMd)}`)
+}
+
+main()

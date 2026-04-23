@@ -1,0 +1,263 @@
+{
+  "generatedAt": "2026-04-23T05:09:15.362Z",
+  "match": {
+    "sessionId": "ft-1776920949605",
+    "timestamp": 1776920949605,
+    "teamA": "Philadelphia Union",
+    "teamB": "San Diego FC",
+    "score": "1-0",
+    "shotsA": 0,
+    "shotsB": 0,
+    "shotsOnTargetA": 0,
+    "shotsOnTargetB": 0
+  },
+  "counts": {
+    "events": 219,
+    "passLog": 27,
+    "midfieldSupport": 126,
+    "shotSnapshots": 0,
+    "shotOnTargetSnapshots": 0,
+    "shotDecisions": 0,
+    "passDecisions": 12,
+    "turnovers": 4,
+    "interceptions": 3,
+    "fouls": 2,
+    "tackles": 2
+  },
+  "passProfile": {
+    "A": {
+      "team": "Philadelphia Union",
+      "total": 15,
+      "avgProgress": 14.34,
+      "backwardPct": 20,
+      "forwardPct": 73.3,
+      "lateralPct": 6.7,
+      "topRoles": {
+        "GK": {
+          "total": 6,
+          "backward": 0,
+          "forward": 6,
+          "lateral": 0
+        },
+        "RM": {
+          "total": 2,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 0
+        },
+        "CM": {
+          "total": 2,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 0
+        },
+        "LB": {
+          "total": 2,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 0
+        },
+        "ST": {
+          "total": 2,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 1
+        },
+        "CB": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        }
+      }
+    },
+    "B": {
+      "team": "San Diego FC",
+      "total": 12,
+      "avgProgress": 16.07,
+      "backwardPct": 16.7,
+      "forwardPct": 83.3,
+      "lateralPct": 0,
+      "topRoles": {
+        "GK": {
+          "total": 6,
+          "backward": 0,
+          "forward": 6,
+          "lateral": 0
+        },
+        "CB": {
+          "total": 5,
+          "backward": 1,
+          "forward": 4,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 1,
+          "backward": 1,
+          "forward": 0,
+          "lateral": 0
+        }
+      }
+    }
+  },
+  "passDecisionSummary": {
+    "total": 12,
+    "attackerBackpassesInFinalThird": 0,
+    "attackerBackpassesInBox": 0,
+    "directBlockerPassDecisions": 0,
+    "topHoldReasons": {
+      "none": 8,
+      "carry_preferred": 4
+    },
+    "recentAttackerBackpasses": []
+  },
+  "shotDecisionSummary": {
+    "total": 0,
+    "forcedShots": 0,
+    "selectedShots": 0,
+    "desperationShots": 0,
+    "goalLineForces": 0,
+    "longRangeDecisions": 0,
+    "pressuredLongRangeDecisions": 0,
+    "recentForcedShots": []
+  },
+  "shotSupport": [],
+  "shape": {
+    "A": {
+      "team": "Philadelphia Union",
+      "snapshots": 32,
+      "avgWidth": 17.86,
+      "minWidth": 4.2,
+      "maxWidth": 31.6,
+      "avgDepth": 18.83,
+      "avgCompactness": 7.61,
+      "avgAbsAvgZ": 2.68,
+      "centerLockedPct": 68.8,
+      "narrowPct": 37.5,
+      "centerAndNarrowPct": 34.4
+    },
+    "B": {
+      "team": "San Diego FC",
+      "snapshots": 32,
+      "avgWidth": 17.57,
+      "minWidth": 10.1,
+      "maxWidth": 25.6,
+      "avgDepth": 20.57,
+      "avgCompactness": 7.83,
+      "avgAbsAvgZ": 2.46,
+      "centerLockedPct": 68.8,
+      "narrowPct": 50,
+      "centerAndNarrowPct": 37.5
+    }
+  },
+  "roleCentrality": {
+    "A": {
+      "wideTouches": 1,
+      "centralTouches": 2,
+      "wideTouchShareVsCentral": 0.5,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    },
+    "B": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    }
+  },
+  "eventStream": {
+    "totalShots": 0,
+    "onTargetShots": 0,
+    "goals": 0,
+    "longRangeOnTargetCount": 0,
+    "closeRangeBadAngleCount": 0,
+    "toePokesOnTargetCount": 0,
+    "attackerResetPassCount": 1,
+    "longRangeOnTarget": [],
+    "closeRangeBadAngles": [],
+    "toePokesOnTarget": [],
+    "attackerResetPasses": [
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "LM",
+        "style": "WALL",
+        "progress": -5.8,
+        "distToGoal": 56.3
+      }
+    ]
+  },
+  "baselines": {
+    "global": {
+      "totalGoals": {
+        "simulated": 1,
+        "baseline": 2.78,
+        "drift": -1.78
+      },
+      "totalShots": {
+        "simulated": 0,
+        "baseline": 26.2,
+        "drift": -26.2
+      },
+      "totalShotsOnTarget": {
+        "simulated": 0,
+        "baseline": 9.4,
+        "drift": -9.4
+      },
+      "totalCorners": {
+        "simulated": 1,
+        "baseline": 8,
+        "drift": -7
+      }
+    },
+    "teamComparison": [
+      {
+        "team": "Philadelphia Union",
+        "simulated": {
+          "goals": 1,
+          "shots": 0,
+          "shotsOnTarget": 0,
+          "passCompletionPct": 20,
+          "possessionPct": 59,
+          "corners": 1
+        },
+        "baseline": {
+          "goals": 1.92,
+          "shots": 12.8,
+          "shotsOnTarget": 4.7,
+          "passCompletionPct": 76,
+          "possessionPct": 50,
+          "corners": 4
+        }
+      },
+      {
+        "team": "San Diego FC",
+        "simulated": {
+          "goals": 0,
+          "shots": 0,
+          "shotsOnTarget": 0,
+          "passCompletionPct": 0,
+          "possessionPct": 41,
+          "corners": 0
+        },
+        "baseline": {
+          "goals": 1.72,
+          "shots": 12.3,
+          "shotsOnTarget": 4.1,
+          "passCompletionPct": 74,
+          "possessionPct": 47,
+          "corners": 3.5
+        }
+      }
+    ]
+  },
+  "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+    "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+    "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally."
+  ]
+}

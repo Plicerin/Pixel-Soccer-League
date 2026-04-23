@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-04-23T05:05:44.357Z",
+  "options": {
+    "cycles": 1,
+    "gamesPerCycle": 1,
+    "mode": "tuning",
+    "speed": 1,
+    "halfSeconds": 90,
+    "speedExplicit": false,
+    "homeTeam": "",
+    "awayTeam": "",
+    "formationA": "",
+    "formationB": "",
+    "outDir": ""
+  },
+  "outDir": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-44-356Z",
+  "cycles": [
+    {
+      "cycle": 1,
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-44-356Z\\cycle-01-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-44-356Z\\cycle-01-analysis.json",
+      "sessionId": "ft-1776920949605",
+      "score": "1-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally."
+      ]
+    }
+  ]
+}

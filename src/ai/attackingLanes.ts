@@ -38,7 +38,7 @@ export function getLaneForRole(role: string, attackSign: 1 | -1, laneDepth = 18,
     case 'RM':
       return new THREE.Vector3(attackSign * laneDepth, 0.15, laneHalfWidth * 1.08);
     case 'ST':
-      return new THREE.Vector3(attackSign * (laneDepth + 3), 0.15, 0);
+      return new THREE.Vector3(attackSign * laneDepth, 0.15, 0);
     case 'CM':
       return new THREE.Vector3(attackSign * (laneDepth - 3), 0.15, 0);
     default:
