@@ -97,49 +97,103 @@ Diagnosis: defense circulates, midfield doesn't progress, strikers don't receive
 
 ---
 
-## PHASE 3 — Progression Patterns
+## PHASE 2.5 — Pattern Engine (prerequisite for Phase 3 & 4)
 
-**Objective**: Ball moves BUILDUP → PROGRESSION with intent, not circulation.
+**Objective**: Give AI multi-player coordinated patterns as a first-class concept.
+Today: every frame is a local carrier decision. No team-level intent, no coordination.
+Soccer needs coordinated multi-player patterns ("wing attack left", "central combo", "counter-attack").
 
-### Patterns
-- **Line-break**: CB/DM → CM/winger past opposition midfield line
-- **Switch of play**: CB/CM → opposite winger after 5s on one side
-- **Third-man run**: CB → CM → striker's run
+**Why this matters**: Position caps and pass scoring alone cannot produce variety. The
+same stateless local AI, tweaked a hundred ways, still produces "one play: run and shoot"
+because no player knows what the team is doing. Pattern engine establishes team-level intent.
+
+### Concepts
+
+- **Pattern**: named team-level attacking intent with expected duration and role assignments.
+  - Examples: `WING_ATTACK_LEFT`, `WING_ATTACK_RIGHT`, `CENTRAL_COMBO`, `COUNTER_ATTACK`, `PATIENT_BUILDUP`, `SWITCH_OF_PLAY`.
+- **Pattern state** on team: `{type, startedAt, expiresAt, roles: Map<player, 'CARRIER'|'RUNNER'|'OUTLET'|'DECOY'|'SUPPORT'>}`.
+- **Pattern selector**: on ball recovery OR on pattern expiry OR when current pattern becomes invalid, pick new pattern from library based on situation (ball position, team shape, opposition shape, game state).
+- **Pattern execution**: each player's frame decision is modulated by their role in the active pattern. Example: during `WING_ATTACK_LEFT`, the LM's role is `CARRIER`, ST's role is `RUNNER` (near post), CAM's role is `SUPPORT` (far post cutback option), RM's role is `OUTLET` (weak-side width).
+- **Pattern completion**: pattern ends on goal / lost possession / timeout / phase change.
+
+### Gates
+
+- **G2.5.1** At any moment each team has an active pattern (or is in NEUTRAL state briefly during transitions). No frames without pattern context except TRANSITION phase.
+- **G2.5.2** Pattern variety per match: at least 4 different pattern types fire per team per match.
+- **G2.5.3** Average pattern duration 3-8 seconds (not instantaneous flip, not stuck for 30s).
+- **G2.5.4** Telemetry emits `PATTERN_START`, `PATTERN_END`, `PATTERN_ROLE_ASSIGNED` events.
+
+### Sub-objectives
+
+- **S2.5.1** Type + storage: `TeamPatternState` on gameState.teamA/teamB. Pattern enum, role enum, role-to-player map.
+- **S2.5.2** Pattern selector: `pickPattern(team, ball, teammates, opponents, gameState)` returns pattern or null. Starter library:
+  - `PATIENT_BUILDUP`: ball in own third, low pressure. Roles: CB as CARRIER, DM/CB as OUTLET pair, CM as FORWARD_OUTLET.
+  - `WING_ATTACK_LEFT` / `WING_ATTACK_RIGHT`: ball in progression on a flank. Roles: LM/RM as CARRIER, ST as NEAR_POST_RUNNER, opposite winger as FAR_POST, CM as CUTBACK_RECEIVER.
+  - `CENTRAL_COMBO`: ball in final-third central, ST ahead. Roles: CM/carrier + ST play 1-2.
+  - `COUNTER_ATTACK`: recovered ball in own half, ≥ 2 attackers ahead of opp midfield line. Roles: ST and wingers as RUNNERS, carrier DRIVES ball forward.
+  - `SWITCH_OF_PLAY`: on one flank > 5s with no progress. Roles: CB/CM as CARRIER, opposite-flank winger as TARGET.
+- **S2.5.3** Role-modulated positioning: extend position target logic to consult pattern role. Example: NEAR_POST_RUNNER target = goalpost + 2 units near; FAR_POST target = opposite goalpost + 2 units far; CUTBACK_RECEIVER target = penalty spot area.
+- **S2.5.4** Role-modulated decision: extend carrier decision to consult pattern. Example: CARRIER in WING_ATTACK_LEFT at byline with near-post RUNNER available → prefer CROSS style pass over SHORT.
+- **S2.5.5** Pattern lifecycle: start on ball recovery or pattern-expired, end on goal/possession-lost/timeout/invalid-situation.
+
+### Deliverable
+
+First 3 patterns end-to-end (`PATIENT_BUILDUP`, `WING_ATTACK_LEFT`/`RIGHT`, `COUNTER_ATTACK`)
+with role-modulated positioning + decision. Single test match should show identifiably
+different patterns firing across the 5 minutes with appropriate telemetry events.
+
+**Phases 3 and 4 become "extend pattern library"** rather than "add more pass vetoes". Phase 1
+position caps relax into pattern-provided targets — `PATIENT_BUILDUP` keeps CBs deep, `WING_ATTACK`
+forces wide winger, `CENTRAL_COMBO` lets winger tuck in. No more conflicting enforcement layers.
+
+---
+
+## PHASE 3 — Progression Patterns (extend pattern library)
+
+**Objective**: Expand pattern library with progression patterns. Uses Phase 2.5 engine.
+
+### Patterns added to library
+- **LINE_BREAK**: ball with CB/DM, receiver candidate past opp midfield line. Carrier passes line-breaking DRIVEN/THROUGH pass. Receiver = RUNNER role.
+- **SWITCH_OF_PLAY** (already in Phase 2.5 starter): validated here with gates.
+- **THIRD_MAN_RUN**: CB → CM (pivot) → striker's timed run. Three-player coordinated pattern.
 
 ### Gates
 - **G3.1** BUILDUP → PROGRESSION transitions ≥ 8 per match
 - **G3.2** PROGRESSION → CHANCE_CREATION transitions ≥ 5 per match
-- **G3.3** Line-breaking passes (progression ≥ 8 units past opp midfielders) ≥ 5 per match
-- **G3.4** Switches (long cross-axis pass, dist > 20) ≥ 2 per match
+- **G3.3** LINE_BREAK patterns complete ≥ 3 per match (carrier passes + receiver actually progresses)
+- **G3.4** SWITCH_OF_PLAY patterns fire ≥ 2 per match
+- **G3.5** THIRD_MAN_RUN completed ≥ 1 per match
 
 ### Sub-objectives
-- **S3.1** BUILDUP pass scoring prioritizes line-break receivers
-- **S3.2** Switch-of-play trigger: team on one flank > 5s → boost opposite-flank winger score
-- **S3.3** Third-man-run: CM with ball + striker making run → through-ball score boost
+- **S3.1** Add `LINE_BREAK` and `THIRD_MAN_RUN` to pattern library
+- **S3.2** Selector priority tuning: when in own third with 2+ seconds possession, `LINE_BREAK` preferred over `PATIENT_BUILDUP` if viable
+- **S3.3** Third-man run: pattern assigns STRIKER as RUNNER, CM as PIVOT, CB as INITIATOR. Role positions + timed decisions encode the pattern.
 
 ---
 
-## PHASE 4 — Final-Third Patterns
+## PHASE 4 — Final-Third Patterns (extend pattern library)
 
-**Objective**: In CHANCE_CREATION, structured patterns — no carry-and-shoot.
+**Objective**: Add final-third patterns. Uses Phase 2.5 engine.
 
-### Patterns
-- **Wing attack**: winger to byline → cross or cutback
-- **Central combo**: 1-2 or lay-off
-- **Through-ball**: mid threads pass behind defense
+### Patterns added to library
+- **WING_ATTACK_LEFT/RIGHT** (already in Phase 2.5 starter): validated here with gates.
+- **CENTRAL_COMBO** (already in Phase 2.5 starter): validated here with gates.
+- **THROUGH_BALL**: midfielder with ball, striker past opp last defender, clear lane. Pattern assigns STRIKER as RUNNER, carrier plays DRIVEN through.
 
 ### Gates
-- **G4.1** Crosses per match ≥ 6
-- **G4.2** Cutback passes ≥ 3
-- **G4.3** Through-balls ≥ 2
-- **G4.4** Corners ≥ 4 (emerging naturally from wing attacks crossing endline)
+- **G4.1** Crosses per match ≥ 6 (emerge from WING_ATTACK byline completion)
+- **G4.2** Cutback passes ≥ 3 (emerge from WING_ATTACK cutback decision)
+- **G4.3** Through-balls ≥ 2 (emerge from THROUGH_BALL pattern)
+- **G4.4** Corners ≥ 4 (emerge naturally from wing attacks crossing endline)
 - **G4.5** Shots from cross/cutback/through-ball ≥ 40% of all shots
+- **G4.6** Pattern diversity in final third: each match has ≥ 3 of {wing-attack-left, wing-attack-right, central-combo, through-ball} each firing ≥ 1 time
 
 ### Sub-objectives
-- **S4.1** Wing-attack FSM: LM/RM in final third with byline path + striker in box → trigger cross
-- **S4.2** Cutback trigger: LM/RM at byline (|z|>15, dist<penaltyDepth+4) + arriving midfielder → prefer cutback over shot
-- **S4.3** Striker make-run: when CM has ball in progression, striker runs to shoulder of last defender
-- **S4.4** Through-ball detection: carrier in mid-third, striker past opp last def, clear lane → DRIVEN through
+- **S4.1** WING_ATTACK pattern completion: CARRIER (winger) at byline + NEAR_POST_RUNNER (striker) in box + FAR_POST (opp winger) at back post → carrier's action is CROSS pass (LONG_LOFTED or DRIVEN low) to whichever runner has best lane
+- **S4.2** CUTBACK within WING_ATTACK: if CUTBACK_RECEIVER (arriving CM) is in pocket + byline path clear for few more meters, prefer cutback over cross
+- **S4.3** CENTRAL_COMBO: 1-2 between carrier and nearest advanced teammate. Both players have roles (CARRIER, WALL). Wall player holds brief + returns pass.
+- **S4.4** THROUGH_BALL: detect precondition (striker past opp last def + lane clear). Pattern triggers pivot through pass.
+- **S4.5** Pattern library lookup cleaned up: no more ad-hoc "if winger on byline, cross" scattered through carrier decision. All crossing happens through WING_ATTACK pattern execution.
 
 ---
 
@@ -193,16 +247,27 @@ May start parallel with Phase 4.
 
 ---
 
-## Current state (as of 2026-04-23)
+## Current state (as of 2026-04-24)
 
 ### Phase 0 — COMPLETE
-- S0.1-S0.3 analyzer extended: phase time %, pass-by-zone, role positions
-- S0.4 git tag `pre-structural-fixes` applied at commit `454d44a`
+- Analyzer extended for phase time %, pass-by-zone, role positions (phase-filtered)
+- Git tag `pre-structural-fixes` at commit `454d44a`
 
-### Phase 1 — CODE COMPLETE, PENDING VALIDATION (3 matches)
-- S1.1 `forceDefenderPass` — CB/LB/RB past midfield with valid target → force pass
-- S1.2 Striker line enforcement — target `max(carrier.x+10, oppLastDef-2)` at 0.70 blend
-- S1.3 Winger width phase-aware blend — 0.55 in progression/final-third, 0.30 in own third
-- S1.4 Role shot allowlist — CB/LB/RB: only dist<5 & keeper<3. CM/DM: only in box dist<12.
+### Phase 1 — PARTIAL VALIDATION (4 matches run)
+Gates G1.1 (CB depth), G1.4 (non-attacker shots), G1.5 (pass-to-ST ~14%) mostly passing.
+G1.2 (ST opp-half fwdX) trending up (4.5 → 11.48) but not at 15.
+G1.3 (LM/RM |z| final-third) stuck at 4-6. **Determined: cannot solve positioning in isolation.**
 
-Next action: run 3 CPU-vs-CPU matches. Validate Phase 1 gates (G1.1-G1.5). Revert tag if regression, else advance to Phase 2.
+Key learning from match 4: unconditional winger width at 0.75 blend regressed passing
+(hasForwardOption 20% → 7.7%). Wingers far wide → pass triangles broken.
+Partial rollback in commit `fc91347`.
+
+**Verdict**: Positioning is downstream of patterns. Phase 1 positioning layers conflict
+and fight each other. Real fix is Phase 2.5 Pattern Engine — position targets emerge
+from active pattern, not hard-coded role caps.
+
+### Next: Phase 2 (state machine) + Phase 2.5 (pattern engine)
+Phase 2 establishes ball-phase awareness. Phase 2.5 adds pattern state + role assignments.
+Phases 3 and 4 become "extend pattern library" with LINE_BREAK, THIRD_MAN_RUN, WING_ATTACK,
+CENTRAL_COMBO, THROUGH_BALL. Position enforcement moves from hard caps to pattern-role-driven
+targets.
