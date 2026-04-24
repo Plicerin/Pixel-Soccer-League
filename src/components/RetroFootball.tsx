@@ -991,6 +991,12 @@ const RetroFootball: React.FC = () => {
       }
 
       const snap2 = g.getMatchSnapshot?.();
+      // Engine-level guard: splash-scene demos have sessionActive=false. Skip them
+      // even if React's hasActiveMatchSession ref is stale (e.g. after HMR remount).
+      if (snap2?.sessionActive === false) {
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: splash-scene demo (sessionActive=false)');
+        return;
+      }
       const phase = snap2?.phase || '';
       const isPhaseChange = phase !== prevPhase;
 
@@ -1024,7 +1030,8 @@ const RetroFootball: React.FC = () => {
       try { fetch('/__tuning/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {}); } catch {}
       
       // Auto-save when match reaches FULL_TIME
-      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME') {
+      // Skip splash-scene demos (sessionActive=false when splashSceneMode is on) — those are ghost matches.
+      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false) {
         // Save to SQLite via server endpoint
         try {
           const a = bundle.teamA, b = bundle.teamB;
