@@ -1,0 +1,130 @@
+{
+  "date": "2026-04-24",
+  "match": "CF Montreal 2-1 Sporting Kansas City",
+  "matchId": "M-PEXCT",
+  "session": "ft-1777071869157",
+  "baselines": {
+    "goals": 3,
+    "goalsDrift": 0.22,
+    "shotsDrift": 6.8,
+    "sotDrift": 11.6,
+    "corners": 0,
+    "cornersDrift": -8
+  },
+  "shots": {
+    "forced": 27,
+    "total": 33,
+    "longRangeSOT": 11
+  },
+  "passes": {
+    "backpasses": 322,
+    "directBlocker": 329,
+    "switchReq": 92,
+    "facingMismatch": 0.144
+  },
+  "placement": {
+    "A": {
+      "ST": 8.74,
+      "LMz": 2.11,
+      "RMz": 2.48,
+      "width": 15.73
+    },
+    "B": {
+      "ST": 9.46,
+      "LMz": 1.59,
+      "RMz": 1.72,
+      "width": 16.26
+    }
+  },
+  "phaseTime": {
+    "A": {
+      "b": 7.8,
+      "p": 51.1,
+      "c": 40,
+      "f": 1
+    },
+    "B": {
+      "b": 9.9,
+      "p": 60.9,
+      "c": 29,
+      "f": 0.2
+    }
+  },
+  "patterns": {
+    "A": 81,
+    "B": 74
+  },
+  "patternTempo": {
+    "COUNTER": {
+      "pace": 5.18,
+      "fit": "OK"
+    },
+    "WING_L": {
+      "pace": -8.29
+    },
+    "WING_R": {
+      "pace": 1.12
+    },
+    "BUILDUP": {
+      "pace": -26.63
+    }
+  },
+  "patternGoals": {
+    "WING_R": 1,
+    "COUNTER": 1,
+    "WING_L": 1,
+    "allPattern": true
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": -1.11,
+    "FAR_POST": -0.3,
+    "RUNNER": 1.65,
+    "CARRIER": 4.41,
+    "SUPPORT": 4.86
+  },
+  "patternCross": {
+    "total": 0,
+    "note": "spam fix worked; role runners regressed so legit crosses also zero"
+  },
+  "carrier": {
+    "avgBLineRatio": 0.93,
+    "straight15": 28,
+    "flippy": 9,
+    "flips": 121,
+    "top": "Joveljic 32.8u 1.0"
+  },
+  "multiTouchOppHalf": {
+    "count": 52,
+    "total": 102,
+    "pct": 0.51,
+    "avgDistinct": 1.7
+  },
+  "finalThirdOverloads": {
+    "A": "1/77 max3",
+    "B": "0/65 max2"
+  },
+  "defendersInBoxAtGoal": {
+    "goals": 3,
+    "avgDef": 1.67,
+    "avgAtk": 0,
+    "dist": {
+      "1": 1,
+      "2": 2
+    }
+  },
+  "wins": [
+    "goals 3 in MLS band",
+    "3/3 pattern goals",
+    "cross spam eliminated",
+    "defense at goal",
+    "flippy 9"
+  ],
+  "regressions": [
+    "NEAR/FAR fwdX negative",
+    "ST fwdX 8.7",
+    "|z|<2.5 LM/RM",
+    "final-third overloads collapsed",
+    "backpasses 322",
+    "BUILDUP pace -26"
+  ]
+}
