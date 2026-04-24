@@ -1,0 +1,79 @@
+{
+  "date": "2026-04-24",
+  "match": "Inter Miami 3-0 LA Galaxy",
+  "session": "ft-1777044048164",
+  "status": "PHASE 2.5 PART 2 LIVE — patterns driving positioning",
+  "codeState": "359b8a9 (pattern roles → position targets)",
+  "baselines": {
+    "goals": {
+      "actual": 3,
+      "drift": 0.22,
+      "target": "2-4",
+      "status": "PASS"
+    },
+    "shots": {
+      "actual": 24,
+      "drift": -2.2,
+      "target": "20-35",
+      "status": "PASS"
+    },
+    "corners": 0
+  },
+  "patternEngine": {
+    "totalStarts": 79,
+    "totalEnds": 78,
+    "typesA": {
+      "PATIENT_BUILDUP": 5,
+      "COUNTER_ATTACK": 23,
+      "WING_ATTACK_LEFT": 5,
+      "WING_ATTACK_RIGHT": 5
+    },
+    "typesB": {
+      "COUNTER_ATTACK": 21,
+      "PATIENT_BUILDUP": 7,
+      "WING_ATTACK_RIGHT": 9,
+      "WING_ATTACK_LEFT": 4
+    },
+    "distinctA": 4,
+    "distinctB": 4,
+    "avgDuration": {
+      "PATIENT_BUILDUP": 1.58,
+      "COUNTER_ATTACK": 3.86,
+      "WING_ATTACK_RIGHT": 3.7,
+      "WING_ATTACK_LEFT": 4.28
+    },
+    "endReasons": {
+      "invalidated": 35,
+      "possession_lost": 43
+    },
+    "shotsByPattern": {
+      "COUNTER_ATTACK": 7,
+      "WING_ATTACK_RIGHT": 6,
+      "WING_ATTACK_LEFT": 6,
+      "NONE": 5
+    },
+    "goalsByPattern": {
+      "WING_ATTACK_LEFT": 2,
+      "WING_ATTACK_RIGHT": 1
+    }
+  },
+  "phase1Gates": {
+    "G1_1": "PASS 2/0",
+    "G1_2": "FAIL 10.3/10.1",
+    "G1_3": "PARTIAL A-LM 8.73/10 samples",
+    "G1_4": "PASS",
+    "G1_5": "PASS 31.5%"
+  },
+  "toSTPct": 0.315,
+  "goalAttribution": [
+    "A#3 Alba(LB)",
+    "A#10 Picault",
+    "A#4 Falcón(CB)"
+  ],
+  "concerns": [
+    "defender goals: 2/3 by defenders (possible set-piece rebounds)",
+    "forced-shot rate 87% still high",
+    "corners 0 (keeper parry logic)"
+  ],
+  "verdict": "Part 2 working. Goals 100% from WING_ATTACK. pass-to-ST tripled. Ready for Phase 3/4 library extensions."
+}
