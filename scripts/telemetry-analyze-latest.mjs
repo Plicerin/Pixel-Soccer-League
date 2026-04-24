@@ -761,6 +761,88 @@ function summaryCarrierTrajectories(events) {
   }
 }
 
+// User-requested metric: how many sequences have 2+ distinct players touching the
+// ball in the opponent's half. Measures genuine multi-player build-up in attacking
+// territory, not solo-carry-and-shoot.
+function summarizeMultiTouchOppHalfSequences(events) {
+  const touchTypes = new Set(['PASS', 'SHOT', 'RECOVERY', 'CLEARANCE', 'INTERCEPTION', 'TACKLE'])
+  // Order events by match time (half + t)
+  const ordered = events
+    .filter((e) => touchTypes.has(e.type))
+    .map((e) => ({ ...e, __elapsed: (e.half === 2 ? 150 : 0) + Number(e.t || 0) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+
+  const sequences = []
+  let current = null
+  for (const evt of ordered) {
+    const team = evt.team
+    if (!team || !['A', 'B'].includes(team)) continue
+    // PASS carries two touches (passer + receiver). TACKLE/INTERCEPTION change possession.
+    // For simplicity: possession sequence bounded by team changes.
+    if (!current || current.team !== team) {
+      if (current) sequences.push(current)
+      current = { team, touches: [] }
+    }
+    // Pass: two touches (passer at event.detail.x,z; receiver at event.detail.targetX,targetZ)
+    if (evt.type === 'PASS') {
+      const passer = evt.detail?.passer || evt.role || null
+      const passerRole = evt.role || null
+      const passerX = Number(evt.detail?.x ?? NaN)
+      if (passer && Number.isFinite(passerX)) {
+        current.touches.push({ player: passer, role: passerRole, x: passerX, t: evt.__elapsed })
+      }
+      // Receiver counts as the next touch only if completed
+      const receiver = evt.detail?.receiver || evt.detail?.to || null
+      const receiverRole = evt.detail?.receiverRole || evt.detail?.toRole || null
+      const receiverX = Number(evt.detail?.targetX ?? NaN)
+      if (receiver && evt.detail?.completed !== false && Number.isFinite(receiverX)) {
+        current.touches.push({ player: receiver, role: receiverRole, x: receiverX, t: evt.__elapsed + 0.001 })
+      }
+    } else {
+      const player = evt.detail?.passer || evt.detail?.shooter || evt.detail?.vs || evt.role || 'unknown'
+      const role = evt.role || null
+      const x = Number(evt.detail?.x ?? NaN)
+      if (Number.isFinite(x)) {
+        current.touches.push({ player, role, x, t: evt.__elapsed })
+      }
+    }
+  }
+  if (current) sequences.push(current)
+
+  let totalSequences = sequences.length
+  let multiTouchOppHalfCount = 0
+  let totalOppHalfTouches = 0
+  let totalOppHalfDistinctPlayers = 0
+  const exampleSequences = []
+
+  for (const seq of sequences) {
+    const attackSign = seq.team === 'A' ? 1 : -1
+    const oppHalfTouches = seq.touches.filter((t) => t.x * attackSign > 0)
+    const distinctPlayersInOppHalf = new Set(oppHalfTouches.map((t) => t.player))
+    totalOppHalfTouches += oppHalfTouches.length
+    totalOppHalfDistinctPlayers += distinctPlayersInOppHalf.size
+    if (distinctPlayersInOppHalf.size >= 2) {
+      multiTouchOppHalfCount++
+      if (exampleSequences.length < 6) {
+        exampleSequences.push({
+          team: seq.team,
+          players: Array.from(distinctPlayersInOppHalf),
+          touchCount: oppHalfTouches.length,
+          firstTouchAt: oppHalfTouches[0]?.t,
+        })
+      }
+    }
+  }
+
+  return {
+    totalSequences,
+    multiTouchOppHalfCount,
+    totalOppHalfTouches,
+    avgDistinctPlayersPerSequence: totalSequences > 0 ? round(totalOppHalfDistinctPlayers / totalSequences) : 0,
+    exampleSequences,
+  }
+}
+
 function summarizeRolePositions(events) {
   const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
   const byTeamRole = new Map()
@@ -1193,6 +1275,14 @@ function buildMarkdownReport(report) {
     `- Evaluated: ${Object.entries(report.passByZone.evaluated).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     `- Executed (shouldPass): ${Object.entries(report.passByZone.executed).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     ``,
+    `## Multi-Touch Opp-Half Sequences (build-up quality)`,
+    `- Sequences with 2+ distinct players touching ball in opp half: ${report.multiTouchOppHalf.multiTouchOppHalfCount} of ${report.multiTouchOppHalf.totalSequences}`,
+    `- Opp-half touches total: ${report.multiTouchOppHalf.totalOppHalfTouches}`,
+    `- Avg distinct players per possession: ${report.multiTouchOppHalf.avgDistinctPlayersPerSequence}`,
+    ...(report.multiTouchOppHalf.exampleSequences.length > 0
+      ? [`- Examples:`, ...report.multiTouchOppHalf.exampleSequences.map((ex) => `  - Team ${ex.team} @ ${ex.firstTouchAt?.toFixed(1)}s: ${ex.touchCount} touches by ${ex.players.join(' → ')}`)]
+      : []),
+    ``,
     `## Pattern Engine (Phase 2.5)`,
     `- Total pattern starts: ${report.patterns.totalStarts} (A ${report.patterns.patternsPerTeamA}, B ${report.patterns.patternsPerTeamB})`,
     `- Distinct types per team: A ${report.patterns.distinctTypesA}, B ${report.patterns.distinctTypesB}`,
@@ -1314,6 +1404,14 @@ function printSummary(report) {
       console.log(`  ${run.team} ${run.carrier}: ${run.directDist}u in ${run.duration}s (ratio ${run.bLineRatio}, path ${run.pathLength}u)`)
     }
   }
+  const mt = report.multiTouchOppHalf
+  console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
+  if (mt.exampleSequences.length > 0) {
+    console.log('Sample multi-touch opp-half sequences:')
+    for (const ex of mt.exampleSequences) {
+      console.log(`  team ${ex.team} @ ${ex.firstTouchAt?.toFixed(1)}s: ${ex.touchCount} touches by ${ex.players.join(' → ')}`)
+    }
+  }
   if (report.recommendations.length > 0) {
     console.log('Top recommendations:')
     for (const recommendation of report.recommendations) {
@@ -1392,6 +1490,7 @@ function main() {
     patterns: summarizePatterns(events),
     patternRoleAlignment: summaryPatternRoleAlignment(events),
     carrierTrajectories: summaryCarrierTrajectories(events),
+    multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
   }
 
   report.recommendations = buildRecommendations(report)
