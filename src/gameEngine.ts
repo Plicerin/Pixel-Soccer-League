@@ -10,6 +10,7 @@ import {
   selectPattern as selectTeamPattern,
   isPatternStillValid as isTeamPatternStillValid,
   getPatternRole as getTeamPatternRole,
+  computePatternRoleTarget,
   type TeamPatternState,
   type PatternRole,
 } from './ai/patternEngine.ts';
@@ -14287,6 +14288,37 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       finalTarget.addScaledVector(ffNudge, gameState.forceFieldBlend);
       finalTarget.x = THREE.MathUtils.clamp(finalTarget.x, -FIELD_W / 2 + 1.5, FIELD_W / 2 - 1.5);
       finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
+    }
+
+    // Phase 2.5 Part 2: pattern-role-driven position override.
+    // Players consult their role in the active team pattern. Runs after force field so
+    // it's the authoritative target for the frame. Pattern roles produce variety:
+    // WING_ATTACK creates NEAR/FAR_POST_RUNNER + CUTBACK_RECEIVER targets in the box;
+    // COUNTER_ATTACK sends RUNNERs sprinting; PATIENT_BUILDUP spreads OUTLETs.
+    if (carrier && carrier.team === player.team && player !== carrier) {
+      const teamPattern = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+      if (teamPattern) {
+        const patternRole = getTeamPatternRole(teamPattern, player);
+        if (patternRole !== 'NONE' && patternRole !== 'CARRIER' && patternRole !== 'DEFENDER') {
+          const target = computePatternRoleTarget({
+            player,
+            role: patternRole,
+            pattern: teamPattern,
+            carrier,
+            attackSign: attackSign > 0 ? 1 : -1,
+            fieldWidth: FIELD_W,
+            fieldDepth: FIELD_D,
+            penaltyDepth,
+            goalMouthHalfWidth: goalMouthWidth / 2,
+          });
+          if (target) {
+            finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, target.x, target.blend);
+            finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, target.z, target.blend);
+            finalTarget.x = THREE.MathUtils.clamp(finalTarget.x, -FIELD_W / 2 + 1.5, FIELD_W / 2 - 1.5);
+            finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
+          }
+        }
+      }
     }
 
     // Phase 1 S1.3: winger width nudge when team in possession.

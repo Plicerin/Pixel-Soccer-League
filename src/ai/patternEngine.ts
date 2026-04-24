@@ -314,3 +314,112 @@ export function getPatternRole(state: TeamPatternState | null, player: any): Pat
   if (!state || !player) return 'NONE';
   return state.roles.get(nameKey(player)) || 'NONE';
 }
+
+export type PatternTargetInputs = {
+  player: any;
+  role: PatternRole;
+  pattern: TeamPatternState;
+  carrier: any | null;
+  attackSign: 1 | -1;
+  fieldWidth: number;
+  fieldDepth: number;
+  penaltyDepth: number;
+  goalMouthHalfWidth: number;
+};
+
+export type PatternTargetOverride = {
+  x: number;
+  z: number;
+  blend: number; // 0..1 — strength of the pattern override vs existing target
+} | null;
+
+/**
+ * Compute a pattern-role-driven position target for a player.
+ * Returns null if the role doesn't warrant a positional override.
+ * Apply after tactical + force-field positioning to let pattern dominate.
+ */
+export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTargetOverride {
+  const { player, role, pattern, carrier, attackSign, fieldWidth, fieldDepth, penaltyDepth, goalMouthHalfWidth } = inputs;
+  if (!player || !pattern) return null;
+  const goalX = attackSign > 0 ? fieldWidth / 2 : -fieldWidth / 2;
+  const penaltySpotX = goalX - attackSign * penaltyDepth * 0.6; // ~12-yard mark
+
+  switch (role) {
+    case 'NEAR_POST_RUNNER': {
+      // Near post = goalpost on same side as where ball is coming from (carrier side).
+      const carrierZ = carrier?.pos?.z ?? 0;
+      const nearSide = Math.sign(carrierZ) || 1;
+      const nearPostZ = nearSide * goalMouthHalfWidth * 0.5;
+      const nearPostX = goalX - attackSign * 4; // 4 units off goal line
+      return { x: nearPostX, z: nearPostZ, blend: 0.7 };
+    }
+    case 'FAR_POST_RUNNER': {
+      // Far post = opposite goalpost.
+      const carrierZ = carrier?.pos?.z ?? 0;
+      const farSide = -(Math.sign(carrierZ) || 1);
+      const farPostZ = farSide * goalMouthHalfWidth * 0.9;
+      const farPostX = goalX - attackSign * 3.5;
+      return { x: farPostX, z: farPostZ, blend: 0.65 };
+    }
+    case 'CUTBACK_RECEIVER': {
+      // Penalty-spot area, slightly on carrier's side for cutback angle.
+      const carrierZ = carrier?.pos?.z ?? 0;
+      const side = Math.sign(carrierZ) || 0;
+      const cutbackZ = side * goalMouthHalfWidth * 0.4; // slight offset toward carrier side
+      return { x: penaltySpotX, z: cutbackZ, blend: 0.65 };
+    }
+    case 'OUTLET': {
+      // Short safe option near keeper/carrier during buildup. Stay spread wide.
+      if (!carrier) return null;
+      // Offset: opposite z from carrier so team spreads.
+      const carrierZ = carrier.pos.z;
+      const offsetZ = carrierZ === 0 ? (player.homePos?.z >= 0 ? 8 : -8) : -Math.sign(carrierZ) * 10;
+      const behindX = carrier.pos.x - attackSign * 3;
+      return { x: behindX, z: offsetZ, blend: 0.35 };
+    }
+    case 'ANCHOR': {
+      // Hold defensive shape. Stay around midfield line, don't commit forward.
+      if (!carrier) return null;
+      const anchorX = Math.min(carrier.pos.x * attackSign, 0) * attackSign; // clamp to own half
+      // Keep natural z from home so back line stays connected.
+      const anchorZ = player.homePos?.z ?? 0;
+      return { x: anchorX, z: anchorZ, blend: 0.55 };
+    }
+    case 'RUNNER': {
+      // In COUNTER_ATTACK: sprint ahead of carrier.
+      // In PATIENT_BUILDUP: hold forward line (don't drop deep).
+      if (!carrier) return null;
+      if (pattern.type === 'COUNTER_ATTACK') {
+        const sprintAheadX = carrier.pos.x + attackSign * 18;
+        // Preserve own z roughly; don't all crash central.
+        const runnerZ = player.homePos?.z ?? 0;
+        return { x: sprintAheadX, z: runnerZ * 0.7, blend: 0.60 };
+      }
+      if (pattern.type === 'PATIENT_BUILDUP') {
+        // Hold forward line ~ near attacking third edge.
+        const forwardLineAttackX = fieldWidth * 0.18;
+        const holdX = attackSign * forwardLineAttackX;
+        const runnerZ = player.homePos?.z ?? 0;
+        return { x: holdX, z: runnerZ * 0.9, blend: 0.40 };
+      }
+      return null;
+    }
+    case 'SUPPORT': {
+      // Midfielder under-the-ball support. Short distance from carrier, opposite side.
+      if (!carrier) return null;
+      const supportX = carrier.pos.x - attackSign * 4;
+      const carrierZ = carrier.pos.z;
+      const supportZ = carrierZ === 0 ? (player.homePos?.z ?? 0) : -Math.sign(carrierZ) * 4;
+      return { x: supportX, z: supportZ, blend: 0.35 };
+    }
+    case 'WALL': {
+      // 1-2 wall player: 3-4 units from carrier, slightly ahead.
+      if (!carrier) return null;
+      const wallX = carrier.pos.x + attackSign * 3;
+      const wallZ = (carrier.pos.z + (player.homePos?.z ?? 0)) * 0.5;
+      return { x: wallX, z: wallZ, blend: 0.55 };
+    }
+    default:
+      return null;
+  }
+}
