@@ -12244,7 +12244,38 @@ export function initGame(container: HTMLElement) {
       const nearPost = findByRole('NEAR_POST_RUNNER');
       const farPost = findByRole('FAR_POST_RUNNER');
       const cutback = findByRole('CUTBACK_RECEIVER');
-      const crossTargetPlayer = cutback || nearPost || farPost;
+      // Variety: choose target by which is in best position + randomize tie-breaking.
+      // Near post preferred when striker has advanced into box (closer to goalX).
+      // Far post preferred when striker held back but opposite winger is wide and deep.
+      // Cutback preferred when both post runners are covered or deep ball unavailable.
+      const candidates: any[] = [];
+      const carrierAttackXLocal = cpuCarrier.pos.x * attackSign;
+      const goalXLocal = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+      const scoreCandidate = (tgt: any, roleLabelForScore: string) => {
+        if (!tgt) return null;
+        const tgtAttackX = tgt.pos.x * attackSign;
+        const tgtDistToGoal = Math.abs(goalXLocal - tgt.pos.x);
+        const oppNear = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tgt.pos)), 99);
+        // Prefer runners already advanced + open from opponents.
+        // Slightly favor near/far post over cutback (more goal-threatening).
+        let score = tgtAttackX * 0.3 + oppNear * 0.6 - tgtDistToGoal * 0.1;
+        if (roleLabelForScore === 'NEAR_POST_RUNNER') score += 1.2;
+        if (roleLabelForScore === 'FAR_POST_RUNNER') score += 0.8;
+        if (roleLabelForScore === 'CUTBACK_RECEIVER') score += 0.4;
+        // Small randomization so same target doesn't always win
+        score += (Math.random() - 0.5) * 0.6;
+        return { player: tgt, score, role: roleLabelForScore };
+      };
+      const nearScored = scoreCandidate(nearPost, 'NEAR_POST_RUNNER');
+      const farScored = scoreCandidate(farPost, 'FAR_POST_RUNNER');
+      const cutbackScored = scoreCandidate(cutback, 'CUTBACK_RECEIVER');
+      if (nearScored) candidates.push(nearScored);
+      if (farScored) candidates.push(farScored);
+      if (cutbackScored) candidates.push(cutbackScored);
+      candidates.sort((a, b) => b.score - a.score);
+      const crossTargetPlayer = candidates[0]?.player || null;
+      // Suppress ref unused warning
+      void carrierAttackXLocal;
       if (crossTargetPlayer) {
         const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
         const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';

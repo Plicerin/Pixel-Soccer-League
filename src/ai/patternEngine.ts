@@ -192,13 +192,17 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
   if (!carrierOnFlank && !wingCarrierIsCarrier && !wingCarrierNearBall) return null;
 
   const roles = new Map<string, PatternRole>();
+  // Only one CARRIER: the player actually holding the ball. If another winger could be
+  // the flank carrier but isn't, tag them RUNNER so they advance to support position.
   roles.set(nameKey(carrier), 'CARRIER');
-  if (wingCarrier && wingCarrier !== carrier) roles.set(nameKey(wingCarrier), 'CARRIER');
+  if (wingCarrier && wingCarrier !== carrier) roles.set(nameKey(wingCarrier), 'RUNNER');
   roles.set(nameKey(st), 'NEAR_POST_RUNNER');
-  if (oppositeWinger) roles.set(nameKey(oppositeWinger), 'FAR_POST_RUNNER');
+  if (oppositeWinger && oppositeWinger !== carrier && oppositeWinger !== wingCarrier) {
+    roles.set(nameKey(oppositeWinger), 'FAR_POST_RUNNER');
+  }
   // One CM arrives at penalty-spot for cutback
   const cutbackMid = cams[0];
-  if (cutbackMid) roles.set(nameKey(cutbackMid), 'CUTBACK_RECEIVER');
+  if (cutbackMid && !roles.has(nameKey(cutbackMid))) roles.set(nameKey(cutbackMid), 'CUTBACK_RECEIVER');
   // Other CMs = SUPPORT (under-the-ball, ready for lay-off)
   for (const cm of cams.slice(1)) roles.set(nameKey(cm), 'SUPPORT');
   // DM and CBs = ANCHOR
