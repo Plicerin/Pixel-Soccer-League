@@ -6,6 +6,13 @@ import { getMLS2025TeamModifiers } from './mlsTeamStats2025.ts';
 import { keeperNet, encodeKeeperState, KEEPER_ACTIONS, type KeeperExperience, type KeeperNetWeights } from './ai/keeperNet.ts';
 import { outfieldNet, encodeOutfieldState, type OutfieldNetWeights } from './ai/outfieldNet.ts';
 import { computeAttackingRunTarget } from './ai/attackingLanes.ts';
+import {
+  selectPattern as selectTeamPattern,
+  isPatternStillValid as isTeamPatternStillValid,
+  getPatternRole as getTeamPatternRole,
+  type TeamPatternState,
+  type PatternRole,
+} from './ai/patternEngine.ts';
 import { computeIdealTacticalPosition } from './ai/tacticalPositioning.ts';
 import { computeForceFieldNudge } from './ai/forceFieldPositioning.ts';
 import { attemptThroughPass, selectAIPassTarget } from './ai/aiPassModel.ts';
@@ -5587,6 +5594,13 @@ export function initGame(container: HTMLElement) {
     crossAssistUntil: 0,
     attackPhaseA: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
     attackPhaseB: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
+    // Phase 2.5: team-level attacking pattern state (coordinated multi-player intent)
+    teamPatternA: null as null | import('./ai/patternEngine.ts').TeamPatternState,
+    teamPatternB: null as null | import('./ai/patternEngine.ts').TeamPatternState,
+    teamPossessionChangeAtA: 0,
+    teamPossessionChangeAtB: 0,
+    teamLastPossessionSideA: '' as 'A' | 'B' | '',
+    teamLastPossessionSideB: '' as 'A' | 'B' | '',
     // ── Tuning Lab: AI Weights ──
     tuningProgressWeight: 0.88,
     tuningLanePenalty: 0.42,
@@ -5772,6 +5786,73 @@ export function initGame(container: HTMLElement) {
     if (progress >= 0.52) return 'TRANSITION';
     if (progress >= 0.30) return 'PROGRESSION';
     return 'BUILD_UP';
+  }
+
+  // Phase 2.5: Team pattern engine tick. Called when team has possession.
+  function tickTeamPattern(team: 'A' | 'B', carrier: any, attackSign: 1 | -1) {
+    const elapsed = matchClock.elapsedInHalf + (matchClock.half === 2 ? getHalfDurationSeconds() : 0);
+    const currentStateKey = team === 'A' ? 'teamPatternA' : 'teamPatternB';
+    const possChangeKey = team === 'A' ? 'teamPossessionChangeAtA' : 'teamPossessionChangeAtB';
+    const lastSideKey = team === 'A' ? 'teamLastPossessionSideA' : 'teamLastPossessionSideB';
+    // Detect possession change
+    const prevSide = (gameState as any)[lastSideKey] as 'A' | 'B' | '';
+    if (prevSide !== team) {
+      (gameState as any)[lastSideKey] = team;
+      (gameState as any)[possChangeKey] = elapsed;
+    }
+    const possChangeAt = (gameState as any)[possChangeKey] as number;
+    const secondsSinceRecovery = elapsed - possChangeAt;
+    const justRecoveredPossession = secondsSinceRecovery < 2.0;
+    const teammates = players.filter((p: any) => p.team === team);
+    const opponents = players.filter((p: any) => p.team !== team);
+    const inputs = {
+      elapsedSeconds: elapsed,
+      team,
+      attackSign,
+      carrier,
+      teammates,
+      opponents,
+      ball: ballState.pos,
+      fieldWidth: FIELD_W,
+      fieldDepth: FIELD_D,
+      justRecoveredPossession,
+      secondsSinceRecovery,
+    };
+    const currentState = (gameState as any)[currentStateKey] as TeamPatternState | null;
+    const shouldReselect =
+      !currentState
+      || !isTeamPatternStillValid(currentState, inputs)
+      || (justRecoveredPossession && currentState.type !== 'COUNTER_ATTACK');
+    if (shouldReselect) {
+      if (currentState) {
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_END', team, 'TEAM', {
+          type: currentState.type,
+          startedAt: currentState.startedAt,
+          endedAt: elapsed,
+          duration: +(elapsed - currentState.startedAt).toFixed(2),
+          reason: !isTeamPatternStillValid(currentState, inputs) ? 'invalidated' : 'possession_change',
+        });
+      }
+      const nextState = selectTeamPattern(inputs);
+      (gameState as any)[currentStateKey] = nextState;
+      if (nextState) {
+        const rolesObj: Record<string, string> = {};
+        for (const [k, v] of nextState.roles.entries()) rolesObj[k] = v;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_START', team, 'TEAM', {
+          type: nextState.type,
+          initiator: nextState.initiatorName,
+          startedAt: nextState.startedAt,
+          expiresAt: nextState.expiresAt,
+          roles: rolesObj,
+        });
+      }
+    }
+  }
+
+  function getPlayerPatternRole(player: any): PatternRole {
+    if (!player || !player.team) return 'NONE';
+    const state = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+    return getTeamPatternRole(state, player);
   }
 
   const playState = {
@@ -17680,6 +17761,9 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           const currentPhase = getAttackPhase(team);
           if (team === 'A') gameState.attackPhaseA = currentPhase;
           else gameState.attackPhaseB = currentPhase;
+
+          // Phase 2.5: tick team pattern engine.
+          tickTeamPattern(team, cpuCarrier, attackSign > 0 ? 1 : -1);
           const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
           const distToGoal = Math.abs(goalX - cpuCarrier.pos.x);
           const teammates = players.filter((p: any) => p.team === team && p !== cpuCarrier && !isGoalkeeper(p));
