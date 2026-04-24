@@ -843,6 +843,120 @@ function summarizeMultiTouchOppHalfSequences(events) {
   }
 }
 
+// Touches-per-pattern + pace-of-attack.
+// Walks patterns and correlates PASS/SHOT events to active pattern per team.
+// Tempo expectation per pattern type lets us flag situation-appropriate pace.
+function summarizePatternTempo(events) {
+  const touchTypes = new Set(['PASS', 'SHOT'])
+  // Build pattern intervals per team (reuse logic from summarizePatterns)
+  const starts = events.filter((e) => e.type === 'PATTERN_START')
+  const ends = events.filter((e) => e.type === 'PATTERN_END')
+  const startsByTeam = { A: [], B: [] }
+  const endsByTeam = { A: [], B: [] }
+  for (const s of starts) if (startsByTeam[s.team]) startsByTeam[s.team].push(s)
+  for (const e of ends) if (endsByTeam[e.team]) endsByTeam[e.team].push({ ...e, _used: false })
+
+  const intervals = []
+  for (const team of ['A', 'B']) {
+    for (const s of startsByTeam[team]) {
+      const sElapsed = (s.half === 2 ? 150 : 0) + Number(s.t || 0)
+      let endElapsed = null
+      for (const e of endsByTeam[team]) {
+        if (e._used) continue
+        const eTime = (e.half === 2 ? 150 : 0) + Number(e.t || 0)
+        if (eTime >= sElapsed) { endElapsed = eTime; e._used = true; break }
+      }
+      intervals.push({
+        team, type: s.detail?.type || 'UNKNOWN', startElapsed: sElapsed, endElapsed,
+        touches: 0, firstTouchAt: null, lastTouchAt: null,
+        firstTouchX: null, lastTouchX: null,
+        firstTouchZ: null, lastTouchZ: null,
+      })
+    }
+  }
+
+  const touchEvents = events
+    .filter((e) => touchTypes.has(e.type))
+    .map((e) => ({ ...e, _elapsed: (e.half === 2 ? 150 : 0) + Number(e.t || 0) }))
+    .sort((a, b) => a._elapsed - b._elapsed)
+
+  for (const evt of touchEvents) {
+    const team = evt.team
+    const t = evt._elapsed
+    const x = Number(evt.detail?.x ?? NaN)
+    const z = Number(evt.detail?.z ?? NaN)
+    // Find containing pattern interval for this team
+    const iv = intervals.find((iv) =>
+      iv.team === team
+      && iv.startElapsed <= t
+      && (iv.endElapsed === null || iv.endElapsed >= t))
+    if (iv && Number.isFinite(x)) {
+      iv.touches++
+      if (iv.firstTouchAt === null) {
+        iv.firstTouchAt = t; iv.firstTouchX = x; iv.firstTouchZ = z
+      }
+      iv.lastTouchAt = t; iv.lastTouchX = x; iv.lastTouchZ = z
+    }
+  }
+
+  const byType = {}
+  for (const iv of intervals) {
+    if (!byType[iv.type]) byType[iv.type] = { count: 0, totalTouches: 0, multiTouchCount: 0, totalDuration: 0, durationSamples: 0, paceSamples: [] }
+    byType[iv.type].count++
+    byType[iv.type].totalTouches += iv.touches
+    // Pace only makes sense with 2+ distinct touches (first and last at different spots).
+    if (iv.touches >= 2 && iv.firstTouchAt !== null && iv.lastTouchAt !== null && iv.lastTouchAt > iv.firstTouchAt + 0.2) {
+      const duration = iv.lastTouchAt - iv.firstTouchAt
+      const attackSign = iv.team === 'A' ? 1 : -1
+      const distance = (iv.lastTouchX - iv.firstTouchX) * attackSign
+      byType[iv.type].multiTouchCount++
+      byType[iv.type].totalDuration += duration
+      byType[iv.type].durationSamples++
+      byType[iv.type].paceSamples.push(distance / duration)
+    }
+  }
+
+  // Expected tempo per pattern type (realism heuristic)
+  const expected = {
+    COUNTER_ATTACK: { touches: [2, 4], pace: [4.0, 12.0], label: 'fast direct' },
+    WING_ATTACK_LEFT: { touches: [2, 4], pace: [3.0, 8.0], label: 'quick deliver' },
+    WING_ATTACK_RIGHT: { touches: [2, 4], pace: [3.0, 8.0], label: 'quick deliver' },
+    PATIENT_BUILDUP: { touches: [3, 7], pace: [1.0, 4.0], label: 'deliberate' },
+    CENTRAL_COMBO: { touches: [2, 4], pace: [2.5, 6.0], label: 'short sharp' },
+  }
+
+  const result = {}
+  for (const [type, v] of Object.entries(byType)) {
+    if (v.count === 0) continue
+    const avgTouches = round(v.totalTouches / v.count)
+    const avgDuration = v.durationSamples > 0 ? round(v.totalDuration / v.durationSamples) : 0
+    const avgPace = v.paceSamples.length > 0 ? round(v.paceSamples.reduce((a, b) => a + b, 0) / v.paceSamples.length) : 0
+    const exp = expected[type]
+    let touchFit = 'n/a', paceFit = 'n/a'
+    if (exp) {
+      if (avgTouches < exp.touches[0]) touchFit = 'TOO_FEW'
+      else if (avgTouches > exp.touches[1]) touchFit = 'TOO_MANY'
+      else touchFit = 'OK'
+      if (avgPace < exp.pace[0]) paceFit = 'TOO_SLOW'
+      else if (avgPace > exp.pace[1]) paceFit = 'TOO_FAST'
+      else paceFit = 'OK'
+    }
+    result[type] = {
+      count: v.count,
+      multiTouchCount: v.multiTouchCount,
+      avgTouches,
+      avgDuration,
+      avgPace: v.paceSamples.length > 0 ? avgPace : null,
+      expectedTouches: exp?.touches || null,
+      expectedPace: exp?.pace || null,
+      expectedLabel: exp?.label || null,
+      touchFit,
+      paceFit: v.paceSamples.length > 0 ? paceFit : 'no_multi_touch_data',
+    }
+  }
+  return result
+}
+
 function summarizeRolePositions(events) {
   const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
   const byTeamRole = new Map()
@@ -1275,6 +1389,15 @@ function buildMarkdownReport(report) {
     `- Evaluated: ${Object.entries(report.passByZone.evaluated).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     `- Executed (shouldPass): ${Object.entries(report.passByZone.executed).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     ``,
+    `## Pattern Tempo (realism fit per pattern type)`,
+    ...(report.patternTempo
+      ? Object.entries(report.patternTempo).map(([type, v]) => {
+          const expT = v.expectedTouches ? `${v.expectedTouches[0]}-${v.expectedTouches[1]}` : 'n/a'
+          const expP = v.expectedPace ? `${v.expectedPace[0]}-${v.expectedPace[1]}u/s` : 'n/a'
+          return `- ${type} (${v.count}x): touches ${v.avgTouches} [${v.touchFit} vs ${expT}], pace ${v.avgPace}u/s [${v.paceFit} vs ${expP}], duration ${v.avgDuration}s ${v.expectedLabel ? '— expected ' + v.expectedLabel : ''}`
+        })
+      : ['(no pattern tempo data)']),
+    ``,
     `## Multi-Touch Opp-Half Sequences (build-up quality)`,
     `- Sequences with 2+ distinct players touching ball in opp half: ${report.multiTouchOppHalf.multiTouchOppHalfCount} of ${report.multiTouchOppHalf.totalSequences}`,
     `- Opp-half touches total: ${report.multiTouchOppHalf.totalOppHalfTouches}`,
@@ -1406,6 +1529,15 @@ function printSummary(report) {
   }
   const mt = report.multiTouchOppHalf
   console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
+  if (report.patternTempo) {
+    console.log('Pattern tempo (realism fit):')
+    for (const [type, v] of Object.entries(report.patternTempo)) {
+      const expT = v.expectedTouches ? `${v.expectedTouches[0]}-${v.expectedTouches[1]}` : 'n/a'
+      const expP = v.expectedPace ? `${v.expectedPace[0]}-${v.expectedPace[1]}u/s` : 'n/a'
+      const paceStr = v.avgPace != null ? `pace=${v.avgPace}u/s [${v.paceFit} vs ${expP}]` : `pace=n/a (${v.count - v.multiTouchCount}/${v.count} had <2 touches)`
+      console.log(`  ${type} (${v.count}x, ${v.multiTouchCount} multi-touch): touches=${v.avgTouches} [${v.touchFit} vs ${expT}] ${paceStr} dur=${v.avgDuration}s`)
+    }
+  }
   if (report.patternCrosses) {
     console.log(`Pattern cross-executed | ${report.patternCrosses.total} events (L:${report.patternCrosses.longLofted} D:${report.patternCrosses.driven})`)
     for (const e of report.patternCrosses.samples) {
@@ -1497,6 +1629,7 @@ function main() {
     patternRoleAlignment: summaryPatternRoleAlignment(events),
     carrierTrajectories: summaryCarrierTrajectories(events),
     multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
+    patternTempo: summarizePatternTempo(events),
     patternCrosses: (() => {
       const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
       return {
