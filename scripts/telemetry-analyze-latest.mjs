@@ -1406,6 +1406,12 @@ function printSummary(report) {
   }
   const mt = report.multiTouchOppHalf
   console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
+  if (report.patternCrosses) {
+    console.log(`Pattern cross-executed | ${report.patternCrosses.total} events (L:${report.patternCrosses.longLofted} D:${report.patternCrosses.driven})`)
+    for (const e of report.patternCrosses.samples) {
+      console.log(`  ${e.team} ${e.passer} -> ${e.target} (${e.targetRole}, ${e.style}, ${e.crossDist}u)`)
+    }
+  }
   if (mt.exampleSequences.length > 0) {
     console.log('Sample multi-touch opp-half sequences:')
     for (const ex of mt.exampleSequences) {
@@ -1491,6 +1497,18 @@ function main() {
     patternRoleAlignment: summaryPatternRoleAlignment(events),
     carrierTrajectories: summaryCarrierTrajectories(events),
     multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
+    patternCrosses: (() => {
+      const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
+      return {
+        total: crossEvents.length,
+        longLofted: crossEvents.filter((e) => e.detail?.style === 'LONG_LOFTED').length,
+        driven: crossEvents.filter((e) => e.detail?.style === 'DRIVEN').length,
+        samples: crossEvents.slice(0, 6).map((e) => ({
+          team: e.team, passer: e.detail?.passer, target: e.detail?.target,
+          targetRole: e.detail?.targetRole, style: e.detail?.style, crossDist: e.detail?.crossDist,
+        })),
+      }
+    })(),
   }
 
   report.recommendations = buildRecommendations(report)
