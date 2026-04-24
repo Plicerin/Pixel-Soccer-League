@@ -12254,15 +12254,18 @@ export function initGame(container: HTMLElement) {
       const scoreCandidate = (tgt: any, roleLabelForScore: string) => {
         if (!tgt) return null;
         const tgtAttackX = tgt.pos.x * attackSign;
+        // Reject crosses to targets who haven't actually advanced:
+        // cross must progress the ball toward goal (target ahead of crosser in attack direction).
+        // Otherwise we get "cross" events that go backwards 20 units because role-assigned
+        // player never reached their pattern position.
+        const carrierAttackXLocal2 = cpuCarrier.pos.x * attackSign;
+        if (tgtAttackX < carrierAttackXLocal2 - 1) return null;
         const tgtDistToGoal = Math.abs(goalXLocal - tgt.pos.x);
         const oppNear = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tgt.pos)), 99);
-        // Prefer runners already advanced + open from opponents.
-        // Slightly favor near/far post over cutback (more goal-threatening).
         let score = tgtAttackX * 0.3 + oppNear * 0.6 - tgtDistToGoal * 0.1;
         if (roleLabelForScore === 'NEAR_POST_RUNNER') score += 1.2;
         if (roleLabelForScore === 'FAR_POST_RUNNER') score += 0.8;
         if (roleLabelForScore === 'CUTBACK_RECEIVER') score += 0.4;
-        // Small randomization so same target doesn't always win
         score += (Math.random() - 0.5) * 0.6;
         return { player: tgt, score, role: roleLabelForScore };
       };
