@@ -13760,26 +13760,22 @@ export function initGame(container: HTMLElement) {
     }
     // Strikers: hold line near opposition last defender, always ahead of carrier
     if (carrier && carrier !== player && roleLabel === 'ST') {
-      const oppList = players.filter((p: any) => p.team !== player.team && !isGoalkeeper(p));
-      // Find opposition last defender (highest x for team A attacking right, lowest for team B)
-      let oppLastDefX = attackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
-      for (const opp of oppList) {
-        // attackSign>0: opposition defends right side, their "last defender" has max x in attack direction from ST perspective = min x from opp perspective. But we want the LAST defender (closest to own goal) which is the deepest in their team's defensive position.
-        // For ST attacking right: last opp defender = opp with smallest x. That marks the offside line.
-        // For ST attacking left: last opp defender = opp with largest x.
-        if (attackSign > 0) {
-          if (opp.pos.x < oppLastDefX || oppLastDefX === -FIELD_W / 2) oppLastDefX = opp.pos.x;
-        } else {
-          if (opp.pos.x > oppLastDefX || oppLastDefX === FIELD_W / 2) oppLastDefX = opp.pos.x;
-        }
+      // Opposition's last defender = defender closest to their own goal.
+      // Team A attacks +x, opp defends at +FIELD_W/2 → last defender has MAX x.
+      // Team B attacks -x, opp defends at -FIELD_W/2 → last defender has MIN x.
+      // In attack-direction coords (x * attackSign), last defender has max attack-x.
+      let oppLastDefAttackX = -Infinity;
+      for (const opp of players) {
+        if (opp.team === player.team || isGoalkeeper(opp)) continue;
+        const oppAttackX = opp.pos.x * attackSign;
+        if (oppAttackX > oppLastDefAttackX) oppLastDefAttackX = oppAttackX;
       }
-      // Striker sits 2 units short of offside line (stay onside but high)
-      const offsideShoulderX = oppLastDefX - attackSign * 2;
-      const carrierLeadX = carrier.pos.x + attackSign * 10;
-      // Target whichever is further forward — striker leads carrier by 10+ OR holds offside line
-      const forwardTarget = attackSign > 0
-        ? Math.max(carrierLeadX, offsideShoulderX)
-        : Math.min(carrierLeadX, offsideShoulderX);
+      // ST sits 2 units short of offside line (stay onside but high)
+      const offsideShoulderAttackX = oppLastDefAttackX - 2;
+      const carrierLeadAttackX = carrier.pos.x * attackSign + 10;
+      // Target: whichever is further forward in attack direction
+      const forwardTargetAttackX = Math.max(carrierLeadAttackX, offsideShoulderAttackX);
+      const forwardTarget = forwardTargetAttackX * attackSign;
       finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, forwardTarget, 0.70);
     }
     // DM: stay available as a safety valve, but allow support runs once the attack is established

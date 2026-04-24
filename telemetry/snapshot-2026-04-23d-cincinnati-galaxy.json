@@ -1,0 +1,107 @@
+{
+  "date": "2026-04-23d",
+  "match": "FC Cincinnati 1-1 LA Galaxy",
+  "session": "ft-1777002602436",
+  "phase": "Phase 1 validation match 1 of 3",
+  "codeState": "Phase 1 initial (pre S1.2 bug fix)",
+  "baselines": {
+    "goals": {
+      "actual": 2,
+      "baseline": 2.78,
+      "drift": -0.78
+    },
+    "shots": {
+      "actual": 25,
+      "baseline": 26.2,
+      "drift": -1.2
+    },
+    "sot": {
+      "actual": 20,
+      "baseline": 9.4,
+      "drift": 10.6
+    },
+    "corners": {
+      "actual": 0,
+      "baseline": 8,
+      "drift": -8
+    }
+  },
+  "shotDecisions": {
+    "total": 25,
+    "forced": 25,
+    "passChanceZero": 25,
+    "outside": 18
+  },
+  "passDecisions": {
+    "total": 804,
+    "hasForward": 166,
+    "blocker": 280,
+    "shouldPass": 206,
+    "hasForwardPct": 0.206,
+    "shouldPassPct": 0.256
+  },
+  "actualPasses": {
+    "total": 242,
+    "fwd": 163,
+    "back": 61,
+    "toST": 35,
+    "toSTPct": 0.145
+  },
+  "phaseTime": {
+    "A": {
+      "buildup": 4.8,
+      "progression": 65.5,
+      "chance": 28.6,
+      "finish": 1.1
+    },
+    "B": {
+      "buildup": 7,
+      "progression": 70.5,
+      "chance": 20.8,
+      "finish": 1.7
+    }
+  },
+  "rolePositions": {
+    "A": {
+      "ST": {
+        "x": 4.63,
+        "absZ": 3.03
+      },
+      "LM": {
+        "x": 6.25,
+        "absZ": 6.98
+      },
+      "RM": {
+        "x": 7.06,
+        "absZ": 7.04
+      }
+    },
+    "B": {
+      "ST": {
+        "x": 4.48,
+        "absZ": 3.52
+      },
+      "LM": {
+        "x": 0.7,
+        "absZ": 4.84
+      },
+      "RM": {
+        "x": 2.22,
+        "absZ": 5.84
+      }
+    }
+  },
+  "cbShots": {
+    "A": 0,
+    "B": 1
+  },
+  "gates": {
+    "G1_1": "pass",
+    "G1_2": "FAIL(ST avg 4.5 vs target 15)",
+    "G1_3": "FAIL(LM/RM avg 6 vs target 12)",
+    "G1_4": "PASS",
+    "G1_5": "BORDERLINE(14.5% vs 15%)"
+  },
+  "bugFound": "S1.2 oppLastDefX direction inverted — finds min x instead of max x. Fixed post-match.",
+  "verdict": "MAJOR improvement in pass selection (toST 14.5% vs <2% prior). Shape gates still fail due to bug + force fighting target."
+}
