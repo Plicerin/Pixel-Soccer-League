@@ -12213,6 +12213,59 @@ export function initGame(container: HTMLElement) {
       && Math.abs(cpuCarrier.pos.z) > goalMouthWidth * 1.18;
     const visibleTeammates = teammates.filter((tm: any) => tm.pos.distanceTo(cpuCarrier.pos) < 30);
     const passPool = visibleTeammates.length > 0 ? visibleTeammates : teammates;
+
+    // Phase 2.5 Part 3: pattern-driven carrier decision override.
+    // When CARRIER is in a WING_ATTACK pattern and has reached crossing position,
+    // immediately execute a cross to NEAR_POST_RUNNER / CUTBACK_RECEIVER / FAR_POST_RUNNER
+    // instead of continuing to dribble. Replaces "grab ball, B-line to goal" with
+    // "reach byline, cross to teammate".
+    const _p25_teamPattern = team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+    const _p25_isWingAttack = _p25_teamPattern
+      && (_p25_teamPattern.type === 'WING_ATTACK_LEFT' || _p25_teamPattern.type === 'WING_ATTACK_RIGHT');
+    const _p25_isCounterAttack = _p25_teamPattern?.type === 'COUNTER_ATTACK';
+    const _p25_carrierRole = _p25_teamPattern ? getTeamPatternRole(_p25_teamPattern, cpuCarrier) : 'NONE';
+    const _p25_carrierAttackX = cpuCarrier.pos.x * attackSign;
+    const _p25_absZ = Math.abs(cpuCarrier.pos.z);
+    const _p25_distToGoalLocal = Math.abs((attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2) - cpuCarrier.pos.x);
+    // Crossing zone: advanced wide (near byline OR in wide final-third)
+    const _p25_crossingZone = _p25_isWingAttack
+      && _p25_carrierRole === 'CARRIER'
+      && _p25_carrierAttackX > 10
+      && _p25_absZ > goalMouthWidth * 0.9
+      && _p25_distToGoalLocal < penaltyDepth + 8;
+    if (_p25_crossingZone && _p25_teamPattern) {
+      const findByRole = (target: string): any | null => {
+        for (const tm of teammates) {
+          if (tm === cpuCarrier) continue;
+          if (getTeamPatternRole(_p25_teamPattern, tm) === target) return tm;
+        }
+        return null;
+      };
+      const nearPost = findByRole('NEAR_POST_RUNNER');
+      const farPost = findByRole('FAR_POST_RUNNER');
+      const cutback = findByRole('CUTBACK_RECEIVER');
+      const crossTargetPlayer = cutback || nearPost || farPost;
+      if (crossTargetPlayer) {
+        const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
+        const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+          patternType: _p25_teamPattern.type,
+          passer: cpuCarrier.name,
+          target: crossTargetPlayer.name,
+          targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
+          crossDist: +crossDist.toFixed(1),
+          style,
+        });
+        if (style === 'LONG_LOFTED') {
+          executeAILoftedPass(cpuCarrier, crossTargetPlayer, elapsed, 'LONG_LOFTED');
+        } else {
+          executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
+        }
+        (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+        return;
+      }
+    }
+
     const passTarget = passPool.length > 0 ? chooseAIPassTarget(cpuCarrier, passPool, team, attackSign) : null;
     const passTargetDist = passTarget ? cpuCarrier.pos.distanceTo(passTarget.pos) : 0;
     const passForwardProg = passTarget ? (passTarget.pos.x - cpuCarrier.pos.x) * attackSign : -999;
