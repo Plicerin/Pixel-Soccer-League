@@ -1291,6 +1291,11 @@ export function initGame(container: HTMLElement) {
   let _carrierHoldPlayer: any = null;
   let _carrierHoldTime = 0;
   const MAX_CARRY_SECONDS = 6.0;
+  // Carry-distance cap: player hasn't passed after covering N units → force pass.
+  // Addresses "grab ball, B-line to goal" (user-visible problem).
+  let _carrierStartX = 0;
+  let _carrierStartZ = 0;
+  const MAX_CARRY_UNITS = 14;
 
   // ── Goal celebration state ──
   const goalCelebration = {
@@ -11782,11 +11787,13 @@ export function initGame(container: HTMLElement) {
     let carryLockedSideSign = Number(playerAny._simpleCarryLockedSideSign) || 0;
     if (!Number.isFinite(carrySwitchLockUntil)) carrySwitchLockUntil = 0;
     if (!Number.isFinite(carryLockedSideSign) || Math.abs(carryLockedSideSign) < 0.5) carryLockedSideSign = 0;
-    const desiredSideSign = Math.abs(desiredTarget.z) > 1.1 ? Math.sign(desiredTarget.z) : 0;
+    // Hysteresis: require target.z to be >= 3.0 on opposite side before counting
+    // as a real side-flip attempt. Tiny z wobbles shouldn't trigger lane swaps.
+    // Previous 1.1 threshold caused 150-200 flips per match (zigzag).
+    const desiredSideSign = Math.abs(desiredTarget.z) > 3.0 ? Math.sign(desiredTarget.z) : 0;
     const canSwitchLock =
       !cornerEscapeActive
-      && committedWideLane
-      && distToGoal > penaltyDepth + 2.0;
+      && committedWideLane;
     const wantsSideFlip =
       canSwitchLock
       && carrySideSign !== 0
@@ -11798,7 +11805,8 @@ export function initGame(container: HTMLElement) {
       && carrySwitchLockUntil > nowSec;
     if (wantsSideFlip && !carrySwitchLockActive) {
       carryLockedSideSign = carrySideSign;
-      carrySwitchLockUntil = nowSec + 1.45;
+      // Lock extended 1.45 -> 2.6s: once committed to a lane, stay there longer.
+      carrySwitchLockUntil = nowSec + 2.6;
       carrySwitchLockActive = true;
     }
     if (carrySwitchLockActive && carryLockedSideSign !== 0) {
@@ -12801,6 +12809,18 @@ export function initGame(container: HTMLElement) {
     // CBs/LBs/RBs should never carry into opposition half.
     const defenderPastMidfield = isBuildoutCarrier && cpuCarrier.pos.x * attackSign > 2;
     const forceDefenderPass = defenderPastMidfield && !!passTarget && !passDirectBlocker;
+    // Carry-distance cap: if this carrier has covered MAX_CARRY_UNITS without passing,
+    // force pass. Addresses "grab ball, B-line to goal" (user observation). Exempt when
+    // finishing a WING_ATTACK at byline (cross in progress) or inside penalty area
+    // (finishing move close to goal).
+    const _carryDistCovered = cpuCarrier === _carrierHoldPlayer
+      ? Math.hypot(cpuCarrier.pos.x - _carrierStartX, cpuCarrier.pos.z - _carrierStartZ)
+      : 0;
+    const _exemptFromCarryCap = insidePenaltyArea || _p25_crossingZone;
+    const forceCarryDistPass = _carryDistCovered >= MAX_CARRY_UNITS
+      && !_exemptFromCarryCap
+      && !!passTarget
+      && !passDirectBlocker;
     const forceCornerRelease =
       !!carrierCornerApex
       && !!cornerReleaseTarget
@@ -13459,7 +13479,7 @@ export function initGame(container: HTMLElement) {
         (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
         return;
       }
-      if ((shouldPass || shouldForceRecycle || forceDefenderPass) && passTarget) {
+      if ((shouldPass || shouldForceRecycle || forceDefenderPass || forceCarryDistPass) && passTarget) {
         const passStyle = passForwardProg > 9 ? 'DRIVEN' : (passForwardProg > 2 ? 'SHORT' : 'BACK');
         emitSimplePassDecision({
           target: passTarget.name || passTarget.displayRole || passTarget.role || 'Unknown',
@@ -17190,6 +17210,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       } else {
         _carrierHoldPlayer = ballState.heldBy;
         _carrierHoldTime = 0;
+        if (ballState.heldBy) {
+          _carrierStartX = ballState.heldBy.pos.x;
+          _carrierStartZ = ballState.heldBy.pos.z;
+        }
       }
 
       // ── Team shape sampling (every SHAPE_SAMPLE_INTERVAL seconds) ──

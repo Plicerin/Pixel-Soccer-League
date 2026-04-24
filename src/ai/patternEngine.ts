@@ -68,8 +68,10 @@ export type PatternInputs = {
 const DEFAULT_DURATION_SECONDS: Record<AttackPatternType, number> = {
   PATIENT_BUILDUP: 6,
   COUNTER_ATTACK: 5,
-  WING_ATTACK_LEFT: 5,
-  WING_ATTACK_RIGHT: 5,
+  // Extended from 5 to 7 so role-runners (ST to near post, winger to far post,
+  // CM to penalty spot) have time to cover 20+ units to their target positions.
+  WING_ATTACK_LEFT: 7,
+  WING_ATTACK_RIGHT: 7,
   CENTRAL_COMBO: 4,
   SWITCH_OF_PLAY: 3,
   NEUTRAL: 1,
@@ -166,8 +168,10 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
   const { carrier, teammates, attackSign, elapsedSeconds, team, fieldDepth, fieldWidth } = inputs;
   if (!carrier) return null;
   const carrierAttackX = attackProgressX(carrier, attackSign);
-  // Precondition: ball has crossed into opp half, carrier or a winger is on a flank.
-  if (carrierAttackX <= 0) return null;
+  // Precondition: ball has crossed into mid-third attacking direction (was opp half only).
+  // Earlier trigger gives NEAR_POST_RUNNER / FAR_POST_RUNNER / CUTBACK_RECEIVER more time
+  // to sprint to their assigned positions before pattern expires.
+  if (carrierAttackX <= -10) return null;
 
   const carrierZ = carrier.pos.z;
   const carrierRole = roleLabelOf(carrier);
@@ -350,11 +354,9 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
 
   switch (role) {
     case 'NEAR_POST_RUNNER': {
-      // Near post = goalpost on same side as where ball is coming from (carrier side).
-      // Only fire when carrier has meaningfully advanced (past midfield) — otherwise
-      // striker shouldn't be sprinting at empty posts during buildup.
+      // Fire as soon as carrier is past mid-third — runners need head start to reach post.
       const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
-      if (carrierAttackX < 0) return null;
+      if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const nearSide = Math.sign(carrierZ) || 1;
       const nearPostZ = nearSide * goalMouthHalfWidth * 0.5;
@@ -363,7 +365,7 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
     }
     case 'FAR_POST_RUNNER': {
       const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
-      if (carrierAttackX < 0) return null;
+      if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const farSide = -(Math.sign(carrierZ) || 1);
       const farPostZ = farSide * goalMouthHalfWidth * 0.9;
@@ -372,7 +374,7 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
     }
     case 'CUTBACK_RECEIVER': {
       const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
-      if (carrierAttackX < 0) return null;
+      if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const side = Math.sign(carrierZ) || 0;
       const cutbackZ = side * goalMouthHalfWidth * 0.4;
