@@ -1,0 +1,110 @@
+{
+  "date": "2026-04-24",
+  "match": "Minnesota United 4-1 LA Galaxy",
+  "matchId": "M-TCEQT",
+  "session": "ft-1777074519320",
+  "baselines": {
+    "goals": 5,
+    "goalsDrift": 2.22,
+    "shotsDrift": 13.8,
+    "sotDrift": 22.6,
+    "corners": 0,
+    "cornersDrift": -8
+  },
+  "shots": {
+    "forced": 38,
+    "total": 40,
+    "longRangeSOT": 18,
+    "aiSimpleBroken": 2
+  },
+  "passes": {
+    "backpasses": 394,
+    "directBlocker": 273,
+    "switchReq": 97
+  },
+  "placement": {
+    "A": {
+      "ST": 9.76,
+      "LMz": 3.69,
+      "RMz": 3.19,
+      "width": 16.01
+    },
+    "B": {
+      "ST": 11.02,
+      "LMz": 2.78,
+      "RMz": 2.48,
+      "width": 16.33
+    }
+  },
+  "patterns": {
+    "A": 82,
+    "B": 81
+  },
+  "patternTempo": {
+    "COUNTER": {
+      "pace": 1.47,
+      "fit": "TOO_SLOW"
+    },
+    "WING_R": {
+      "pace": 3.76,
+      "fit": "OK"
+    },
+    "WING_L": {
+      "pace": -2.41
+    },
+    "BUILDUP": {
+      "pace": 45.47,
+      "fit": "TOO_FAST"
+    }
+  },
+  "patternGoals": {
+    "COUNTER": 2,
+    "WING_L": 1,
+    "WING_R": 1,
+    "NONE": 1
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": -1.67,
+    "FAR_POST": -3.06,
+    "RUNNER": -0.35,
+    "CARRIER": 2.13,
+    "SUPPORT": 2.87
+  },
+  "patternCross": {
+    "total": 0,
+    "note": "role runners behind carrier - rejected by score filter"
+  },
+  "carrier": {
+    "avgBLineRatio": 0.95,
+    "straight15": 26,
+    "flippy": 10,
+    "flips": 139
+  },
+  "multiTouchOppHalf": {
+    "count": 61,
+    "total": 113,
+    "pct": 0.54,
+    "avgDistinct": 1.78
+  },
+  "finalThirdOverloads": {
+    "A": "2/94 max3",
+    "B": "2/78 max4"
+  },
+  "defendersInBoxAtGoal": {
+    "goals": 5,
+    "avgDef": 0.6,
+    "avgAtk": 0.2,
+    "dist": {
+      "0": 3,
+      "1": 1,
+      "2": 1
+    }
+  },
+  "serverGhostReject": "holding - no ghosts since a6004a9",
+  "observations": [
+    "role runner alignment variance worst yet",
+    "defense vacating at goals 60%",
+    "backpasses 394",
+    "BUILDUP pace 45u/s = long balls labeled buildup"
+  ]
+}
