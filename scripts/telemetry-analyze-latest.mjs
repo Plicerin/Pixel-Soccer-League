@@ -534,14 +534,36 @@ function summarizeRolePositions(events) {
     const key = `${team}:${role}`
     let entry = byTeamRole.get(key)
     if (!entry) {
-      entry = { team, role, samples: 0, sumX: 0, sumAbsZ: 0, sumDistToGoal: 0 }
+      entry = {
+        team, role,
+        samples: 0, sumX: 0, sumAbsZ: 0, sumDistToGoal: 0,
+        // Phase-filtered: only when player is in opp half / final third
+        oppHalfSamples: 0, oppHalfSumForwardX: 0,
+        finalThirdSamples: 0, finalThirdSumAbsZ: 0,
+      }
       byTeamRole.set(key, entry)
     }
     const detail = event.detail || {}
+    const x = Number(detail.x ?? 0)
+    const absZ = Math.abs(Number(detail.z ?? 0))
+    const distToGoal = Number(detail.distToGoal ?? 0)
+    // Infer attack direction from team: A attacks +x, B attacks -x (default convention)
+    const attackSign = team === 'A' ? 1 : -1
+    const forwardX = x * attackSign
     entry.samples++
-    entry.sumX += Number(detail.x ?? 0)
-    entry.sumAbsZ += Math.abs(Number(detail.z ?? 0))
-    entry.sumDistToGoal += Number(detail.distToGoal ?? 0)
+    entry.sumX += x
+    entry.sumAbsZ += absZ
+    entry.sumDistToGoal += distToGoal
+    // Opp half = forwardX > 0 (player crossed midfield in attack direction)
+    if (forwardX > 0) {
+      entry.oppHalfSamples++
+      entry.oppHalfSumForwardX += forwardX
+    }
+    // Final third = distToGoal <= 22 (matches gameEngine FINAL_THIRD zone threshold)
+    if (distToGoal <= 22) {
+      entry.finalThirdSamples++
+      entry.finalThirdSumAbsZ += absZ
+    }
   }
   const result = { A: [], B: [] }
   for (const entry of byTeamRole.values()) {
@@ -552,6 +574,10 @@ function summarizeRolePositions(events) {
       avgX: round(entry.sumX / entry.samples),
       avgAbsZ: round(entry.sumAbsZ / entry.samples),
       avgDistToGoal: round(entry.sumDistToGoal / entry.samples),
+      oppHalfSamples: entry.oppHalfSamples,
+      avgForwardXInOppHalf: entry.oppHalfSamples ? round(entry.oppHalfSumForwardX / entry.oppHalfSamples) : null,
+      finalThirdSamples: entry.finalThirdSamples,
+      avgAbsZInFinalThird: entry.finalThirdSamples ? round(entry.finalThirdSumAbsZ / entry.finalThirdSamples) : null,
     }
     if (result[entry.team]) result[entry.team].push(summary)
   }
@@ -932,9 +958,9 @@ function buildMarkdownReport(report) {
     ``,
     `## Role Positions (team-in-possession frames)`,
     `- ${teamA}:`,
-    ...report.rolePositions.A.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples)`),
+    ...report.rolePositions.A.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples); opp-half fwdX ${entry.avgForwardXInOppHalf ?? 'n/a'} (${entry.oppHalfSamples}); final-third |z| ${entry.avgAbsZInFinalThird ?? 'n/a'} (${entry.finalThirdSamples})`),
     `- ${teamB}:`,
-    ...report.rolePositions.B.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples)`),
+    ...report.rolePositions.B.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples); opp-half fwdX ${entry.avgForwardXInOppHalf ?? 'n/a'} (${entry.oppHalfSamples}); final-third |z| ${entry.avgAbsZInFinalThird ?? 'n/a'} (${entry.finalThirdSamples})`),
     ``,
     `## Event Stream Review`,
     `- Event-stream shots: ${report.eventStream.totalShots}`,
@@ -1003,6 +1029,20 @@ function printSummary(report) {
   const roleFmt = (rp) => rp.map((entry) => `${entry.role} x=${entry.avgX} |z|=${entry.avgAbsZ}`).join(' | ')
   if (rpA.length) console.log(`Role positions A | ${roleFmt(rpA)}`)
   if (rpB.length) console.log(`Role positions B | ${roleFmt(rpB)}`)
+  const gateFmt = (rp) => {
+    const st = rp.find((e) => e.role === 'ST')
+    const lm = rp.find((e) => e.role === 'LM')
+    const rm = rp.find((e) => e.role === 'RM')
+    const parts = []
+    if (st) parts.push(`ST opp-half fwdX=${st.avgForwardXInOppHalf ?? 'n/a'} (${st.oppHalfSamples} samples)`)
+    if (lm) parts.push(`LM final-third |z|=${lm.avgAbsZInFinalThird ?? 'n/a'} (${lm.finalThirdSamples})`)
+    if (rm) parts.push(`RM final-third |z|=${rm.avgAbsZInFinalThird ?? 'n/a'} (${rm.finalThirdSamples})`)
+    return parts.join(' | ')
+  }
+  const gA = gateFmt(rpA)
+  const gB = gateFmt(rpB)
+  if (gA) console.log(`Phase 1 gates A | ${gA}`)
+  if (gB) console.log(`Phase 1 gates B | ${gB}`)
   if (report.recommendations.length > 0) {
     console.log('Top recommendations:')
     for (const recommendation of report.recommendations) {

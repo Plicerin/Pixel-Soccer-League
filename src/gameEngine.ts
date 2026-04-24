@@ -14181,6 +14181,20 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
     }
 
+    // Phase 1 S1.3: unconditional winger width floor when team in possession.
+    // Runs after force field; overrides any lane-run or force-field pull back to center.
+    // laneRunTarget (line 13823, halfWidth 11.5) + force field would otherwise cap |z| ~ 8.
+    if (carrier && carrier.team === player.team && player !== carrier && (roleLabel === 'LM' || roleLabel === 'RM')) {
+      const wingerAbsZTarget = FIELD_D * 0.44;
+      const sideSign = Math.sign(player.homePos.z || (roleLabel === 'LM' ? -1 : 1));
+      const wingerZTarget = sideSign * wingerAbsZTarget;
+      // Blend harder in final third where width matters most for chance creation.
+      const carrierAttackX = carrier.pos.x * attackSign;
+      const widthBlend = carrierAttackX > 10 ? 0.75 : (carrierAttackX > 0 ? 0.55 : 0.30);
+      finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wingerZTarget, widthBlend);
+      finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
+    }
+
     let explicitAttackSupportRole = '';
     if (
       allowMidfielderAttackSupport
