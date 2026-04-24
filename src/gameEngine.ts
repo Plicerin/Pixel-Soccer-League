@@ -12548,11 +12548,20 @@ export function initGame(container: HTMLElement) {
           1,
         )
       : 0;
-    // Phase 1 S1.4: role-based shot allowlist. Defenders and deep mids only shoot in clear situations.
+    // Phase 1 S1.4: role-based shot allowlist. Defenders, deep mids, and distant wide finishers
+    // only shoot in clear situations. LMs/RMs from distance cutting inside is the "one play" —
+    // restrict them to in-box or reasonable angle/distance.
     const isMidfielderRole = ['CM', 'DM', 'CDM'].includes(carrierRoleLabel);
+    const wideFinisherShotAllowed =
+      isWideFinisher && (
+        insidePenaltyArea
+        || (distToGoal < 14 && inShootingLane && closePressure <= 2)
+        || faceToFaceWithKeeper
+        || instantCloseKeeperShotForce
+      );
     const roleShotAllowed =
       isPrimaryFinisher
-      || isWideFinisher
+      || wideFinisherShotAllowed
       || faceToFaceWithKeeper
       || instantCloseKeeperShotForce
       || (isMidfielderRole && insidePenaltyArea && distToGoal < 12)
@@ -14181,16 +14190,18 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
     }
 
-    // Phase 1 S1.3: unconditional winger width floor when team in possession.
-    // Runs after force field; overrides any lane-run or force-field pull back to center.
-    // laneRunTarget (line 13823, halfWidth 11.5) + force field would otherwise cap |z| ~ 8.
+    // Phase 1 S1.3: winger width nudge when team in possession.
+    // Gentle pull — strong pull at 0.75 broke passing geometry (hasForwardOption 20%→7.7%).
+    // Width only enforced when OPPOSITE-flank carrier (cross/cutback scenario).
+    // Same-side or central carrier: let winger tuck in for combinations.
     if (carrier && carrier.team === player.team && player !== carrier && (roleLabel === 'LM' || roleLabel === 'RM')) {
-      const wingerAbsZTarget = FIELD_D * 0.44;
+      const wingerAbsZTarget = FIELD_D * 0.40;
       const sideSign = Math.sign(player.homePos.z || (roleLabel === 'LM' ? -1 : 1));
       const wingerZTarget = sideSign * wingerAbsZTarget;
-      // Blend harder in final third where width matters most for chance creation.
+      // Only enforce wide when carrier is on the OPPOSITE flank (this winger is the far-post target).
+      const carrierOnOppositeFlank = Math.sign(carrier.pos.z) !== sideSign && Math.abs(carrier.pos.z) > 6;
       const carrierAttackX = carrier.pos.x * attackSign;
-      const widthBlend = carrierAttackX > 10 ? 0.75 : (carrierAttackX > 0 ? 0.55 : 0.30);
+      const widthBlend = carrierOnOppositeFlank && carrierAttackX > 5 ? 0.55 : 0.18;
       finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wingerZTarget, widthBlend);
       finalTarget.z = THREE.MathUtils.clamp(finalTarget.z, -FIELD_D / 2 + 1.5, FIELD_D / 2 - 1.5);
     }
