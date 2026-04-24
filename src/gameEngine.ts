@@ -12548,15 +12548,22 @@ export function initGame(container: HTMLElement) {
           1,
         )
       : 0;
+    // Phase 1 S1.4: role-based shot allowlist. Defenders and deep mids only shoot in clear situations.
+    const isMidfielderRole = ['CM', 'DM', 'CDM'].includes(carrierRoleLabel);
+    const roleShotAllowed =
+      isPrimaryFinisher
+      || isWideFinisher
+      || faceToFaceWithKeeper
+      || instantCloseKeeperShotForce
+      || (isMidfielderRole && insidePenaltyArea && distToGoal < 12)
+      || (isDeepRole && distToGoal < 5 && keeperDistToCarrier < 3);
     const simpleShouldShoot =
       naturalShotSelection
+      && roleShotAllowed
       && simpleShotChance >= simpleShotThreshold
       && simpleShotChance >= simplePassChance - 0.02;
     const forceShotRoleAllowed =
-      !isDeepRole
-      || isPrimaryFinisher
-      || faceToFaceWithKeeper
-      || instantCloseKeeperShotForce;
+      roleShotAllowed && (!isDeepRole || faceToFaceWithKeeper || instantCloseKeeperShotForce);
     const forceShotSupportAvailable =
       bylineCutbackPassAvailable
       || centralCutbackPassAvailable
@@ -12577,6 +12584,10 @@ export function initGame(container: HTMLElement) {
       && passForwardProg < 0
       && closePressure >= 4
       && passNearestOppDist > 2.2;
+    // Phase 1 S1.1: defender past midfield must pass, not carry forward.
+    // CBs/LBs/RBs should never carry into opposition half.
+    const defenderPastMidfield = isBuildoutCarrier && cpuCarrier.pos.x * attackSign > 2;
+    const forceDefenderPass = defenderPastMidfield && !!passTarget && !passDirectBlocker;
     const forceCornerRelease =
       !!carrierCornerApex
       && !!cornerReleaseTarget
@@ -13235,7 +13246,7 @@ export function initGame(container: HTMLElement) {
         (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
         return;
       }
-      if ((shouldPass || shouldForceRecycle) && passTarget) {
+      if ((shouldPass || shouldForceRecycle || forceDefenderPass) && passTarget) {
         const passStyle = passForwardProg > 9 ? 'DRIVEN' : (passForwardProg > 2 ? 'SHORT' : 'BACK');
         emitSimplePassDecision({
           target: passTarget.name || passTarget.displayRole || passTarget.role || 'Unknown',
@@ -13739,17 +13750,37 @@ export function initGame(container: HTMLElement) {
     }
 
     // ── Role-specific dynamic enforcement ──
-    // Wingers: stretch wide when in possession
+    // Wingers: stretch wide when in possession — phase-aware blend
     if (carrier && (roleLabel === 'LM' || roleLabel === 'RM')) {
       const wideTarget = roleLabel === 'LM' ? -FIELD_D * 0.44 : FIELD_D * 0.44;
-      finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wideTarget, 0.38);
-    }
-    // Strikers: stay ahead of ball carrier when team has possession
-    if (carrier && carrier !== player && roleLabel === 'ST') {
+      // Strong width in progression and final-third, weaker in own third buildup
       const carrierAttackX = carrier.pos.x * attackSign;
-      const leadOffset = carrierAttackX > 8 ? 12 : 8;
-      const forwardTarget = carrier.pos.x + attackSign * leadOffset;
-      finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, forwardTarget, 0.55);
+      const widthBlend = carrierAttackX > 0 ? 0.55 : 0.30;
+      finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wideTarget, widthBlend);
+    }
+    // Strikers: hold line near opposition last defender, always ahead of carrier
+    if (carrier && carrier !== player && roleLabel === 'ST') {
+      const oppList = players.filter((p: any) => p.team !== player.team && !isGoalkeeper(p));
+      // Find opposition last defender (highest x for team A attacking right, lowest for team B)
+      let oppLastDefX = attackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
+      for (const opp of oppList) {
+        // attackSign>0: opposition defends right side, their "last defender" has max x in attack direction from ST perspective = min x from opp perspective. But we want the LAST defender (closest to own goal) which is the deepest in their team's defensive position.
+        // For ST attacking right: last opp defender = opp with smallest x. That marks the offside line.
+        // For ST attacking left: last opp defender = opp with largest x.
+        if (attackSign > 0) {
+          if (opp.pos.x < oppLastDefX || oppLastDefX === -FIELD_W / 2) oppLastDefX = opp.pos.x;
+        } else {
+          if (opp.pos.x > oppLastDefX || oppLastDefX === FIELD_W / 2) oppLastDefX = opp.pos.x;
+        }
+      }
+      // Striker sits 2 units short of offside line (stay onside but high)
+      const offsideShoulderX = oppLastDefX - attackSign * 2;
+      const carrierLeadX = carrier.pos.x + attackSign * 10;
+      // Target whichever is further forward — striker leads carrier by 10+ OR holds offside line
+      const forwardTarget = attackSign > 0
+        ? Math.max(carrierLeadX, offsideShoulderX)
+        : Math.min(carrierLeadX, offsideShoulderX);
+      finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, forwardTarget, 0.70);
     }
     // DM: stay available as a safety valve, but allow support runs once the attack is established
     if (allowMidfielderAttackSupport && carrier && roleLabel === 'DM') {

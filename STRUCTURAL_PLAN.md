@@ -195,6 +195,14 @@ May start parallel with Phase 4.
 
 ## Current state (as of 2026-04-23)
 
-We are pre-Phase-0. Previous parameter-tweaking approach produced B1–B11 bug fixes but gate-level metrics did not improve: shots still 46-48, goals 7-8, forced-shot rate 98%, passes to ST < 2%.
+### Phase 0 — COMPLETE
+- S0.1-S0.3 analyzer extended: phase time %, pass-by-zone, role positions
+- S0.4 git tag `pre-structural-fixes` applied at commit `454d44a`
 
-Next action: start Phase 0. Extend analyzer for phase-aware metrics, git-tag baseline, then begin Phase 1.
+### Phase 1 — CODE COMPLETE, PENDING VALIDATION (3 matches)
+- S1.1 `forceDefenderPass` — CB/LB/RB past midfield with valid target → force pass
+- S1.2 Striker line enforcement — target `max(carrier.x+10, oppLastDef-2)` at 0.70 blend
+- S1.3 Winger width phase-aware blend — 0.55 in progression/final-third, 0.30 in own third
+- S1.4 Role shot allowlist — CB/LB/RB: only dist<5 & keeper<3. CM/DM: only in box dist<12.
+
+Next action: run 3 CPU-vs-CPU matches. Validate Phase 1 gates (G1.1-G1.5). Revert tag if regression, else advance to Phase 2.
