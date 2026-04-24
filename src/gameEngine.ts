@@ -6412,10 +6412,12 @@ export function initGame(container: HTMLElement) {
   const BALL_BOUNCE_RESTITUTION = 0.58;
   const BALL_BOUNCE_GROUND_DAMP = 0.98;
   const BALL_BOUNCE_TO_ROLL_IMPACT_VY = 0.08;
-  const BALL_ROLL_LINEAR_DRAG = 0.07;
-  const BALL_ROLL_QUAD_DRAG = 0.028;
-  const BALL_ROLL_DRAG_START_FACTOR = 0.06;
-  const BALL_ROLL_DRAG_RAMP_RATE = 0.78;
+  const BALL_ROLL_LINEAR_DRAG = 0.09;
+  const BALL_ROLL_QUAD_DRAG = 0.035;
+  // Drag now starts with meaningful bite (was 0.06) and ramps to full in ~1s (was ~3s).
+  // Previous values meant ball had near-zero friction for 1-2s post-kick — "ball in space".
+  const BALL_ROLL_DRAG_START_FACTOR = 0.32;
+  const BALL_ROLL_DRAG_RAMP_RATE = 2.4;
   const BALL_ROLL_STOP_SPEED_SQ = 0.0012;
   const BALL_STATIC_FRICTION_SPEED = 0.028;
   const BALL_SPIN_AIR_DAMP = 0.22;
@@ -20700,8 +20702,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const dragAccel = (BALL_ROLL_LINEAR_DRAG + BALL_ROLL_QUAD_DRAG * horizSpeed * horizSpeed) * weather.rollDampMul * dragScale;
             const newSpeed = Math.max(0, horizSpeed - dragAccel * dt);
             let targetSpeed = newSpeed;
-            if (ballState.rollingTime < 1.15 && ballState.rollingLaunchSpeed > 0.01) {
-              const earlyFloor = ballState.rollingLaunchSpeed * 0.93;
+            // Early momentum preservation — shorter window + lower coefficient.
+            // Was 1.15s at 0.93 which let ball fly for ~1s near launch speed.
+            if (ballState.rollingTime < 0.55 && ballState.rollingLaunchSpeed > 0.01) {
+              const earlyFloor = ballState.rollingLaunchSpeed * 0.82;
               targetSpeed = Math.max(targetSpeed, earlyFloor * (1 - dragRamp));
             }
             const scale = targetSpeed / horizSpeed;
