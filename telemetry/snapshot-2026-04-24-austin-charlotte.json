@@ -1,0 +1,118 @@
+{
+  "date": "2026-04-24",
+  "match": "Austin FC 1-4 Charlotte FC",
+  "session": "ft-1777003646115",
+  "phase": "Phase 1 validation match 2 of 3",
+  "codeState": "Phase 1 + S1.2 bug fix (commit 2278749)",
+  "baselines": {
+    "goals": {
+      "actual": 5,
+      "baseline": 2.78,
+      "drift": 2.22
+    },
+    "shots": {
+      "actual": 26,
+      "baseline": 26.2,
+      "drift": -0.2
+    },
+    "sot": {
+      "actual": 18,
+      "baseline": 9.4,
+      "drift": 8.6
+    },
+    "corners": {
+      "actual": 1,
+      "baseline": 8,
+      "drift": -7
+    }
+  },
+  "shotDecisions": {
+    "total": 26,
+    "forced": 23,
+    "passChanceZero": 25,
+    "outside": 18
+  },
+  "passDecisions": {
+    "total": 875,
+    "hasForward": 163,
+    "shouldPass": 183,
+    "blocker": 300,
+    "hasForwardPct": 0.186,
+    "shouldPassPct": 0.209
+  },
+  "actualPasses": {
+    "total": 216,
+    "fwd": 169,
+    "back": 42,
+    "toST": 28,
+    "toSTPct": 0.13
+  },
+  "phaseTime": {
+    "A": {
+      "buildup": 2,
+      "progression": 67.6,
+      "chance": 30.2,
+      "finish": 0.3
+    },
+    "B": {
+      "buildup": 5.2,
+      "progression": 63.5,
+      "chance": 30.4,
+      "finish": 0.9
+    }
+  },
+  "rolePositions": {
+    "A": {
+      "ST": {
+        "x": -1.39,
+        "absZ": 2.53
+      },
+      "LM": {
+        "x": 5.22,
+        "absZ": 6.36
+      },
+      "RM": {
+        "x": -3.14,
+        "absZ": 4.42
+      }
+    },
+    "B": {
+      "ST": {
+        "x": 2.39,
+        "absZ": 5.35
+      },
+      "LM": {
+        "x": -0.82,
+        "absZ": 5.89
+      },
+      "RM": {
+        "x": -2.9,
+        "absZ": 4.41
+      }
+    }
+  },
+  "cbShots": {
+    "A": 0,
+    "B": 1
+  },
+  "goalLog": [
+    "B ST#10 Toklomati",
+    "B LM#8 Abada",
+    "B LM#5 Zaha",
+    "A ST#10 Vazquez",
+    "B LM#8 Abada"
+  ],
+  "scorerAttribution": "WORKING — varied scorers match actual shooter roles",
+  "gates": {
+    "G1_1": "PASS",
+    "G1_2": "APPARENT_FAIL(measurement filter issue)",
+    "G1_3": "FAIL",
+    "G1_4": "PASS",
+    "G1_5": "BORDERLINE 13%"
+  },
+  "issues": [
+    "G1.2 analyzer measures ST avg over ALL in-possession frames incl buildup. Gate spec says opp-half only. Need filtered measurement.",
+    "G1.3 winger |z| still low. Force-field/formation pull fighting post-blend enforcement.",
+    "Phase time still skips buildup (2-5% vs 30-45% target) — Phase 2 scope."
+  ]
+}

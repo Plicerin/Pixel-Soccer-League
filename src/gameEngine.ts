@@ -14221,17 +14221,37 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         _suppCtr.set(valveX, 0.15, valveZ);
         finalTarget.lerp(_suppCtr, valveBlend);
         explicitAttackSupportRole = 'SAFETY_VALVE';
-      } else if (attackEstablished && player === highestThreat && ['ST', 'CF', 'CAM', 'LM', 'RM'].includes(roleLabel)) {
-        const threatX = carrier.pos.x + attackSign * (phase === 'FINAL_THIRD' ? 8.6 : 7.2);
-        const threatZ = THREE.MathUtils.clamp(
-          Math.abs(player.homePos.z) > 3
-            ? player.homePos.z * (phase === 'FINAL_THIRD' ? 0.92 : 0.78)
-            : (supportSlot >= 0 ? FIELD_D * 0.14 : -FIELD_D * 0.14),
-          -FIELD_D * (phase === 'FINAL_THIRD' ? 0.30 : 0.24),
-          FIELD_D * (phase === 'FINAL_THIRD' ? 0.30 : 0.24),
-        );
+      } else if (attackEstablished && ['ST', 'CF', 'CAM', 'LM', 'RM'].includes(roleLabel)) {
+        // Phase 1: ALL attackers stay forward. STs lead, LMs/RMs hold full width.
+        // Extended from highestThreat-only to all attackers since non-threat wingers
+        // were skipping enforcement and collapsing central.
+        const isStriker = roleLabel === 'ST' || roleLabel === 'CF' || roleLabel === 'CAM';
+        const isWinger = roleLabel === 'LM' || roleLabel === 'RM';
+        // ST x: lead carrier by 10+ OR offside shoulder (2 short of opp last def)
+        let oppLastDefAttackX = -Infinity;
+        for (const opp of players) {
+          if (opp.team === player.team || isGoalkeeper(opp)) continue;
+          const oppAttackX = opp.pos.x * attackSign;
+          if (oppAttackX > oppLastDefAttackX) oppLastDefAttackX = oppAttackX;
+        }
+        const offsideShoulderAttackX = oppLastDefAttackX - 2;
+        const carrierLeadAttackX = carrier.pos.x * attackSign + (isStriker ? 10 : (phase === 'FINAL_THIRD' ? 8.6 : 7.2));
+        const threatAttackX = Math.max(carrierLeadAttackX, offsideShoulderAttackX);
+        const threatX = threatAttackX * attackSign;
+        // LM/RM z: hold wide (±FIELD_D * 0.44). ST z: central, or carrier-side slightly
+        const wingerZTarget = Math.sign(player.homePos.z || 1) * FIELD_D * 0.44;
+        const threatZ = isWinger
+          ? wingerZTarget
+          : THREE.MathUtils.clamp(
+              Math.abs(player.homePos.z) > 3
+                ? player.homePos.z * (phase === 'FINAL_THIRD' ? 0.92 : 0.78)
+                : (supportSlot >= 0 ? FIELD_D * 0.14 : -FIELD_D * 0.14),
+              -FIELD_D * 0.24,
+              FIELD_D * 0.24,
+            );
         _suppCtr.set(threatX, 0.15, threatZ);
-        finalTarget.lerp(_suppCtr, phase === 'FINAL_THIRD' ? 0.72 : 0.58);
+        const threatBlend = isStriker ? 0.80 : (isWinger ? 0.72 : (phase === 'FINAL_THIRD' ? 0.72 : 0.58));
+        finalTarget.lerp(_suppCtr, threatBlend);
         explicitAttackSupportRole = 'THREAT';
       }
 
