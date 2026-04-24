@@ -18154,13 +18154,40 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 // Otherwise keep the model/rule choice (could be throw/short pass)
               }
 
+              // Goal-kick target: prefer an actual teammate around midfield rather than
+              // the abstract center point (which made the kick overshoot into the opposing
+              // keeper's hands). Fall back to center circle only if no midfielder candidate.
               const goalKickCenterTarget = {
                 pos: new THREE.Vector3(0, BALL_GROUND_Y, 0),
                 vel: new THREE.Vector3(),
                 team,
                 name: 'CENTER CIRCLE',
               };
-              const distributionTarget = forceLongGoalKick ? goalKickCenterTarget : bestOutlet;
+              let longKickTeammateTarget: any = null;
+              if (forceLongGoalKick) {
+                const forwardCandidates = teammates
+                  .filter((p: any) => {
+                    const role = (p.displayRole || p.role || '').toString().toUpperCase();
+                    return ['CM', 'CAM', 'DM', 'LM', 'RM', 'ST', 'CF'].includes(role);
+                  })
+                  .map((p: any) => {
+                    const forwardProg = (p.pos.x - cpuCarrier.pos.x) * attackSign;
+                    const nearestOppDist = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(p.pos)), 99);
+                    return { player: p, forwardProg, nearestOppDist };
+                  })
+                  .filter((entry) => entry.forwardProg > 12 && entry.forwardProg < 34)
+                  .sort((a, b) => (b.nearestOppDist - a.nearestOppDist) + (b.forwardProg - a.forwardProg) * 0.2);
+                longKickTeammateTarget = forwardCandidates[0]?.player || null;
+              }
+              const distributionTarget = forceLongGoalKick
+                ? (longKickTeammateTarget || goalKickCenterTarget)
+                : bestOutlet;
+              // Goal kicks should use flat GOAL_KICK_STANDARD / DRIVEN_KICK, not hand-PUNT.
+              // PUNT trajectory (lift 8 u/s) caused 47-unit range from keeper-to-midfield,
+              // overflying target and landing at opposing keeper.
+              if (forceLongGoalKick && (selectedKickStyle === 'PUNT' || selectedKickStyle === 'DROP_KICK')) {
+                selectedKickStyle = Math.random() < 0.6 ? 'GOAL_KICK_STANDARD' : 'DRIVEN_KICK';
+              }
 
               // ── Execute the distribution (unless HOLD was chosen) ──
               if (!(useModelAction && modelActionName === 'HOLD')) {
