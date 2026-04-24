@@ -587,7 +587,7 @@ function summarizePatterns(events) {
     }
   }
 
-  // Shot → active pattern correlation
+  // Shot → active pattern correlation. Goals sourced ONLY from GOAL events (authoritative).
   const shotsByActivePattern = {}
   const goalsByActivePattern = {}
   for (const shot of shots) {
@@ -597,11 +597,10 @@ function summarizePatterns(events) {
     const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))
     const key = active ? active.type : 'NONE'
     shotsByActivePattern[key] = (shotsByActivePattern[key] || 0) + 1
-    if (shot.detail?.goal) goalsByActivePattern[key] = (goalsByActivePattern[key] || 0) + 1
   }
   for (const goal of goals) {
     const team = goal.team
-    if (!team || goalsByActivePattern['__seen']) continue
+    if (!team) continue
     const elapsed = (goal.half === 2 ? 150 : 0) + Number(goal.t ?? 0)
     if (!patternIntervals[team]) continue
     const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))

@@ -291,12 +291,13 @@ export function isPatternStillValid(state: TeamPatternState, inputs: PatternInpu
     if (inputs.secondsSinceRecovery > 3 && attackProgressX(inputs.carrier, inputs.attackSign) < 0) return false;
   }
   if (state.type === 'WING_ATTACK_LEFT' || state.type === 'WING_ATTACK_RIGHT') {
-    // Wing attack ends if carrier moves to opposite flank or drops back below midfield.
+    // Wing attack ends if carrier moves far to opposite flank or deeply into own half.
+    // Loosened from previous -3 margin which caused 2s flip-flops during central runs.
     const carrierAttackX = attackProgressX(inputs.carrier, inputs.attackSign);
-    if (carrierAttackX < 0) return false;
+    if (carrierAttackX < -6) return false;
     const carrierZ = inputs.carrier.pos.z;
-    if (state.type === 'WING_ATTACK_LEFT' && carrierZ > 3) return false;
-    if (state.type === 'WING_ATTACK_RIGHT' && carrierZ < -3) return false;
+    if (state.type === 'WING_ATTACK_LEFT' && carrierZ > 7) return false;
+    if (state.type === 'WING_ATTACK_RIGHT' && carrierZ < -7) return false;
   }
   if (state.type === 'PATIENT_BUILDUP') {
     // Buildup ends when ball crosses midfield.

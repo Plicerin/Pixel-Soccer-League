@@ -5597,10 +5597,9 @@ export function initGame(container: HTMLElement) {
     // Phase 2.5: team-level attacking pattern state (coordinated multi-player intent)
     teamPatternA: null as null | import('./ai/patternEngine.ts').TeamPatternState,
     teamPatternB: null as null | import('./ai/patternEngine.ts').TeamPatternState,
-    teamPossessionChangeAtA: 0,
-    teamPossessionChangeAtB: 0,
-    teamLastPossessionSideA: '' as 'A' | 'B' | '',
-    teamLastPossessionSideB: '' as 'A' | 'B' | '',
+    // Global possession tracking (fixes bug A: per-team version never detected re-gains)
+    ballPossessionChangedAt: 0,
+    ballLastTeam: '' as 'A' | 'B' | '',
     // ── Tuning Lab: AI Weights ──
     tuningProgressWeight: 0.88,
     tuningLanePenalty: 0.42,
@@ -5789,20 +5788,36 @@ export function initGame(container: HTMLElement) {
   }
 
   // Phase 2.5: Team pattern engine tick. Called when team has possession.
+  // Also handles global possession change detection.
   function tickTeamPattern(team: 'A' | 'B', carrier: any, attackSign: 1 | -1) {
     const elapsed = matchClock.elapsedInHalf + (matchClock.half === 2 ? getHalfDurationSeconds() : 0);
-    const currentStateKey = team === 'A' ? 'teamPatternA' : 'teamPatternB';
-    const possChangeKey = team === 'A' ? 'teamPossessionChangeAtA' : 'teamPossessionChangeAtB';
-    const lastSideKey = team === 'A' ? 'teamLastPossessionSideA' : 'teamLastPossessionSideB';
-    // Detect possession change
-    const prevSide = (gameState as any)[lastSideKey] as 'A' | 'B' | '';
-    if (prevSide !== team) {
-      (gameState as any)[lastSideKey] = team;
-      (gameState as any)[possChangeKey] = elapsed;
+
+    // Global possession tracking: detect change from any team to any other.
+    const ballTeam = (ballState.heldBy?.team || carrier?.team) as 'A' | 'B' | undefined;
+    if (ballTeam && ballTeam !== gameState.ballLastTeam) {
+      const losingTeam = gameState.ballLastTeam;
+      gameState.ballLastTeam = ballTeam;
+      gameState.ballPossessionChangedAt = elapsed;
+      // End losing team's pattern on possession loss.
+      if (losingTeam === 'A' || losingTeam === 'B') {
+        const losingKey = losingTeam === 'A' ? 'teamPatternA' : 'teamPatternB';
+        const losingState = gameState[losingKey];
+        if (losingState) {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_END', losingTeam, 'TEAM', {
+            type: losingState.type,
+            startedAt: losingState.startedAt,
+            endedAt: elapsed,
+            duration: +(elapsed - losingState.startedAt).toFixed(2),
+            reason: 'possession_lost',
+          });
+          gameState[losingKey] = null;
+        }
+      }
     }
-    const possChangeAt = (gameState as any)[possChangeKey] as number;
-    const secondsSinceRecovery = elapsed - possChangeAt;
+
+    const secondsSinceRecovery = elapsed - gameState.ballPossessionChangedAt;
     const justRecoveredPossession = secondsSinceRecovery < 2.0;
+    const currentStateKey = team === 'A' ? 'teamPatternA' : 'teamPatternB';
     const teammates = players.filter((p: any) => p.team === team);
     const opponents = players.filter((p: any) => p.team !== team);
     const inputs = {
@@ -5818,11 +5833,12 @@ export function initGame(container: HTMLElement) {
       justRecoveredPossession,
       secondsSinceRecovery,
     };
-    const currentState = (gameState as any)[currentStateKey] as TeamPatternState | null;
+    const currentState = gameState[currentStateKey];
+    const stillValid = currentState ? isTeamPatternStillValid(currentState, inputs) : false;
     const shouldReselect =
       !currentState
-      || !isTeamPatternStillValid(currentState, inputs)
-      || (justRecoveredPossession && currentState.type !== 'COUNTER_ATTACK');
+      || !stillValid
+      || (justRecoveredPossession && currentState.type !== 'COUNTER_ATTACK' && secondsSinceRecovery < 0.3);
     if (shouldReselect) {
       if (currentState) {
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_END', team, 'TEAM', {
@@ -5830,11 +5846,11 @@ export function initGame(container: HTMLElement) {
           startedAt: currentState.startedAt,
           endedAt: elapsed,
           duration: +(elapsed - currentState.startedAt).toFixed(2),
-          reason: !isTeamPatternStillValid(currentState, inputs) ? 'invalidated' : 'possession_change',
+          reason: !stillValid ? 'invalidated' : 'recovery_reselect',
         });
       }
       const nextState = selectTeamPattern(inputs);
-      (gameState as any)[currentStateKey] = nextState;
+      gameState[currentStateKey] = nextState;
       if (nextState) {
         const rolesObj: Record<string, string> = {};
         for (const [k, v] of nextState.roles.entries()) rolesObj[k] = v;
