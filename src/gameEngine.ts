@@ -12325,23 +12325,46 @@ export function initGame(container: HTMLElement) {
       // Suppress ref unused warning
       void carrierAttackXLocal;
       if (crossTargetPlayer) {
-        const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
-        const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';
-        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
-          patternType: _p25_teamPattern.type,
-          passer: cpuCarrier.name,
-          target: crossTargetPlayer.name,
-          targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
-          crossDist: +crossDist.toFixed(1),
-          style,
-        });
-        if (style === 'LONG_LOFTED') {
-          executeAILoftedPass(cpuCarrier, crossTargetPlayer, elapsed, 'LONG_LOFTED');
+        // Pattern-scoped cross cooldown: once a cross fires for this pattern,
+        // don't re-fire for 1.5s. Without this, executeAIGroundPass can silently
+        // abort (e.g. lane blocker) leaving carrier in the crossing zone, which
+        // re-triggers the cross every cooldownPass cycle (~0.1s). That caused
+        // 200+ identical PATTERN_CROSS_EXECUTED events in a single match.
+        const patternMeta = _p25_teamPattern.metadata as Record<string, number>;
+        const lastCrossAt = patternMeta.lastCrossAt ?? -999;
+        if (elapsed - lastCrossAt < 1.5) {
+          // Treat as dribble-through — fall through to normal pass decision.
         } else {
-          executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
+          const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
+          const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';
+          // Pre-flight lane check mirroring executeAIGroundPass's silent reject.
+          // Only driven crosses use the ground-pass path; lofted bypasses lane.
+          let laneClear = true;
+          if (style === 'DRIVEN') {
+            const lp = getSimpleLaneBlockerProfile(cpuCarrier.pos, crossTargetPlayer.pos, team as 'A' | 'B', 2.8);
+            const blocked = lp.frontBlockerLateral < 1.25 && lp.frontBlockerT > 0.14 && lp.frontBlockerT < 0.84;
+            if (blocked) laneClear = false;
+          }
+          if (laneClear) {
+            patternMeta.lastCrossAt = elapsed;
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+              patternType: _p25_teamPattern.type,
+              passer: cpuCarrier.name,
+              target: crossTargetPlayer.name,
+              targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
+              crossDist: +crossDist.toFixed(1),
+              style,
+            });
+            if (style === 'LONG_LOFTED') {
+              executeAILoftedPass(cpuCarrier, crossTargetPlayer, elapsed, 'LONG_LOFTED');
+            } else {
+              executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
+            }
+            (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+            return;
+          }
+          // Lane blocked: fall through to normal pass logic instead of spamming.
         }
-        (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
-        return;
       }
     }
 
