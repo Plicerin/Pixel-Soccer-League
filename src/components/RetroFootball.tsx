@@ -1466,8 +1466,20 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setMenuVisible?.(false);
 
       if (!splashSceneStartedRef.current) {
-        splashSceneStartedRef.current = true;
-        gameRef.current?.startKickoffPresentation?.(true);
+        // Don't auto-start a new match if the previous one is still in FULL_TIME
+        // or if a match is already active. Prevents HMR remounts + stale browser tabs
+        // from kicking off ghost CPU-vs-CPU Miami-LA matches between user actions.
+        const snapshot = gameRef.current?.getMatchSnapshot?.() || null;
+        const alreadyActive = snapshot?.phase === 'FIRST_HALF'
+          || snapshot?.phase === 'HALFTIME'
+          || snapshot?.phase === 'SECOND_HALF';
+        const atFullTime = snapshot?.phase === 'FULL_TIME';
+        if (!alreadyActive && !atFullTime) {
+          splashSceneStartedRef.current = true;
+          gameRef.current?.startKickoffPresentation?.(true);
+        } else {
+          splashSceneStartedRef.current = true; // suppress repeated start attempts
+        }
       }
       return;
     }
