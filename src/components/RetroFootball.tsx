@@ -1470,20 +1470,24 @@ const RetroFootball: React.FC = () => {
       if (!splashSceneStartedRef.current) {
         // Prevent ghost CPU-vs-CPU restarts from HMR remounts or duplicate tabs.
         // Guards:
-        //  1. If match already active / just finished, don't touch it.
-        //  2. Session-scoped flag: if this browser session already ran a splash
-        //     demo match in the last 5 minutes, don't auto-start another.
+        //  1. Match already active / at FULL_TIME → don't auto-start.
+        //  2. sessionStorage flag for prior full-time: if user hit full-time on a
+        //     manual match recently, splash overlay could be stale. HMR remount
+        //     resets showSplash to true but we must not kick off a demo behind it.
+        //  3. Session-scoped recent-auto-start flag (5 min cooldown).
         const snapshot = gameRef.current?.getMatchSnapshot?.() || null;
         const alreadyActive = snapshot?.phase === 'FIRST_HALF'
           || snapshot?.phase === 'HALFTIME'
           || snapshot?.phase === 'SECOND_HALF';
         const atFullTime = snapshot?.phase === 'FULL_TIME';
         let recentSplashRan = false;
+        let priorFullTime = false;
         try {
           const last = Number(sessionStorage.getItem('psl_splashAutoStartAt') || 0);
           recentSplashRan = last > 0 && (Date.now() - last) < 5 * 60 * 1000;
+          priorFullTime = sessionStorage.getItem('psl_fullTime') === '1';
         } catch {}
-        if (!alreadyActive && !atFullTime && !recentSplashRan) {
+        if (!alreadyActive && !atFullTime && !recentSplashRan && !priorFullTime) {
           splashSceneStartedRef.current = true;
           try { sessionStorage.setItem('psl_splashAutoStartAt', String(Date.now())); } catch {}
           gameRef.current?.startKickoffPresentation?.(true);
