@@ -5608,6 +5608,8 @@ export function initGame(container: HTMLElement) {
     // Phase 2.5: team-level attacking pattern state (coordinated multi-player intent)
     teamPatternA: null as null | import('./ai/patternEngine.ts').TeamPatternState,
     teamPatternB: null as null | import('./ai/patternEngine.ts').TeamPatternState,
+    teamPatternLastEndByTypeA: {} as Record<string, number>,
+    teamPatternLastEndByTypeB: {} as Record<string, number>,
     // Global possession tracking (fixes bug A: per-team version never detected re-gains)
     ballPossessionChangedAt: 0,
     ballLastTeam: '' as 'A' | 'B' | '',
@@ -5821,6 +5823,9 @@ export function initGame(container: HTMLElement) {
             duration: +(elapsed - losingState.startedAt).toFixed(2),
             reason: 'possession_lost',
           });
+          // Record end time for cooldown.
+          const endMap = losingTeam === 'A' ? gameState.teamPatternLastEndByTypeA : gameState.teamPatternLastEndByTypeB;
+          endMap[losingState.type] = elapsed;
           gameState[losingKey] = null;
         }
       }
@@ -5831,6 +5836,7 @@ export function initGame(container: HTMLElement) {
     const currentStateKey = team === 'A' ? 'teamPatternA' : 'teamPatternB';
     const teammates = players.filter((p: any) => p.team === team);
     const opponents = players.filter((p: any) => p.team !== team);
+    const lastEndByType = team === 'A' ? gameState.teamPatternLastEndByTypeA : gameState.teamPatternLastEndByTypeB;
     const inputs = {
       elapsedSeconds: elapsed,
       team,
@@ -5843,6 +5849,7 @@ export function initGame(container: HTMLElement) {
       fieldDepth: FIELD_D,
       justRecoveredPossession,
       secondsSinceRecovery,
+      lastEndByType,
     };
     const currentState = gameState[currentStateKey];
     const stillValid = currentState ? isTeamPatternStillValid(currentState, inputs) : false;
@@ -5859,6 +5866,7 @@ export function initGame(container: HTMLElement) {
           duration: +(elapsed - currentState.startedAt).toFixed(2),
           reason: !stillValid ? 'invalidated' : 'recovery_reselect',
         });
+        lastEndByType[currentState.type] = elapsed;
       }
       const nextState = selectTeamPattern(inputs);
       gameState[currentStateKey] = nextState;
@@ -11721,6 +11729,30 @@ export function initGame(container: HTMLElement) {
         Math.abs(carryLaneZ) > 1.2 ? Math.sign(carryLaneZ)
         : (Math.abs(currentLaneZ) > 1.2 ? Math.sign(currentLaneZ)
           : (Math.abs(homeLaneZ) > 1.2 ? Math.sign(homeLaneZ) : 0));
+    }
+    // Possession-start settle: when the carrier just gained the ball, the various
+    // steering sources (tactical, force-field, formation pull) haven't agreed on a
+    // lane yet — target swings wildly for the first ~0.8s. User reports the zigzag
+    // is worst right at the start of a run. Seed a short lane-lock based on the
+    // player's current momentum/facing so early frames don't oscillate.
+    const _carryStartAt = Number(playerAny._simpleCarryStartedAt) || 0;
+    const _isNewPossession = !_carryStartAt || (nowSec - _carryStartAt > 0.3 && _carrierHoldTime < 0.1);
+    if (_isNewPossession) {
+      playerAny._simpleCarryStartedAt = nowSec;
+      // Prefer current movement direction; fall back to facing; fall back to home side.
+      const velZ = Number(carrier.vel?.z || 0);
+      const facingZ = Number(playerAny._simpleFacingDir?.z || 0);
+      const initialSideSign =
+        Math.abs(velZ) > 0.3 ? Math.sign(velZ)
+        : Math.abs(facingZ) > 0.3 ? Math.sign(facingZ)
+        : Math.abs(homeLaneZ) > 1.2 ? Math.sign(homeLaneZ)
+        : 0;
+      if (initialSideSign !== 0) {
+        carrySideSign = initialSideSign;
+        carryLaneZ = initialSideSign * Math.max(1.5, Math.abs(carryLaneZ) || 2.0);
+        playerAny._simpleCarrySwitchLockUntil = nowSec + 1.1; // suppress flips for 1.1s
+        playerAny._simpleCarryLockedSideSign = initialSideSign;
+      }
     }
     if (Math.abs(currentLaneZ - carryLaneZ) > 8.5 && Math.abs(currentLaneZ) > 3.0) {
       carryLaneZ = THREE.MathUtils.lerp(carryLaneZ, currentLaneZ, 0.16);

@@ -63,6 +63,19 @@ export type PatternInputs = {
   fieldDepth: number;
   justRecoveredPossession: boolean;   // true if possession changed hands within last ~2s
   secondsSinceRecovery: number;
+  // Last end time (elapsedSeconds) for each pattern type on this team.
+  // Lets selector enforce cooldowns to prevent spam re-triggering.
+  lastEndByType?: Record<string, number>;
+};
+
+const RETRIGGER_COOLDOWN_SECONDS: Record<AttackPatternType, number> = {
+  PATIENT_BUILDUP: 1.5,
+  COUNTER_ATTACK: 3.0,
+  WING_ATTACK_LEFT: 3.5,
+  WING_ATTACK_RIGHT: 3.5,
+  CENTRAL_COMBO: 2.0,
+  SWITCH_OF_PLAY: 3.0,
+  NEUTRAL: 0,
 };
 
 const DEFAULT_DURATION_SECONDS: Record<AttackPatternType, number> = {
@@ -123,9 +136,17 @@ function nameKey(player: any): string {
 
 // ── Pattern precondition checks + role assignments ──────────────────────────
 
+function onCooldown(type: AttackPatternType, inputs: PatternInputs): boolean {
+  const lastEnd = inputs.lastEndByType?.[type] ?? 0;
+  if (!lastEnd) return false;
+  const sinceEnd = inputs.elapsedSeconds - lastEnd;
+  return sinceEnd >= 0 && sinceEnd < RETRIGGER_COOLDOWN_SECONDS[type];
+}
+
 function tryCounterAttack(inputs: PatternInputs): TeamPatternState | null {
   const { carrier, teammates, opponents, attackSign, justRecoveredPossession, elapsedSeconds, team } = inputs;
   if (!carrier || !justRecoveredPossession) return null;
+  if (onCooldown('COUNTER_ATTACK', inputs)) return null;
   // Precondition: at least 2 teammates ahead of opp midfield line (or ball is in own half).
   const carrierAttackX = attackProgressX(carrier, attackSign);
   const teammatesAheadOfCarrier = teammates.filter((tm) => {
@@ -168,12 +189,12 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
   const { carrier, teammates, attackSign, elapsedSeconds, team, fieldDepth, fieldWidth } = inputs;
   if (!carrier) return null;
   const carrierAttackX = attackProgressX(carrier, attackSign);
-  // Precondition: ball has crossed into mid-third attacking direction (was opp half only).
-  // Earlier trigger gives NEAR_POST_RUNNER / FAR_POST_RUNNER / CUTBACK_RECEIVER more time
-  // to sprint to their assigned positions before pattern expires.
   if (carrierAttackX <= -10) return null;
-
+  // Cooldown: don't spam retrigger same flank pattern within 3.5s of last end.
   const carrierZ = carrier.pos.z;
+  const tentativeSide: AttackPatternType = carrierZ < 0 ? 'WING_ATTACK_LEFT' : 'WING_ATTACK_RIGHT';
+  if (onCooldown(tentativeSide, inputs)) return null;
+
   const carrierRole = roleLabelOf(carrier);
   const carrierOnFlank = Math.abs(carrierZ) > fieldDepth * 0.18;
 
@@ -230,6 +251,7 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
 function tryPatientBuildup(inputs: PatternInputs): TeamPatternState | null {
   const { carrier, teammates, opponents, attackSign, elapsedSeconds, team, fieldWidth } = inputs;
   if (!carrier) return null;
+  if (onCooldown('PATIENT_BUILDUP', inputs)) return null;
   // Precondition: ball is in own third or just past midfield, low immediate pressure.
   const distGoal = distToOppGoal(carrier, attackSign, fieldWidth);
   if (distGoal < fieldWidth / 2) return null; // already past midfield — use progression / wing pattern
