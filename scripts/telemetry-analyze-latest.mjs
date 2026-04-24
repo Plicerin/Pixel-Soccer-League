@@ -761,6 +761,41 @@ function summaryCarrierTrajectories(events) {
   }
 }
 
+// User-requested metric: defenders in the penalty area when goals are scored.
+// Uses goalLog[].defendersInBox + attackersInBox (already captured per goal).
+// A realistic finishing mix has defenders varying — wide open tap-ins (0-1
+// defenders) vs scrambled scrimmage goals (3+ defenders). All-0 = defense
+// model collapsed; all-4+ = unrealistic super-deep defense.
+function summarizeDefendersInBoxAtGoal(bundle) {
+  const gl = Array.isArray(bundle?.goalLog) ? bundle.goalLog : []
+  if (gl.length === 0) {
+    return { goalCount: 0, avgDefendersInBox: 0, avgAttackersInBox: 0, distribution: {}, samples: [] }
+  }
+  let sumDef = 0, sumAtk = 0
+  const distribution = {}
+  const samples = []
+  for (const g of gl) {
+    const def = Number(g.defendersInBox ?? 0)
+    const atk = Number(g.attackersInBox ?? 0)
+    sumDef += def
+    sumAtk += atk
+    distribution[def] = (distribution[def] || 0) + 1
+    samples.push({
+      team: g.team, scorer: g.playerName, shirt: g.shirtNumber, minute: g.matchMinute,
+      defendersInBox: def, attackersInBox: atk,
+      outfieldBoxCrowd: g.outfieldBoxCrowd ?? (def + atk),
+      playPattern: g.playPattern, isBreakaway: !!g.isBreakaway,
+    })
+  }
+  return {
+    goalCount: gl.length,
+    avgDefendersInBox: round(sumDef / gl.length),
+    avgAttackersInBox: round(sumAtk / gl.length),
+    distribution,
+    samples,
+  }
+}
+
 // User-requested metric: how many 1-second windows have 3+ distinct attackers
 // from the same team in opposition final third. Measures attacking commitment
 // (overloads in the final third) vs sterile solo attacks.
@@ -1430,6 +1465,13 @@ function buildMarkdownReport(report) {
         })
       : ['(no pattern tempo data)']),
     ``,
+    `## Defenders In Box At Goal (defensive presence)`,
+    `- Goals: ${report.defendersInBoxAtGoal.goalCount}, avg ${report.defendersInBoxAtGoal.avgDefendersInBox} defenders + ${report.defendersInBoxAtGoal.avgAttackersInBox} attackers in box at moment of goal`,
+    `- Distribution: ${Object.entries(report.defendersInBoxAtGoal.distribution).sort((a, b) => Number(a[0]) - Number(b[0])).map(([n, c]) => `${n} defenders: ${c} goals`).join(', ') || '(none)'}`,
+    ...(report.defendersInBoxAtGoal.samples.length > 0
+      ? [`- Samples:`, ...report.defendersInBoxAtGoal.samples.map((s) => `  - ${s.team} ${s.scorer} #${s.shirt} @ ${s.minute}': ${s.defendersInBox} defenders, ${s.attackersInBox} attackers (${s.playPattern}${s.isBreakaway ? ', breakaway' : ''})`)]
+      : []),
+    ``,
     `## Final-Third Overloads (attacking commitment)`,
     `- ${teamA}: ${report.finalThirdOverloads.A.bucketsWithOverload}/${report.finalThirdOverloads.A.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.A.maxAttackersInBucket})`,
     `- ${teamB}: ${report.finalThirdOverloads.B.bucketsWithOverload}/${report.finalThirdOverloads.B.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.B.maxAttackersInBucket})`,
@@ -1568,6 +1610,11 @@ function printSummary(report) {
   console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
   const ft = report.finalThirdOverloads
   console.log(`Final-third overloads (>=3 attackers, 1s windows) | A: ${ft.A.bucketsWithOverload}/${ft.A.totalBuckets} (max ${ft.A.maxAttackersInBucket}) | B: ${ft.B.bucketsWithOverload}/${ft.B.totalBuckets} (max ${ft.B.maxAttackersInBucket})`)
+  const db = report.defendersInBoxAtGoal
+  if (db.goalCount > 0) {
+    const dist = Object.entries(db.distribution).sort((a, b) => Number(a[0]) - Number(b[0])).map(([n, c]) => `${n}d:${c}`).join(' ')
+    console.log(`Defenders in box at goal | ${db.goalCount} goals, avg ${db.avgDefendersInBox} defenders + ${db.avgAttackersInBox} attackers | dist ${dist}`)
+  }
   if (report.patternTempo) {
     console.log('Pattern tempo (realism fit):')
     for (const [type, v] of Object.entries(report.patternTempo)) {
@@ -1670,6 +1717,7 @@ function main() {
     carrierTrajectories: summaryCarrierTrajectories(events),
     multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
     finalThirdOverloads: summarizeFinalThirdOverloads(events),
+    defendersInBoxAtGoal: summarizeDefendersInBoxAtGoal(bundle),
     patternTempo: summarizePatternTempo(events),
     patternCrosses: (() => {
       const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
