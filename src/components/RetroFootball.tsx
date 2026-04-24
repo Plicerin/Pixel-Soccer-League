@@ -1466,19 +1466,27 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setMenuVisible?.(false);
 
       if (!splashSceneStartedRef.current) {
-        // Don't auto-start a new match if the previous one is still in FULL_TIME
-        // or if a match is already active. Prevents HMR remounts + stale browser tabs
-        // from kicking off ghost CPU-vs-CPU Miami-LA matches between user actions.
+        // Prevent ghost CPU-vs-CPU restarts from HMR remounts or duplicate tabs.
+        // Guards:
+        //  1. If match already active / just finished, don't touch it.
+        //  2. Session-scoped flag: if this browser session already ran a splash
+        //     demo match in the last 5 minutes, don't auto-start another.
         const snapshot = gameRef.current?.getMatchSnapshot?.() || null;
         const alreadyActive = snapshot?.phase === 'FIRST_HALF'
           || snapshot?.phase === 'HALFTIME'
           || snapshot?.phase === 'SECOND_HALF';
         const atFullTime = snapshot?.phase === 'FULL_TIME';
-        if (!alreadyActive && !atFullTime) {
+        let recentSplashRan = false;
+        try {
+          const last = Number(sessionStorage.getItem('psl_splashAutoStartAt') || 0);
+          recentSplashRan = last > 0 && (Date.now() - last) < 5 * 60 * 1000;
+        } catch {}
+        if (!alreadyActive && !atFullTime && !recentSplashRan) {
           splashSceneStartedRef.current = true;
+          try { sessionStorage.setItem('psl_splashAutoStartAt', String(Date.now())); } catch {}
           gameRef.current?.startKickoffPresentation?.(true);
         } else {
-          splashSceneStartedRef.current = true; // suppress repeated start attempts
+          splashSceneStartedRef.current = true;
         }
       }
       return;
