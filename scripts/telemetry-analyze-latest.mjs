@@ -633,6 +633,134 @@ function summarizePatterns(events) {
   }
 }
 
+// ── Phase 2.5: pattern role position alignment + B-line carrier detection ───────
+
+function summaryPatternRoleAlignment(events) {
+  // Verify that players in a given pattern role actually reach expected positions.
+  // E.g. NEAR_POST_RUNNER should be within ~10 units of opposing goalpost on avg.
+  const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
+  const byRole = {}
+  for (const event of traces) {
+    const patternRole = event.detail?.patternRole
+    if (!patternRole || patternRole === 'NONE') continue
+    const team = event.team
+    const attackSign = team === 'A' ? 1 : -1
+    if (!byRole[patternRole]) byRole[patternRole] = { samples: 0, sumForwardX: 0, sumAbsZ: 0, sumDistToGoal: 0 }
+    byRole[patternRole].samples++
+    byRole[patternRole].sumForwardX += Number(event.detail?.x ?? 0) * attackSign
+    byRole[patternRole].sumAbsZ += Math.abs(Number(event.detail?.z ?? 0))
+    byRole[patternRole].sumDistToGoal += Number(event.detail?.distToGoal ?? 0)
+  }
+  const result = {}
+  for (const [role, v] of Object.entries(byRole)) {
+    if (v.samples < 3) continue
+    result[role] = {
+      samples: v.samples,
+      avgForwardX: round(v.sumForwardX / v.samples),
+      avgAbsZ: round(v.sumAbsZ / v.samples),
+      avgDistToGoal: round(v.sumDistToGoal / v.samples),
+    }
+  }
+  return result
+}
+
+function summaryCarrierTrajectories(events) {
+  // Group CARRIER_TRACE by carrier name + possession "segment".
+  // A new segment starts when gap between consecutive samples > 2s OR carrier name changes.
+  // For each segment >= 4 samples, compute B-line ratio = (direct distance) / (path length).
+  // 1.0 = perfectly straight line. <0.7 = curved.
+  const traces = events.filter((event) => event.type === 'CARRIER_TRACE')
+  // Sort by half then t
+  traces.sort((a, b) => {
+    if (a.half !== b.half) return a.half - b.half
+    return (Number(a.t) || 0) - (Number(b.t) || 0)
+  })
+  const segments = []
+  let current = null
+  for (const event of traces) {
+    const carrier = event.detail?.carrier || 'Unknown'
+    const team = event.team
+    const elapsed = (event.half === 2 ? 150 : 0) + Number(event.t || 0)
+    const x = Number(event.detail?.x ?? 0)
+    const z = Number(event.detail?.z ?? 0)
+    if (!current || current.carrier !== carrier || (elapsed - current.lastElapsed) > 2) {
+      if (current && current.samples.length >= 4) segments.push(current)
+      current = {
+        carrier, team,
+        firstElapsed: elapsed,
+        lastElapsed: elapsed,
+        samples: [{ x, z, elapsed }],
+        pathLength: 0,
+      }
+    } else {
+      const prev = current.samples[current.samples.length - 1]
+      const dx = x - prev.x
+      const dz = z - prev.z
+      current.pathLength += Math.hypot(dx, dz)
+      current.samples.push({ x, z, elapsed })
+      current.lastElapsed = elapsed
+    }
+  }
+  if (current && current.samples.length >= 4) segments.push(current)
+
+  const byLineRunSegments = []
+  let totalSegments = 0
+  let totalBLine = 0
+  let curlingSegments = 0
+  let straightRunsOver15Units = 0
+  for (const seg of segments) {
+    totalSegments++
+    const first = seg.samples[0]
+    const last = seg.samples[seg.samples.length - 1]
+    const directDist = Math.hypot(last.x - first.x, last.z - first.z)
+    const bLineRatio = seg.pathLength > 0.001 ? directDist / seg.pathLength : 0
+    if (bLineRatio > 0.85 && directDist > 15) {
+      straightRunsOver15Units++
+      byLineRunSegments.push({
+        carrier: seg.carrier,
+        team: seg.team,
+        duration: +(seg.lastElapsed - seg.firstElapsed).toFixed(2),
+        directDist: +directDist.toFixed(1),
+        pathLength: +seg.pathLength.toFixed(1),
+        bLineRatio: +bLineRatio.toFixed(2),
+      })
+    }
+    if (directDist > 5) {
+      totalBLine += bLineRatio
+    }
+    if (bLineRatio < 0.7 && directDist > 5) curlingSegments++
+  }
+  const avgBLineRatio = totalSegments > 0 ? round(totalBLine / totalSegments) : 0
+
+  // Zigzag: count lateral sign flips per carrier segment (reusing existing carrier movement logic but per-segment).
+  let totalFlips = 0
+  let totalFlippyCarriers = 0
+  for (const seg of segments) {
+    let lastLateralSign = 0
+    let flips = 0
+    for (let i = 1; i < seg.samples.length; i++) {
+      const dz = seg.samples[i].z - seg.samples[i - 1].z
+      const currentSign = dz > 0.1 ? 1 : dz < -0.1 ? -1 : 0
+      if (currentSign !== 0 && lastLateralSign !== 0 && currentSign !== lastLateralSign) {
+        flips++
+      }
+      if (currentSign !== 0) lastLateralSign = currentSign
+    }
+    totalFlips += flips
+    if (flips >= 4) totalFlippyCarriers++
+  }
+
+  return {
+    totalSegments,
+    avgBLineRatio,
+    straightRunsOver15Units,
+    byLineRunSegments: byLineRunSegments.sort((a, b) => b.directDist - a.directDist).slice(0, 8),
+    curlingSegments,
+    totalFlips,
+    totalFlippyCarriers,
+  }
+}
+
 function summarizeRolePositions(events) {
   const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
   const byTeamRole = new Map()
@@ -1175,6 +1303,17 @@ function printSummary(report) {
   if (shotCorr) console.log(`Shots during pattern | ${shotCorr}`)
   const goalCorr = Object.entries(pat.goalsByActivePattern).filter(([k]) => k !== '__seen').map(([t, c]) => `${t}:${c}`).join(' | ')
   if (goalCorr) console.log(`Goals during pattern | ${goalCorr}`)
+  const align = report.patternRoleAlignment
+  const alignStr = Object.entries(align).map(([r, v]) => `${r}: fwdX=${v.avgForwardX} |z|=${v.avgAbsZ} dist=${v.avgDistToGoal} (${v.samples})`).join(' | ')
+  if (alignStr) console.log(`Pattern role alignment | ${alignStr}`)
+  const traj = report.carrierTrajectories
+  console.log(`Carrier trajectories | segments=${traj.totalSegments} avgBLineRatio=${traj.avgBLineRatio} strightRuns>15u=${traj.straightRunsOver15Units} flippyCarriers=${traj.totalFlippyCarriers} totalFlips=${traj.totalFlips}`)
+  if (traj.byLineRunSegments.length > 0) {
+    console.log('Top B-line runs:')
+    for (const run of traj.byLineRunSegments.slice(0, 5)) {
+      console.log(`  ${run.team} ${run.carrier}: ${run.directDist}u in ${run.duration}s (ratio ${run.bLineRatio}, path ${run.pathLength}u)`)
+    }
+  }
   if (report.recommendations.length > 0) {
     console.log('Top recommendations:')
     for (const recommendation of report.recommendations) {
@@ -1251,6 +1390,8 @@ function main() {
     passByZone: summarizePassByZone(passDecisions),
     rolePositions: summarizeRolePositions(events),
     patterns: summarizePatterns(events),
+    patternRoleAlignment: summaryPatternRoleAlignment(events),
+    carrierTrajectories: summaryCarrierTrajectories(events),
   }
 
   report.recommendations = buildRecommendations(report)

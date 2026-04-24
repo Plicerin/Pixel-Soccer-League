@@ -11569,10 +11569,16 @@ export function initGame(container: HTMLElement) {
     const carryForceSnapshot = carrierAny._simpleCarryForceSnapshot || null;
     const steerForceSnapshot = carrierAny._simpleSteerForceSnapshot || null;
 
+    // Phase 2.5: include active pattern context so analyzer can verify role→position alignment
+    const carrierTeamPattern = team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+    const carrierPatternType = carrierTeamPattern?.type || 'NONE';
+    const carrierPatternRole = carrierTeamPattern ? getTeamPatternRole(carrierTeamPattern, carrier) : 'NONE';
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'CARRIER_TRACE', team, getRoleKey(carrier), {
       branch,
       action,
       carrier: carrier.name || 'Unknown',
+      patternType: carrierPatternType,
+      patternRole: carrierPatternRole,
       x: +carrier.pos.x.toFixed(2),
       z: +carrier.pos.z.toFixed(2),
       velX: +(carrier.vel.x || 0).toFixed(2),
@@ -11637,12 +11643,18 @@ export function initGame(container: HTMLElement) {
     const facingHeading = facingDir
       ? Math.atan2(facingDir.z, facingDir.x)
       : movementHeading;
+    // Phase 2.5: include active pattern context so analyzer can verify role→position alignment
+    const azTeamPattern = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+    const azPatternType = azTeamPattern?.type || 'NONE';
+    const azPatternRole = azTeamPattern ? getTeamPatternRole(azTeamPattern, player) : 'NONE';
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'ATTACKER_ZONE_TRACE', player.team, roleLabel, {
       branch,
       playerName: player.name || 'Unknown',
       hasBall: carrier === player,
       carrierName: carrier?.name || null,
       carrierRole: carrier ? (carrier.displayRole || carrier.role || '').toString().toUpperCase() : null,
+      patternType: azPatternType,
+      patternRole: azPatternRole,
       x: +player.pos.x.toFixed(2),
       z: +player.pos.z.toFixed(2),
       distToGoal: +zone.distToGoal.toFixed(2),
