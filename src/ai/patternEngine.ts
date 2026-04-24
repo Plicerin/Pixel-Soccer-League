@@ -347,26 +347,32 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
   switch (role) {
     case 'NEAR_POST_RUNNER': {
       // Near post = goalpost on same side as where ball is coming from (carrier side).
+      // Only fire when carrier has meaningfully advanced (past midfield) — otherwise
+      // striker shouldn't be sprinting at empty posts during buildup.
+      const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
+      if (carrierAttackX < 0) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const nearSide = Math.sign(carrierZ) || 1;
       const nearPostZ = nearSide * goalMouthHalfWidth * 0.5;
-      const nearPostX = goalX - attackSign * 4; // 4 units off goal line
-      return { x: nearPostX, z: nearPostZ, blend: 0.7 };
+      const nearPostX = goalX - attackSign * 4;
+      return { x: nearPostX, z: nearPostZ, blend: 0.9 };
     }
     case 'FAR_POST_RUNNER': {
-      // Far post = opposite goalpost.
+      const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
+      if (carrierAttackX < 0) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const farSide = -(Math.sign(carrierZ) || 1);
       const farPostZ = farSide * goalMouthHalfWidth * 0.9;
       const farPostX = goalX - attackSign * 3.5;
-      return { x: farPostX, z: farPostZ, blend: 0.65 };
+      return { x: farPostX, z: farPostZ, blend: 0.85 };
     }
     case 'CUTBACK_RECEIVER': {
-      // Penalty-spot area, slightly on carrier's side for cutback angle.
+      const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
+      if (carrierAttackX < 0) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const side = Math.sign(carrierZ) || 0;
-      const cutbackZ = side * goalMouthHalfWidth * 0.4; // slight offset toward carrier side
-      return { x: penaltySpotX, z: cutbackZ, blend: 0.65 };
+      const cutbackZ = side * goalMouthHalfWidth * 0.4;
+      return { x: penaltySpotX, z: cutbackZ, blend: 0.85 };
     }
     case 'OUTLET': {
       // Short safe option near keeper/carrier during buildup. Stay spread wide.

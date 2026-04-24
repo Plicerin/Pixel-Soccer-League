@@ -1,0 +1,54 @@
+{
+  "date": "2026-04-24",
+  "match": "Philadelphia Union 1-2 Orlando City",
+  "session": "pending-id",
+  "status": "PHASE 2.5 PART 2 — DATA REVEALS patterns NOT affecting positions",
+  "codeState": "4249a74 (per-player pattern role tagging + trajectory analyzer)",
+  "baselines": {
+    "goals": 3,
+    "drift": 0.22
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST_RUNNER": {
+      "expected_fwdX": 27,
+      "actual_fwdX": -4.21,
+      "status": "FAIL"
+    },
+    "FAR_POST_RUNNER": {
+      "expected_fwdX": 28,
+      "actual_fwdX": -3.12,
+      "status": "FAIL"
+    },
+    "RUNNER": {
+      "expected_fwdX": "carrier+18",
+      "actual_fwdX": 1.34,
+      "status": "FAIL"
+    },
+    "SUPPORT": {
+      "actual_fwdX": -2.61
+    },
+    "CARRIER": {
+      "actual_fwdX": -2.22
+    }
+  },
+  "carrierTrajectories": {
+    "segments": 85,
+    "avgBLineRatio": 0.94,
+    "strightRunsOver15u": 35,
+    "totalFlips": 149,
+    "flippyCarriers": 14,
+    "topRuns": [
+      "Lukic A 41.2u/5.8s ratio 0.89",
+      "Uhre A 30.7u/3.6s ratio 0.96",
+      "Atuesta B 30.1u/4.3s ratio 0.95",
+      "McGuire B 29.5u/3.25s ratio 0.99",
+      "McGuire B 29.4u/3.6s ratio 0.99"
+    ]
+  },
+  "diagnosis": "Pattern override runs FIRST in pipeline, gets overridden by THREAT + ST enforcement + lane run target. B-line confirmed quantitatively (94% straightness). Carrier model does not consult patterns.",
+  "fixesProposed": [
+    "Move pattern role override to END of positioning pipeline",
+    "Raise blend for specific targets (NEAR_POST, FAR_POST) to 0.85-0.90",
+    "Add pattern CARRIER decision modulation — Part 3 (prefer CROSS at byline in WING_ATTACK)"
+  ]
+}
