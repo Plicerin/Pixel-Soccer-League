@@ -334,6 +334,18 @@ function tuningRelayPlugin(): Plugin {
         if (req.method !== 'POST') { res.writeHead(405).end(); return; }
         try {
           const body = JSON.parse(await readBody(req));
+          // Belt-and-suspenders ghost-match reject: the bundle itself carries
+          // sessionActive=false when it came from a splash-scene demo (see
+          // gameEngine.ts getMatchSnapshot). Stale browser tabs running
+          // pre-fix code still POST these — reject at the server so they
+          // never reach the DB.
+          let bundle: any = null;
+          try { bundle = body.bundle_json ? JSON.parse(body.bundle_json) : null; } catch {}
+          if (bundle && bundle.sessionActive === false) {
+            console.warn('[psl-db] rejected ghost match:', body.team_a_name, 'vs', body.team_b_name, 'session', body.session_id);
+            res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":false,"reason":"ghost_match_rejected"}');
+            return;
+          }
           const mod = await getDbModule();
           mod.insertMatchResult(body);
           res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
