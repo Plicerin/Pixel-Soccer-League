@@ -524,6 +524,116 @@ function summarizePassByZone(passDecisions) {
   return { evaluated, executed }
 }
 
+// ── Phase 2.5 pattern engine telemetry ────────────────────────────────
+
+function summarizePatterns(events) {
+  const starts = events.filter((event) => event.type === 'PATTERN_START')
+  const ends = events.filter((event) => event.type === 'PATTERN_END')
+  const shots = events.filter((event) => event.type === 'SHOT')
+  const goals = events.filter((event) => event.type === 'GOAL')
+
+  const byTypePerTeam = { A: {}, B: {} }
+  const durationsByType = {}
+  const endReasonCounts = {}
+  const patternIntervals = { A: [], B: [] }
+
+  for (const start of starts) {
+    const team = start.team
+    const detail = start.detail || {}
+    const type = detail.type || 'UNKNOWN'
+    if (!byTypePerTeam[team]) continue
+    byTypePerTeam[team][type] = (byTypePerTeam[team][type] || 0) + 1
+  }
+  for (const endEvt of ends) {
+    const detail = endEvt.detail || {}
+    const type = detail.type || 'UNKNOWN'
+    const duration = Number(detail.duration ?? 0)
+    const reason = detail.reason || 'unknown'
+    if (!durationsByType[type]) durationsByType[type] = []
+    durationsByType[type].push(duration)
+    endReasonCounts[reason] = (endReasonCounts[reason] || 0) + 1
+  }
+
+  // Build pattern timeline per team: each interval { type, team, startElapsed, endElapsed }
+  const startsByTeam = { A: [], B: [] }
+  const endsByTeam = { A: [], B: [] }
+  for (const evt of starts) if (startsByTeam[evt.team]) startsByTeam[evt.team].push(evt)
+  for (const evt of ends) if (endsByTeam[evt.team]) endsByTeam[evt.team].push(evt)
+  for (const team of ['A', 'B']) {
+    const ss = startsByTeam[team]
+    const es = endsByTeam[team]
+    for (let i = 0; i < ss.length; i++) {
+      const s = ss[i]
+      const sElapsed = (s.half === 2 ? 150 : 0) + Number(s.t ?? 0)
+      // Match: first end AFTER this start that hasn't been used.
+      let eElapsed = null
+      for (let j = 0; j < es.length; j++) {
+        if (es[j]._used) continue
+        const eSide = es[j]
+        const sidesMatch = true
+        const eTime = (eSide.half === 2 ? 150 : 0) + Number(eSide.t ?? 0)
+        if (sidesMatch && eTime >= sElapsed) {
+          eElapsed = eTime
+          es[j]._used = true
+          break
+        }
+      }
+      patternIntervals[team].push({
+        type: s.detail?.type || 'UNKNOWN',
+        startElapsed: sElapsed,
+        endElapsed: eElapsed,
+        initiator: s.detail?.initiator || null,
+      })
+    }
+  }
+
+  // Shot → active pattern correlation
+  const shotsByActivePattern = {}
+  const goalsByActivePattern = {}
+  for (const shot of shots) {
+    const team = shot.team
+    const elapsed = (shot.half === 2 ? 150 : 0) + Number(shot.t ?? 0)
+    if (!patternIntervals[team]) continue
+    const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))
+    const key = active ? active.type : 'NONE'
+    shotsByActivePattern[key] = (shotsByActivePattern[key] || 0) + 1
+    if (shot.detail?.goal) goalsByActivePattern[key] = (goalsByActivePattern[key] || 0) + 1
+  }
+  for (const goal of goals) {
+    const team = goal.team
+    if (!team || goalsByActivePattern['__seen']) continue
+    const elapsed = (goal.half === 2 ? 150 : 0) + Number(goal.t ?? 0)
+    if (!patternIntervals[team]) continue
+    const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))
+    const key = active ? active.type : 'NONE'
+    goalsByActivePattern[key] = (goalsByActivePattern[key] || 0) + 1
+  }
+
+  const avgDurationByType = {}
+  for (const [type, arr] of Object.entries(durationsByType)) {
+    if (!arr.length) continue
+    avgDurationByType[type] = round(arr.reduce((a, b) => a + b, 0) / arr.length)
+  }
+
+  const totalStarts = starts.length
+  const distinctTypesA = Object.keys(byTypePerTeam.A).length
+  const distinctTypesB = Object.keys(byTypePerTeam.B).length
+
+  return {
+    totalStarts,
+    totalEnds: ends.length,
+    typesPerTeam: byTypePerTeam,
+    distinctTypesA,
+    distinctTypesB,
+    avgDurationByType,
+    endReasonCounts,
+    shotsByActivePattern,
+    goalsByActivePattern,
+    patternsPerTeamA: Object.values(byTypePerTeam.A).reduce((a, b) => a + b, 0),
+    patternsPerTeamB: Object.values(byTypePerTeam.B).reduce((a, b) => a + b, 0),
+  }
+}
+
 function summarizeRolePositions(events) {
   const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
   const byTeamRole = new Map()
@@ -956,6 +1066,16 @@ function buildMarkdownReport(report) {
     `- Evaluated: ${Object.entries(report.passByZone.evaluated).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     `- Executed (shouldPass): ${Object.entries(report.passByZone.executed).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
     ``,
+    `## Pattern Engine (Phase 2.5)`,
+    `- Total pattern starts: ${report.patterns.totalStarts} (A ${report.patterns.patternsPerTeamA}, B ${report.patterns.patternsPerTeamB})`,
+    `- Distinct types per team: A ${report.patterns.distinctTypesA}, B ${report.patterns.distinctTypesB}`,
+    `- Types A: ${Object.entries(report.patterns.typesPerTeam.A || {}).map(([t, c]) => `${t}:${c}`).join(', ') || '(none)'}`,
+    `- Types B: ${Object.entries(report.patterns.typesPerTeam.B || {}).map(([t, c]) => `${t}:${c}`).join(', ') || '(none)'}`,
+    `- Avg duration by type: ${Object.entries(report.patterns.avgDurationByType).map(([t, d]) => `${t} ${d}s`).join(', ') || '(none)'}`,
+    `- End reasons: ${Object.entries(report.patterns.endReasonCounts).map(([r, c]) => `${r} ${c}`).join(', ') || '(none)'}`,
+    `- Shots by active pattern: ${Object.entries(report.patterns.shotsByActivePattern).map(([t, c]) => `${t} ${c}`).join(', ') || '(none)'}`,
+    `- Goals by active pattern: ${Object.entries(report.patterns.goalsByActivePattern).filter(([k]) => k !== '__seen').map(([t, c]) => `${t} ${c}`).join(', ') || '(none)'}`,
+    ``,
     `## Role Positions (team-in-possession frames)`,
     `- ${teamA}:`,
     ...report.rolePositions.A.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples); opp-half fwdX ${entry.avgForwardXInOppHalf ?? 'n/a'} (${entry.oppHalfSamples}); final-third |z| ${entry.avgAbsZInFinalThird ?? 'n/a'} (${entry.finalThirdSamples})`),
@@ -1043,6 +1163,19 @@ function printSummary(report) {
   const gB = gateFmt(rpB)
   if (gA) console.log(`Phase 1 gates A | ${gA}`)
   if (gB) console.log(`Phase 1 gates B | ${gB}`)
+  const pat = report.patterns
+  const typesA = Object.entries(pat.typesPerTeam.A || {}).map(([t, c]) => `${t}:${c}`).join(',')
+  const typesB = Object.entries(pat.typesPerTeam.B || {}).map(([t, c]) => `${t}:${c}`).join(',')
+  console.log(`Patterns A (${pat.patternsPerTeamA}, distinct ${pat.distinctTypesA}) | ${typesA || '(none)'}`)
+  console.log(`Patterns B (${pat.patternsPerTeamB}, distinct ${pat.distinctTypesB}) | ${typesB || '(none)'}`)
+  const durs = Object.entries(pat.avgDurationByType).map(([t, d]) => `${t}:${d}s`).join(' | ')
+  if (durs) console.log(`Avg duration | ${durs}`)
+  const reasons = Object.entries(pat.endReasonCounts).map(([r, c]) => `${r}:${c}`).join(' | ')
+  if (reasons) console.log(`End reasons | ${reasons}`)
+  const shotCorr = Object.entries(pat.shotsByActivePattern).map(([t, c]) => `${t}:${c}`).join(' | ')
+  if (shotCorr) console.log(`Shots during pattern | ${shotCorr}`)
+  const goalCorr = Object.entries(pat.goalsByActivePattern).filter(([k]) => k !== '__seen').map(([t, c]) => `${t}:${c}`).join(' | ')
+  if (goalCorr) console.log(`Goals during pattern | ${goalCorr}`)
   if (report.recommendations.length > 0) {
     console.log('Top recommendations:')
     for (const recommendation of report.recommendations) {
@@ -1118,6 +1251,7 @@ function main() {
     phaseTime: summarizePhaseTime(events),
     passByZone: summarizePassByZone(passDecisions),
     rolePositions: summarizeRolePositions(events),
+    patterns: summarizePatterns(events),
   }
 
   report.recommendations = buildRecommendations(report)
