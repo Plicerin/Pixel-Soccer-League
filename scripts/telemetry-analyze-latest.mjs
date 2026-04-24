@@ -761,6 +761,38 @@ function summaryCarrierTrajectories(events) {
   }
 }
 
+// User-requested metric: how many 1-second windows have 3+ distinct attackers
+// from the same team in opposition final third. Measures attacking commitment
+// (overloads in the final third) vs sterile solo attacks.
+function summarizeFinalThirdOverloads(events) {
+  const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
+  // Bin per team per 1-second window. Key: `${team}:${secondBucket}` → Set of player names.
+  const buckets = new Map()
+  for (const evt of traces) {
+    const team = evt.team
+    if (team !== 'A' && team !== 'B') continue
+    const distToGoal = Number(evt.detail?.distToGoal ?? 99)
+    if (distToGoal > 22) continue
+    const playerName = evt.detail?.playerName || evt.role || 'unknown'
+    const elapsed = (evt.half === 2 ? 150 : 0) + Number(evt.t || 0)
+    const bucket = Math.floor(elapsed)
+    const key = `${team}:${bucket}`
+    let set = buckets.get(key)
+    if (!set) { set = new Set(); buckets.set(key, set) }
+    set.add(playerName)
+  }
+  const statsA = { totalBuckets: 0, bucketsWithOverload: 0, maxAttackersInBucket: 0 }
+  const statsB = { totalBuckets: 0, bucketsWithOverload: 0, maxAttackersInBucket: 0 }
+  for (const [key, set] of buckets.entries()) {
+    const team = key.split(':')[0]
+    const stats = team === 'A' ? statsA : statsB
+    stats.totalBuckets++
+    if (set.size > stats.maxAttackersInBucket) stats.maxAttackersInBucket = set.size
+    if (set.size >= 3) stats.bucketsWithOverload++
+  }
+  return { A: statsA, B: statsB }
+}
+
 // User-requested metric: how many sequences have 2+ distinct players touching the
 // ball in the opponent's half. Measures genuine multi-player build-up in attacking
 // territory, not solo-carry-and-shoot.
@@ -1398,6 +1430,10 @@ function buildMarkdownReport(report) {
         })
       : ['(no pattern tempo data)']),
     ``,
+    `## Final-Third Overloads (attacking commitment)`,
+    `- ${teamA}: ${report.finalThirdOverloads.A.bucketsWithOverload}/${report.finalThirdOverloads.A.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.A.maxAttackersInBucket})`,
+    `- ${teamB}: ${report.finalThirdOverloads.B.bucketsWithOverload}/${report.finalThirdOverloads.B.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.B.maxAttackersInBucket})`,
+    ``,
     `## Multi-Touch Opp-Half Sequences (build-up quality)`,
     `- Sequences with 2+ distinct players touching ball in opp half: ${report.multiTouchOppHalf.multiTouchOppHalfCount} of ${report.multiTouchOppHalf.totalSequences}`,
     `- Opp-half touches total: ${report.multiTouchOppHalf.totalOppHalfTouches}`,
@@ -1530,6 +1566,8 @@ function printSummary(report) {
   }
   const mt = report.multiTouchOppHalf
   console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
+  const ft = report.finalThirdOverloads
+  console.log(`Final-third overloads (>=3 attackers, 1s windows) | A: ${ft.A.bucketsWithOverload}/${ft.A.totalBuckets} (max ${ft.A.maxAttackersInBucket}) | B: ${ft.B.bucketsWithOverload}/${ft.B.totalBuckets} (max ${ft.B.maxAttackersInBucket})`)
   if (report.patternTempo) {
     console.log('Pattern tempo (realism fit):')
     for (const [type, v] of Object.entries(report.patternTempo)) {
@@ -1631,6 +1669,7 @@ function main() {
     patternRoleAlignment: summaryPatternRoleAlignment(events),
     carrierTrajectories: summaryCarrierTrajectories(events),
     multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
+    finalThirdOverloads: summarizeFinalThirdOverloads(events),
     patternTempo: summarizePatternTempo(events),
     patternCrosses: (() => {
       const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
