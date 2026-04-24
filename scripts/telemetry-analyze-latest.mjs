@@ -472,6 +472,94 @@ function summarizeShotDecisions(shotDecisions) {
   }
 }
 
+// ── Phase 0 instrumentation: phase time %, pass-by-zone, role positions ───────────────
+
+function phaseFromCarrierDetail(detail) {
+  if (!detail) return 'UNKNOWN'
+  const insidePenaltyArea = !!detail.insidePenaltyArea
+  const byline = !!detail.byline
+  const distToGoal = Number(detail.distToGoal ?? NaN)
+  if (insidePenaltyArea || byline) return 'FINISH'
+  if (!Number.isFinite(distToGoal)) return 'UNKNOWN'
+  if (distToGoal <= 22) return 'CHANCE_CREATION'
+  if (distToGoal <= 44) return 'PROGRESSION'
+  return 'BUILDUP'
+}
+
+function summarizePhaseTime(events) {
+  const carrierTraces = events.filter((event) => event.type === 'CARRIER_TRACE')
+  const byTeam = {
+    A: { BUILDUP: 0, PROGRESSION: 0, CHANCE_CREATION: 0, FINISH: 0, UNKNOWN: 0, total: 0 },
+    B: { BUILDUP: 0, PROGRESSION: 0, CHANCE_CREATION: 0, FINISH: 0, UNKNOWN: 0, total: 0 },
+  }
+  for (const event of carrierTraces) {
+    const team = event.team
+    if (!byTeam[team]) continue
+    const phase = phaseFromCarrierDetail(event.detail || {})
+    byTeam[team][phase] = (byTeam[team][phase] || 0) + 1
+    byTeam[team].total++
+  }
+  const result = {}
+  for (const team of ['A', 'B']) {
+    const b = byTeam[team]
+    result[team] = {
+      samples: b.total,
+      buildupPct: pct(b.BUILDUP, b.total),
+      progressionPct: pct(b.PROGRESSION, b.total),
+      chanceCreationPct: pct(b.CHANCE_CREATION, b.total),
+      finishPct: pct(b.FINISH, b.total),
+    }
+  }
+  return result
+}
+
+function summarizePassByZone(passDecisions) {
+  const evaluated = {}
+  const executed = {}
+  for (const decision of passDecisions) {
+    const zone = decision.carrierZone || 'UNKNOWN'
+    evaluated[zone] = (evaluated[zone] || 0) + 1
+    if (decision.shouldPass) executed[zone] = (executed[zone] || 0) + 1
+  }
+  return { evaluated, executed }
+}
+
+function summarizeRolePositions(events) {
+  const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
+  const byTeamRole = new Map()
+  for (const event of traces) {
+    const team = event.team
+    const role = event.role
+    if (!team || !role) continue
+    const key = `${team}:${role}`
+    let entry = byTeamRole.get(key)
+    if (!entry) {
+      entry = { team, role, samples: 0, sumX: 0, sumAbsZ: 0, sumDistToGoal: 0 }
+      byTeamRole.set(key, entry)
+    }
+    const detail = event.detail || {}
+    entry.samples++
+    entry.sumX += Number(detail.x ?? 0)
+    entry.sumAbsZ += Math.abs(Number(detail.z ?? 0))
+    entry.sumDistToGoal += Number(detail.distToGoal ?? 0)
+  }
+  const result = { A: [], B: [] }
+  for (const entry of byTeamRole.values()) {
+    if (!entry.samples) continue
+    const summary = {
+      role: entry.role,
+      samples: entry.samples,
+      avgX: round(entry.sumX / entry.samples),
+      avgAbsZ: round(entry.sumAbsZ / entry.samples),
+      avgDistToGoal: round(entry.sumDistToGoal / entry.samples),
+    }
+    if (result[entry.team]) result[entry.team].push(summary)
+  }
+  result.A.sort((a, b) => a.role.localeCompare(b.role))
+  result.B.sort((a, b) => a.role.localeCompare(b.role))
+  return result
+}
+
 function summarizeShape(shapeSamples, teamName) {
   const samples = Array.isArray(shapeSamples) ? shapeSamples : []
   const centerLocked = samples.filter((sample) => Math.abs(Number(sample.avgZ ?? 0)) <= 3)
@@ -834,6 +922,20 @@ function buildMarkdownReport(report) {
     `- ${teamA} wide shots vs central shots: ${report.roleCentrality.A.wideShots} vs ${report.roleCentrality.A.centralShots}`,
     `- ${teamB} wide shots vs central shots: ${report.roleCentrality.B.wideShots} vs ${report.roleCentrality.B.centralShots}`,
     ``,
+    `## Phase Time Distribution`,
+    `- ${teamA}: buildup ${report.phaseTime.A.buildupPct}% | progression ${report.phaseTime.A.progressionPct}% | chance ${report.phaseTime.A.chanceCreationPct}% | finish ${report.phaseTime.A.finishPct}% (${report.phaseTime.A.samples} samples)`,
+    `- ${teamB}: buildup ${report.phaseTime.B.buildupPct}% | progression ${report.phaseTime.B.progressionPct}% | chance ${report.phaseTime.B.chanceCreationPct}% | finish ${report.phaseTime.B.finishPct}% (${report.phaseTime.B.samples} samples)`,
+    ``,
+    `## Pass Decisions By Zone`,
+    `- Evaluated: ${Object.entries(report.passByZone.evaluated).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
+    `- Executed (shouldPass): ${Object.entries(report.passByZone.executed).map(([z, c]) => `${z}:${c}`).join(' | ')}`,
+    ``,
+    `## Role Positions (team-in-possession frames)`,
+    `- ${teamA}:`,
+    ...report.rolePositions.A.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples)`),
+    `- ${teamB}:`,
+    ...report.rolePositions.B.map((entry) => `  - ${entry.role}: avgX ${entry.avgX}, avg|Z| ${entry.avgAbsZ}, avgDistToGoal ${entry.avgDistToGoal} (${entry.samples} samples)`),
+    ``,
     `## Event Stream Review`,
     `- Event-stream shots: ${report.eventStream.totalShots}`,
     `- Event-stream on-target shots: ${report.eventStream.onTargetShots}`,
@@ -892,6 +994,15 @@ function printSummary(report) {
   console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
   console.log(`Heat map | ${teamA} width ${report.shape.A.avgWidth}, center+narrow ${report.shape.A.centerAndNarrowPct}% | ${teamB} width ${report.shape.B.avgWidth}, center+narrow ${report.shape.B.centerAndNarrowPct}%`)
   console.log(`Event stream | long-range on-target ${report.eventStream.longRangeOnTargetCount} | bad-angle close shots ${report.eventStream.closeRangeBadAngleCount} | toe pokes on target ${report.eventStream.toePokesOnTargetCount}`)
+  const ptA = report.phaseTime.A
+  const ptB = report.phaseTime.B
+  console.log(`Phase time A | buildup ${ptA.buildupPct}% | progression ${ptA.progressionPct}% | chance ${ptA.chanceCreationPct}% | finish ${ptA.finishPct}%`)
+  console.log(`Phase time B | buildup ${ptB.buildupPct}% | progression ${ptB.progressionPct}% | chance ${ptB.chanceCreationPct}% | finish ${ptB.finishPct}%`)
+  const rpA = report.rolePositions.A.filter((entry) => ['ST', 'CF', 'LM', 'RM', 'CB', 'CM'].includes(entry.role))
+  const rpB = report.rolePositions.B.filter((entry) => ['ST', 'CF', 'LM', 'RM', 'CB', 'CM'].includes(entry.role))
+  const roleFmt = (rp) => rp.map((entry) => `${entry.role} x=${entry.avgX} |z|=${entry.avgAbsZ}`).join(' | ')
+  if (rpA.length) console.log(`Role positions A | ${roleFmt(rpA)}`)
+  if (rpB.length) console.log(`Role positions B | ${roleFmt(rpB)}`)
   if (report.recommendations.length > 0) {
     console.log('Top recommendations:')
     for (const recommendation of report.recommendations) {
@@ -964,6 +1075,9 @@ function main() {
     },
     eventStream: summarizeEventStream(events, passLog),
     baselines: compareToBaselines(bundle, row.team_a_name, row.team_b_name),
+    phaseTime: summarizePhaseTime(events),
+    passByZone: summarizePassByZone(passDecisions),
+    rolePositions: summarizeRolePositions(events),
   }
 
   report.recommendations = buildRecommendations(report)

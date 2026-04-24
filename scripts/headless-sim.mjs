@@ -54,7 +54,7 @@ Options:
   --report-json <p>  Write a JSON run report to the given path
   --url <url>        Existing dev server URL (default: ${DEFAULT_URL})
   --speed <n>        Match clock multiplier (default: 1 tuning, 32 smoke)
-  --half-seconds <n> Half duration in simulation seconds (default: 300)
+  --half-seconds <n> Half duration in simulation seconds (default: 150)
   --allow-unsafe-speed  Allow speed > 40 (not recommended for telemetry tuning)
   --timeout-ms <ms>  Total timeout for the run
   --verbose          Print browser/server diagnostics
@@ -77,7 +77,7 @@ function parseArgs(argv) {
     games: 10,
     url: DEFAULT_URL,
     speed: 1,
-    halfSeconds: 300,
+    halfSeconds: 150,
     speedExplicit: false,
     maxSafeSpeed: 40,
     timeoutMs: null,

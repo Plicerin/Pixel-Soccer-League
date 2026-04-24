@@ -1441,10 +1441,16 @@ export function initGame(container: HTMLElement) {
     // Start goal celebration
     const scoringTeam = delayedRestartState.goalAwardTeam;
     if (scoringTeam) {
-      // Identify scorer: last player who held/shot the ball
-      const scorer = ballState.lastHeldBy
-        || players.find(p => p.team === scoringTeam && !isGoalkeeper(p))
-        || null;
+      // Identify scorer: check ordered candidates (shot context, then last holder), scoped to scoring team.
+      // Do NOT fall back to players.find() — that returns the first CB and credits every goal to shirt #2.
+      const candidateScorers = [
+        delayedRestartState.shotShooter,
+        pendingShotSnapshotShooter.player,
+        ballState.lastHeldBy,
+      ];
+      const scorer = candidateScorers.find(
+        (cand: any) => cand && cand.team === scoringTeam && !isGoalkeeper(cand),
+      ) || null;
       goalCelebration.active = true;
       goalCelebration.scorer = scorer;
       goalCelebration.scoringTeam = scoringTeam;
@@ -3945,7 +3951,7 @@ export function initGame(container: HTMLElement) {
   updateScoreboardTheme();
 
   const REGULAR_HALF_DURATION_SECONDS = 45 * 60;
-  const TESTING_HALF_DURATION_SECONDS = 5 * 60;
+  const TESTING_HALF_DURATION_SECONDS = 2.5 * 60;
   const REGULAR_STOPPAGE_SECONDS = 60;
   const HALFTIME_BREAK_SECONDS = 6;
   let testingClockMode = false;
@@ -12369,13 +12375,24 @@ export function initGame(container: HTMLElement) {
       && distToGoal > 6.8
       && (Math.abs(cpuCarrier.pos.z) > goalMouthWidth * 0.95 || !insidePenaltyArea)
       && !veryStrongMidfieldSupport;
+    const passTargetWideSep = passTarget ? Math.abs(passTarget.pos.z - cpuCarrier.pos.z) : 0;
+    const passTargetIsLateral = passTargetWideSep >= 5.5 && passForwardProg > -2.0;
+    const passTargetIsCutback =
+      !!passTarget
+      && ['CM', 'CAM', 'DM'].includes(passTargetRoleLabel)
+      && passForwardProg > -8.0
+      && passForwardProg < 0.25;
     const anyBoxBackpassVeto =
       !!passTarget
       && insidePenaltyArea
-      && passForwardProg < -0.2;
+      && passForwardProg < -0.2
+      && !passTargetIsLateral
+      && !passTargetIsCutback;
     const attackerBackpassVeto =
       !!passTarget
       && isAttackingCarrier
+      && !passTargetIsLateral
+      && !passTargetIsCutback
       && (
         (insidePenaltyArea && passForwardProg < 2.5 && closePressure < 5)
         || (!insidePenaltyArea && inFinalThird && passForwardProg < 1.8 && closePressure < 4)
@@ -12384,6 +12401,8 @@ export function initGame(container: HTMLElement) {
       !!passTarget
       && ['ST', 'CF'].includes(carrierRole)
       && inFinalThird
+      && !passTargetIsLateral
+      && !passTargetIsCutback
       && passForwardProg < 2.8
       && closePressure < 5;
     const attackerBackpassLoopVeto =
@@ -12535,7 +12554,6 @@ export function initGame(container: HTMLElement) {
       && simpleShotChance >= simplePassChance - 0.02;
     const forceShotRoleAllowed =
       !isDeepRole
-      || insidePenaltyArea
       || isPrimaryFinisher
       || faceToFaceWithKeeper
       || instantCloseKeeperShotForce;
@@ -12549,7 +12567,8 @@ export function initGame(container: HTMLElement) {
         && !hardBackpassVeto
         && passNearestOppDist > 2.6
         && passForwardProg > -0.5
-      );
+      )
+      || (passTargetIsCutback && !passDirectBlocker);
 
     const shouldForceRecycle =
       !!passTarget
@@ -12709,8 +12728,10 @@ export function initGame(container: HTMLElement) {
     } else {
       resetBoxDecisionLoopState();
     }
+    const validPassAvailable = !!passTarget && !passDirectBlocker && !hardBackpassVeto;
     const boxIndecisionShotForce =
-      (insidePenaltyArea || (boxCentralCarrier && distToGoal <= penaltyDepth + 2.2))
+      !validPassAvailable
+      && (insidePenaltyArea || (boxCentralCarrier && distToGoal <= penaltyDepth + 2.2))
       && boxDecisionLoopCount >= (instantCloseKeeperShotForce ? 1 : (faceToFaceWithKeeper ? 1 : (insidePenaltyArea ? 2 : 3)))
       && boxDecisionLoopSeconds >= (instantCloseKeeperShotForce ? 0.06 : (faceToFaceWithKeeper ? 0.12 : (insidePenaltyArea ? 0.34 : 0.52)))
       && (boxCentralCarrier || inShootingLane)
@@ -12905,7 +12926,7 @@ export function initGame(container: HTMLElement) {
       && closePressure <= 3;
 
     if ((gameState as any)[cooldownKey] <= 0) {
-      const resolveShotNow = forceShotNow || (missedShotWindowShotForce && simplePassChance < 0.45);
+      const resolveShotNow = forceShotNow || (!isDeepRole && missedShotWindowShotForce && simplePassChance < 0.15);
       if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
         gameState.pendingShotDecision = {
           timestamp: Date.now(),
@@ -13720,8 +13741,15 @@ export function initGame(container: HTMLElement) {
     // ── Role-specific dynamic enforcement ──
     // Wingers: stretch wide when in possession
     if (carrier && (roleLabel === 'LM' || roleLabel === 'RM')) {
-      const wideTarget = roleLabel === 'LM' ? -FIELD_D * 0.4 : FIELD_D * 0.4;
-      finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wideTarget, 0.24);
+      const wideTarget = roleLabel === 'LM' ? -FIELD_D * 0.44 : FIELD_D * 0.44;
+      finalTarget.z = THREE.MathUtils.lerp(finalTarget.z, wideTarget, 0.38);
+    }
+    // Strikers: stay ahead of ball carrier when team has possession
+    if (carrier && carrier !== player && roleLabel === 'ST') {
+      const carrierAttackX = carrier.pos.x * attackSign;
+      const leadOffset = carrierAttackX > 8 ? 12 : 8;
+      const forwardTarget = carrier.pos.x + attackSign * leadOffset;
+      finalTarget.x = THREE.MathUtils.lerp(finalTarget.x, forwardTarget, 0.55);
     }
     // DM: stay available as a safety valve, but allow support runs once the attack is established
     if (allowMidfielderAttackSupport && carrier && roleLabel === 'DM') {

@@ -59,8 +59,11 @@ export function computeIdealTacticalPosition(params: TacticalPositionParams) {
   let iz = homePos.z;
 
   // Ball support shift: everybody leans toward the active play while preserving shape.
+  // Wide roles hold their z-width and only shift in depth (x), not laterally.
   ix += (ballPos.x - ix) * 0.18;
-  iz += (ballPos.z - iz) * 0.18;
+  if (normalizedRole !== 'LW' && normalizedRole !== 'RW') {
+    iz += (ballPos.z - iz) * 0.18;
+  }
 
   // Teammate spacing: avoid bunching so passing triangles form naturally.
   for (const teammatePos of teammatePositions) {
@@ -97,10 +100,8 @@ export function computeIdealTacticalPosition(params: TacticalPositionParams) {
     ideal.z *= 1.1;
   }
 
-  if (normalizedRole === 'ST') {
-    // Temporary de-privileging test: striker tactical target should not outrun CM support by design.
-    ideal.x = THREE.MathUtils.lerp(ideal.x, homePos.x + attackSign * 1.4, 0.18);
-  }
+  // Striker de-privileging removed 2026-04-23 — caused strikers to trail carrier by 10-18 units,
+  // making forward passes impossible and forcing "race and shoot" pattern.
 
   if (normalizedRole === 'CM') {
     ideal.x = THREE.MathUtils.lerp(ideal.x, homePos.x + attackSign * 1.4, 0.18);
@@ -127,18 +128,19 @@ export function computeIdealTacticalPosition(params: TacticalPositionParams) {
     const isMidfielder = normalizedRole === 'CM' || normalizedRole === 'DM';
 
     if (isAttackingPlayer && distToBallCarrier < 25) {
-      // Forward run: aggressive push 6-8 units ahead of ball carrier
+      // Forward run: push ahead of ball carrier — striker leads, LW/RW follow, DM trails
       const forwardTarget = ballCarrierPos.x + attackSign * (
-        normalizedRole === 'ST' ? 6
+        normalizedRole === 'ST' ? 10
         : normalizedRole === 'DM' ? 4.5
-        : 6
+        : 7
       );
-      ideal.x = THREE.MathUtils.lerp(ideal.x, forwardTarget, 0.42);
+      const runBlend = normalizedRole === 'ST' ? 0.65 : 0.42;
+      ideal.x = THREE.MathUtils.lerp(ideal.x, forwardTarget, runBlend);
 
-      // Wide spacing for wingers: push to ±(10-12) units from center
+      // Wide spacing for wingers: push to ±(13-15) units from center
       if (normalizedRole === 'LW' || normalizedRole === 'RW') {
-        const wideTarget = normalizedRole === 'LW' ? -11 : 11;
-        ideal.z = THREE.MathUtils.lerp(ideal.z, wideTarget, 0.38);
+        const wideTarget = normalizedRole === 'LW' ? -14 : 14;
+        ideal.z = THREE.MathUtils.lerp(ideal.z, wideTarget, 0.55);
       }
       // Midfielders create depth stagger: spread at different X depths for passing options
       else if (isMidfielder) {

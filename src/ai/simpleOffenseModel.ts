@@ -182,14 +182,30 @@ export function chooseSimplePassTarget(
     if (dist < 2.0 || dist > 34) continue;
 
     const progress = (teammate.pos.x - carrier.pos.x) * attackSign;
+    const tmRoleEarly = getRoleLabel(teammate);
+    const isArrivingMid = ['CM', 'CAM', 'DM'].includes(tmRoleEarly);
     const isMeaningfulBackpass = progress < -2.0;
     const isLargeBackpass = progress < -5.0;
     if (progress < -10 && carrierPressure < 5) continue;
-    if (isAttackingCarrier && isLargeBackpass && carrierPressure < 4) continue;
-    if (inFinalThird && isAttackingCarrier && progress < 0.25 && carrierPressure < 3) continue;
-    if (nearBox && isAttackingCarrier && progress < 0.75 && carrierPressure < 4) continue;
-    if (inFinalThird && isAttackingCarrier && isMeaningfulBackpass && carrierPressure < 5) continue;
-    if (!isBuildoutCarrier && progress < -7 && carrierPressure < 5) continue;
+    // isLargeBackpass veto: exempt central midfielders up to -8 (cutback lay-off targets)
+    if (isAttackingCarrier && isLargeBackpass && carrierPressure < 4 && !(isArrivingMid && progress > -8.0)) continue;
+    if (inFinalThird && isAttackingCarrier && progress < 0.25 && carrierPressure < 3) {
+      const tmWideSep = Math.abs(teammate.pos.z - carrier.pos.z);
+      const isCutbackTarget = ['ST', 'CF', 'CAM', 'CM', 'DM'].includes(tmRoleEarly) && progress > -8.0;
+      const isLateralSwitch = tmWideSep >= 5.5 && progress > -2.0;
+      if (!isCutbackTarget && !isLateralSwitch) continue;
+    }
+    if (nearBox && isAttackingCarrier && progress < 0.75 && carrierPressure < 4) {
+      const tmWideSep = Math.abs(teammate.pos.z - carrier.pos.z);
+      const isCutbackTarget = isArrivingMid && progress > -8.0;
+      if (tmWideSep < 5.0 && !isCutbackTarget) continue;
+    }
+    if (inFinalThird && isAttackingCarrier && isMeaningfulBackpass && carrierPressure < 5) {
+      // Allow lay-offs to arriving midfielders up to -8 back (extended from -5)
+      if (!isArrivingMid || progress < -8.0) continue;
+    }
+    // Non-buildout deep retreat veto: exempt central midfielders up to -8
+    if (!isBuildoutCarrier && progress < -7 && carrierPressure < 5 && !(isArrivingMid && progress > -8.0)) continue;
 
     const laneProfile = getSimpleLaneBlockerProfile(carrier.pos, teammate.pos, opponents, dist > 16 ? 2.8 : 2.3);
     const laneTraffic = laneProfile.traffic;
@@ -263,7 +279,10 @@ export function chooseSimplePassTarget(
 
   if (bestTarget) return bestTarget;
 
-  if (!isBuildoutCarrier && carrierPressure < 4) return null;
+  // Only skip the fallback for pure finishers (ST/CF) under very low pressure —
+  // midfielders and wide roles should always get a pass option so passChance > 0.
+  const isPrimaryFinisher = ['ST', 'CF'].includes(carrierRole);
+  if (isPrimaryFinisher && carrierPressure < 2) return null;
 
   return teammates
     .filter((teammate) => teammate && teammate !== carrier && teammate.team === team && getRoleLabel(teammate) !== 'GK')

@@ -1,0 +1,22 @@
+{
+  "snapshotDate": "2026-04-23b",
+  "match": "Vancouver 4-3 Dallas + Inter Miami 0-1 LA Galaxy",
+  "codeStateBeforeFix": {
+    "passChanceZero": 66,
+    "forcedShots": 62,
+    "cbShots": "B=2,A=1 + A=4,B=1",
+    "actualPassesFwdRate": "85%-90%"
+  },
+  "fixesAppliedForNextMatch": [
+    "simpleOffenseModel: isLargeBackpass exempts CM/CAM/DM up to -8",
+    "simpleOffenseModel: non-buildout deep retreat veto exempts CM/CAM/DM up to -8",
+    "simpleOffenseModel: isMeaningfulBackpass layoff range -5 -> -8",
+    "gameEngine: anyBoxBackpassVeto exempts lateral + cutback",
+    "gameEngine: passTargetIsCutback range -3 -> -8",
+    "gameEngine: forceShotSupportAvailable includes cutback target",
+    "gameEngine: boxIndecisionShotForce suppressed when valid pass",
+    "gameEngine: resolveShotNow threshold 0.45 -> 0.15, deep roles excluded",
+    "gameEngine: forceShotRoleAllowed drops insidePenaltyArea for deep roles"
+  ],
+  "note": "Browser must fully reload to pick up TS changes"
+}

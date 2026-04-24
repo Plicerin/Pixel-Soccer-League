@@ -209,9 +209,9 @@ export function computeForceFieldNudge(params: ForceFieldParams): THREE.Vector3 
   // ── FORCE 7: Width anchor ────────────────────────────────────────────
   if (isWideRole(role)) {
     const flank = getFlankSign(homePos.z);
-    const targetZ = flank * fieldDepth * 0.42; // 42% of half-width toward sideline
-    const widthPull = (targetZ - playerPos.z) * 0.5;
-    fz += clamp(widthPull, -8, 8);
+    const targetZ = flank * fieldDepth * 0.47; // 47% of half-width toward sideline
+    const widthPull = (targetZ - playerPos.z) * 0.70;
+    fz += clamp(widthPull, -12, 12);
   }
 
   // Build result vector (y = 0, all movement on xz plane)

@@ -1,0 +1,118 @@
+{
+  "snapshotDate": "2026-04-23",
+  "match": "CF Montreal 2-6 Chicago Fire",
+  "session": "ft-1776977250797",
+  "codeState": {
+    "passModelFix": "applied-2026-04-23",
+    "shapeWidthFix": "applied-2026-04-23",
+    "gameDuration": "150s-per-half"
+  },
+  "baselines": {
+    "goals": {
+      "actual": 8,
+      "baseline": 2.78,
+      "drift": 5.22
+    },
+    "shots": {
+      "actual": 46,
+      "baseline": 26.2,
+      "drift": 19.8
+    },
+    "sot": {
+      "actual": 31,
+      "baseline": 9.4,
+      "drift": 21.6
+    },
+    "corners": {
+      "actual": 1,
+      "baseline": 8,
+      "drift": -7
+    }
+  },
+  "shotDecisions": {
+    "total": 46,
+    "forced": 39,
+    "passChanceZero": 44,
+    "broken": 3
+  },
+  "passDecisions": {
+    "total": 805,
+    "hasForwardOption": 76,
+    "blocker": 362,
+    "shouldPass": 71,
+    "backpassEvals": 716
+  },
+  "shape": {
+    "a": {
+      "avgWidth": 16.36,
+      "centerNarrowPct": 60.2
+    },
+    "b": {
+      "avgWidth": 16.68,
+      "centerNarrowPct": 57.6
+    }
+  },
+  "movement": {
+    "lateralFlips": 132,
+    "avgProgressPerFlip": 1.92,
+    "facingMismatch": 10.4
+  },
+  "roleStats": {
+    "A": {
+      "CB": {
+        "shots": 4,
+        "sot": 2
+      },
+      "RM": {
+        "shots": 7,
+        "sot": 4
+      },
+      "LM": {
+        "shots": 5,
+        "sot": 3
+      },
+      "ST": {
+        "shots": 9,
+        "sot": 7,
+        "touches": 6
+      },
+      "CM": {
+        "shots": 1,
+        "sot": 1
+      }
+    },
+    "B": {
+      "CB": {
+        "shots": 3,
+        "sot": 2
+      },
+      "RM": {
+        "shots": 4,
+        "sot": 2
+      },
+      "LM": {
+        "shots": 4,
+        "sot": 1
+      },
+      "ST": {
+        "shots": 8,
+        "sot": 8,
+        "touches": 8
+      },
+      "CM": {
+        "shots": 1,
+        "sot": 1
+      }
+    }
+  },
+  "actualPasses": 118,
+  "eventCounts": {
+    "MIDFIELD_SUPPORT": 6138,
+    "CARRIER_TRACE": 825,
+    "PASS": 118,
+    "SHOT": 46,
+    "GOAL": 8,
+    "FOUL": 7,
+    "CORNER_ESCAPE_WATCHDOG": 1
+  }
+}
