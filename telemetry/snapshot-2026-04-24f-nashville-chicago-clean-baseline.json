@@ -1,0 +1,80 @@
+{
+  "date": "2026-04-24",
+  "match": "Nashville SC 1-1 Chicago Fire",
+  "session": "ft-1777043679261",
+  "status": "PHASE 2.5 PART 1 VALIDATED — pattern engine clean baseline",
+  "codeState": "all fixes live: 8aee95f, ea16028, ef1eab0",
+  "baselines": {
+    "goals": {
+      "actual": 2,
+      "drift": -0.78
+    },
+    "shots": {
+      "actual": 43,
+      "drift": 16.8
+    },
+    "corners": 0
+  },
+  "patternEngine": {
+    "totalStarts": 164,
+    "totalEnds": 164,
+    "typesA": {
+      "COUNTER_ATTACK": 38,
+      "PATIENT_BUILDUP": 18,
+      "WING_ATTACK_LEFT": 15,
+      "WING_ATTACK_RIGHT": 16
+    },
+    "typesB": {
+      "COUNTER_ATTACK": 42,
+      "PATIENT_BUILDUP": 17,
+      "WING_ATTACK_LEFT": 7,
+      "WING_ATTACK_RIGHT": 11
+    },
+    "distinctA": 4,
+    "distinctB": 4,
+    "avgDuration": {
+      "WING_ATTACK_RIGHT": 3.23,
+      "COUNTER_ATTACK": 4.1,
+      "PATIENT_BUILDUP": 1.17,
+      "WING_ATTACK_LEFT": 4.13
+    },
+    "endReasons": {
+      "possession_lost": 79,
+      "invalidated": 85
+    },
+    "shotsByPattern": {
+      "NONE": 6,
+      "COUNTER_ATTACK": 17,
+      "WING_ATTACK_LEFT": 10,
+      "WING_ATTACK_RIGHT": 8,
+      "PATIENT_BUILDUP": 2
+    },
+    "goalsByPattern": {
+      "WING_ATTACK_RIGHT": 1,
+      "COUNTER_ATTACK": 1
+    }
+  },
+  "gkFix": {
+    "centerCircleKicks": 0,
+    "status": "LANDED"
+  },
+  "phase1Gates": {
+    "G1_1": "PASS",
+    "G1_2": "FAIL 10.8/10.1 vs 15",
+    "G1_3": "FAIL 5.5-6.6 vs 12",
+    "G1_4": "PASS",
+    "G1_5": "PASS 17% vs 15%"
+  },
+  "phase2_5Gates": {
+    "G2_5_1": "PASS",
+    "G2_5_2": "PASS (4/4 distinct)",
+    "G2_5_3": "PARTIAL (PATIENT 1.2s short, rest 3-4s)",
+    "G2_5_4": "PASS"
+  },
+  "toSTPct": 0.17,
+  "cbShotsA": 0,
+  "cbShotsB": 0,
+  "outsideBoxShots": 13,
+  "outsideBoxPct": 0.3,
+  "verdict": "Ready for Phase 2.5 Part 2 — wire patterns into positioning + carrier decisions"
+}
