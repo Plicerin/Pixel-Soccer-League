@@ -1,0 +1,74 @@
+{
+  "date": "2026-04-24",
+  "match": "Orlando City 7-3 Houston Dynamo",
+  "session": "ft-1777042140182",
+  "codeState": "8aee95f pattern engine fix ran; ea16028 GK fix NOT live (browser not reloaded)",
+  "baselines": {
+    "goals": {
+      "actual": 10,
+      "drift": 7.22,
+      "severeRegression": true
+    },
+    "shots": {
+      "actual": 45,
+      "drift": 18.8
+    },
+    "corners": 0
+  },
+  "patternEngine": {
+    "totalStarts": 674,
+    "totalEnds": 673,
+    "typesA": {
+      "PATIENT_BUILDUP": 115,
+      "WING_ATTACK_RIGHT": 57,
+      "COUNTER_ATTACK": 36,
+      "WING_ATTACK_LEFT": 60
+    },
+    "typesB": {
+      "COUNTER_ATTACK": 39,
+      "PATIENT_BUILDUP": 284,
+      "WING_ATTACK_RIGHT": 36,
+      "WING_ATTACK_LEFT": 47
+    },
+    "distinctA": 4,
+    "distinctB": 4,
+    "avgDuration": {
+      "PATIENT_BUILDUP": 0.11,
+      "WING_ATTACK_RIGHT": 0.99,
+      "COUNTER_ATTACK": 4.01,
+      "WING_ATTACK_LEFT": 1.05
+    },
+    "endReasons": {
+      "recovery_reselect": 505,
+      "invalidated": 90,
+      "possession_lost": 78
+    },
+    "shotsByPattern": {
+      "WING_ATTACK_LEFT": 11,
+      "WING_ATTACK_RIGHT": 4,
+      "NONE": 5,
+      "COUNTER_ATTACK": 23,
+      "PATIENT_BUILDUP": 2
+    },
+    "goalsByPattern": {
+      "WING_ATTACK_LEFT": 4,
+      "WING_ATTACK_RIGHT": 2,
+      "PATIENT_BUILDUP": 3,
+      "COUNTER_ATTACK": 1
+    }
+  },
+  "bugs": [
+    "flip-flop: recovery_reselect fires every frame for 0.3s after each recovery -> PATIENT_BUILDUP avg 0.11s (fix: remove justRecoveredPossession reselect trigger)",
+    "GK goal-kick fix ea16028 NOT live (PUNT to CENTER CIRCLE still firing)",
+    "10-goal spike vs baseline 2.78 unexplained — ST A scored 14 shots/12 SOT in 5 min match"
+  ],
+  "goalsByScorer": [
+    "A#4 Brekalo(CB)",
+    "A#9 Angulo",
+    "A#10 McGuire x3",
+    "B#10 Ponce x2",
+    "A#11",
+    "A#6",
+    "B#5"
+  ]
+}

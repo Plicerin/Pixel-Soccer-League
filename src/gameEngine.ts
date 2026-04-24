@@ -5835,10 +5835,10 @@ export function initGame(container: HTMLElement) {
     };
     const currentState = gameState[currentStateKey];
     const stillValid = currentState ? isTeamPatternStillValid(currentState, inputs) : false;
-    const shouldReselect =
-      !currentState
-      || !stillValid
-      || (justRecoveredPossession && currentState.type !== 'COUNTER_ATTACK' && secondsSinceRecovery < 0.3);
+    // Reselect only when no pattern active or current invalidated.
+    // Earlier versions also re-selected on every frame in first 0.3s of recovery,
+    // which caused 505 reselects per match and 0.11s pattern durations (flip-flop).
+    const shouldReselect = !currentState || !stillValid;
     if (shouldReselect) {
       if (currentState) {
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_END', team, 'TEAM', {
