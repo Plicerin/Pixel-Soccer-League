@@ -1028,6 +1028,8 @@ const RetroFootball: React.FC = () => {
         // Save to SQLite via server endpoint
         try {
           const a = bundle.teamA, b = bundle.teamB;
+          const matchId = snap2?.matchId || null;
+          if (matchId && !(bundle as any).matchId) (bundle as any).matchId = matchId;
           fetch('/__db/match-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1055,7 +1057,7 @@ const RetroFootball: React.FC = () => {
               bundle_json: JSON.stringify(bundle),
             }),
           }).then(r => {
-            if (r.ok) console.log('[PSL] Match saved to SQLite:', a?.name, a?.score, '-', b?.score, b?.name);
+            if (r.ok) console.log(`[PSL] Match saved ${matchId || '(no id)'}: ${a?.name} ${a?.score}-${b?.score} ${b?.name}`);
             else console.warn('[PSL] SQLite save failed:', r.status);
           }).catch(e => console.warn('[PSL] SQLite save error:', e));
         } catch (e) { console.warn('[PSL] SQLite save error:', e); }

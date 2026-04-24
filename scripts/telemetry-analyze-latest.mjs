@@ -1474,7 +1474,8 @@ function printSummary(report) {
   const teamB = report.match.teamB
   const global = report.baselines.global
 
-  console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB} | session ${report.match.sessionId}`)
+  const mid = report.match.matchId ? ` [${report.match.matchId}]` : ''
+  console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB}${mid} | session ${report.match.sessionId}`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
   console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
@@ -1579,6 +1580,7 @@ function main() {
     generatedAt: new Date().toISOString(),
     match: {
       sessionId: row.session_id,
+      matchId: bundle.matchId || null,
       timestamp: row.timestamp,
       teamA: row.team_a_name,
       teamB: row.team_b_name,

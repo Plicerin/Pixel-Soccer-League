@@ -2213,6 +2213,11 @@ export function initGame(container: HTMLElement) {
     const now = performance.now() / 1000;
     const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
 
+    // Generate short readable match ID (5 chars) for cross-referencing DB + logs + UI.
+    const newMatchId = 'M-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    (gameState as any).currentMatchId = newMatchId;
+    console.log(`[MATCH START] ${newMatchId} — ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName}`);
+
     // Reset match clock and stats for a fresh match
     matchClock.phase = 'FIRST_HALF';
     matchClock.half = 1;
@@ -17126,7 +17131,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
 
     if (gameState.status === 'PLAYING') {
       const finishFullTime = () => {
-        console.log(`[FULLTIME] Game ending. Elapsed in half: ${matchClock.elapsedInHalf.toFixed(2)}s, Half: ${matchClock.half}, Score: ${gameState.scoreA}-${gameState.scoreB}`);
+        const mid = (gameState as any).currentMatchId || 'M-?????';
+        console.log(`[FULLTIME] ${mid} — ${activeTeams.A.scoreName} ${gameState.scoreA}-${gameState.scoreB} ${activeTeams.B.scoreName} — elapsed ${matchClock.elapsedInHalf.toFixed(2)}s half ${matchClock.half}`);
         if (practiceModeEnabled) return; // Never end practice mode
         matchClock.elapsedInHalf = getHalfDurationSeconds() + getStoppageSeconds();
         matchClock.phase = 'FULL_TIME';
@@ -23077,6 +23083,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       const totalPoss = gameState.possessionFramesA + gameState.possessionFramesB;
       const possA = totalPoss > 0 ? Math.round((gameState.possessionFramesA / totalPoss) * 100) : 50;
       return {
+      matchId: (gameState as any).currentMatchId || null,
       breakawayGoalsA: goalLog.filter(g => g.team === 'A' && g.isBreakaway).length,
       breakawayGoalsB: goalLog.filter(g => g.team === 'B' && g.isBreakaway).length,
       timestamp: Date.now(),
