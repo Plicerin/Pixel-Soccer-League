@@ -1,0 +1,193 @@
+{
+  "date": "2026-04-24",
+  "match": "FC Cincinnati 2-4 LAFC",
+  "matchId": "M-CMOYS",
+  "session": "ft-1777068847306",
+  "codeState": "full post-reload: all Phase 2.5 + Phase 1 + Part 3 live",
+  "baselines": {
+    "goals": {
+      "actual": 6,
+      "drift": 3.22
+    },
+    "shots": {
+      "actual": 46,
+      "drift": 19.8,
+      "outsidePct": 0.74
+    },
+    "sot": {
+      "actual": 32,
+      "drift": 22.6
+    },
+    "corners": 3
+  },
+  "shotDecisions": {
+    "total": 46,
+    "forced": 42,
+    "pcZero": 45,
+    "pcPos": 1,
+    "outside": 34
+  },
+  "passDecisions": {
+    "total": 765,
+    "hasFwd": 91,
+    "shouldPass": 128
+  },
+  "actualPasses": {
+    "total": 171,
+    "fwd": 99,
+    "back": 62,
+    "toST": 65,
+    "toSTPct": 0.38
+  },
+  "cbShots": {
+    "A": 0,
+    "B": 1
+  },
+  "phaseTime": {
+    "A": {
+      "buildup": 10.5,
+      "progression": 51.9,
+      "chance": 37.2,
+      "finish": 0.4
+    },
+    "B": {
+      "buildup": 7.3,
+      "progression": 52.8,
+      "chance": 34.2,
+      "finish": 5.6
+    }
+  },
+  "rolePositionsPhaseFiltered": {
+    "A": {
+      "ST": 10.87,
+      "LMabsZ": 7.7,
+      "RMabsZ": 3.87
+    },
+    "B": {
+      "ST": 11.13,
+      "LMabsZ": 2.95,
+      "RMabsZ": 8.72
+    }
+  },
+  "patternEngine": {
+    "totalA": 70,
+    "totalB": 84,
+    "typesA": {
+      "WING_ATTACK_RIGHT": 15,
+      "COUNTER_ATTACK": 32,
+      "WING_ATTACK_LEFT": 11,
+      "PATIENT_BUILDUP": 12
+    },
+    "typesB": {
+      "COUNTER_ATTACK": 31,
+      "PATIENT_BUILDUP": 15,
+      "WING_ATTACK_RIGHT": 19,
+      "WING_ATTACK_LEFT": 19
+    },
+    "avgDuration": {
+      "WING_ATTACK_RIGHT": 4.73,
+      "COUNTER_ATTACK": 3.82,
+      "PATIENT_BUILDUP": 2.02,
+      "WING_ATTACK_LEFT": 3.6
+    },
+    "endReasons": {
+      "possession_lost": 79,
+      "invalidated": 74
+    }
+  },
+  "patternTempo": {
+    "WING_ATTACK_RIGHT": {
+      "touches": 1.59,
+      "pace": 1.79,
+      "fit": "TOO_FEW/TOO_SLOW"
+    },
+    "COUNTER_ATTACK": {
+      "touches": 1.54,
+      "pace": 2.22,
+      "fit": "TOO_FEW/TOO_SLOW",
+      "regression": "9.83 prior match"
+    },
+    "WING_ATTACK_LEFT": {
+      "touches": 1,
+      "pace": -2.22,
+      "fit": "TOO_FEW/neg"
+    },
+    "PATIENT_BUILDUP": {
+      "touches": 0.96,
+      "pace": 18.3,
+      "fit": "TOO_FEW/TOO_FAST"
+    }
+  },
+  "patternCrosses": {
+    "total": 0,
+    "status": "backward filter blocks all"
+  },
+  "patternGoals": {
+    "WING_ATTACK_RIGHT": 3,
+    "COUNTER_ATTACK": 1,
+    "NONE": 2
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": -0.15,
+    "FAR_POST": -0.95,
+    "CARRIER": -6.36,
+    "SUPPORT": 2.16
+  },
+  "carrierTrajectories": {
+    "avgBLineRatio": 0.95,
+    "straight15": 30,
+    "flippyCarriers": 7,
+    "flips": 123,
+    "topRun": "Denkey 29.7u ratio 0.99"
+  },
+  "multiTouchOppHalf": {
+    "count": 49,
+    "total": 98,
+    "pct": 0.5,
+    "avgDistinct": 1.72
+  },
+  "finalThirdOverloads": {
+    "A": {
+      "overload": 15,
+      "total": 83,
+      "max": 5
+    },
+    "B": {
+      "overload": 21,
+      "total": 90,
+      "max": 5
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goals": 6,
+    "avgDef": 1.17,
+    "avgAtk": 1.5,
+    "distribution": {
+      "0": 3,
+      "2": 2,
+      "3": 1
+    }
+  },
+  "goals": [
+    "B#4 Porteous m10 (3d/7a OPEN)",
+    "B#10 Ebobisse m36 (0d/0a)",
+    "B#10 Ebobisse m50 (2d/2a)",
+    "A#10 Denkey m58 (2d/0a)",
+    "A#10 Denkey m60 (0d/0a)",
+    "B#10 Ebobisse m72 (0d/0a)"
+  ],
+  "fixAssessment": {
+    "patternCooldown": "WORKS",
+    "matchId": "WORKS",
+    "carryCap": "partial",
+    "zigzagSettle": "WORKS",
+    "patternCross": "STILL_0",
+    "counterPace": "REGRESSION"
+  },
+  "remainingProblems": [
+    "74% outside-box shots",
+    "role runners fwdX=-0.15",
+    "50% goals 0 defenders",
+    "COUNTER pace dropped 9.83->2.22"
+  ]
+}
