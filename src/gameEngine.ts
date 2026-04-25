@@ -19664,6 +19664,9 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             }
             (p as any)._fsmStepped = true;
             _fsmDiag.handled++;
+            // Emit ATTACKER_ZONE_TRACE for telemetry (final-third overload counter
+            // depends on this; legacy forEach loops are skipped for FSM-stepped players).
+            maybeEmitAttackerZoneTrace(p, attackSign as 1 | -1, target as THREE.Vector3, 'SIMPLE');
           }
           // Update the on-screen FSM panel ~10x per second.
           const _nowMs = performance.now();
