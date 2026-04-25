@@ -1031,7 +1031,9 @@ const RetroFootball: React.FC = () => {
       
       // Auto-save when match reaches FULL_TIME
       // Skip splash-scene demos (sessionActive=false when splashSceneMode is on) — those are ghost matches.
-      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false) {
+      // Skip smoke-test runs — they save through the smoke-test runner directly,
+      // and they produce malformed stats (e.g. 0 shots) that pollute the dashboard.
+      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false && !smokeTestActiveRef.current) {
         // Save to SQLite via server endpoint
         try {
           const a = bundle.teamA, b = bundle.teamB;
