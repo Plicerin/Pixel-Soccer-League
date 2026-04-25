@@ -13945,6 +13945,8 @@ export function initGame(container: HTMLElement) {
         penaltyDepth,
         goalMouthHalfWidth: goalMouthWidth / 2,
         attackPhase,
+        allPlayers: players,
+        ballPos: ballState.pos,
       });
       _suppFT.copy(fsmTarget);
       return _suppFT;
@@ -19637,7 +19639,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const attackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
             const target = computeFsmOffBallTarget({
               player: p,
-              carrier: fsmCarrier && fsmCarrier.team === p.team ? fsmCarrier : null,
+              // Pass the actual carrier (regardless of team) so COLLAPSE_DEFEND
+              // can detect the opponent-has-ball case. Pattern + box-crash paths
+              // still gate on carrier.team === p.team internally.
+              carrier: fsmCarrier || null,
               teamPattern: teamPattern || null,
               attackSign: attackSign as 1 | -1,
               fieldWidth: FIELD_W,
@@ -19645,6 +19650,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               penaltyDepth,
               goalMouthHalfWidth: goalMouthWidth / 2,
               attackPhase,
+              allPlayers: players,
+              ballPos: ballState.pos,
             });
             _loopDir.subVectors(target, p.pos).setY(0);
             const dist = _loopDir.length();
