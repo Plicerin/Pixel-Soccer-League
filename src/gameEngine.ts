@@ -2216,11 +2216,20 @@ export function initGame(container: HTMLElement) {
   }
 
   function startKickoffPresentationSequence(autoKick: boolean = true) {
+    // Capture a short caller hint from the stack trace.
+    const callerHint = (() => {
+      try {
+        const lines = (new Error().stack || '').split('\n').slice(2, 6);
+        const cleaned = lines.map((l) => l.trim().replace(/^at\s+/, '')).filter((l) => l && !l.includes('startKickoffPresentationSequence'));
+        return cleaned.slice(0, 2).join(' <- ');
+      } catch { return 'unknown'; }
+    })();
     // Hard block: if the splash scene is currently visible, any caller that
     // tries to start a match is the ghost-match path. Refuse and trace.
     if (splashSceneMode) {
       console.warn('[MATCH START BLOCKED] splashSceneMode is on — refusing to start a match');
       try { console.trace('[blocked caller]'); } catch {}
+      try { (gameState as any)._pushMatchStartEntry?.(`[BLOCKED] splash on — ${callerHint}`); } catch {}
       return;
     }
     const now = performance.now() / 1000;
@@ -2233,6 +2242,7 @@ export function initGame(container: HTMLElement) {
     // Diagnostic: print the call stack so unexpected match starts (e.g. the
     // splash demo we thought was killed) can be traced back to their caller.
     try { console.trace('[MATCH START caller]'); } catch {}
+    try { (gameState as any)._pushMatchStartEntry?.(`${newMatchId} ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName} <- ${callerHint}`); } catch {}
 
     // Reset match clock and stats for a fresh match
     matchClock.phase = 'FIRST_HALF';
@@ -3260,6 +3270,38 @@ export function initGame(container: HTMLElement) {
   }
   // Initial paint so the user sees something even before the match starts.
   updateFsmPanel({ enabled: false, ticks: 0, handled: 0, bestA: '', bestB: '', carrier: '', patternA: '', patternB: '' });
+
+  // ── Match-start log panel (top-right corner under FPS) ────────────────
+  // Surfaces every match start + every blocked match start with the caller
+  // location parsed from a stack trace. Used to hunt ghost-match triggers
+  // without needing to look at the browser console.
+  const matchStartPanel = document.createElement('div');
+  matchStartPanel.style.position = 'fixed';
+  matchStartPanel.style.right = '12px';
+  matchStartPanel.style.top = '52px';
+  matchStartPanel.style.maxWidth = '420px';
+  matchStartPanel.style.padding = '8px 10px';
+  matchStartPanel.style.background = 'rgba(0,0,0,0.72)';
+  matchStartPanel.style.border = '1px solid rgba(255,200,120,0.35)';
+  matchStartPanel.style.borderRadius = '6px';
+  matchStartPanel.style.color = 'rgba(255,220,180,0.92)';
+  matchStartPanel.style.fontFamily = 'Consolas, Monaco, monospace';
+  matchStartPanel.style.fontSize = '10px';
+  matchStartPanel.style.lineHeight = '1.4';
+  matchStartPanel.style.zIndex = '221';
+  matchStartPanel.style.pointerEvents = 'none';
+  matchStartPanel.style.whiteSpace = 'pre';
+  matchStartPanel.textContent = 'MATCH START LOG — empty';
+  container.appendChild(matchStartPanel);
+  const _matchStartEntries: string[] = [];
+  function pushMatchStartEntry(line: string) {
+    const ts = new Date().toLocaleTimeString();
+    _matchStartEntries.unshift(`${ts} ${line}`);
+    while (_matchStartEntries.length > 6) _matchStartEntries.pop();
+    matchStartPanel.textContent = 'MATCH START LOG\n' + _matchStartEntries.join('\n');
+  }
+  // Expose so the engine factory can call from anywhere (startKickoffPresentationSequence, hard-block path, etc.)
+  (gameState as any)._pushMatchStartEntry = pushMatchStartEntry;
 
   function applyFPSVisibility() {
     fpsOverlay.style.display = splashSceneMode ? 'none' : 'flex';
