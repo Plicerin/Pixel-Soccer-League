@@ -2392,6 +2392,14 @@ export function initGame(container: HTMLElement) {
 
   function startSoccerRestart(type: 'KICK_OFF' | 'THROW_IN' | 'GOAL_KICK' | 'CORNER' | 'TURNOVER' | 'PENALTY', team: 'A' | 'B', x: number, z: number, message: string) {
     if (matchClock.phase === 'FULL_TIME') return;
+    // Diagnostic — every KICK_OFF restart is a strong ghost-match signal.
+    // Logs to the MATCH START LOG panel so user can see the trigger source.
+    if (type === 'KICK_OFF') {
+      try {
+        const stack = (new Error().stack || '').split('\n').slice(2, 5).map(l => l.trim().replace(/^at\s+/, '')).filter(Boolean);
+        (window as any).__pslPushMatchStartEntry?.(`[RESTART KICK_OFF ${team}] <- ${stack.slice(0, 2).join(' <- ')}`);
+      } catch {}
+    }
     clearStuckRestartTimer(); // always cancel any pending stuck-restart before staging a new one
     goalCelebration.active = false;
     goalCelebration.scorer = null;

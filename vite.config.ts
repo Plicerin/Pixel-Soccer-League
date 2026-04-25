@@ -388,7 +388,7 @@ export default defineConfig(({mode}) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',      allowedHosts: ['gakeen'],      watch: {
-        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**'],
+        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**', '**/telemetry/latest-report.json', '**/telemetry/latest-report.md', '**/telemetry/snapshot-*.json', '**/telemetry/eval/**', '**/telemetry/overnight/**'],
       },
     },
   };
