@@ -65,6 +65,23 @@ function phaseShiftedHome(
   return { x: home.x + attackSign * pushU, z: home.z };
 }
 
+// Designated defender per team — closest non-keeper opponent to the ball.
+// Only this player chases / presses; everyone else holds shape.
+// Inspired by ysoccer-ai's "bestDefender" concept (only one player aggressively
+// tracks the ball, the rest stay in POSITIONING).
+export function pickFsmDefender(team: 'A' | 'B', allPlayers: any[], ballPos: THREE.Vector3): any | null {
+  let best: any = null;
+  let bestDist = Infinity;
+  for (const p of allPlayers) {
+    if (p.team !== team) continue;
+    const role = (p.displayRole || p.role || '').toString().toUpperCase();
+    if (role === 'GK') continue;
+    const d = p.pos.distanceTo(ballPos);
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  return best;
+}
+
 export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
   const { player, carrier, teamPattern, attackSign, fieldWidth, fieldDepth,
     penaltyDepth, goalMouthHalfWidth, attackPhase } = ctx;

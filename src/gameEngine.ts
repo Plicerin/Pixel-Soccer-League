@@ -19,7 +19,7 @@ import { computeForceFieldNudge } from './ai/forceFieldPositioning.ts';
 import { attemptThroughPass, selectAIPassTarget } from './ai/aiPassModel.ts';
 import { evaluateShotDecision } from './ai/aiShotModel.ts';
 import { computeAIPositioning } from './ai/aiPositioningModel.ts';
-import { computeFsmOffBallTarget } from './ai/fsmPositioning.ts';
+import { computeFsmOffBallTarget, pickFsmDefender } from './ai/fsmPositioning.ts';
 import {
   chooseSimplePassTarget,
   chooseSimpleShotStyle,
@@ -19485,10 +19485,58 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           gameState.clearancePushUpTeam = '';
         }
 
+        // ── FSM pre-pass (Phase A2 sensible-soccer mode) ──────────────────
+        // When fsmPositioningEnabled is on, hard-override almost every player's
+        // movement here and skip the legacy support / defense / chase logic
+        // below. Exemptions: ball holder, both keepers, and the single
+        // designated "bestDefender" per team (closest outfielder to the ball).
+        // Everyone else just steers toward homePos (or pattern role target).
+        // Pure ysoccer-ai POSITIONING + one DEFENDING per team. Bland on
+        // purpose — isolation test for the positioning model.
+        if (gameState.fsmPositioningEnabled) {
+          const fsmBestA = pickFsmDefender('A', players, ballState.pos);
+          const fsmBestB = pickFsmDefender('B', players, ballState.pos);
+          const fsmCarrier = ballState.heldBy;
+          for (const p of players) {
+            (p as any)._fsmStepped = false;
+            if (!p) continue;
+            if (isGoalkeeper(p)) continue;                       // keeper: legacy
+            if (p === fsmCarrier) continue;                       // carrier: legacy
+            if (p === fsmBestA || p === fsmBestB) continue;       // sole presser per team: legacy
+            if (controlA && p === controlledPlayer) continue;     // human-controlled
+            if (controlB && p === controlledPlayerB) continue;
+            const teamPattern = p.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+            const attackPhase = p.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+            const attackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
+            const target = computeFsmOffBallTarget({
+              player: p,
+              carrier: fsmCarrier && fsmCarrier.team === p.team ? fsmCarrier : null,
+              teamPattern: teamPattern || null,
+              attackSign: attackSign as 1 | -1,
+              fieldWidth: FIELD_W,
+              fieldDepth: FIELD_D,
+              penaltyDepth,
+              goalMouthHalfWidth: goalMouthWidth / 2,
+              attackPhase,
+            });
+            _loopDir.subVectors(target, p.pos).setY(0);
+            const dist = _loopDir.length();
+            if (dist > 0.3) {
+              const speed = getUniformPlayerRunSpeed();
+              p.vel.lerp(_loopDir.normalize().multiplyScalar(speed), dt * 6);
+              p.pos.addScaledVector(p.vel, dt);
+            } else {
+              p.vel.multiplyScalar(Math.max(0, 1 - dt * 8));
+            }
+            (p as any)._fsmStepped = true;
+          }
+        }
+
         // Off-ball support runs
         playState.activeRoutes.forEach(route => {
           const p = route.player;
           if (!p || (p === controlledPlayer && controlA) || (p === controlledPlayerB && controlB)) return;
+          if ((p as any)._fsmStepped) return; // FSM pre-pass handled this player
 
           // Practice play steering
           if (practiceModeEnabled && practicePlayActive && p !== ballState.heldBy && !isGoalkeeper(p)) {
@@ -19862,6 +19910,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           if (!p) return;
           if (controlB && p === controlledPlayerB && !isGoalkeeper(p)) return;
           if (controlA && p === controlledPlayer && !isGoalkeeper(p)) return;
+          if ((p as any)._fsmStepped) return; // FSM pre-pass handled this player
           // Don't override players already assigned to chase a loose ball
           if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
 
