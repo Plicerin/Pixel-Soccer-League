@@ -1,0 +1,67 @@
+{
+  "date": "2026-04-25",
+  "match": "Minnesota United 1-0 Columbus Crew",
+  "matchId": "M-0WV6N",
+  "fsmMode": "A2 + H2 reset + Phase A.5 + zone-trace fix + cross-fire fix (latest)",
+  "baselines": {
+    "goals": 1,
+    "goalsDrift": -1.78,
+    "shotsDrift": -4.2,
+    "sotDrift": 1.6,
+    "longRangeSOT": 3,
+    "corners": 1
+  },
+  "shots": {
+    "total": 22,
+    "forced": 17
+  },
+  "passes": {
+    "backpasses": 130
+  },
+  "patternGoals": {
+    "COUNTER": 1,
+    "total": "1/1 100%"
+  },
+  "patternCross": {
+    "total": 5,
+    "lofted": 2,
+    "driven": 3,
+    "note": "BREAKTHROUGH - was 0-2 across 11 prior matches",
+    "events": [
+      "Diaz->Yeboah NEAR_POST DRIVEN 1.8u",
+      "Moreira->Chambost FAR_POST DRIVEN 7.6u",
+      "Taylor->Yeboah NEAR_POST DRIVEN 6.2u",
+      "Rossi->Nagbe CUTBACK LONG_LOFTED 12.5u",
+      "Pereyra->Yeboah NEAR_POST LONG_LOFTED 4.8u"
+    ]
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": 0,
+    "FAR_POST": 8.25,
+    "RUNNER": -1.07,
+    "CARRIER": -0.47,
+    "SUPPORT": 5.22
+  },
+  "defendersAtGoal": {
+    "goals": 1,
+    "avgDef": 2,
+    "dist": {
+      "2": 1
+    }
+  },
+  "finalThirdOverloads": {
+    "A": "1/44 max3",
+    "B": "7/47 max5",
+    "note": "both teams registering now"
+  },
+  "carrier": {
+    "totalFlips": 69
+  },
+  "observations": [
+    "Cross fire fix landed - 5 crosses with both DRIVEN and LONG_LOFTED",
+    "Overload counter solid for both teams",
+    "Pattern crosses now varied across 3 target roles",
+    "Lofted fallback firing when ground lane blocked"
+  ],
+  "mergedToMain": "bae0448"
+}
