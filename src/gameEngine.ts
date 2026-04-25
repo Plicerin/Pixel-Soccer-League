@@ -22476,6 +22476,13 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       // Override the PLAYING status set by startSoccerRestart — the menu must be shown first.
       gameState.status = 'START';
       gameState.menuVisible = true;
+      // Defensive: startSoccerRestart's downstream releaseRestart flips
+      // isLive=true. Force it back here so the simulation tick doesn't run
+      // a "ghost match" in the background while the user is on the menu.
+      gameState.isLive = false;
+      matchClock.phase = 'FIRST_HALF';
+      matchClock.half = 1;
+      matchClock.elapsedInHalf = 0;
       activeLightingPreset = 'NOON';
       activeWeather = 'SUNNY';
       applyWeatherAtmosphere();
@@ -22949,6 +22956,13 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       // Override the PLAYING status set by startSoccerRestart — the menu must be shown first.
       gameState.status = 'START';
       gameState.menuVisible = true;
+      // Defensive: startSoccerRestart's downstream releaseRestart flips
+      // isLive=true. Force it back here so the simulation tick doesn't run
+      // a "ghost match" in the background while the user is on the menu.
+      gameState.isLive = false;
+      matchClock.phase = 'FIRST_HALF';
+      matchClock.half = 1;
+      matchClock.elapsedInHalf = 0;
       activeLightingPreset = 'NOON';
       activeWeather = 'SUNNY';
       applyWeatherAtmosphere();
