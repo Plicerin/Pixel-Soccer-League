@@ -598,6 +598,8 @@ async function captureMatchResult(page) {
         transitions: bundle.transitions || [],
         metadata: bundle.metadata || {},
       },
+      // Diagnostic — shot decision gate counters surfaced from gameEngine
+      shotGateStats: window.__shotGateStats || null,
     }
   })
 }
@@ -617,6 +619,10 @@ function printGameSummary(index, result) {
   if (result.goals.length > 0) {
     const goalStr = result.goals.map(g => `${g.matchMinute}' #${g.shirtNumber} ${g.playerName} (${g.team})`).join(', ')
     console.log(`  Goals: ${goalStr}`)
+  }
+  if (result.shotGateStats) {
+    const s = result.shotGateStats
+    console.log(`  ShotGate | eligible:${s.eligible} natural:${s.naturalSel} role:${s.roleAllowed} chanceOK:${s.shotChanceOK} passOK:${s.passChanceOK} should:${s.shouldShoot} passWins:${s.shouldShootButPassWins} fired:${s.fired} forceFired:${s.forceShotFired}`)
   }
 }
 

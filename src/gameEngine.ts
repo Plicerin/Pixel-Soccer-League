@@ -13304,6 +13304,29 @@ export function initGame(container: HTMLElement) {
 
     if ((gameState as any)[cooldownKey] <= 0) {
       const resolveShotNow = forceShotNow || (!isDeepRole && missedShotWindowShotForce && simplePassChance < 0.15);
+      // ── Shot-decision diagnostic counters ──
+      // Surface why shots fire (or don't) so headless gameplay can be debugged
+      // against real-browser play. Every decision point increments a global
+      // counter visible at window.__shotGateStats.
+      try {
+        const stats = (window as any).__shotGateStats = (window as any).__shotGateStats || {
+          eligible: 0, naturalSel: 0, roleAllowed: 0, shotChanceOK: 0, passChanceOK: 0,
+          shouldShoot: 0, shouldShootButPassWins: 0, fired: 0, forceShotFired: 0,
+        };
+        stats.eligible++;
+        if (naturalShotSelection) stats.naturalSel++;
+        if (roleShotAllowed) stats.roleAllowed++;
+        if (simpleShotChance >= simpleShotThreshold) stats.shotChanceOK++;
+        if (simpleShotChance >= simplePassChance - 0.02) stats.passChanceOK++;
+        if (simpleShouldShoot) stats.shouldShoot++;
+        if (simpleShouldShoot && shouldPass && distToGoal >= 10 && !preferCarryOverBackpass && !resolveShotNow) {
+          stats.shouldShootButPassWins++;
+        }
+        if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
+          if (resolveShotNow) stats.forceShotFired++;
+          else stats.fired++;
+        }
+      } catch {}
       if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
         gameState.pendingShotDecision = {
           timestamp: Date.now(),
