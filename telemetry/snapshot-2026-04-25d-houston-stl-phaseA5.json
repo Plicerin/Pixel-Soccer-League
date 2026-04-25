@@ -1,0 +1,60 @@
+{
+  "date": "2026-04-25",
+  "match": "Houston Dynamo 0-1 St. Louis City SC",
+  "matchId": "M-SNO1U",
+  "fsmMode": "A2 + H2 reset + Phase A.5 (box-crash + collapse-defend)",
+  "baselines": {
+    "goals": 1,
+    "goalsDrift": -1.78,
+    "shotsDrift": -17.2,
+    "sotDrift": -4.4,
+    "longRangeSOT": 3,
+    "corners": 0
+  },
+  "shots": {
+    "total": 9,
+    "forced": 6
+  },
+  "passes": {
+    "backpasses": 118,
+    "note": "NEW LOWEST EVER - was 145"
+  },
+  "patternGoals": {
+    "COUNTER": 1,
+    "total": "1/1 100%"
+  },
+  "patternCross": {
+    "total": 2,
+    "events": [
+      "Lingr->Lima Junior CUTBACK 4u",
+      "Durkin->Klauss NEAR_POST 10.4u"
+    ],
+    "note": "best yet, was 0-1"
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": 5.82,
+    "FAR_POST": -3.31,
+    "RUNNER": 0.32,
+    "CARRIER": -9.02,
+    "SUPPORT": -1.64
+  },
+  "defendersAtGoal": {
+    "goals": 1,
+    "avgDef": 0,
+    "dist": {
+      "0": 1
+    },
+    "note": "lone breakaway goal"
+  },
+  "carrier": {
+    "totalFlips": 59,
+    "note": "lowest ever"
+  },
+  "finalThirdOverloads": "0/32 0/22 - still zero despite BOX_CRASH",
+  "observations": [
+    "BOX_CRASH firing - pattern crosses doubled",
+    "COLLAPSE_DEFEND likely working - extra defenders intercepting",
+    "Overload counter not registering - investigate trigger condition",
+    "Total shots low - more careful play after backpass cull"
+  ]
+}
