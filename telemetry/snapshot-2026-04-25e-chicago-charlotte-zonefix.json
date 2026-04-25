@@ -1,0 +1,61 @@
+{
+  "date": "2026-04-25",
+  "match": "Chicago Fire 2-2 Charlotte FC",
+  "matchId": "M-KADCQ",
+  "fsmMode": "A2 + H2 reset + Phase A.5 + zone-trace fix",
+  "baselines": {
+    "goals": 4,
+    "goalsDrift": 1.22,
+    "shotsDrift": -10.2,
+    "sotDrift": 0.6,
+    "longRangeSOT": 4,
+    "corners": 0
+  },
+  "shots": {
+    "total": 16,
+    "forced": 15
+  },
+  "passes": {
+    "backpasses": 207
+  },
+  "patternGoals": {
+    "COUNTER": 2,
+    "WING_L": 1,
+    "WING_R": 1,
+    "total": "4/4 100%"
+  },
+  "patternCross": 0,
+  "defendersAtGoal": {
+    "goals": 4,
+    "avgDef": 1.5,
+    "dist": {
+      "0": 1,
+      "2": 3
+    }
+  },
+  "finalThirdOverloads": {
+    "A": "0/25 max1",
+    "B": "5/72 max3 - FIRST NONZERO IN 10 MATCHES"
+  },
+  "carrier": {
+    "totalFlips": 87
+  },
+  "carrierH2vsH1": {
+    "A": {
+      "H1": 5,
+      "H2": 41,
+      "perSeg": "0.83→1.21"
+    },
+    "B": {
+      "H1": 11,
+      "H2": 30,
+      "perSeg": "0.73→0.88"
+    }
+  },
+  "observations": [
+    "Zone-trace fix landed - overload counter reading real data",
+    "4/4 pattern goals (100%) - 3rd 100% match",
+    "Defenders at goal stable",
+    "Pattern crosses regressed to 0 (variance)"
+  ]
+}
