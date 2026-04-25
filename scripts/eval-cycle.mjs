@@ -37,6 +37,8 @@ function parseArgs(argv) {
     home: '',
     away: '',
     halfSeconds: 150,
+    fsm: '',  // 'on' | 'off' | '' (default: whatever gameEngine inits to)
+    url: '',
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -46,6 +48,8 @@ function parseArgs(argv) {
     else if (a === '--home') opts.home = argv[++i] || ''
     else if (a === '--away') opts.away = argv[++i] || ''
     else if (a === '--half-seconds') opts.halfSeconds = Number(argv[++i])
+    else if (a === '--fsm') opts.fsm = (argv[++i] || '').toLowerCase()
+    else if (a === '--url') opts.url = argv[++i] || ''
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0) }
   }
   if (!opts.label) {
@@ -63,6 +67,8 @@ function printHelp() {
   --home <team>        fixed home team across all games (optional)
   --away <team>        fixed away team across all games (optional)
   --half-seconds <n>   half duration override (default 150)
+  --fsm <on|off>       force FSM positioning mode (default: gameEngine init value)
+  --url <url>          override dev server URL (default: http://127.0.0.1:5173/)
 `)
 }
 
@@ -286,16 +292,37 @@ async function main() {
   console.log(`[eval-cycle] DB max match id pre-run: ${minId}`)
 
   // Drive headless-sim. Reuses existing infra. Pass through home/away if set
-  // so cycles can be reproducible across runs.
+  // so cycles can be reproducible across runs. FSM mode is forced via URL
+  // query string so the gameEngine reads it on init (no code changes needed
+  // to flip between FSM-on and FSM-off baselines).
+  let runUrl = opts.url || 'http://127.0.0.1:5173/'
+  if (opts.fsm === 'on' || opts.fsm === 'off') {
+    const sep = runUrl.includes('?') ? '&' : '?'
+    runUrl = `${runUrl}${sep}fsm=${opts.fsm}`
+    console.log(`[eval-cycle] forcing FSM mode = ${opts.fsm} via URL: ${runUrl}`)
+  }
+  // Per-game wall-clock budget: gameplay duration (halves × 2) plus 4 min
+  // overhead for startup, kickoff, and cleanup. This was 20 min total in
+  // headless-sim's default (5 min × 4 games) which is too tight.
+  const perGameMs = (opts.halfSeconds * 2 + 240) * 1000
+  const totalTimeoutMs = perGameMs * opts.games + 60_000
   const simArgs = ['scripts/headless-sim.mjs',
     '--mode', 'tuning',
     '--games', String(opts.games),
     '--speed', '1',
     '--half-seconds', String(opts.halfSeconds),
+    '--url', runUrl,
+    '--timeout-ms', String(totalTimeoutMs),
   ]
   if (opts.home) simArgs.push('--home', opts.home)
   if (opts.away) simArgs.push('--away', opts.away)
-  await runCommand('sim', process.execPath, simArgs)
+  // Tolerate partial runs: if sim exits non-zero (timeout, crash), still
+  // try to aggregate whatever landed in the DB before exit.
+  try {
+    await runCommand('sim', process.execPath, simArgs)
+  } catch (err) {
+    console.warn(`[eval-cycle] sim exited with error: ${err.message}. Aggregating partial results.`)
+  }
 
   // Pull the matches that landed during this run.
   const newRows = fetchMatchesSince(minId)

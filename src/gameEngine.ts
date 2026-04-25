@@ -5655,7 +5655,17 @@ export function initGame(container: HTMLElement) {
     // instead of the legacy layered pipeline. Carrier always uses legacy.
     // Default ON while we iterate on the FSM model; click the FSM panel
     // (top-left of the game canvas) to toggle off if comparing baselines.
-    fsmPositioningEnabled: true,
+    // Override via URL: ?fsm=off forces legacy, ?fsm=on forces FSM. Used
+    // by headless eval cycles to compare modes without code changes.
+    fsmPositioningEnabled: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const v = (params.get('fsm') || '').toLowerCase();
+        if (v === 'off' || v === '0' || v === 'false') return false;
+        if (v === 'on' || v === '1' || v === 'true') return true;
+      } catch {}
+      return true;
+    })(),
     // Give-and-go state
     giveAndGoActive: false,
     giveAndGoPasser: null as any,
