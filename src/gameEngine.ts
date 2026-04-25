@@ -19,6 +19,7 @@ import { computeForceFieldNudge } from './ai/forceFieldPositioning.ts';
 import { attemptThroughPass, selectAIPassTarget } from './ai/aiPassModel.ts';
 import { evaluateShotDecision } from './ai/aiShotModel.ts';
 import { computeAIPositioning } from './ai/aiPositioningModel.ts';
+import { computeFsmOffBallTarget } from './ai/fsmPositioning.ts';
 import {
   chooseSimplePassTarget,
   chooseSimpleShotStyle,
@@ -5588,6 +5589,10 @@ export function initGame(container: HTMLElement) {
     // Force-field positioning (GameplayFootball hybrid)
     useForceField: true,
     forceFieldBlend: 0.70,
+    // Phase A FSM positioning toggle. When true, off-ball players use
+    // computeFsmOffBallTarget (single-owner, pattern-role authoritative)
+    // instead of the legacy layered pipeline. Carrier always uses legacy.
+    fsmPositioningEnabled: false,
     // Give-and-go state
     giveAndGoActive: false,
     giveAndGoPasser: null as any,
@@ -13827,6 +13832,27 @@ export function initGame(container: HTMLElement) {
     const carrier = directCarrier || (lastCarrierValid ? ballState.lastHeldBy : null);
     const roleLabel = (player.displayRole || player.role || '').toString().toUpperCase();
     const carrierRole = carrier ? (carrier.displayRole || carrier.role || '').toString().toUpperCase() : '';
+
+    // ── Phase A FSM positioning ─────────────────────────────────────────
+    // Single-owner deterministic target. Off-ball only — carrier uses legacy.
+    // See src/ai/fsmPositioning.ts for rationale (kill the layer fight).
+    if (gameState.fsmPositioningEnabled && player !== carrier && roleLabel !== 'GK') {
+      const teamPattern = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+      const attackPhase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+      const fsmTarget = computeFsmOffBallTarget({
+        player,
+        carrier,
+        teamPattern: teamPattern || null,
+        attackSign: attackSign > 0 ? 1 : -1,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        penaltyDepth,
+        goalMouthHalfWidth: goalMouthWidth / 2,
+        attackPhase,
+      });
+      _suppFT.copy(fsmTarget);
+      return _suppFT;
+    }
     // Controlled pass windows and tiny dribble gaps keep support continuity; true loose balls do not.
     const sameTeamRecent = !carrier && structuredPossessionTeam === player.team;
     const looseBallBlend = sameTeamRecent ? THREE.MathUtils.lerp(0.72, 0.90, route.anchorBlend)
@@ -22647,6 +22673,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       updateHUD();
     },
     setHotSeatMode: (enabled: boolean) => { gameState.hotSeatMode = enabled; },
+    setFsmPositioning: (enabled: boolean) => { gameState.fsmPositioningEnabled = !!enabled; },
+    isFsmPositioning: () => gameState.fsmPositioningEnabled === true,
     setPracticeMode: (enabled: boolean) => {
       practiceModeEnabled = enabled;
       gameState.practiceModeEnabled = enabled; // Synchronize with the state object the UI reads
