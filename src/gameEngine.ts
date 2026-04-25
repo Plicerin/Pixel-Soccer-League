@@ -19494,6 +19494,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         // Pure ysoccer-ai POSITIONING + one DEFENDING per team. Bland on
         // purpose — isolation test for the positioning model.
         if (gameState.fsmPositioningEnabled) {
+          // Diagnostic — proves the pre-pass is actually running. If you don't
+          // see [FSM] logs on the console, the build is stale; hard reload.
+          const _fsmDiag = (window as any).__pslFsmDiag = ((window as any).__pslFsmDiag || { ticks: 0, handled: 0, lastLogAt: 0 });
+          _fsmDiag.ticks++;
           const fsmBestA = pickFsmDefender('A', players, ballState.pos);
           const fsmBestB = pickFsmDefender('B', players, ballState.pos);
           const fsmCarrier = ballState.heldBy;
@@ -19529,6 +19533,14 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               p.vel.multiplyScalar(Math.max(0, 1 - dt * 8));
             }
             (p as any)._fsmStepped = true;
+            _fsmDiag.handled++;
+          }
+          // Throttled console log — once per second, prove pre-pass ran and
+          // count how many players it actually moved.
+          const _nowMs = performance.now();
+          if (_nowMs - _fsmDiag.lastLogAt > 1000) {
+            console.log(`[FSM] tick ${_fsmDiag.ticks} — handled ${_fsmDiag.handled} player-frames since start`);
+            _fsmDiag.lastLogAt = _nowMs;
           }
         }
 
