@@ -2223,6 +2223,9 @@ export function initGame(container: HTMLElement) {
     const newMatchId = 'M-' + Math.random().toString(36).slice(2, 7).toUpperCase();
     (gameState as any).currentMatchId = newMatchId;
     console.log(`[MATCH START] ${newMatchId} — ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName}`);
+    // Diagnostic: print the call stack so unexpected match starts (e.g. the
+    // splash demo we thought was killed) can be traced back to their caller.
+    try { console.trace('[MATCH START caller]'); } catch {}
 
     // Reset match clock and stats for a fresh match
     matchClock.phase = 'FIRST_HALF';
