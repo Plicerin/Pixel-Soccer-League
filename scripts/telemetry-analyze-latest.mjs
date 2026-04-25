@@ -744,6 +744,7 @@ function summaryCarrierTrajectories(events) {
   const flipsByDirection = { L2R: 0, R2L: 0 }
   const segmentsByTeam = { A: 0, B: 0 }
   const segmentsByDirection = { L2R: 0, R2L: 0 }
+  const segmentsByTeamHalf = { A1: 0, A2: 0, B1: 0, B2: 0 }
   for (const seg of segments) {
     let lastLateralSign = 0
     let flips = 0
@@ -762,6 +763,7 @@ function summaryCarrierTrajectories(events) {
       segmentsByTeam[seg.team] += 1
       const half = seg.firstElapsed >= 150 ? 2 : 1
       flipsByTeamHalf[`${seg.team}${half}`] += flips
+      segmentsByTeamHalf[`${seg.team}${half}`] += 1
     }
     const first = seg.samples[0]
     const last = seg.samples[seg.samples.length - 1]
@@ -786,6 +788,7 @@ function summaryCarrierTrajectories(events) {
     flipsByDirection,
     segmentsByTeam,
     segmentsByDirection,
+    segmentsByTeamHalf,
   }
 }
 
@@ -1637,7 +1640,10 @@ function printSummary(report) {
   }
   if (traj.flipsByTeamHalf) {
     const h = traj.flipsByTeamHalf
-    console.log(`  by team×half | A-H1: ${h.A1 || 0} | A-H2: ${h.A2 || 0} | B-H1: ${h.B1 || 0} | B-H2: ${h.B2 || 0}`)
+    const s = traj.segmentsByTeamHalf || { A1: 0, A2: 0, B1: 0, B2: 0 }
+    const fmt = (flips, segs) => segs > 0 ? `${flips} flips / ${segs} segs (${(flips/segs).toFixed(2)}/seg)` : `${flips} flips / 0 segs`
+    console.log(`  by team×half | A-H1: ${fmt(h.A1 || 0, s.A1 || 0)} | A-H2: ${fmt(h.A2 || 0, s.A2 || 0)}`)
+    console.log(`               | B-H1: ${fmt(h.B1 || 0, s.B1 || 0)} | B-H2: ${fmt(h.B2 || 0, s.B2 || 0)}`)
   }
   if (traj.flipsByDirection) {
     const l2r = traj.flipsByDirection.L2R || 0, r2l = traj.flipsByDirection.R2L || 0
