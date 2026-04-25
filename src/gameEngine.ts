@@ -3217,9 +3217,15 @@ export function initGame(container: HTMLElement) {
   fsmPanel.style.fontSize = '11px';
   fsmPanel.style.lineHeight = '1.45';
   fsmPanel.style.zIndex = '221';
-  fsmPanel.style.pointerEvents = 'none';
+  fsmPanel.style.pointerEvents = 'auto';
+  fsmPanel.style.cursor = 'pointer';
+  fsmPanel.style.userSelect = 'none';
   fsmPanel.style.whiteSpace = 'pre';
+  fsmPanel.title = 'Click to toggle FSM positioning';
   fsmPanel.textContent = 'FSM panel — initializing';
+  fsmPanel.addEventListener('click', () => {
+    gameState.fsmPositioningEnabled = !gameState.fsmPositioningEnabled;
+  });
   container.appendChild(fsmPanel);
   function updateFsmPanel(opts: {
     enabled: boolean;
