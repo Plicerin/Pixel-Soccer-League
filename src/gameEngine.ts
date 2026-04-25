@@ -2216,6 +2216,13 @@ export function initGame(container: HTMLElement) {
   }
 
   function startKickoffPresentationSequence(autoKick: boolean = true) {
+    // Hard block: if the splash scene is currently visible, any caller that
+    // tries to start a match is the ghost-match path. Refuse and trace.
+    if (splashSceneMode) {
+      console.warn('[MATCH START BLOCKED] splashSceneMode is on — refusing to start a match');
+      try { console.trace('[blocked caller]'); } catch {}
+      return;
+    }
     const now = performance.now() / 1000;
     const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
 
