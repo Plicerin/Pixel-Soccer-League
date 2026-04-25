@@ -733,8 +733,17 @@ function summaryCarrierTrajectories(events) {
   const avgBLineRatio = totalSegments > 0 ? round(totalBLine / totalSegments) : 0
 
   // Zigzag: count lateral sign flips per carrier segment (reusing existing carrier movement logic but per-segment).
+  // Also split flips three ways:
+  //   - by team (A vs B totals)
+  //   - by team per half (A-H1, A-H2, B-H1, B-H2) — accounts for the side switch
+  //   - by direction of travel (left-to-right vs right-to-left, independent of team)
   let totalFlips = 0
   let totalFlippyCarriers = 0
+  const flipsByTeam = { A: 0, B: 0 }
+  const flipsByTeamHalf = { A1: 0, A2: 0, B1: 0, B2: 0 }
+  const flipsByDirection = { L2R: 0, R2L: 0 }
+  const segmentsByTeam = { A: 0, B: 0 }
+  const segmentsByDirection = { L2R: 0, R2L: 0 }
   for (const seg of segments) {
     let lastLateralSign = 0
     let flips = 0
@@ -748,6 +757,20 @@ function summaryCarrierTrajectories(events) {
     }
     totalFlips += flips
     if (flips >= 4) totalFlippyCarriers++
+    if (seg.team === 'A' || seg.team === 'B') {
+      flipsByTeam[seg.team] += flips
+      segmentsByTeam[seg.team] += 1
+      const half = seg.firstElapsed >= 150 ? 2 : 1
+      flipsByTeamHalf[`${seg.team}${half}`] += flips
+    }
+    const first = seg.samples[0]
+    const last = seg.samples[seg.samples.length - 1]
+    const dx = last.x - first.x
+    if (Math.abs(dx) > 1) {
+      const key = dx > 0 ? 'L2R' : 'R2L'
+      flipsByDirection[key] += flips
+      segmentsByDirection[key] += 1
+    }
   }
 
   return {
@@ -758,6 +781,11 @@ function summaryCarrierTrajectories(events) {
     curlingSegments,
     totalFlips,
     totalFlippyCarriers,
+    flipsByTeam,
+    flipsByTeamHalf,
+    flipsByDirection,
+    segmentsByTeam,
+    segmentsByDirection,
   }
 }
 
@@ -1600,6 +1628,24 @@ function printSummary(report) {
   if (alignStr) console.log(`Pattern role alignment | ${alignStr}`)
   const traj = report.carrierTrajectories
   console.log(`Carrier trajectories | segments=${traj.totalSegments} avgBLineRatio=${traj.avgBLineRatio} strightRuns>15u=${traj.straightRunsOver15Units} flippyCarriers=${traj.totalFlippyCarriers} totalFlips=${traj.totalFlips}`)
+  if (traj.flipsByTeam) {
+    const a = traj.flipsByTeam.A || 0, b = traj.flipsByTeam.B || 0
+    const aSeg = traj.segmentsByTeam.A || 0, bSeg = traj.segmentsByTeam.B || 0
+    const aFlipsPerSeg = aSeg > 0 ? (a / aSeg).toFixed(2) : '0'
+    const bFlipsPerSeg = bSeg > 0 ? (b / bSeg).toFixed(2) : '0'
+    console.log(`  by team | A: ${a} flips / ${aSeg} segs (${aFlipsPerSeg}/seg) | B: ${b} flips / ${bSeg} segs (${bFlipsPerSeg}/seg)`)
+  }
+  if (traj.flipsByTeamHalf) {
+    const h = traj.flipsByTeamHalf
+    console.log(`  by team×half | A-H1: ${h.A1 || 0} | A-H2: ${h.A2 || 0} | B-H1: ${h.B1 || 0} | B-H2: ${h.B2 || 0}`)
+  }
+  if (traj.flipsByDirection) {
+    const l2r = traj.flipsByDirection.L2R || 0, r2l = traj.flipsByDirection.R2L || 0
+    const l2rSeg = traj.segmentsByDirection.L2R || 0, r2lSeg = traj.segmentsByDirection.R2L || 0
+    const l2rPer = l2rSeg > 0 ? (l2r / l2rSeg).toFixed(2) : '0'
+    const r2lPer = r2lSeg > 0 ? (r2l / r2lSeg).toFixed(2) : '0'
+    console.log(`  by direction | L→R: ${l2r} flips / ${l2rSeg} segs (${l2rPer}/seg) | R→L: ${r2l} flips / ${r2lSeg} segs (${r2lPer}/seg)`)
+  }
   if (traj.byLineRunSegments.length > 0) {
     console.log('Top B-line runs:')
     for (const run of traj.byLineRunSegments.slice(0, 5)) {
