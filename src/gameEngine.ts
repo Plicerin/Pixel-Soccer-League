@@ -12350,12 +12350,20 @@ export function initGame(container: HTMLElement) {
     const _p25_carrierAttackX = cpuCarrier.pos.x * attackSign;
     const _p25_absZ = Math.abs(cpuCarrier.pos.z);
     const _p25_distToGoalLocal = Math.abs((attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2) - cpuCarrier.pos.x);
-    // Crossing zone: advanced wide (near byline OR in wide final-third)
-    const _p25_crossingZone = _p25_isWingAttack
-      && _p25_carrierRole === 'CARRIER'
-      && _p25_carrierAttackX > 10
-      && _p25_absZ > goalMouthWidth * 0.9
-      && _p25_distToGoalLocal < penaltyDepth + 8;
+    // Crossing zone — widened across 11 FSM matches to fire more often:
+    //   - Accept WING_ATTACK or COUNTER_ATTACK (wing-side counters can also cross)
+    //   - Allow any carrier role (CARRIER or RUNNER) — the assigned CARRIER
+    //     isn't always the one who actually dribbles to the byline
+    //   - Carrier past midfield (>0) instead of well into final third (>10)
+    //   - Wide (|z| > goalMouthWidth * 0.65) — was 0.9, too restrictive
+    //   - Close enough to goal that a cross makes sense (penaltyDepth + 14)
+    const _p25_isCrossablePattern = _p25_isWingAttack || _p25_isCounterAttack;
+    const _p25_carrierCanCross = _p25_carrierRole === 'CARRIER' || _p25_carrierRole === 'RUNNER' || _p25_carrierRole === 'NONE';
+    const _p25_crossingZone = _p25_isCrossablePattern
+      && _p25_carrierCanCross
+      && _p25_carrierAttackX > 0
+      && _p25_absZ > goalMouthWidth * 0.65
+      && _p25_distToGoalLocal < penaltyDepth + 14;
     if (_p25_crossingZone && _p25_teamPattern) {
       const findByRole = (target: string): any | null => {
         for (const tm of teammates) {
@@ -12414,16 +12422,17 @@ export function initGame(container: HTMLElement) {
           // Treat as dribble-through — fall through to normal pass decision.
         } else {
           const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
-          const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';
-          // Pre-flight lane check mirroring executeAIGroundPass's silent reject.
-          // Only driven crosses use the ground-pass path; lofted bypasses lane.
-          let laneClear = true;
+          // Initial style heuristic by distance.
+          let style: 'LONG_LOFTED' | 'DRIVEN' = crossDist > 10 ? 'LONG_LOFTED' : 'DRIVEN';
+          // If driven, check lane. With Phase A.5 COLLAPSE_DEFEND bringing
+          // 2 extra defenders into the box, lanes block more often. Fall
+          // back to LONG_LOFTED instead of giving up — air bypasses lane.
           if (style === 'DRIVEN') {
             const lp = getSimpleLaneBlockerProfile(cpuCarrier.pos, crossTargetPlayer.pos, team as 'A' | 'B', 2.8);
             const blocked = lp.frontBlockerLateral < 1.25 && lp.frontBlockerT > 0.14 && lp.frontBlockerT < 0.84;
-            if (blocked) laneClear = false;
+            if (blocked) style = 'LONG_LOFTED';
           }
-          if (laneClear) {
+          {
             patternMeta.lastCrossAt = elapsed;
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
               patternType: _p25_teamPattern.type,
@@ -12441,7 +12450,6 @@ export function initGame(container: HTMLElement) {
             (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
             return;
           }
-          // Lane blocked: fall through to normal pass logic instead of spamming.
         }
       }
     }
