@@ -1494,13 +1494,13 @@ const RetroFootball: React.FC = () => {
           recentSplashRan = last > 0 && (Date.now() - last) < 5 * 60 * 1000;
           priorFullTime = sessionStorage.getItem('psl_fullTime') === '1';
         } catch {}
-        if (!alreadyActive && !atFullTime && !recentSplashRan && !priorFullTime) {
-          splashSceneStartedRef.current = true;
-          try { sessionStorage.setItem('psl_splashAutoStartAt', String(Date.now())); } catch {}
-          gameRef.current?.startKickoffPresentation?.(true);
-        } else {
-          splashSceneStartedRef.current = true;
-        }
+        // Splash auto-demo permanently disabled: the background CPU-vs-CPU
+        // match was the source of "ghost" Miami-LA rows in the DB and made
+        // the splash visually noisy. Splash is now a static screen — no
+        // match runs behind it. Mark started so guards downstream still
+        // know we visited this branch.
+        void alreadyActive; void atFullTime; void recentSplashRan; void priorFullTime;
+        splashSceneStartedRef.current = true;
       }
       return;
     }
