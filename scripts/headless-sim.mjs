@@ -123,6 +123,11 @@ function parseArgs(argv) {
       options.url = new URL(next).toString()
       options.customUrl = true
       i += 1
+    } else if (arg === '--query') {
+      const next = argv[i + 1]
+      if (!next) throw new Error('Expected a query string after --query')
+      options.querySuffix = next.startsWith('?') ? next.slice(1) : next
+      i += 1
     } else if (arg === '--home') {
       const next = argv[i + 1]
       if (!next) throw new Error('Expected a team name after --home')
@@ -741,6 +746,12 @@ async function run() {
   }
 
   try {
+    // Append query suffix (e.g. fsm=off) after URL resolution so it
+    // survives the dev-server fallback path.
+    if (options.querySuffix) {
+      const sep = targetUrl.includes('?') ? '&' : '?'
+      targetUrl = `${targetUrl}${sep}${options.querySuffix}`
+    }
     console.log(`Starting headless CPU vs CPU | mode=${options.mode} | games=${options.games} | speed=${options.speed}x | url=${targetUrl}`)
     await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',

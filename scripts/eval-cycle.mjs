@@ -291,19 +291,12 @@ async function main() {
   const minId = getMaxMatchId()
   console.log(`[eval-cycle] DB max match id pre-run: ${minId}`)
 
-  // Drive headless-sim. Reuses existing infra. Pass through home/away if set
-  // so cycles can be reproducible across runs. FSM mode is forced via URL
-  // query string so the gameEngine reads it on init (no code changes needed
-  // to flip between FSM-on and FSM-off baselines).
-  let runUrl = opts.url || 'http://127.0.0.1:5173/'
-  if (opts.fsm === 'on' || opts.fsm === 'off') {
-    const sep = runUrl.includes('?') ? '&' : '?'
-    runUrl = `${runUrl}${sep}fsm=${opts.fsm}`
-    console.log(`[eval-cycle] forcing FSM mode = ${opts.fsm} via URL: ${runUrl}`)
-  }
+  // Drive headless-sim. FSM mode is forced via the new --query flag, which
+  // appends to whichever URL headless-sim ends up using (default 5173 or
+  // the auto-spawned 4173 fallback). This avoids breaking the dev-server
+  // fallback by passing an explicit --url with query string.
   // Per-game wall-clock budget: gameplay duration (halves × 2) plus 4 min
-  // overhead for startup, kickoff, and cleanup. This was 20 min total in
-  // headless-sim's default (5 min × 4 games) which is too tight.
+  // overhead for startup, kickoff, and cleanup.
   const perGameMs = (opts.halfSeconds * 2 + 240) * 1000
   const totalTimeoutMs = perGameMs * opts.games + 60_000
   const simArgs = ['scripts/headless-sim.mjs',
@@ -311,9 +304,13 @@ async function main() {
     '--games', String(opts.games),
     '--speed', '1',
     '--half-seconds', String(opts.halfSeconds),
-    '--url', runUrl,
     '--timeout-ms', String(totalTimeoutMs),
   ]
+  if (opts.url) simArgs.push('--url', opts.url)
+  if (opts.fsm === 'on' || opts.fsm === 'off') {
+    simArgs.push('--query', `fsm=${opts.fsm}`)
+    console.log(`[eval-cycle] forcing FSM mode = ${opts.fsm} via ?fsm=${opts.fsm}`)
+  }
   if (opts.home) simArgs.push('--home', opts.home)
   if (opts.away) simArgs.push('--away', opts.away)
   // Tolerate partial runs: if sim exits non-zero (timeout, crash), still
