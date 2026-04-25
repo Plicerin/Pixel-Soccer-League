@@ -3297,9 +3297,21 @@ export function initGame(container: HTMLElement) {
   matchStartPanel.style.fontSize = '10px';
   matchStartPanel.style.lineHeight = '1.4';
   matchStartPanel.style.zIndex = '221';
-  matchStartPanel.style.pointerEvents = 'none';
+  matchStartPanel.style.pointerEvents = 'auto';
+  matchStartPanel.style.userSelect = 'text';
+  matchStartPanel.style.cursor = 'copy';
   matchStartPanel.style.whiteSpace = 'pre';
+  matchStartPanel.title = 'Click to copy contents to clipboard';
   matchStartPanel.textContent = 'MATCH START LOG — empty';
+  matchStartPanel.addEventListener('click', () => {
+    try {
+      const text = matchStartPanel.textContent || '';
+      navigator.clipboard?.writeText(text);
+      const prevBorder = matchStartPanel.style.borderColor;
+      matchStartPanel.style.borderColor = 'rgba(120,255,160,0.85)';
+      setTimeout(() => { matchStartPanel.style.borderColor = prevBorder; }, 600);
+    } catch {}
+  });
   container.appendChild(matchStartPanel);
   const _matchStartEntries: string[] = [];
   function pushMatchStartEntry(line: string) {
