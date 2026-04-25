@@ -1,0 +1,112 @@
+{
+  "date": "2026-04-24",
+  "match": "San Diego FC 1-3 New York Red Bulls",
+  "matchId": "M-C268E",
+  "session": "ft-1777083034249",
+  "fsmMode": "A2 active (off-ball single-owner, carrier still legacy)",
+  "baselines": {
+    "goals": 4,
+    "goalsDrift": 1.22,
+    "shotsDrift": -3.2,
+    "sotDrift": 6.6,
+    "corners": 0,
+    "cornersDrift": -8
+  },
+  "shots": {
+    "forced": 20,
+    "total": 23,
+    "longRangeSOT": 2
+  },
+  "passes": {
+    "backpasses": 412,
+    "directBlocker": 432
+  },
+  "patternGoals": {
+    "COUNTER": 1,
+    "WING_R": 2,
+    "WING_L": 1,
+    "allPattern": true
+  },
+  "patternRoleAlignment": {
+    "FAR_POST": 11.24,
+    "NEAR_POST": -2.55,
+    "RUNNER": 5.89,
+    "CARRIER": 10.22,
+    "SUPPORT": -1.82
+  },
+  "patternCross": 0,
+  "carrier": {
+    "avgBLineRatio": 0.88,
+    "straight15": 18,
+    "flippy": 11,
+    "flips": 128,
+    "flipsByTeam": {
+      "A": 43,
+      "B": 85,
+      "Asegs": 43,
+      "Bsegs": 51,
+      "AperSeg": 1,
+      "BperSeg": 1.67
+    },
+    "flipsByTeamHalf": {
+      "A1": 8,
+      "A2": 35,
+      "B1": 24,
+      "B2": 61
+    },
+    "flipsByDirection": {
+      "L2R": 61,
+      "R2L": 67,
+      "L2RperSeg": 1.39,
+      "R2LperSeg": 1.4,
+      "verdict": "direction-symmetric"
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goals": 4,
+    "avgDef": 1.25,
+    "avgAtk": 0.5,
+    "dist": {
+      "1": 3,
+      "2": 1
+    },
+    "note": "no zero-def goals"
+  },
+  "finalThirdOverloads": {
+    "A": "0/45 max2",
+    "B": "0/83 max2",
+    "note": "collapsed - off-ball too passive"
+  },
+  "multiTouchOppHalf": {
+    "count": 52,
+    "total": 92,
+    "pct": 0.57,
+    "avgDistinct": 1.72
+  },
+  "heatMap": {
+    "Awidth": 14.12,
+    "Bwidth": 14.6,
+    "note": "tightest formation hold yet"
+  },
+  "asymmetryFindings": {
+    "direction": "SYMMETRIC (1.39 vs 1.40 per seg)",
+    "team": "ASYMMETRIC (B 67% more flippy than A)",
+    "half": "ASYMMETRIC (H2 3x more flippy than H1 for BOTH teams)",
+    "interpretation": "user noticed Team-B-attacking-rightward-in-H2; not a left-right axis effect"
+  },
+  "wins": [
+    "goals in MLS band",
+    "long-range SOT 21->2",
+    "pattern 4/4 goals",
+    "defenders at goal best yet",
+    "B-line 0.88"
+  ],
+  "costs": [
+    "final-third overloads 0",
+    "pattern crosses 0",
+    "backpasses 412 (carrier untouched)",
+    "game looks bland"
+  ],
+  "nextPhaseB": "carrier rewrite (fixes backpasses, byline-then-back, team-B-flippy, H2-flippy)",
+  "nextPhaseA5": "box-crash state for ATTACKER role to restore overloads"
+}
