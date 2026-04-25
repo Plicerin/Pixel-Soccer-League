@@ -123,6 +123,11 @@ function parseArgs(argv) {
       options.url = new URL(next).toString()
       options.customUrl = true
       i += 1
+    } else if (arg === '--query') {
+      const next = argv[i + 1]
+      if (!next) throw new Error('Expected a query string after --query')
+      options.querySuffix = next.startsWith('?') ? next.slice(1) : next
+      i += 1
     } else if (arg === '--home') {
       const next = argv[i + 1]
       if (!next) throw new Error('Expected a team name after --home')
@@ -482,6 +487,12 @@ async function startMatch(page, teamA, teamB, formA, formB, speed, mode, halfSec
 
   await page.evaluate(() => {
     const game = window.__gameRef
+    // Defensive: explicitly clear splash scene mode in case the React effect
+    // hasn't processed setSmokeTestMode -> setShowSplash(false) yet. Without
+    // this, the engine's startKickoffPresentation hard-block (a9dae6c) refuses
+    // to start the match and headless games run with no shots, no goals.
+    game.setSplashSceneMode?.(false)
+    game.setMenuVisible?.(false)
     game.startKickoffPresentation?.(true)
   })
 }
@@ -587,6 +598,8 @@ async function captureMatchResult(page) {
         transitions: bundle.transitions || [],
         metadata: bundle.metadata || {},
       },
+      // Diagnostic — shot decision gate counters surfaced from gameEngine
+      shotGateStats: window.__shotGateStats || null,
     }
   })
 }
@@ -606,6 +619,10 @@ function printGameSummary(index, result) {
   if (result.goals.length > 0) {
     const goalStr = result.goals.map(g => `${g.matchMinute}' #${g.shirtNumber} ${g.playerName} (${g.team})`).join(', ')
     console.log(`  Goals: ${goalStr}`)
+  }
+  if (result.shotGateStats) {
+    const s = result.shotGateStats
+    console.log(`  ShotGate | eligible:${s.eligible} natural:${s.naturalSel} role:${s.roleAllowed} chanceOK:${s.shotChanceOK} passOK:${s.passChanceOK} should:${s.shouldShoot} passWins:${s.shouldShootButPassWins} fired:${s.fired} forceFired:${s.forceShotFired}`)
   }
 }
 
@@ -741,6 +758,12 @@ async function run() {
   }
 
   try {
+    // Append query suffix (e.g. fsm=off) after URL resolution so it
+    // survives the dev-server fallback path.
+    if (options.querySuffix) {
+      const sep = targetUrl.includes('?') ? '&' : '?'
+      targetUrl = `${targetUrl}${sep}${options.querySuffix}`
+    }
     console.log(`Starting headless CPU vs CPU | mode=${options.mode} | games=${options.games} | speed=${options.speed}x | url=${targetUrl}`)
     await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',

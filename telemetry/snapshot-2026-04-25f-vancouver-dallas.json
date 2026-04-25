@@ -1,0 +1,49 @@
+{
+  "date": "2026-04-25",
+  "match": "Vancouver Whitecaps 3-2 FC Dallas",
+  "matchId": "M-1AKPG",
+  "fsmMode": "A2 + H2 reset + Phase A.5 + zone-trace fix",
+  "baselines": {
+    "goals": 5,
+    "goalsDrift": 2.22,
+    "shotsDrift": -15.2,
+    "sotDrift": -1.4,
+    "longRangeSOT": 8,
+    "corners": 1
+  },
+  "shots": {
+    "total": 11,
+    "forced": 11
+  },
+  "passes": {
+    "backpasses": 150
+  },
+  "patternGoals": {
+    "COUNTER": 4,
+    "WING_R": 1,
+    "total": "5/5 100%"
+  },
+  "patternCross": 0,
+  "defendersAtGoal": {
+    "goals": 5,
+    "avgDef": 1,
+    "dist": {
+      "0": 2,
+      "1": 1,
+      "2": 2
+    }
+  },
+  "finalThirdOverloads": {
+    "A": "0/36 max1",
+    "B": "3/41 max5",
+    "note": "max 5 attackers in 1s window"
+  },
+  "carrier": {
+    "totalFlips": 79
+  },
+  "observations": [
+    "Pattern 5/5 goals",
+    "Box-crash visibly producing overloads",
+    "Backpasses 150"
+  ]
+}

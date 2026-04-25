@@ -1031,7 +1031,9 @@ const RetroFootball: React.FC = () => {
       
       // Auto-save when match reaches FULL_TIME
       // Skip splash-scene demos (sessionActive=false when splashSceneMode is on) — those are ghost matches.
-      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false) {
+      // Skip smoke-test runs — they save through the smoke-test runner directly,
+      // and they produce malformed stats (e.g. 0 shots) that pollute the dashboard.
+      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false && !smokeTestActiveRef.current) {
         // Save to SQLite via server endpoint
         try {
           const a = bundle.teamA, b = bundle.teamB;
@@ -1494,13 +1496,13 @@ const RetroFootball: React.FC = () => {
           recentSplashRan = last > 0 && (Date.now() - last) < 5 * 60 * 1000;
           priorFullTime = sessionStorage.getItem('psl_fullTime') === '1';
         } catch {}
-        if (!alreadyActive && !atFullTime && !recentSplashRan && !priorFullTime) {
-          splashSceneStartedRef.current = true;
-          try { sessionStorage.setItem('psl_splashAutoStartAt', String(Date.now())); } catch {}
-          gameRef.current?.startKickoffPresentation?.(true);
-        } else {
-          splashSceneStartedRef.current = true;
-        }
+        // Splash auto-demo permanently disabled: the background CPU-vs-CPU
+        // match was the source of "ghost" Miami-LA rows in the DB and made
+        // the splash visually noisy. Splash is now a static screen — no
+        // match runs behind it. Mark started so guards downstream still
+        // know we visited this branch.
+        void alreadyActive; void atFullTime; void recentSplashRan; void priorFullTime;
+        splashSceneStartedRef.current = true;
       }
       return;
     }

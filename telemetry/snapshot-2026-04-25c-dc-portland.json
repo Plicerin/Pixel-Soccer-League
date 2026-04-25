@@ -1,0 +1,57 @@
+{
+  "date": "2026-04-25",
+  "match": "DC United 0-3 Portland Timbers",
+  "matchId": "M-1JGSL",
+  "fsmMode": "A2 + H2 reset",
+  "baselines": {
+    "goals": 3,
+    "goalsDrift": 0.22,
+    "shotsDrift": -7.2,
+    "sotDrift": 3.6,
+    "longRangeSOT": 3,
+    "corners": 1
+  },
+  "shots": {
+    "total": 19,
+    "forced": 17
+  },
+  "patternGoals": {
+    "WING_L": 2,
+    "WING_R": 1,
+    "total": "3/3 100%",
+    "note": "all from patterns"
+  },
+  "patternCross": 0,
+  "defendersAtGoal": {
+    "goals": 3,
+    "avgDef": 1.67,
+    "dist": {
+      "1": 1,
+      "2": 2
+    }
+  },
+  "carrier": {
+    "totalFlips": 105
+  },
+  "carrierH2vsH1": {
+    "A": {
+      "H1seg": 5,
+      "H1flip": 0,
+      "H2seg": 36,
+      "H2flip": 53,
+      "verdict": "H1 anemic"
+    },
+    "B": {
+      "H1seg": 13,
+      "H1flip": 22,
+      "H2seg": 31,
+      "H2flip": 30,
+      "perSegRatio": "1.69→0.97 (DOWN)"
+    }
+  },
+  "finalThirdOverloads": "0/40, 0/53 — Phase A.5 needed",
+  "passes": {
+    "backpasses": 278,
+    "note": "up from M6 145"
+  }
+}

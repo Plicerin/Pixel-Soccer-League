@@ -19,6 +19,7 @@ import { computeForceFieldNudge } from './ai/forceFieldPositioning.ts';
 import { attemptThroughPass, selectAIPassTarget } from './ai/aiPassModel.ts';
 import { evaluateShotDecision } from './ai/aiShotModel.ts';
 import { computeAIPositioning } from './ai/aiPositioningModel.ts';
+import { computeFsmOffBallTarget, pickFsmDefender } from './ai/fsmPositioning.ts';
 import {
   chooseSimplePassTarget,
   chooseSimpleShotStyle,
@@ -2215,6 +2216,13 @@ export function initGame(container: HTMLElement) {
   }
 
   function startKickoffPresentationSequence(autoKick: boolean = true) {
+    // Hard block: if the splash scene is currently visible, any caller that
+    // tries to start a match is the ghost-match path. Refuse and trace.
+    if (splashSceneMode) {
+      console.warn('[MATCH START BLOCKED] splashSceneMode is on — refusing to start a match');
+      try { console.trace('[blocked caller]'); } catch {}
+      return;
+    }
     const now = performance.now() / 1000;
     const kickoffTeam = matchClock.half === 1 ? kickoffSchedule.firstHalfTeam : kickoffSchedule.secondHalfTeam;
 
@@ -2222,6 +2230,9 @@ export function initGame(container: HTMLElement) {
     const newMatchId = 'M-' + Math.random().toString(36).slice(2, 7).toUpperCase();
     (gameState as any).currentMatchId = newMatchId;
     console.log(`[MATCH START] ${newMatchId} — ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName}`);
+    // Diagnostic: print the call stack so unexpected match starts (e.g. the
+    // splash demo we thought was killed) can be traced back to their caller.
+    try { console.trace('[MATCH START caller]'); } catch {}
 
     // Reset match clock and stats for a fresh match
     matchClock.phase = 'FIRST_HALF';
@@ -3198,6 +3209,57 @@ export function initGame(container: HTMLElement) {
   fpsOverlay.appendChild(fpsDisplay);
   fpsOverlay.appendChild(fpsToggle);
   container.appendChild(fpsOverlay);
+
+  // ── FSM diagnostic panel ───────────────────────────────────────────────
+  // Always-visible panel proving whether the FSM positioning pre-pass is
+  // running. Avoids any need to paste console commands. Updated each tick
+  // when fsmPositioningEnabled is true.
+  const fsmPanel = document.createElement('div');
+  fsmPanel.style.position = 'fixed';
+  fsmPanel.style.left = '12px';
+  fsmPanel.style.top = '12px';
+  fsmPanel.style.padding = '8px 10px';
+  fsmPanel.style.background = 'rgba(0,0,0,0.72)';
+  fsmPanel.style.border = '1px solid rgba(255,255,255,0.18)';
+  fsmPanel.style.borderRadius = '6px';
+  fsmPanel.style.color = 'rgba(255,255,255,0.92)';
+  fsmPanel.style.fontFamily = 'Consolas, Monaco, monospace';
+  fsmPanel.style.fontSize = '11px';
+  fsmPanel.style.lineHeight = '1.45';
+  fsmPanel.style.zIndex = '221';
+  fsmPanel.style.pointerEvents = 'auto';
+  fsmPanel.style.cursor = 'pointer';
+  fsmPanel.style.userSelect = 'none';
+  fsmPanel.style.whiteSpace = 'pre';
+  fsmPanel.title = 'Click to toggle FSM positioning';
+  fsmPanel.textContent = 'FSM panel — initializing';
+  fsmPanel.addEventListener('click', () => {
+    gameState.fsmPositioningEnabled = !gameState.fsmPositioningEnabled;
+  });
+  container.appendChild(fsmPanel);
+  function updateFsmPanel(opts: {
+    enabled: boolean;
+    ticks: number;
+    handled: number;
+    bestA: string;
+    bestB: string;
+    carrier: string;
+    patternA: string;
+    patternB: string;
+  }) {
+    const onColor = opts.enabled ? 'rgba(173,255,212,0.98)' : 'rgba(255,180,180,0.88)';
+    fsmPanel.style.color = onColor;
+    fsmPanel.style.borderColor = opts.enabled ? 'rgba(120,255,160,0.45)' : 'rgba(255,255,255,0.18)';
+    fsmPanel.textContent =
+      `FSM: ${opts.enabled ? 'ON' : 'OFF'}  ticks=${opts.ticks}  handled=${opts.handled}\n` +
+      `presser A: ${opts.bestA || '—'}\n` +
+      `presser B: ${opts.bestB || '—'}\n` +
+      `carrier:   ${opts.carrier || '—'}\n` +
+      `pattern A: ${opts.patternA || 'NONE'}\n` +
+      `pattern B: ${opts.patternB || 'NONE'}`;
+  }
+  // Initial paint so the user sees something even before the match starts.
+  updateFsmPanel({ enabled: false, ticks: 0, handled: 0, bestA: '', bestB: '', carrier: '', patternA: '', patternB: '' });
 
   function applyFPSVisibility() {
     fpsOverlay.style.display = splashSceneMode ? 'none' : 'flex';
@@ -5588,6 +5650,22 @@ export function initGame(container: HTMLElement) {
     // Force-field positioning (GameplayFootball hybrid)
     useForceField: true,
     forceFieldBlend: 0.70,
+    // Phase A FSM positioning toggle. When true, off-ball players use
+    // computeFsmOffBallTarget (single-owner, pattern-role authoritative)
+    // instead of the legacy layered pipeline. Carrier always uses legacy.
+    // Default ON while we iterate on the FSM model; click the FSM panel
+    // (top-left of the game canvas) to toggle off if comparing baselines.
+    // Override via URL: ?fsm=off forces legacy, ?fsm=on forces FSM. Used
+    // by headless eval cycles to compare modes without code changes.
+    fsmPositioningEnabled: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const v = (params.get('fsm') || '').toLowerCase();
+        if (v === 'off' || v === '0' || v === 'false') return false;
+        if (v === 'on' || v === '1' || v === 'true') return true;
+      } catch {}
+      return true;
+    })(),
     // Give-and-go state
     giveAndGoActive: false,
     giveAndGoPasser: null as any,
@@ -12272,12 +12350,20 @@ export function initGame(container: HTMLElement) {
     const _p25_carrierAttackX = cpuCarrier.pos.x * attackSign;
     const _p25_absZ = Math.abs(cpuCarrier.pos.z);
     const _p25_distToGoalLocal = Math.abs((attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2) - cpuCarrier.pos.x);
-    // Crossing zone: advanced wide (near byline OR in wide final-third)
-    const _p25_crossingZone = _p25_isWingAttack
-      && _p25_carrierRole === 'CARRIER'
-      && _p25_carrierAttackX > 10
-      && _p25_absZ > goalMouthWidth * 0.9
-      && _p25_distToGoalLocal < penaltyDepth + 8;
+    // Crossing zone — widened across 11 FSM matches to fire more often:
+    //   - Accept WING_ATTACK or COUNTER_ATTACK (wing-side counters can also cross)
+    //   - Allow any carrier role (CARRIER or RUNNER) — the assigned CARRIER
+    //     isn't always the one who actually dribbles to the byline
+    //   - Carrier past midfield (>0) instead of well into final third (>10)
+    //   - Wide (|z| > goalMouthWidth * 0.65) — was 0.9, too restrictive
+    //   - Close enough to goal that a cross makes sense (penaltyDepth + 14)
+    const _p25_isCrossablePattern = _p25_isWingAttack || _p25_isCounterAttack;
+    const _p25_carrierCanCross = _p25_carrierRole === 'CARRIER' || _p25_carrierRole === 'RUNNER' || _p25_carrierRole === 'NONE';
+    const _p25_crossingZone = _p25_isCrossablePattern
+      && _p25_carrierCanCross
+      && _p25_carrierAttackX > 0
+      && _p25_absZ > goalMouthWidth * 0.65
+      && _p25_distToGoalLocal < penaltyDepth + 14;
     if (_p25_crossingZone && _p25_teamPattern) {
       const findByRole = (target: string): any | null => {
         for (const tm of teammates) {
@@ -12336,16 +12422,17 @@ export function initGame(container: HTMLElement) {
           // Treat as dribble-through — fall through to normal pass decision.
         } else {
           const crossDist = cpuCarrier.pos.distanceTo(crossTargetPlayer.pos);
-          const style = crossDist > 12 ? 'LONG_LOFTED' : 'DRIVEN';
-          // Pre-flight lane check mirroring executeAIGroundPass's silent reject.
-          // Only driven crosses use the ground-pass path; lofted bypasses lane.
-          let laneClear = true;
+          // Initial style heuristic by distance.
+          let style: 'LONG_LOFTED' | 'DRIVEN' = crossDist > 10 ? 'LONG_LOFTED' : 'DRIVEN';
+          // If driven, check lane. With Phase A.5 COLLAPSE_DEFEND bringing
+          // 2 extra defenders into the box, lanes block more often. Fall
+          // back to LONG_LOFTED instead of giving up — air bypasses lane.
           if (style === 'DRIVEN') {
             const lp = getSimpleLaneBlockerProfile(cpuCarrier.pos, crossTargetPlayer.pos, team as 'A' | 'B', 2.8);
             const blocked = lp.frontBlockerLateral < 1.25 && lp.frontBlockerT > 0.14 && lp.frontBlockerT < 0.84;
-            if (blocked) laneClear = false;
+            if (blocked) style = 'LONG_LOFTED';
           }
-          if (laneClear) {
+          {
             patternMeta.lastCrossAt = elapsed;
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
               patternType: _p25_teamPattern.type,
@@ -12363,7 +12450,6 @@ export function initGame(container: HTMLElement) {
             (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
             return;
           }
-          // Lane blocked: fall through to normal pass logic instead of spamming.
         }
       }
     }
@@ -13226,6 +13312,29 @@ export function initGame(container: HTMLElement) {
 
     if ((gameState as any)[cooldownKey] <= 0) {
       const resolveShotNow = forceShotNow || (!isDeepRole && missedShotWindowShotForce && simplePassChance < 0.15);
+      // ── Shot-decision diagnostic counters ──
+      // Surface why shots fire (or don't) so headless gameplay can be debugged
+      // against real-browser play. Every decision point increments a global
+      // counter visible at window.__shotGateStats.
+      try {
+        const stats = (window as any).__shotGateStats = (window as any).__shotGateStats || {
+          eligible: 0, naturalSel: 0, roleAllowed: 0, shotChanceOK: 0, passChanceOK: 0,
+          shouldShoot: 0, shouldShootButPassWins: 0, fired: 0, forceShotFired: 0,
+        };
+        stats.eligible++;
+        if (naturalShotSelection) stats.naturalSel++;
+        if (roleShotAllowed) stats.roleAllowed++;
+        if (simpleShotChance >= simpleShotThreshold) stats.shotChanceOK++;
+        if (simpleShotChance >= simplePassChance - 0.02) stats.passChanceOK++;
+        if (simpleShouldShoot) stats.shouldShoot++;
+        if (simpleShouldShoot && shouldPass && distToGoal >= 10 && !preferCarryOverBackpass && !resolveShotNow) {
+          stats.shouldShootButPassWins++;
+        }
+        if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
+          if (resolveShotNow) stats.forceShotFired++;
+          else stats.fired++;
+        }
+      } catch {}
       if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
         gameState.pendingShotDecision = {
           timestamp: Date.now(),
@@ -13827,6 +13936,29 @@ export function initGame(container: HTMLElement) {
     const carrier = directCarrier || (lastCarrierValid ? ballState.lastHeldBy : null);
     const roleLabel = (player.displayRole || player.role || '').toString().toUpperCase();
     const carrierRole = carrier ? (carrier.displayRole || carrier.role || '').toString().toUpperCase() : '';
+
+    // ── Phase A FSM positioning ─────────────────────────────────────────
+    // Single-owner deterministic target. Off-ball only — carrier uses legacy.
+    // See src/ai/fsmPositioning.ts for rationale (kill the layer fight).
+    if (gameState.fsmPositioningEnabled && player !== carrier && roleLabel !== 'GK') {
+      const teamPattern = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+      const attackPhase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+      const fsmTarget = computeFsmOffBallTarget({
+        player,
+        carrier,
+        teamPattern: teamPattern || null,
+        attackSign: attackSign > 0 ? 1 : -1,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        penaltyDepth,
+        goalMouthHalfWidth: goalMouthWidth / 2,
+        attackPhase,
+        allPlayers: players,
+        ballPos: ballState.pos,
+      });
+      _suppFT.copy(fsmTarget);
+      return _suppFT;
+    }
     // Controlled pass windows and tiny dribble gaps keep support continuity; true loose balls do not.
     const sameTeamRecent = !carrier && structuredPossessionTeam === player.team;
     const looseBallBlend = sameTeamRecent ? THREE.MathUtils.lerp(0.72, 0.90, route.anchorBlend)
@@ -17188,6 +17320,30 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         _lastShapeSampleAt = 0; // reset so shape sampling works in 2nd half
         _lastDiagnosticLogAt = 0; // reset diagnostic log for 2nd half
         _lastTuningEventAt = performance.now() / 1000; // reset drought timer for 2nd half
+        // ── H2 zigzag bug fix ──────────────────────────────────────────
+        // 4-match telemetry showed H2 carrier flips landing 2-6x H1 across
+        // every match. setupFormation() recreates player objects so any
+        // _simple* state on player references dies, but engine-level
+        // pattern + transition + counter state persists into H2 carrying
+        // stale role/team assignments. Carriers may behave erratically
+        // because they're trying to honour H1 patterns for H2 roles.
+        // Clear pattern engine state and short-window timers explicitly.
+        gameState.teamPatternA = null;
+        gameState.teamPatternB = null;
+        gameState.teamPatternLastEndByTypeA = {};
+        gameState.teamPatternLastEndByTypeB = {};
+        gameState.counterAttackActive = false;
+        gameState.counterAttackExpiry = 0;
+        gameState.transitionDefenseExpiry = 0;
+        gameState.transitionDefenseTeam = '';
+        gameState.giveAndGoActive = false;
+        gameState.giveAndGoPasser = null;
+        gameState.giveAndGoReceiver = null;
+        gameState.giveAndGoPhase = 'NONE';
+        gameState.clearancePushUpUntil = 0;
+        gameState.clearancePushUpTeam = '';
+        // FSM diag counters reset so the on-screen panel ticks reflect H2 only
+        try { (window as any).__pslFsmDiag = { ticks: 0, handled: 0, lastPanelAt: 0 }; } catch {}
         startSoccerRestart('KICK_OFF', kickoffSchedule.secondHalfTeam, 0, 0, '2ND HALF KICK-OFF');
 
         // Activate post-halftime kickoff presentation with 2-second pause
@@ -19459,10 +19615,102 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           gameState.clearancePushUpTeam = '';
         }
 
+        // ── FSM pre-pass (Phase A2 sensible-soccer mode) ──────────────────
+        // When fsmPositioningEnabled is on, hard-override almost every player's
+        // movement here and skip the legacy support / defense / chase logic
+        // below. Exemptions: ball holder, both keepers, and the single
+        // designated "bestDefender" per team (closest outfielder to the ball).
+        // Everyone else just steers toward homePos (or pattern role target).
+        // Pure ysoccer-ai POSITIONING + one DEFENDING per team. Bland on
+        // purpose — isolation test for the positioning model.
+        if (gameState.fsmPositioningEnabled) {
+          // Diagnostic — proves the pre-pass is actually running. Counters
+          // are also shown live on the FSM diagnostic panel (top-left).
+          const _fsmDiag = (window as any).__pslFsmDiag = ((window as any).__pslFsmDiag || { ticks: 0, handled: 0, lastPanelAt: 0 });
+          _fsmDiag.ticks++;
+          const fsmBestA = pickFsmDefender('A', players, ballState.pos);
+          const fsmBestB = pickFsmDefender('B', players, ballState.pos);
+          // Surface so the panel update below can read them.
+          (window as any).__pslFsmDiag.bestA = fsmBestA;
+          (window as any).__pslFsmDiag.bestB = fsmBestB;
+          const fsmCarrier = ballState.heldBy;
+          for (const p of players) {
+            (p as any)._fsmStepped = false;
+            if (!p) continue;
+            if (isGoalkeeper(p)) continue;                       // keeper: legacy
+            if (p === fsmCarrier) continue;                       // carrier: legacy
+            if (p === fsmBestA || p === fsmBestB) continue;       // sole presser per team: legacy
+            if (controlA && p === controlledPlayer) continue;     // human-controlled
+            if (controlB && p === controlledPlayerB) continue;
+            const teamPattern = p.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+            const attackPhase = p.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+            const attackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
+            const target = computeFsmOffBallTarget({
+              player: p,
+              // Pass the actual carrier (regardless of team) so COLLAPSE_DEFEND
+              // can detect the opponent-has-ball case. Pattern + box-crash paths
+              // still gate on carrier.team === p.team internally.
+              carrier: fsmCarrier || null,
+              teamPattern: teamPattern || null,
+              attackSign: attackSign as 1 | -1,
+              fieldWidth: FIELD_W,
+              fieldDepth: FIELD_D,
+              penaltyDepth,
+              goalMouthHalfWidth: goalMouthWidth / 2,
+              attackPhase,
+              allPlayers: players,
+              ballPos: ballState.pos,
+            });
+            _loopDir.subVectors(target, p.pos).setY(0);
+            const dist = _loopDir.length();
+            if (dist > 0.3) {
+              const speed = getUniformPlayerRunSpeed();
+              p.vel.lerp(_loopDir.normalize().multiplyScalar(speed), dt * 6);
+              p.pos.addScaledVector(p.vel, dt);
+            } else {
+              p.vel.multiplyScalar(Math.max(0, 1 - dt * 8));
+            }
+            (p as any)._fsmStepped = true;
+            _fsmDiag.handled++;
+            // Emit ATTACKER_ZONE_TRACE for telemetry (final-third overload counter
+            // depends on this; legacy forEach loops are skipped for FSM-stepped players).
+            maybeEmitAttackerZoneTrace(p, attackSign as 1 | -1, target as THREE.Vector3, 'SIMPLE');
+          }
+          // Update the on-screen FSM panel ~10x per second.
+          const _nowMs = performance.now();
+          if (_nowMs - _fsmDiag.lastPanelAt > 100) {
+            _fsmDiag.lastPanelAt = _nowMs;
+            updateFsmPanel({
+              enabled: true,
+              ticks: _fsmDiag.ticks,
+              handled: _fsmDiag.handled,
+              bestA: fsmBestA ? `${fsmBestA.name || ''} (${(fsmBestA.displayRole || fsmBestA.role || '').toString().toUpperCase()})` : '',
+              bestB: fsmBestB ? `${fsmBestB.name || ''} (${(fsmBestB.displayRole || fsmBestB.role || '').toString().toUpperCase()})` : '',
+              carrier: fsmCarrier ? `${fsmCarrier.name || ''} (${fsmCarrier.team})` : '',
+              patternA: gameState.teamPatternA?.type || 'NONE',
+              patternB: gameState.teamPatternB?.type || 'NONE',
+            });
+          }
+        } else {
+          // Flag off — keep panel visible but show the OFF state.
+          const _diag = (window as any).__pslFsmDiag;
+          updateFsmPanel({
+            enabled: false,
+            ticks: _diag?.ticks || 0,
+            handled: _diag?.handled || 0,
+            bestA: '',
+            bestB: '',
+            carrier: '',
+            patternA: gameState.teamPatternA?.type || 'NONE',
+            patternB: gameState.teamPatternB?.type || 'NONE',
+          });
+        }
+
         // Off-ball support runs
         playState.activeRoutes.forEach(route => {
           const p = route.player;
           if (!p || (p === controlledPlayer && controlA) || (p === controlledPlayerB && controlB)) return;
+          if ((p as any)._fsmStepped) return; // FSM pre-pass handled this player
 
           // Practice play steering
           if (practiceModeEnabled && practicePlayActive && p !== ballState.heldBy && !isGoalkeeper(p)) {
@@ -19836,6 +20084,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           if (!p) return;
           if (controlB && p === controlledPlayerB && !isGoalkeeper(p)) return;
           if (controlA && p === controlledPlayer && !isGoalkeeper(p)) return;
+          if ((p as any)._fsmStepped) return; // FSM pre-pass handled this player
           // Don't override players already assigned to chase a loose ball
           if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
 
@@ -22647,6 +22896,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       updateHUD();
     },
     setHotSeatMode: (enabled: boolean) => { gameState.hotSeatMode = enabled; },
+    setFsmPositioning: (enabled: boolean) => { gameState.fsmPositioningEnabled = !!enabled; },
+    isFsmPositioning: () => gameState.fsmPositioningEnabled === true,
     setPracticeMode: (enabled: boolean) => {
       practiceModeEnabled = enabled;
       gameState.practiceModeEnabled = enabled; // Synchronize with the state object the UI reads

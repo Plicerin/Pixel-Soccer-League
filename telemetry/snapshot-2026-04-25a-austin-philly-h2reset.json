@@ -1,0 +1,53 @@
+{
+  "date": "2026-04-25",
+  "match": "Austin FC 1-1 Philadelphia Union",
+  "matchId": "M-WLFIJ",
+  "fsmMode": "A2 active + H2 halftime reset deployed",
+  "baselines": {
+    "goals": 2,
+    "goalsDrift": -0.78,
+    "shotsDrift": 2.8,
+    "sotDrift": 7.6,
+    "corners": 0,
+    "longRangeSOT": 12
+  },
+  "shots": {
+    "forced": 27,
+    "total": 29,
+    "longRangeSOT": 12
+  },
+  "passes": {
+    "backpasses": 230,
+    "note": "lowest ever"
+  },
+  "defendersAtGoal": {
+    "goals": 2,
+    "avgDef": 2,
+    "dist": {
+      "2": 2
+    }
+  },
+  "carrier": {
+    "totalFlips": 91,
+    "note": "30% drop from prior FSM matches average (~125)"
+  },
+  "carrierH2vsH1": {
+    "A": {
+      "H1": 7,
+      "H2": 56,
+      "ratio": 8
+    },
+    "B": {
+      "H1": 7,
+      "H2": 21,
+      "ratio": 3
+    },
+    "verdict": "H2 imbalance NOT fixed; total flips improved"
+  },
+  "pattern": {
+    "crosses": 0,
+    "goals": 0,
+    "note": "no pattern goals (regression)"
+  },
+  "resetEffect": "totalFlips down 30%, ratio unchanged, no breakage observed"
+}
