@@ -487,6 +487,12 @@ async function startMatch(page, teamA, teamB, formA, formB, speed, mode, halfSec
 
   await page.evaluate(() => {
     const game = window.__gameRef
+    // Defensive: explicitly clear splash scene mode in case the React effect
+    // hasn't processed setSmokeTestMode -> setShowSplash(false) yet. Without
+    // this, the engine's startKickoffPresentation hard-block (a9dae6c) refuses
+    // to start the match and headless games run with no shots, no goals.
+    game.setSplashSceneMode?.(false)
+    game.setMenuVisible?.(false)
     game.startKickoffPresentation?.(true)
   })
 }
