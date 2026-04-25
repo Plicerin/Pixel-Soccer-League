@@ -17287,6 +17287,30 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         _lastShapeSampleAt = 0; // reset so shape sampling works in 2nd half
         _lastDiagnosticLogAt = 0; // reset diagnostic log for 2nd half
         _lastTuningEventAt = performance.now() / 1000; // reset drought timer for 2nd half
+        // ── H2 zigzag bug fix ──────────────────────────────────────────
+        // 4-match telemetry showed H2 carrier flips landing 2-6x H1 across
+        // every match. setupFormation() recreates player objects so any
+        // _simple* state on player references dies, but engine-level
+        // pattern + transition + counter state persists into H2 carrying
+        // stale role/team assignments. Carriers may behave erratically
+        // because they're trying to honour H1 patterns for H2 roles.
+        // Clear pattern engine state and short-window timers explicitly.
+        gameState.teamPatternA = null;
+        gameState.teamPatternB = null;
+        gameState.teamPatternLastEndByTypeA = {};
+        gameState.teamPatternLastEndByTypeB = {};
+        gameState.counterAttackActive = false;
+        gameState.counterAttackExpiry = 0;
+        gameState.transitionDefenseExpiry = 0;
+        gameState.transitionDefenseTeam = '';
+        gameState.giveAndGoActive = false;
+        gameState.giveAndGoPasser = null;
+        gameState.giveAndGoReceiver = null;
+        gameState.giveAndGoPhase = 'NONE';
+        gameState.clearancePushUpUntil = 0;
+        gameState.clearancePushUpTeam = '';
+        // FSM diag counters reset so the on-screen panel ticks reflect H2 only
+        try { (window as any).__pslFsmDiag = { ticks: 0, handled: 0, lastPanelAt: 0 }; } catch {}
         startSoccerRestart('KICK_OFF', kickoffSchedule.secondHalfTeam, 0, 0, '2ND HALF KICK-OFF');
 
         // Activate post-halftime kickoff presentation with 2-second pause
