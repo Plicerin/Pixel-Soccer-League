@@ -3200,6 +3200,51 @@ export function initGame(container: HTMLElement) {
   fpsOverlay.appendChild(fpsToggle);
   container.appendChild(fpsOverlay);
 
+  // ── FSM diagnostic panel ───────────────────────────────────────────────
+  // Always-visible panel proving whether the FSM positioning pre-pass is
+  // running. Avoids any need to paste console commands. Updated each tick
+  // when fsmPositioningEnabled is true.
+  const fsmPanel = document.createElement('div');
+  fsmPanel.style.position = 'fixed';
+  fsmPanel.style.left = '12px';
+  fsmPanel.style.top = '12px';
+  fsmPanel.style.padding = '8px 10px';
+  fsmPanel.style.background = 'rgba(0,0,0,0.72)';
+  fsmPanel.style.border = '1px solid rgba(255,255,255,0.18)';
+  fsmPanel.style.borderRadius = '6px';
+  fsmPanel.style.color = 'rgba(255,255,255,0.92)';
+  fsmPanel.style.fontFamily = 'Consolas, Monaco, monospace';
+  fsmPanel.style.fontSize = '11px';
+  fsmPanel.style.lineHeight = '1.45';
+  fsmPanel.style.zIndex = '221';
+  fsmPanel.style.pointerEvents = 'none';
+  fsmPanel.style.whiteSpace = 'pre';
+  fsmPanel.textContent = 'FSM panel — initializing';
+  container.appendChild(fsmPanel);
+  function updateFsmPanel(opts: {
+    enabled: boolean;
+    ticks: number;
+    handled: number;
+    bestA: string;
+    bestB: string;
+    carrier: string;
+    patternA: string;
+    patternB: string;
+  }) {
+    const onColor = opts.enabled ? 'rgba(173,255,212,0.98)' : 'rgba(255,180,180,0.88)';
+    fsmPanel.style.color = onColor;
+    fsmPanel.style.borderColor = opts.enabled ? 'rgba(120,255,160,0.45)' : 'rgba(255,255,255,0.18)';
+    fsmPanel.textContent =
+      `FSM: ${opts.enabled ? 'ON' : 'OFF'}  ticks=${opts.ticks}  handled=${opts.handled}\n` +
+      `presser A: ${opts.bestA || '—'}\n` +
+      `presser B: ${opts.bestB || '—'}\n` +
+      `carrier:   ${opts.carrier || '—'}\n` +
+      `pattern A: ${opts.patternA || 'NONE'}\n` +
+      `pattern B: ${opts.patternB || 'NONE'}`;
+  }
+  // Initial paint so the user sees something even before the match starts.
+  updateFsmPanel({ enabled: false, ticks: 0, handled: 0, bestA: '', bestB: '', carrier: '', patternA: '', patternB: '' });
+
   function applyFPSVisibility() {
     fpsOverlay.style.display = splashSceneMode ? 'none' : 'flex';
     fpsDisplay.style.display = !splashSceneMode && showFPSDisplay ? 'inline-flex' : 'none';
@@ -19494,12 +19539,15 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         // Pure ysoccer-ai POSITIONING + one DEFENDING per team. Bland on
         // purpose — isolation test for the positioning model.
         if (gameState.fsmPositioningEnabled) {
-          // Diagnostic — proves the pre-pass is actually running. If you don't
-          // see [FSM] logs on the console, the build is stale; hard reload.
-          const _fsmDiag = (window as any).__pslFsmDiag = ((window as any).__pslFsmDiag || { ticks: 0, handled: 0, lastLogAt: 0 });
+          // Diagnostic — proves the pre-pass is actually running. Counters
+          // are also shown live on the FSM diagnostic panel (top-left).
+          const _fsmDiag = (window as any).__pslFsmDiag = ((window as any).__pslFsmDiag || { ticks: 0, handled: 0, lastPanelAt: 0 });
           _fsmDiag.ticks++;
           const fsmBestA = pickFsmDefender('A', players, ballState.pos);
           const fsmBestB = pickFsmDefender('B', players, ballState.pos);
+          // Surface so the panel update below can read them.
+          (window as any).__pslFsmDiag.bestA = fsmBestA;
+          (window as any).__pslFsmDiag.bestB = fsmBestB;
           const fsmCarrier = ballState.heldBy;
           for (const p of players) {
             (p as any)._fsmStepped = false;
@@ -19535,13 +19583,34 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             (p as any)._fsmStepped = true;
             _fsmDiag.handled++;
           }
-          // Throttled console log — once per second, prove pre-pass ran and
-          // count how many players it actually moved.
+          // Update the on-screen FSM panel ~10x per second.
           const _nowMs = performance.now();
-          if (_nowMs - _fsmDiag.lastLogAt > 1000) {
-            console.log(`[FSM] tick ${_fsmDiag.ticks} — handled ${_fsmDiag.handled} player-frames since start`);
-            _fsmDiag.lastLogAt = _nowMs;
+          if (_nowMs - _fsmDiag.lastPanelAt > 100) {
+            _fsmDiag.lastPanelAt = _nowMs;
+            updateFsmPanel({
+              enabled: true,
+              ticks: _fsmDiag.ticks,
+              handled: _fsmDiag.handled,
+              bestA: fsmBestA ? `${fsmBestA.name || ''} (${(fsmBestA.displayRole || fsmBestA.role || '').toString().toUpperCase()})` : '',
+              bestB: fsmBestB ? `${fsmBestB.name || ''} (${(fsmBestB.displayRole || fsmBestB.role || '').toString().toUpperCase()})` : '',
+              carrier: fsmCarrier ? `${fsmCarrier.name || ''} (${fsmCarrier.team})` : '',
+              patternA: gameState.teamPatternA?.type || 'NONE',
+              patternB: gameState.teamPatternB?.type || 'NONE',
+            });
           }
+        } else {
+          // Flag off — keep panel visible but show the OFF state.
+          const _diag = (window as any).__pslFsmDiag;
+          updateFsmPanel({
+            enabled: false,
+            ticks: _diag?.ticks || 0,
+            handled: _diag?.handled || 0,
+            bestA: '',
+            bestB: '',
+            carrier: '',
+            patternA: gameState.teamPatternA?.type || 'NONE',
+            patternB: gameState.teamPatternB?.type || 'NONE',
+          });
         }
 
         // Off-ball support runs
