@@ -5643,7 +5643,9 @@ export function initGame(container: HTMLElement) {
     // Phase A FSM positioning toggle. When true, off-ball players use
     // computeFsmOffBallTarget (single-owner, pattern-role authoritative)
     // instead of the legacy layered pipeline. Carrier always uses legacy.
-    fsmPositioningEnabled: false,
+    // Default ON while we iterate on the FSM model; click the FSM panel
+    // (top-left of the game canvas) to toggle off if comparing baselines.
+    fsmPositioningEnabled: true,
     // Give-and-go state
     giveAndGoActive: false,
     giveAndGoPasser: null as any,
