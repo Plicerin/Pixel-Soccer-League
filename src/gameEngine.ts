@@ -2229,7 +2229,7 @@ export function initGame(container: HTMLElement) {
     if (splashSceneMode) {
       console.warn('[MATCH START BLOCKED] splashSceneMode is on — refusing to start a match');
       try { console.trace('[blocked caller]'); } catch {}
-      try { (gameState as any)._pushMatchStartEntry?.(`[BLOCKED] splash on — ${callerHint}`); } catch {}
+      try { (window as any).__pslPushMatchStartEntry?.(`[BLOCKED] splash on — ${callerHint}`); } catch {}
       return;
     }
     const now = performance.now() / 1000;
@@ -2242,7 +2242,7 @@ export function initGame(container: HTMLElement) {
     // Diagnostic: print the call stack so unexpected match starts (e.g. the
     // splash demo we thought was killed) can be traced back to their caller.
     try { console.trace('[MATCH START caller]'); } catch {}
-    try { (gameState as any)._pushMatchStartEntry?.(`${newMatchId} ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName} <- ${callerHint}`); } catch {}
+    try { (window as any).__pslPushMatchStartEntry?.(`${newMatchId} ${activeTeams.A.scoreName} vs ${activeTeams.B.scoreName} <- ${callerHint}`); } catch {}
 
     // Reset match clock and stats for a fresh match
     matchClock.phase = 'FIRST_HALF';
@@ -3301,7 +3301,8 @@ export function initGame(container: HTMLElement) {
     matchStartPanel.textContent = 'MATCH START LOG\n' + _matchStartEntries.join('\n');
   }
   // Expose so the engine factory can call from anywhere (startKickoffPresentationSequence, hard-block path, etc.)
-  (gameState as any)._pushMatchStartEntry = pushMatchStartEntry;
+  // Uses window because gameState isn't declared yet at this point.
+  (window as any).__pslPushMatchStartEntry = pushMatchStartEntry;
 
   function applyFPSVisibility() {
     fpsOverlay.style.display = splashSceneMode ? 'none' : 'flex';
