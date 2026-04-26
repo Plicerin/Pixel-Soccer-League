@@ -1,4 +1,4 @@
-# PSL Handover — 2026-04-25
+# PSL Handover — 2026-04-26
 
 You're picking up Pixel Soccer League (PSL) cold. This document gets you from "what is this repo" to "I can keep working" in 15 minutes. Read top to bottom the first time.
 
@@ -10,7 +10,7 @@ Pixel Soccer League is a browser-based soccer simulation, pixel-art aesthetic, d
 
 The user is the only player and reviewer. They run matches in a browser, watch what happens, give feedback. There is no other team or stakeholder.
 
-The repo is at `C:\Users\vrock\Documents\Pixel Soccer League` (Windows, bash shell available, Vite dev server on port 3001).
+The repo is at `C:\Users\vrock\Documents\Pixel Soccer League` (Windows, PowerShell, Vite dev server on port 3001).
 
 ---
 
@@ -72,13 +72,18 @@ There's also an MLS-baseline JSON at `src/telemetry/mls2025-baselines.ts` with t
 
 ## Where to pick up (today)
 
-You are on `main` at commit `b73f416` (this handover) / `d4a8a37` (the last code change). The repo is **shippable as-is** for development play. 17 user-played matches verify the substrate.
+You are on `structured-attack-v1`. Latest pushed code state before this handover update:
+- `a3926f1 Backprop pass, goal, and cross telemetry guards`
+- `ff53b93 backprop §B.13 + §V.16: hide ghost match rows`
+- `cf59495 Add structured attack delivery controls`
 
-The next sensible piece of work is a **surgical patch to legacy carrier** — kill the "drive then backpass" bug without rewriting the whole carrier model. See "Recommended next step" below.
+The repo is development-playable. The current structural target is **shape / width ownership**: wide attacking roles and home positions are still being swallowed by the broader movement-force stack. User-run Kansas City vs Atlanta telemetry showed pass resolution is no longer the immediate blocker, but average team width stayed around 15 units and home-position error stayed around 13.
+
+Important workflow rule: when the user gives two team names, two shorthand names, or a score line, assume they just ran a game and want telemetry analysis from existing saved data. Do **not** start a new sim unless they explicitly ask for one.
 
 ---
 
-## State of main
+## State of branch
 
 ### What's deployed
 
@@ -104,12 +109,20 @@ The next sensible piece of work is a **surgical patch to legacy carrier** — ki
 - Pattern-scoped 1.5s cooldown prevents the 200-event spam from earlier (lane-blocked crosses re-fired every 0.1s)
 - LONG_LOFTED fallback when DRIVEN cross lane is blocked (Phase A.5 brings extra defenders into the box, so ground crosses get blocked more)
 
+**Telemetry guard fixes from `a3926f1`**:
+- `src/ai/passResolution.ts` adds segment-based route-target collection so receivers can gather a moving pass when the ball crosses their catch radius between frames.
+- Intended passes now expire through `expireIntendedPass(...)`, mark the latest `PASS` as `completed=false`, and emit `PASS_UNRESOLVED` instead of silently hanging.
+- `src/ai/goalValidation.ts` blocks non-shot goal crossings until an explicit own-goal classifier exists. Goals must be shot-backed under SPEC §V.17.
+- `src/ai/crossTelemetry.ts` separates structured deliveries from real crosses. `PATTERN_DELIVERY_EXECUTED` counts all launched deliveries; `PATTERN_CROSS_EXECUTED` is only for wide-channel passer into a central/box/scoring target under SPEC §V.18.
+- `scripts/telemetry-analyze-latest.mjs` and `scripts/eval-cycle.mjs` now report/track pattern deliveries and real crosses separately.
+
 **Ghost-match defenses** (this was an extended saga — see "Gotchas"):
 - Splash background demo permanently disabled (was the original ghost source; auto-fired Inter Miami vs LA Galaxy demo behind the splash screen)
 - Server-side `/__db/match-result` middleware rejects bundles with `sessionActive=false`
 - Smoke-test runs gated out of React auto-save (was polluting the dashboard)
 - Match-start hard-blocked when `splashSceneMode` is true (backstop)
 - `resetMatch` forces `isLive=false` after `startSoccerRestart` so the menu screen doesn't run a background simulation (this was the final, most stubborn ghost)
+- DB/dashboard filtering also hides ghost rows using SPEC §V.16: inactive/demo/smoke rows must not appear in the match dashboard or analyzer default path.
 
 **Diagnostic tooling**:
 - **FSM panel** (top-left of game canvas, green border when active): live `FSM:ON/OFF`, `CARR:ON/OFF`, ticks count, handled count, designated pressers per team, current carrier name, last carrier decision, active patterns. Click toggles FSM positioning. Shift-click toggles CARR (Phase B, branch only).
@@ -136,7 +149,8 @@ Snapshots saved per match in `telemetry/snapshot-2026-04-2{4,5}*.json`. Each is 
 ## Branches
 
 ```
-main                    ← current, Phase A.5 + cross fix (shippable)
+structured-attack-v1    ← current working branch, pushed
+main                    ← older Phase A.5 + cross fix baseline
 fsm-positioning         ← merged into main via bae0448 (kept for reference)
 phase-b-carrier         ← parked, NOT merged (failed to ship; see post-mortem below)
 claude/determined-mcclintock ← unrelated old branch from earlier work
@@ -144,7 +158,7 @@ claude/determined-mcclintock ← unrelated old branch from earlier work
 
 To revive Phase B: `git checkout phase-b-carrier`. To abandon it: `git branch -D phase-b-carrier` after the next clean merge.
 
-The repo's `origin/main` is 90 commits behind local `main`. **Push is not blocked but the user hasn't asked for it.** Don't push without confirming. The user's home machine is the only working copy that matters.
+The user has explicitly asked to commit and push recent handover/code changes on `structured-attack-v1`. Do not push unrelated generated telemetry or runtime files.
 
 ---
 
@@ -172,6 +186,21 @@ Telemetry files are in `vite.config.ts`'s `server.watch.ignored` list. **Don't w
 ### Telemetry events
 `pushTuningEvent(elapsedInHalf, half, type, team, role, detail)` writes to `tuningEventLog`. The analyzer reads these. If you add a new event type, the analyzer won't know about it — add a handler in `scripts/telemetry-analyze-latest.mjs`.
 
+### Telemetry access procedure
+When the user gives two teams or a score line, they just ran a match. Analyze existing telemetry; do not run a new sim.
+
+Use this order:
+1. Check `telemetry-snapshots.json` to confirm the latest session, teams, score, and full-time state.
+2. Do not trust `telemetry/latest-report.json` or `telemetry/latest-report.md` blindly; those can be stale exports from a previous analyzer run.
+3. Query recent SQLite rows:
+   ```bash
+   sqlite3 psl.db "select id, session_id, datetime(timestamp/1000,'unixepoch'), team_a_name, team_b_name, score_a, score_b, shots_a, shots_b, shots_on_target_a, shots_on_target_b, possession_a from match_results order by id desc limit 12;"
+   ```
+4. Select the row that matches the user's fixture or score. Parse `match_results.bundle_json` as the authoritative telemetry bundle.
+5. Inspect `teamA/teamB`, `events`, `passLog`, `goalLog`, `shapeA/B`, `playerPositioning`, `teleportation`, and `passNetwork`.
+
+Known accounting smell: at least one user-run bundle had `passNetwork` edges where `completed > count`. Treat pass-network completion ratios as suspect until that is fixed; prefer `passLog`/team summary for pass completion.
+
 ### Gameplay metrics
 - `MLS_BASELINE` is the realism target. We compare drift against this.
 - `force shots` count is high (often >90% of all shots are forced overrides). The intent is to keep matches dynamic; the user has mixed feelings about this.
@@ -197,7 +226,7 @@ The engine factory is one giant function. Closures captured early (e.g. panel-re
 
 **Drive-then-backpass** (ORIGINAL user complaint, NOT FIXED on main):
 - Carrier sprints with ball, hits some legacy threshold, picks first backward pass option, recycles. Phase A.5 didn't address carrier decision logic. Phase B attempted full rewrite and failed (see post-mortem).
-- See "Recommended next step" — surgical patch is the cheapest viable approach.
+- Still relevant, but not the current top blocker after the structured-attack pass/goal/cross guard pass.
 
 **Pattern role alignment variance**:
 - NEAR_POST_RUNNER and FAR_POST_RUNNER fwdX swings -11 to +11 across matches with same code. Box-crash is meant to fix this but pattern role lookup happens at pattern start and the player who got the role may not actually advance.
@@ -206,7 +235,14 @@ The engine factory is one giant function. Closures captured early (e.g. panel-re
 - MLS baseline is ~5 corners/team/match. We have 0-2. Deflection / blocked-shot / out-of-play logic isn't producing corner kicks. Untouched in this work.
 
 **Heat map narrow** (center+narrow 60-75%):
-- Shape holds tighter than real soccer. Wingers don't stretch wide enough during build-up. Phase A.5 prioritised pattern/box-crash positions, didn't address baseline width.
+- Shape holds tighter than real soccer. Wingers don't stretch wide enough during build-up. Latest Kansas City vs Atlanta user-run telemetry still had average widths around 15 units; target should be closer to 18+ before cross/play shape will look believable.
+- This is now the main structural concern: the movement-force stack can swallow finely tuned pattern and home-position intent.
+
+**Pass-network accounting bug**:
+- Some `passNetwork` edges report `completed > count`. Do not use those edge-level completion ratios as truth until the aggregation logic is fixed.
+
+**Cross baseline interpretation**:
+- Old telemetry inflated `PATTERN_CROSS_EXECUTED` because it counted every structured delivery as a cross. New code splits deliveries from actual crosses. Re-baseline with future user-run matches before tuning cross volume.
 
 **H2 zigzag noise**:
 - Per-segment flip rate H2/H1 ratio averages 1.2-1.5x. Original 4-match sample showed 2-6x but proved to be carrier turnover counts, not actual zigzag. Halftime-reset commit (`6e29b02`) reduced total flips ~30% but didn't eliminate the asymmetry. Low priority — confirmed mostly noise.
@@ -235,27 +271,18 @@ Three commits on `phase-b-carrier` branch attempted to replace the legacy carrie
 
 ---
 
-## Recommended next step (surgical legacy patch)
+## Recommended next step (shape ownership)
 
-Bypass the Phase B architecture problem by patching the specific user complaint without rewriting carrier internals.
+The next useful work is not one-percent tuning. Treat this as a structural movement-ownership problem:
 
-The "drive then backpass" bug lives in legacy `executeSimpleCarrierDecision` (gameEngine.ts ~12369). The flow:
-1. Carrier sprints (legacy dribble works fine — 5-8 u/s)
-2. Hits a state where `simplePassChance > simpleShotThreshold`
-3. `chooseAIPassTarget` returns the best pass target — often the closest backward option when forward is blocked
-4. Pass executes, ball goes back
+1. Map the open-play movement pipeline in `src/gameEngine.ts`: FSM target, pattern role target, home-position pull, force-field pull, ball attraction, defensive collapse, and any final `lerp` writes to the same player target.
+2. Add or expose telemetry that shows, per role, which owner won the final target in each phase: home, pattern, support, box crash, defender collapse, carrier support, fallback force-field.
+3. Give wide roles an authoritative open-play owner during build-up and structured attacks. LM/RM/LW/RW/fullback outlet positions should not be blended back into the center every frame.
+4. Re-run against user-played telemetry only. Target first-order shape improvements: average width >= 18, lower home-position error, wide channels visibly occupied, and no loss of pass completion into the 70s.
+5. After width is believable, re-check real cross count using the new delivery/cross split. Do not tune cross volume from old `PATTERN_CROSS_EXECUTED` counts.
+6. Then fix pass-network accounting (`completed > count`) so dashboard ratios can be trusted again.
 
-The patch:
-1. Find the carrier-decided pass execution path (around line 12500-13700 in gameEngine.ts)
-2. Add a guard: if `(target.pos.x - carrier.pos.x) * attackSign < -2` (target is behind carrier in attack direction) AND `carrier.pos.x * attackSign > 0` (carrier is in opp half), **reject the pass** and let the carrier fall through to dribble
-3. Possibly: add 0.5s "no-recycle" cooldown after rejection so we don't loop
-
-This leaves dribble speed, sprint state, weighted decisions all alone. Only kills the specific pass branch that produces user-visible "drive then backpass" frustration.
-
-Risk: low. Affected lines: ~10-30. Testing: 2-3 user matches.
-
-If it works → Phase A.5 + this patch is the shippable state for a long while.
-If it regresses something → revert the single commit, no broader damage.
+Carrier/backpass cleanup remains useful, but width and final-target ownership are the bigger reason the game does not yet look like real soccer.
 
 ---
 
@@ -273,8 +300,10 @@ Reads from `psl.db` and prints the full report (~80 lines). Key sections: MLS ba
 
 **To inspect the DB directly**:
 ```bash
-curl http://localhost:3001/__db/matches?limit=5
+sqlite3 psl.db "select id, session_id, datetime(timestamp/1000,'unixepoch'), team_a_name, team_b_name, score_a, score_b from match_results order by id desc limit 12;"
 ```
+
+If the user gives a fixture, match by teams/session/score first, then inspect `bundle_json`. `latest-report` files are convenience exports, not authoritative source.
 
 **To delete a polluted row**:
 ```bash
@@ -303,6 +332,9 @@ Currently produces near-zero shots due to headless playwright difference from re
 ```
 src/ai/fsmPositioning.ts          — Phase A2 + A.5 substrate (single-owner off-ball)
 src/ai/patternEngine.ts           — pattern selection + role assignment + role targets
+src/ai/passResolution.ts          — route-target pass collection and segment crossing helper
+src/ai/goalValidation.ts          — shot-backed goal validation
+src/ai/crossTelemetry.ts          — delivery vs real-cross classifier
 src/ai/fsmCarrier.ts              — Phase B v2 (parked on phase-b-carrier branch only)
 src/ai/tacticalPositioning.ts     — legacy tactical layer (referenced from FSM-off path)
 src/ai/forceFieldPositioning.ts   — legacy force-field layer (referenced from FSM-off path)
@@ -322,6 +354,7 @@ scripts/headless-sim.mjs          — playwright-driven headless match runner
 scripts/iterate-overnight.mjs     — older overnight cycle runner
 telemetry/snapshot-2026-04-*.json — per-match snapshots, 13+ files
 HANDOVER.md                       — this file
+handoff.md                        — older short handoff, keep current enough for telemetry procedure
 SPEC.md                           — older spec doc, partial coverage
 STRUCTURAL_PLAN.md                — earlier plan, mostly superseded
 psl.db                            — match results SQLite DB
@@ -334,6 +367,8 @@ psl.db                            — match results SQLite DB
 The user is technical (writes commits, knows git, reads code), runs matches manually, gives terse feedback in caveman style. They prefer:
 
 - **Concrete progress over discussion.** They will say "do it" and expect code, not more questions.
+- **Team-name shorthand means telemetry analysis.** If they say "Dallas Chicago", "MIA 2 LA 0", or similar, analyze the match they just ran from saved telemetry. Do not kick off a new sim unless explicitly asked.
+- **Full sims are for overnight sessions.** During normal interactive work, prefer existing telemetry, analyzer runs, lint/tests, and short smoke checks.
 - **Recommendations over option lists.** When you offer choices, name your top pick first with reasoning.
 - **No fake autonomy.** I once said "I'll work on it overnight" — they correctly called me out: I'm not a background process. Don't promise work that requires me to keep running.
 - **Honesty about failure.** Phase B failed three times. Each time, I named it a failure clearly and rolled back. The user appreciated that more than papering over.

@@ -1,8 +1,16 @@
 # Pixel Soccer League Handoff
 
+## Current Status - 2026-04-26
+
+- Active branch: `structured-attack-v1`.
+- Latest pushed code commit before this handoff update: `a3926f1 Backprop pass, goal, and cross telemetry guards`.
+- Recent fixes: ghost rows hidden from dashboard/analyzer defaults, route-target pass collection, shot-backed goal guard, and split telemetry for structured deliveries vs real crosses.
+- Current structural target: shape/width ownership. User-run Kansas City vs Atlanta had good pass completion and a shot-backed goal, but team width stayed around 15 units and home-position error stayed high. The movement-force stack is likely swallowing wide-role intent.
+- Important workflow rule: when the user gives two teams, two shorthand names, or a score line, they just ran a match and want telemetry analysis. Do not start a new sim unless explicitly asked.
+
 ## Current Goal
 
-Figure out whether the attacking behavior is salvageable through tuning or whether the possession/attack decision layer needs a rebuild.
+Make the match look like soccer through structural movement ownership, not small numeric tuning. Wide roles need to hold believable lanes before cross volume or carrier behavior can be judged cleanly.
 
 ## Where We Landed
 
@@ -39,39 +47,34 @@ Figure out whether the attacking behavior is salvageable through tuning or wheth
   - run one more match
   - confirm that most or all shot-on-target snapshots now include a real shooter
 
-## Known Remaining Problem
+## Known Remaining Problems
 
-SQLite save reliability is still flaky.
-
-- Live/localStorage bundles can contain full telemetry while the SQLite `bundle_json` sometimes ends up with `events: []`.
-- That means event generation is working, but the full-time database save path is still not reliable.
-
-## Best Recent Source of Truth
-
-- Live bundle saved from localStorage:
-  - [colorado-rapids-vs-new-york-red-bulls-live-bundle.json](</C:/Users/vrock/Documents/Pixel Soccer League/colorado-rapids-vs-new-york-red-bulls-live-bundle.json>)
+- Width/shape remains too narrow. Average widths around 15 are not believable enough; target 18+ before tuning cross volume.
+- Movement ownership is unclear. FSM, pattern role, home pull, force-field, ball attraction, and support logic can all influence the same target.
+- `passNetwork` has an accounting smell: some edges report `completed > count`. Prefer `passLog` and team summaries until fixed.
+- Old `PATTERN_CROSS_EXECUTED` counts were inflated because they counted structured deliveries. New telemetry separates `PATTERN_DELIVERY_EXECUTED` from actual `PATTERN_CROSS_EXECUTED`; re-baseline with future user-run matches.
 
 ## Telemetry Access Procedure
 
-- Default retrieval path for the latest match telemetry:
-  1. Check `match-results.json` to identify the latest target match.
-  2. Query `psl.db` table `match_results`.
-  3. Pull the newest matching row by `team_a_name` / `team_b_name`, ordered by `timestamp DESC`.
-  4. Parse `bundle_json` from that row as the authoritative telemetry bundle.
-  5. Use `telemetry/*.json` exports only when a standalone extract already exists.
-- Reason for this procedure:
-  - the SQLite row can contain the full telemetry bundle even when no `extract-*.json` file was written
-  - recent Minnesota vs Atlanta telemetry was recovered this way from `match_results.bundle_json`
+- Trigger: two team names, shorthand names, or score line from the user means they just ran that match.
+- Do not start a sim for that trigger. Analyze saved telemetry.
+- `telemetry/latest-report.json` and `.md` can be stale. Use them only after confirming session/teams/score.
+- First check `telemetry-snapshots.json` for latest session, teams, score, and full-time status.
+- Then query `psl.db`:
+  ```bash
+  sqlite3 psl.db "select id, session_id, datetime(timestamp/1000,'unixepoch'), team_a_name, team_b_name, score_a, score_b, shots_a, shots_b, shots_on_target_a, shots_on_target_b, possession_a from match_results order by id desc limit 12;"
+  ```
+- Pull the matching row by fixture/session/score and parse `match_results.bundle_json` as authoritative telemetry.
+- Inspect `teamA/teamB`, `events`, `passLog`, `goalLog`, `shapeA/B`, `playerPositioning`, `teleportation`, and `passNetwork`.
 
 ## What To Do Next
 
-1. Finish a new match without restarting the app.
-2. Check `localStorage['psl-tuning']` or the saved bundle for:
-   - `SHOT_ON_TARGET_POSITION_SNAPSHOT`
-   - whether `detail.shooter` is now populated
-3. If shooter data is finally present, analyze midfielder distance to shooter on all shots on target.
-4. If midfield support is still clearly absent even after all the role/shape/defender changes, strongly consider scrapping and rebuilding the attacking decision layer.
-5. Separately, trace and fix the SQLite full-time save path so `bundle.events` does not get written as empty.
+1. Map the open-play movement pipeline in `src/gameEngine.ts` and identify final-target writers.
+2. Add or expose telemetry showing which owner wins per role/phase.
+3. Give wide roles authoritative build-up/structured-attack ownership so they are not blended back into the center every frame.
+4. Re-check user-played telemetry for average width >= 18, lower home-position error, visible wide channels, and pass completion not collapsing.
+5. Re-baseline real crosses only after the new delivery/cross split has data from fresh user-run matches.
+6. Fix `passNetwork` completion accounting.
 
 ## Stable Overnight Harness
 
