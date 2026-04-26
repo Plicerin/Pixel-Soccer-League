@@ -50,6 +50,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 - V13. Goal balls: stay inside net after scoring. Never re-enter play.
 - V14. Possession: each team 40–60% across match. No monopoly.
 - V15. Shot style: wide-angle shooter at distToGoal ≤ 18 → `CURLED` unless chip/tap-in/cross override.
+- V16. DB match history: `/__db/matches` must not return rows whose stored bundle has `sessionActive=false`.
 
 ---
 
@@ -101,3 +102,4 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | B10 | 2026-04-23 | ST forward-run from tactical ideal diluted by 0.36 blend in gameEngine — no dedicated post-blend ST enforcement like winger width | V1,V3 |
 | B11 | 2026-04-23 | Goal scorer attribution fallback used `players.find()` which returns first non-GK = first CB (shirt #2). ALL 8 goals in Charlotte-StLouis credited to Tim Ream / Eduard Löwen incorrectly | V6 |
 | B12 | 2026-04-25 | `chooseSimpleShotStyle` used `< 18` wide-angle curl gate → boundary chose `LACES_DRIVE` at distToGoal=18 | V15 |
+| B13 | 2026-04-26 | `/__db/matches` returned historical splash/demo rows with `bundle.sessionActive=false`, so ghost Inter Miami-LA Galaxy matches appeared in dashboard history | V16 |

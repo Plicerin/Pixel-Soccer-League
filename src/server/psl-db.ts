@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { filterGhostMatchRows } from './matchFilters';
 
 const DB_PATH = path.resolve(__dirname, '..', '..', 'psl.db');
 
@@ -111,7 +112,9 @@ export function insertMatchResult(row: MatchResultRow) {
 
 export function getRecentMatches(limit = 50): MatchResultRow[] {
   const db = getDb();
-  return db.prepare(
+  const fetchLimit = Math.min(Math.max(limit * 4, limit), 800);
+  const rows = db.prepare(
     'SELECT * FROM match_results ORDER BY timestamp DESC LIMIT ?'
-  ).all(limit) as MatchResultRow[];
+  ).all(fetchLimit) as MatchResultRow[];
+  return filterGhostMatchRows(rows).slice(0, limit);
 }
