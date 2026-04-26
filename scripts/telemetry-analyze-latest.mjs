@@ -1677,7 +1677,7 @@ function printSummary(report) {
     }
   }
   if (report.patternCrosses) {
-    console.log(`Pattern cross-executed | ${report.patternCrosses.total} events (L:${report.patternCrosses.longLofted} D:${report.patternCrosses.driven})`)
+    console.log(`Pattern delivery/cross | ${report.patternCrosses.deliveries} deliveries, ${report.patternCrosses.total} real crosses (L:${report.patternCrosses.longLofted} D:${report.patternCrosses.driven})`)
     for (const e of report.patternCrosses.samples) {
       console.log(`  ${e.team} ${e.passer} -> ${e.target} (${e.targetRole}, ${e.style}, ${e.crossDist}u)`)
     }
@@ -1773,8 +1773,10 @@ function main() {
     patternTempo: summarizePatternTempo(events),
     patternCrosses: (() => {
       const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
+      const deliveryEvents = events.filter((e) => e.type === 'PATTERN_DELIVERY_EXECUTED' || e.type === 'PATTERN_CROSS_EXECUTED')
       return {
         total: crossEvents.length,
+        deliveries: deliveryEvents.length,
         longLofted: crossEvents.filter((e) => e.detail?.style === 'LONG_LOFTED').length,
         driven: crossEvents.filter((e) => e.detail?.style === 'DRIVEN').length,
         samples: crossEvents.slice(0, 6).map((e) => ({

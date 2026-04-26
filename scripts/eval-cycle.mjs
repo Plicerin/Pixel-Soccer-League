@@ -127,8 +127,10 @@ function extractMetrics(row) {
     backpasses = events.filter(e => e.type === 'ATTACKER_RESET_PASS').length
   }
 
-  // Pattern crosses
+  // Pattern deliveries/crosses. Crosses are strict wide-to-box deliveries;
+  // deliveries include launched pattern passes that may be cutbacks/recycles.
   const patternCrosses = events.filter(e => e.type === 'PATTERN_CROSS_EXECUTED').length
+  const patternDeliveries = events.filter(e => e.type === 'PATTERN_DELIVERY_EXECUTED' || e.type === 'PATTERN_CROSS_EXECUTED').length
 
   // Pattern→goal share — find PATTERN_GOAL events or correlate with goalLog
   const patternGoalEvents = events.filter(e => e.type === 'PATTERN_GOAL' || (e.type === 'GOAL' && e.detail?.patternType))
@@ -190,6 +192,7 @@ function extractMetrics(row) {
     longRangeSOT,
     backpasses,
     patternCrosses,
+    patternDeliveries,
     patternGoals,
     avgDefAtGoal,
     finalThirdOverloads,
@@ -214,6 +217,7 @@ function aggregate(matchMetrics) {
     avgSOT: round(avg('sotTotal')),
     avgLongRangeSOT: round(avg('longRangeSOT')),
     avgBackpasses: round(avg('backpasses')),
+    avgPatternDeliveries: round(avg('patternDeliveries')),
     avgPatternCrosses: round(avg('patternCrosses')),
     avgPatternGoals: round(avg('patternGoals')),
     avgDefAtGoal: round(avg('avgDefAtGoal')),
@@ -270,6 +274,7 @@ function printComparison(current, previousLabel, previous) {
     ['avg SOT',                current.avgSOT,                previous?.avgSOT],
     ['avg long-range SOT',     current.avgLongRangeSOT,       previous?.avgLongRangeSOT],
     ['avg backpasses',         current.avgBackpasses,         previous?.avgBackpasses],
+    ['avg pattern deliveries', current.avgPatternDeliveries,  previous?.avgPatternDeliveries],
     ['avg pattern crosses',    current.avgPatternCrosses,     previous?.avgPatternCrosses],
     ['avg pattern goals',      current.avgPatternGoals,       previous?.avgPatternGoals],
     ['avg defenders @ goal',   current.avgDefAtGoal,          previous?.avgDefAtGoal],

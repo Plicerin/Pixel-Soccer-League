@@ -36,6 +36,9 @@ import {
   getSimpleShotTargetPoint as getSimpleShotTargetPointModel,
   type SimpleOffensePlayer,
 } from './ai/simpleOffenseModel.ts';
+import { segmentCrossesReceiverRadius } from './ai/passResolution.ts';
+import { selectGoalActor, shouldAwardGoalCrossing, type GoalActorCandidate } from './ai/goalValidation.ts';
+import { isActualCrossDelivery } from './ai/crossTelemetry.ts';
 
 type MatchPhase = 'FIRST_HALF' | 'HALFTIME' | 'SECOND_HALF' | 'FULL_TIME';
 
@@ -1359,6 +1362,27 @@ export function initGame(container: HTMLElement) {
     };
   }
 
+  function getGoalActorCandidates(): Array<GoalActorCandidate<any>> {
+    const playersToCheck = [
+      delayedRestartState.shotShooter,
+      pendingShotSnapshotShooter.player,
+      ballState.lastHeldBy,
+    ];
+    return playersToCheck.map((player: any) => ({
+      player,
+      team: player?.team ?? null,
+      goalkeeper: !!(player && isGoalkeeper(player)),
+    }));
+  }
+
+  function resolveGoalActor(scoringTeam: 'A' | 'B') {
+    return selectGoalActor(scoringTeam, getGoalActorCandidates());
+  }
+
+  function hasValidGoalActorContext(scoringTeam: 'A' | 'B', fromShot: boolean) {
+    return shouldAwardGoalCrossing(scoringTeam, fromShot, getGoalActorCandidates());
+  }
+
   function normalizeDelaySeconds(value: number, fallback: number) {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
@@ -1465,14 +1489,7 @@ export function initGame(container: HTMLElement) {
     if (scoringTeam) {
       // Identify scorer: check ordered candidates (shot context, then last holder), scoped to scoring team.
       // Do NOT fall back to players.find() — that returns the first CB and credits every goal to shirt #2.
-      const candidateScorers = [
-        delayedRestartState.shotShooter,
-        pendingShotSnapshotShooter.player,
-        ballState.lastHeldBy,
-      ];
-      const scorer = candidateScorers.find(
-        (cand: any) => cand && cand.team === scoringTeam && !isGoalkeeper(cand),
-      ) || null;
+      const scorer = resolveGoalActor(scoringTeam);
       goalCelebration.active = true;
       goalCelebration.scorer = scorer;
       goalCelebration.scoringTeam = scoringTeam;
@@ -2876,6 +2893,14 @@ export function initGame(container: HTMLElement) {
   }
 
   function awardSoccerGoal(scoringTeam: 'A' | 'B', fromShot: boolean = false) {
+    if (!hasValidGoalActorContext(scoringTeam, fromShot)) {
+      goalMonitorLog(
+        `NON-SHOT GOAL BLOCKED: team=${scoringTeam} ` +
+        `pos=(${ballState.pos.x.toFixed(2)},${ballState.pos.y.toFixed(2)},${ballState.pos.z.toFixed(2)}) ` +
+        `lastHeld=${ballState.lastHeldBy?.team || 'none'}`
+      );
+      return;
+    }
     sounds.whistle();
     console.log(`[GOAL LOGIC] Awarding goal to ${scoringTeam}. Current: A=${gameState.scoreA} B=${gameState.scoreB}. After: A=${scoringTeam === 'A' ? gameState.scoreA + 1 : gameState.scoreA} B=${scoringTeam === 'B' ? gameState.scoreB + 1 : gameState.scoreB}`);
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'GOAL', scoringTeam, 'TEAM', { fromShot });
@@ -2937,6 +2962,10 @@ export function initGame(container: HTMLElement) {
             }
           }
           const scoringTeam = getTeamAttackingGoal(rightGoal);
+          if (!hasValidGoalActorContext(scoringTeam, false)) {
+            goalMonitorLog(`GOAL OVERRIDE BLOCKED (no non-keeper actor context): team=${scoringTeam}`);
+            return true;
+          }
           delayedRestartState.active = false;
           awardSoccerGoal(scoringTeam, false);
           return true;
@@ -3031,6 +3060,15 @@ export function initGame(container: HTMLElement) {
           }
         }
 
+        if (!hasValidGoalActorContext(attackingTeam, ballState.isShot)) {
+          goalMonitorLog(`GOAL BLOCKED (no non-keeper actor context): team=${attackingTeam}`);
+          if (soccerRestart.lastTouchTeam === attackingTeam) {
+            queueDelayedRestart('GOAL_KICK', defendingTeam, rightGoal ? FIELD_W / 2 - goalKickDepth : -FIELD_W / 2 + goalKickDepth, 0, 'GOAL KICK', outOfPlayRestartDelaySec);
+          } else {
+            queueDelayedRestart('CORNER', attackingTeam, rightGoal ? FIELD_W / 2 : -FIELD_W / 2, z >= 0 ? FIELD_D / 2 : -FIELD_D / 2, 'CORNER', outOfPlayRestartDelaySec);
+          }
+          return true;
+        }
         awardSoccerGoal(attackingTeam, ballState.isShot);
         return true;
       }
@@ -6094,6 +6132,8 @@ export function initGame(container: HTMLElement) {
     intendedPasserRole: '' as string,
     intendedReceiverRole: '' as string,
     intendedIsPass: false,
+    intendedTargetX: 0,
+    intendedTargetZ: 0,
     receiveLockUntil: 0,
     attachFrom: new THREE.Vector3(),
     attachUntil: 0,
@@ -6451,7 +6491,7 @@ export function initGame(container: HTMLElement) {
   function checkPassCompletion(collector: any, elapsed: number) {
     const passTeam = ballState.intendedTeam;
     if (!passTeam) return;
-    if (elapsed > ballState.intendedUntil) { clearIntendedReceiver(); return; } // window expired
+    if (elapsed > ballState.intendedUntil) { expireIntendedPass('EXPIRED_WINDOW', elapsed); return; } // window expired
     // Skip pass completion credit when no matching pass attempt was recorded
     // (GK distributions, throw-ins call setIntendedReceiver but not recordPassAttempt)
     if (!ballState.intendedIsPass) {
@@ -6533,11 +6573,43 @@ export function initGame(container: HTMLElement) {
     clearIntendedReceiver();
   }
 
-  function setIntendedReceiver(target: any, team: 'A' | 'B', elapsed: number, windowSeconds: number = 1.8) {
+  function expireIntendedPass(reason: string, elapsed: number) {
+    const passTeam = ballState.intendedTeam;
+    if (!passTeam) {
+      clearIntendedReceiver();
+      return;
+    }
+
+    if (ballState.intendedIsPass) {
+      for (let i = tuningEventLog.length - 1; i >= 0; i--) {
+        const event = tuningEventLog[i];
+        if (event.type === 'PASS' && event.team === passTeam && event.detail?.completed === undefined && event.detail?.outcome === undefined) {
+          event.detail.completed = false;
+          event.detail.outcome = reason;
+          event.detail.receiverRole = ballState.intendedReceiverRole || event.detail.toRole || '?';
+          event.detail.ballX = Math.round(ballState.pos.x * 10) / 10;
+          event.detail.ballZ = Math.round(ballState.pos.z * 10) / 10;
+          break;
+        }
+      }
+      pushTuningEvent(elapsed, matchClock.half, 'PASS_UNRESOLVED', passTeam, ballState.intendedPasserRole || '?', {
+        reason,
+        toRole: ballState.intendedReceiverRole || '?',
+        x: Math.round(ballState.pos.x * 10) / 10,
+        z: Math.round(ballState.pos.z * 10) / 10,
+      });
+    }
+
+    clearIntendedReceiver();
+  }
+
+  function setIntendedReceiver(target: any, team: 'A' | 'B', elapsed: number, windowSeconds: number = 1.8, targetPoint?: { x: number; z: number }) {
     ballState.intendedReceiver = target;
     ballState.intendedTeam = team;
     ballState.intendedUntil = elapsed + windowSeconds;
     ballState.intendedIsPass = false; // caller or recordPassAttempt will set true for real passes
+    ballState.intendedTargetX = targetPoint?.x ?? target?.pos?.x ?? 0;
+    ballState.intendedTargetZ = targetPoint?.z ?? target?.pos?.z ?? 0;
     const passer = ballState.lastHeldBy;
     ballState.intendedPasserRole = passer ? getRoleKey(passer) : '';
     ballState.intendedReceiverRole = target ? getRoleKey(target) : '';
@@ -6554,6 +6626,8 @@ export function initGame(container: HTMLElement) {
     ballState.intendedPasserRole = '';
     ballState.intendedReceiverRole = '';
     ballState.intendedIsPass = false;
+    ballState.intendedTargetX = 0;
+    ballState.intendedTargetZ = 0;
   }
 
   function getStructuredPossessionTeam(currentTime: number = performance.now() / 1000): 'A' | 'B' | null {
@@ -9578,7 +9652,7 @@ export function initGame(container: HTMLElement) {
     ballState.rollingLaunchSpeed = speed;
     ballState.receiveLockUntil = elapsed + 0.12;
     if (!options?.skipOffside) snapshotOffsidePlayers(passer.team, passer);
-    setIntendedReceiver(target, passer.team, elapsed, receiverWindow);
+    setIntendedReceiver(target, passer.team, elapsed, receiverWindow, targetPos);
     ballState.vel.copy(dir.clone().multiplyScalar(speed));
     ballState.pos.copy(passer.pos).addScaledVector(dir, 0.45);
     ballState.pos.y = BALL_GROUND_Y;
@@ -9623,7 +9697,7 @@ export function initGame(container: HTMLElement) {
     ballState.rollingLaunchSpeed = speed;
     ballState.receiveLockUntil = elapsed + 0.16;
     ballState.possessionLockUntil = elapsed + 0.2;
-    setIntendedReceiver(target, passer.team, elapsed, 2.2);
+    setIntendedReceiver(target, passer.team, elapsed, 2.2, targetPos);
     recordPassAttempt(passer, target, 'FREE_KICK', elapsed);
     ballState.vel.copy(dir.multiplyScalar(speed));
     ballState.pos.copy(passer.pos).addScaledVector(dir, 0.42);
@@ -9669,7 +9743,7 @@ export function initGame(container: HTMLElement) {
     ballState.isShot = false;
     ballState.receiveLockUntil = elapsed + 0.16;
     if (!skipOffside) snapshotOffsidePlayers(passer.team, passer);
-    setIntendedReceiver(target, passer.team, elapsed, style === 'LONG_LOFTED' ? 2.7 : 2.1);
+    setIntendedReceiver(target, passer.team, elapsed, style === 'LONG_LOFTED' ? 2.7 : 2.1, targetPos);
     ballState.pos.copy(passer.pos).addScaledVector(dir, 0.46);
     ballState.pos.y = style === 'LONG_LOFTED' ? 0.30 : 0.22;
 
@@ -9745,7 +9819,7 @@ export function initGame(container: HTMLElement) {
     ballState.isShot = false;
     ballState.receiveLockUntil = elapsed + 0.16;
     if (!skipOffside) snapshotOffsidePlayers(passer.team, passer);
-    setIntendedReceiver(target, passer.team, elapsed, 2.2);
+    setIntendedReceiver(target, passer.team, elapsed, 2.2, targetPos);
     ballState.pos.copy(passer.pos).addScaledVector(dir, 0.45);
     ballState.pos.y = 0.24;
 
@@ -12532,14 +12606,28 @@ export function initGame(container: HTMLElement) {
           launched = executeAIGroundPass(cpuCarrier, structuredTarget, elapsed, { style: 'DRIVEN' });
         }
         if (launched) {
-          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+          const realCross = isActualCrossDelivery({
+            passer: cpuCarrier.pos,
+            target: structuredTarget.pos,
+            attackSign: attackSign as 1 | -1,
+            fieldWidth: FIELD_W,
+            penaltyDepth,
+            penaltyHalfZ,
+            goalMouthWidth,
+          });
+          const deliveryDetail = {
             patternType: 'STRUCTURED_WING_ATTACK',
             passer: cpuCarrier.name,
             target: structuredTarget.name,
             targetRole: getStructuredAttackRole(structuredAttack, structuredTarget),
             crossDist: +crossDist.toFixed(1),
             style,
-          });
+            realCross,
+          };
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
+          if (realCross) {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
+          }
           pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_ATTACK_DELIVERY', team, 'TEAM', {
             type: structuredAttack.type,
             passer: cpuCarrier.name || 'Unknown',
@@ -12547,6 +12635,7 @@ export function initGame(container: HTMLElement) {
             targetRole: getStructuredAttackRole(structuredAttack, structuredTarget),
             crossDist: +crossDist.toFixed(1),
             style,
+            realCross,
           });
         }
         (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
@@ -12712,14 +12801,28 @@ export function initGame(container: HTMLElement) {
               launched = executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
             }
             if (launched) {
-              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+              const realCross = isActualCrossDelivery({
+                passer: cpuCarrier.pos,
+                target: crossTargetPlayer.pos,
+                attackSign: attackSign as 1 | -1,
+                fieldWidth: FIELD_W,
+                penaltyDepth,
+                penaltyHalfZ,
+                goalMouthWidth,
+              });
+              const deliveryDetail = {
                 patternType: _p25_teamPattern.type,
                 passer: cpuCarrier.name,
                 target: crossTargetPlayer.name,
                 targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
                 crossDist: +crossDist.toFixed(1),
                 style,
-              });
+                realCross,
+              };
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
+              if (realCross) {
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
+              }
             }
             (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
             return;
@@ -21516,10 +21619,11 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               }
             }
           } else if (ballState.intendedReceiver) {
-            clearIntendedReceiver();
+            expireIntendedPass('EXPIRED_WINDOW', elapsed);
           }
 
           const weather = getActiveWeatherPreset();
+          const previousBallPos = ballState.pos.clone();
           ballState.pos.addScaledVector(ballState.vel, dt);
           ballState.pos.y = BALL_GROUND_Y;
           ballState.vel.addScaledVector(weatherWind, dt * 0.22);
@@ -21563,8 +21667,27 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
 
           let collector: any = null;
           let bestDist = Infinity;
+          const intendedReceiverInWindow = ballState.intendedReceiver && elapsed <= ballState.intendedUntil
+            ? ballState.intendedReceiver
+            : null;
+          if (intendedReceiverInWindow && elapsed >= ballState.receiveLockUntil && !isGoalDeadBallActive() && !isBallInsideScoringGoal(ballState.pos)) {
+            const receiver = intendedReceiverInWindow;
+            const incomingSpeed = Math.hypot(ballState.vel.x, ballState.vel.z);
+            const receiverRadius = incomingSpeed > 12 ? 1.22 : 1.05;
+            const routePoint = { x: ballState.intendedTargetX || receiver.pos.x, z: ballState.intendedTargetZ || receiver.pos.z };
+            const crossesReceiver = segmentCrossesReceiverRadius(receiver.pos, previousBallPos, ballState.pos, receiverRadius);
+            const crossesRoutePoint = ballState.intendedIsPass
+              && segmentCrossesReceiverRadius(routePoint, previousBallPos, ballState.pos, incomingSpeed > 12 ? 1.55 : 1.25);
+            if (crossesReceiver || crossesRoutePoint) {
+              collector = receiver;
+              bestDist = 0;
+              ballState.pos.x = receiver.pos.x;
+              ballState.pos.z = receiver.pos.z;
+            }
+          }
           if (elapsed >= ballState.receiveLockUntil && !isGoalDeadBallActive() && !isBallInsideScoringGoal(ballState.pos)) {
             for (const p of players) {
+              if (collector === ballState.intendedReceiver && p !== collector) continue;
               if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) continue;
               if (ballState.parryShooter === p && elapsed < ballState.parryLockUntil) continue;
               if (ballState.keeperDistributor === p && (elapsed - ballState.keeperDistributorAt) < KEEPER_DIST_EXPIRY) continue;
