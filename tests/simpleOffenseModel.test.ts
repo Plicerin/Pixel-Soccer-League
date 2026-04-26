@@ -143,6 +143,31 @@ test('getSimpleShotTargetPoint aims away from the keeper toward the far post', (
   assert.ok(targetPoint.y >= 0.7);
 });
 
+test('getSimpleShotTargetPoint sends forced central long-range drives off frame more often', () => {
+  const shooter = makePlayer('Long Range', 'A', 8, 0.2, 'CM');
+  const originalRandom = Math.random;
+  const rolls = [0.5, 0.5, 0.5, 0.9];
+  let idx = 0;
+  Math.random = () => rolls[idx++] ?? 0.5;
+  try {
+    const targetPoint = getSimpleShotTargetPoint(
+      shooter,
+      constants.fieldWidth / 2,
+      'LACES_DRIVE',
+      24,
+      constants,
+      null,
+      undefined,
+      undefined,
+      { shotSelectionType: 'forced_shot', forceShotNow: true, closePressure: 0, shotAngle: 0.03 },
+    );
+
+    assert.ok(Math.abs(targetPoint.z) > constants.goalMouthWidth * 0.5);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
 test('computeSimpleCarrierHoldTarget pushes the carrier forward and narrows the lane', () => {
   const carrier = makePlayer('Carrier', 'A', 0, 6, 'CM');
 

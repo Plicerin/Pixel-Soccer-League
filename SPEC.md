@@ -49,6 +49,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 - V12. Match end: full-time screen must hold. No auto-restart into new game.
 - V13. Goal balls: stay inside net after scoring. Never re-enter play.
 - V14. Possession: each team 40–60% across match. No monopoly.
+- V15. Shot style: wide-angle shooter at distToGoal ≤ 18 → `CURLED` unless chip/tap-in/cross override.
 
 ---
 
@@ -70,7 +71,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | T12 | `.` | Fix match end — full-time screen holds, no auto-transition | V12 |
 | T13 | `.` | Fix goal ball — stays inside net, cannot escape back into play | V13 |
 | T14 | `.` | Reduce zigzag — hold carry lane longer, tighten facing/heading link | V9 |
-| T15 | `.` | Reduce final-third recycling — attacker backpass rate target < 10/match (was 21) | V1,V3 |
+| T15 | `x` | Reduce final-third recycling — attacker backpass rate target < 10/match (was 21) | V1,V3 |
 | T16 | `.` | Foul system — tune tackle angle/speed so free kicks appear 8–14/match | V6,V7 |
 | T17 | `.` | Stadium: mowing stripes on pitch | C3 |
 | T18 | `.` | Stadium: floodlight pylons at corner towers | C3 |
@@ -80,6 +81,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | T22 | `.` | Reduce GK punt/goal-kick out-of-bounds frequency | V10 |
 | T23 | `.` | Telemetry: add keeper events to analyzer summary | V10,I.cli.telemetry |
 | T24 | `.` | Telemetry: add corner/free-kick/throw-in counters to report | V5,I.cli.telemetry |
+| T25 | `x` | Structured attack v1 — deterministic wing move slots + carrier delivery trigger | V1,V2,V3,V7 |
 
 ---
 
@@ -98,3 +100,4 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | B9 | 2026-04-23 | `tacticalPositioning.ts` ST de-privileging lerp pulled striker toward home+1.4 — 10-18 units behind carrier | V1,V3 |
 | B10 | 2026-04-23 | ST forward-run from tactical ideal diluted by 0.36 blend in gameEngine — no dedicated post-blend ST enforcement like winger width | V1,V3 |
 | B11 | 2026-04-23 | Goal scorer attribution fallback used `players.find()` which returns first non-GK = first CB (shirt #2). ALL 8 goals in Charlotte-StLouis credited to Tim Ream / Eduard Löwen incorrectly | V6 |
+| B12 | 2026-04-25 | `chooseSimpleShotStyle` used `< 18` wide-angle curl gate → boundary chose `LACES_DRIVE` at distToGoal=18 | V15 |

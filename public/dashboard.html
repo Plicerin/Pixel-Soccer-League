@@ -1836,8 +1836,10 @@ function renderSpatial() {
   const pitch = drawPitch(ctx, W, H, 20);
 
   if (activeSpatialTab === 'heatmap') {
-    // Event heatmap
-    const events = D?.events || [];
+    // Event heatmap. Keep this aligned with the event timeline filters; the
+    // bundle also contains high-frequency trace telemetry that would otherwise
+    // swamp real ball/action hotspots.
+    const events = (D?.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
     if (events.length === 0) {
       ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('No event data for heatmap', W / 2, H / 2);
@@ -1848,13 +1850,20 @@ function renderSpatial() {
     const gx = 20, gz = 14;
     const gridA = Array.from({ length: gx }, () => new Float32Array(gz));
     const gridB = Array.from({ length: gx }, () => new Float32Array(gz));
+    let plottedEvents = 0;
     for (const ev of events) {
       const x = ev.detail?.x, z = ev.detail?.z;
       if (x == null || z == null) continue;
+      plottedEvents++;
       const gi = clamp(Math.floor((x + 32.8) / 65.6 * gx), 0, gx - 1);
       const gj = clamp(Math.floor((z + 20) / 40 * gz), 0, gz - 1);
       if (ev.team === 'A') gridA[gi][gj]++;
       else gridB[gi][gj]++;
+    }
+    if (plottedEvents === 0) {
+      ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('No filtered event coordinates for heatmap', W / 2, H / 2);
+      return;
     }
 
     let maxVal = 1;
@@ -1878,7 +1887,7 @@ function renderSpatial() {
     }
 
     ctx.fillStyle = '#8890a0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('Event Heatmap  ■ A (blue)  ■ B (red)', 24, 14);
+    ctx.fillText(`Filtered Event Heatmap (${plottedEvents})  ■ A (blue)  ■ B (red)`, 24, 14);
   } else {
     // Shape tracking: draw team centroids over time
     const shA = D?.shapeA || [], shB = D?.shapeB || [];

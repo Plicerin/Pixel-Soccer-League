@@ -4,6 +4,10 @@ import {
   getPatternRole,
   type TeamPatternState,
 } from './patternEngine.ts';
+import {
+  computeStructuredAttackTarget,
+  type StructuredAttackState,
+} from './structuredAttack.ts';
 
 // Phase A FSM positioning — single-owner deterministic target for off-ball players.
 // Inspired by ysoccer-ai's AiStatePositioning: walk to a home target, no force field,
@@ -37,6 +41,7 @@ export type FsmContext = {
   // but providing them unlocks BOX_CRASH and COLLAPSE_DEFEND.
   allPlayers?: any[];
   ballPos?: THREE.Vector3;
+  structuredAttack?: StructuredAttackState | null;
 };
 
 const _tmp = new THREE.Vector3();
@@ -105,6 +110,7 @@ function computeBoxCrashTarget(
   carrier: any,
   attackSign: 1 | -1,
   fieldWidth: number,
+  fieldDepth: number,
   penaltyDepth: number,
   goalMouthHalfWidth: number,
 ): { x: number; z: number } | null {
@@ -123,23 +129,24 @@ function computeBoxCrashTarget(
   }
   if (role === 'LM' || role === 'RM') {
     if (playerSide !== 0 && playerSide !== carrierSide) {
-      // Opposite-flank winger: far post run
+      // Opposite-flank winger: arrive far-post but keep enough width to
+      // stretch the block instead of joining the central crowd.
       return {
-        x: goalX - attackSign * 4,
-        z: -carrierSide * goalMouthHalfWidth * 0.9,
+        x: goalX - attackSign * 5.4,
+        z: -carrierSide * Math.max(goalMouthHalfWidth * 2.8, fieldDepth * 0.18),
       };
     }
-    // Same-flank winger: cutback receiver at edge of box
+    // Same-flank winger: stay as a wide relief/cutback option.
     return {
-      x: goalX - attackSign * (penaltyDepth + 2),
-      z: carrierSide * goalMouthHalfWidth * 1.1,
+      x: goalX - attackSign * (penaltyDepth + 3.5),
+      z: carrierSide * Math.max(goalMouthHalfWidth * 3.2, fieldDepth * 0.30),
     };
   }
   if (role === 'CM' || role === 'CAM') {
-    // Edge of D — second-wave shot lane
+    // Edge of D / half-space — second-wave pass and shot lane.
     return {
-      x: goalX - attackSign * (penaltyDepth + 4),
-      z: 0,
+      x: goalX - attackSign * (penaltyDepth + (role === 'CAM' ? 2.8 : 4.2)),
+      z: -carrierSide * Math.max(goalMouthHalfWidth * 1.8, fieldDepth * 0.11),
     };
   }
   return null; // backline + DM hold shape
@@ -210,7 +217,26 @@ function computeCollapseDefendTarget(
 
 export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
   const { player, carrier, teamPattern, attackSign, fieldWidth, fieldDepth,
-    penaltyDepth, goalMouthHalfWidth, attackPhase, allPlayers, ballPos } = ctx;
+    penaltyDepth, goalMouthHalfWidth, attackPhase, allPlayers, ballPos, structuredAttack } = ctx;
+
+  // 0. Structured attack override — one owner for active team moves.
+  // This intentionally wins before legacy pattern roles: during the rebuild,
+  // wing attack slots should be simple, readable, and deterministic.
+  if (structuredAttack && carrier && carrier.team === player.team) {
+    const target = computeStructuredAttackTarget({
+      player,
+      carrier,
+      state: structuredAttack,
+      fieldWidth,
+      fieldDepth,
+      penaltyDepth,
+      goalMouthHalfWidth,
+    });
+    if (target) {
+      _tmp.copy(target);
+      return _tmp;
+    }
+  }
 
   // 1. Pattern role override — authoritative when active and applicable.
   // Only applies when our team has the ball; pattern target geometry assumes
@@ -266,7 +292,7 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
       const role = (player.displayRole || player.role || '').toString().toUpperCase();
       const isAttacker = role === 'ST' || role === 'CF' || role === 'LM' || role === 'RM' || role === 'CM' || role === 'CAM';
       if (isAttacker) {
-        const t = computeBoxCrashTarget(player, carrier, attackSign, fieldWidth, penaltyDepth, goalMouthHalfWidth);
+        const t = computeBoxCrashTarget(player, carrier, attackSign, fieldWidth, fieldDepth, penaltyDepth, goalMouthHalfWidth);
         if (t) {
           _tmp.set(
             clamp(t.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),

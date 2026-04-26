@@ -339,7 +339,7 @@ export function chooseSimpleShotStyle(
   if (inTapInZone) {
     return 'PLACED';
   }
-  if (wideAngle && distToGoal < 18) {
+  if (wideAngle && distToGoal <= 18) {
     return 'CURLED';
   }
   if (wideAngle && distToGoal < 22) {
@@ -433,7 +433,7 @@ export function getSimpleShotTargetPoint(
     shotStyle === 'HEADER' ? 0.14 :
     0.20;
   if (distToGoal > 20) lateralBias *= shotStyle === 'PLACED' ? 0.58 : 0.66;
-  lateralBias *= 1 + longRangeFactor * 0.24 + forcedFactor * 0.20;
+  lateralBias *= 1 + longRangeFactor * 0.30 + forcedFactor * 0.24;
   if (wideAngleFactor > 0) {
     lateralBias *= THREE.MathUtils.lerp(1, distToGoal < 14 ? 0.82 : 0.64, wideAngleFactor);
   }
@@ -453,10 +453,12 @@ export function getSimpleShotTargetPoint(
     * constants.goalMouthWidth
     * (
       0.025
-      + longRangeFactor * 0.095
-      + forcedFactor * 0.06
+      + longRangeFactor * 0.13
+      + forcedFactor * 0.085
+      + longRangeFactor * forcedFactor * 0.08
       + pressureFactor * 0.045
       + angleFactor * 0.035
+      + (shotStyle === 'LACES_DRIVE' && distToGoal > 18 ? 0.045 : 0)
       + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.03 : 0)
     );
   const baseTargetZ = (farPostSign * lateralBias + bodyBias) * constants.goalMouthWidth;
@@ -471,20 +473,21 @@ export function getSimpleShotTargetPoint(
     THREE.MathUtils.clamp(0.35 + distToGoal * 0.015, 0.35, 1.25);
   const heightNoise =
     (Math.random() * 2 - 1)
-    * (0.04 + longRangeFactor * 0.16 + forcedFactor * 0.11 + pressureFactor * 0.07);
-  const targetYMax = constants.goalMouthHeight * (1 + longRangeFactor * 0.06 + forcedFactor * 0.04);
+    * (0.04 + longRangeFactor * 0.20 + forcedFactor * 0.13 + longRangeFactor * forcedFactor * 0.08 + pressureFactor * 0.07);
+  const targetYMax = constants.goalMouthHeight * (1 + longRangeFactor * 0.10 + forcedFactor * 0.06);
   targetY = THREE.MathUtils.clamp(targetY + heightNoise, 0.18, targetYMax);
 
   const offFrameChance = THREE.MathUtils.clamp(
-    longRangeFactor * 0.26
-    + forcedFactor * 0.14
+    longRangeFactor * 0.38
+    + forcedFactor * 0.22
+    + longRangeFactor * forcedFactor * 0.16
     + pressureFactor * 0.11
-    + centralSightFactor * Math.max(longRangeFactor - 0.08, 0) * 0.22
+    + centralSightFactor * Math.max(longRangeFactor - 0.05, 0) * 0.32
     + ((shotStyle === 'TOE_POKE' || shotStyle === 'HALF_VOLLEY') ? 0.12 : 0)
-    + (shotStyle === 'LACES_DRIVE' ? 0.09 : 0)
+    + (shotStyle === 'LACES_DRIVE' ? 0.16 : 0)
     + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.18 : 0),
     0,
-    0.72,
+    0.88,
   );
   if (distToGoal > 12 && Math.random() < offFrameChance) {
     const missHigh =
@@ -498,7 +501,7 @@ export function getSimpleShotTargetPoint(
       return new THREE.Vector3(
         goalX,
         targetY,
-        missSign * constants.goalMouthWidth * (0.55 + longRangeFactor * 0.16 + forcedFactor * 0.06),
+        missSign * constants.goalMouthWidth * (0.62 + longRangeFactor * 0.22 + forcedFactor * 0.10),
       );
     }
   }

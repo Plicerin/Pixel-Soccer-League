@@ -21,6 +21,14 @@ import { evaluateShotDecision } from './ai/aiShotModel.ts';
 import { computeAIPositioning } from './ai/aiPositioningModel.ts';
 import { computeFsmOffBallTarget, pickFsmDefender } from './ai/fsmPositioning.ts';
 import {
+  computeStructuredCarrierTarget,
+  getStructuredAttackRole,
+  selectStructuredAttack,
+  shouldStructuredCarrierDeliver,
+  structuredAttackKey,
+  type StructuredAttackState,
+} from './ai/structuredAttack.ts';
+import {
   chooseSimplePassTarget,
   chooseSimpleShotStyle,
   computeSimpleCarrierHoldTarget as computeSimpleCarrierHoldTargetModel,
@@ -5729,6 +5737,15 @@ export function initGame(container: HTMLElement) {
       } catch {}
       return true;
     })(),
+    structuredAttackEnabled: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const v = (params.get('structured') || params.get('structuredAttack') || '').toLowerCase();
+        if (v === 'off' || v === '0' || v === 'false') return false;
+        if (v === 'on' || v === '1' || v === 'true') return true;
+      } catch {}
+      return true;
+    })(),
     // Give-and-go state
     giveAndGoActive: false,
     giveAndGoPasser: null as any,
@@ -6029,6 +6046,21 @@ export function initGame(container: HTMLElement) {
     if (!player || !player.team) return 'NONE';
     const state = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
     return getTeamPatternRole(state, player);
+  }
+
+  function getStructuredAttackForTeam(team: 'A' | 'B', carrier: any | null, attackSign: 1 | -1): StructuredAttackState | null {
+    if (!gameState.structuredAttackEnabled) return null;
+    if (!carrier || carrier.team !== team) return null;
+    return selectStructuredAttack({
+      team,
+      attackSign,
+      carrier,
+      teammates: players.filter((p: any) => p.team === team),
+      fieldWidth: FIELD_W,
+      fieldDepth: FIELD_D,
+      penaltyDepth,
+      goalMouthHalfWidth: goalMouthWidth / 2,
+    });
   }
 
   const playState = {
@@ -9484,10 +9516,10 @@ export function initGame(container: HTMLElement) {
       receiverWindow?: number;
       skipOffside?: boolean;
     }
-  ) {
-    if (!passer || !target || passer === target) return;
-    if (!isValidGKPassTarget(passer, target)) return;
-    if (kickoffLawState.active && !kickoffLawState.firstKickTaken && elapsed < kickoffLawState.kickoffAllowedAt) return;
+  ): boolean {
+    if (!passer || !target || passer === target) return false;
+    if (!isValidGKPassTarget(passer, target)) return false;
+    if (kickoffLawState.active && !kickoffLawState.firstKickTaken && elapsed < kickoffLawState.kickoffAllowedAt) return false;
 
     const weather = getActiveWeatherPreset();
     const style = options?.style || 'SHORT';
@@ -9499,7 +9531,7 @@ export function initGame(container: HTMLElement) {
     const dir = new THREE.Vector3().subVectors(targetPos, passer.pos);
     dir.y = 0;
     const dist = dir.length();
-    if (dist < 0.1) return;
+    if (dist < 0.1) return false;
 
     const laneProfile = getSimpleLaneBlockerProfile(passer.pos, targetPos, passer.team as 'A' | 'B', dist > 15 ? 2.8 : 2.3);
     const laneTraffic = laneProfile.traffic;
@@ -9512,7 +9544,7 @@ export function initGame(container: HTMLElement) {
       laneProfile.frontBlockerLateral < directLaneBlockerThreshold
       && laneProfile.frontBlockerT > 0.14
       && laneProfile.frontBlockerT < 0.84;
-    if (directLaneBlocker) return;
+    if (directLaneBlocker) return false;
     const receiverWindow = options?.receiverWindow ?? (
       style === 'WALL' ? 1.4 :
       style === 'BACK' ? 1.65 :
@@ -9567,6 +9599,7 @@ export function initGame(container: HTMLElement) {
         'PASS';
       showPlayPatternTag(label, 'rgba(144,214,255,0.96)');
     }
+    return true;
   }
 
   function executeAISafeRestartPass(passer: any, target: any, elapsed: number) {
@@ -9604,9 +9637,9 @@ export function initGame(container: HTMLElement) {
     elapsed: number,
     style: 'LONG_LOFTED' | 'LONG_DRIVEN' = 'LONG_LOFTED',
     skipOffside: boolean = false
-  ) {
-    if (!passer || !target || passer === target) return;
-    if (!isValidGKPassTarget(passer, target)) return;
+  ): boolean {
+    if (!passer || !target || passer === target) return false;
+    if (!isValidGKPassTarget(passer, target)) return false;
 
     const weather = getActiveWeatherPreset();
     const passSkill = getPassSkill(passer);
@@ -9617,7 +9650,7 @@ export function initGame(container: HTMLElement) {
     const dir = new THREE.Vector3().subVectors(targetPos, passer.pos);
     dir.y = 0;
     const dist = dir.length();
-    if (dist < 0.1) return;
+    if (dist < 0.1) return false;
 
     const laneTraffic = getSimpleLaneTraffic(passer.pos, targetPos, passer.team as 'A' | 'B', 3.1);
     dir.normalize();
@@ -9678,6 +9711,7 @@ export function initGame(container: HTMLElement) {
     if (isGoalkeeper(passer)) recordGkDistribution(passer.team);
     pushTelemEvent(passer.team, 'PASS', `${passer.name} → ${target.name} (${style})`);
     showPlayPatternTag(style === 'LONG_LOFTED' ? 'LONG LOFTED PASS' : 'LONG DRIVEN PASS', 'rgba(144,214,255,0.96)');
+    return true;
   }
 
   function executeAIChipPass(
@@ -10397,7 +10431,7 @@ export function initGame(container: HTMLElement) {
     const attackGoalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const carrierDistToGoal = Math.abs(attackGoalX - carrier.pos.x);
     // Must be in the final third and in a wide channel
-    if (carrierDistToGoal > penaltyDepth + 12) return null;
+    if (carrierDistToGoal > penaltyDepth + 18) return null;
     if (Math.abs(carrier.pos.z) < goalMouthWidth * 0.7) return null;
 
     const teammates = players.filter((p: any) => p.team === team && p !== carrier && !isGoalkeeper(p));
@@ -10407,17 +10441,20 @@ export function initGame(container: HTMLElement) {
     teammates.forEach((tm: any) => {
       const tmDistToGoal = Math.abs(attackGoalX - tm.pos.x);
       // Target must be in or near the penalty area
-      if (tmDistToGoal > penaltyDepth + 2) return;
+      if (tmDistToGoal > penaltyDepth + 6) return;
       // Target should be more central than the crosser
       if (Math.abs(tm.pos.z) > penaltyHalfZ * 1.1) return;
+      const forwardProg = (tm.pos.x - carrier.pos.x) * attackSign;
       const dist = carrier.pos.distanceTo(tm.pos);
-      if (dist < 6 || dist > 38) return;
+      if (dist < 4 || dist > 42) return;
+      if (forwardProg < -7) return;
       const oppSpace = getClosestOpponentDistance(tm.pos, team);
       const lanePressure = getPassLanePressure(carrier.pos, tm.pos, team);
       // Score: prefer central, close to goal, with space, low lane pressure
       const centralBonus = (1 - Math.abs(tm.pos.z) / penaltyHalfZ) * 2.0;
       const proximityBonus = (1 - tmDistToGoal / (penaltyDepth + 2)) * 2.5;
-      const score = oppSpace * 1.5 - lanePressure * 2.0 + centralBonus + proximityBonus;
+      const progressBonus = THREE.MathUtils.clamp(forwardProg / 8, -0.6, 1.2);
+      const score = oppSpace * 1.5 - lanePressure * 2.0 + centralBonus + proximityBonus + progressBonus;
       if (score > bestScore) {
         bestScore = score;
         bestTarget = tm;
@@ -10936,12 +10973,13 @@ export function initGame(container: HTMLElement) {
       : 0;
     if (humanAimZ === undefined) {
       const miskickRisk = THREE.MathUtils.clamp(
-        longRangeRisk * 0.22
+        longRangeRisk * 0.28
         + awkwardStyleRisk * 0.16
-        + (forcedShot ? 0.08 : 0)
-        + (shotAngle < 0.18 && distToGoal > 18 ? 0.08 : 0),
+        + (forcedShot ? 0.11 + longRangeRisk * 0.10 : 0)
+        + (shotStyle === 'LACES_DRIVE' && distToGoal > 18 ? 0.08 : 0)
+        + (shotAngle < 0.18 && distToGoal > 18 ? 0.12 : 0),
         0,
-        0.56,
+        0.68,
       );
       if (Math.random() < miskickRisk) {
         const wideBias = (Math.random() < 0.5 ? -1 : 1)
@@ -10974,13 +11012,13 @@ export function initGame(container: HTMLElement) {
       THREE.MathUtils.lerp(0.19, 0.028, shotComposure)
       + Math.max(distToGoal - 12, 0) * 0.0052
       + closePressure * 0.012
-      + (forcedShot ? 0.060 + Math.max(distToGoal - 16, 0) * 0.0034 : 0)
+      + (forcedShot ? 0.075 + Math.max(distToGoal - 16, 0) * 0.0052 : 0)
       + (shotStyle === 'TOE_POKE' ? 0.085 : 0)
       + (shotStyle === 'HALF_VOLLEY' ? 0.060 : 0)
       + (shotStyle === 'VOLLEY' ? 0.036 : 0)
-      + (shotStyle === 'LACES_DRIVE' && distToGoal > 18 ? 0.032 : 0)
+      + (shotStyle === 'LACES_DRIVE' && distToGoal > 18 ? 0.060 : 0)
       + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.054 : 0)
-      + (distToGoal > 16 && shotAngle < 0.18 ? (distToGoal - 16) * 0.0068 : 0)
+      + (distToGoal > 16 && shotAngle < 0.18 ? (distToGoal - 16) * 0.0092 : 0)
       + (shotAngle > 0.48 ? (shotAngle - 0.48) * 0.08 : 0)
       + longRangeRisk * 0.052
       + awkwardStyleRisk * 0.034;
@@ -12400,6 +12438,177 @@ export function initGame(container: HTMLElement) {
     const visibleTeammates = teammates.filter((tm: any) => tm.pos.distanceTo(cpuCarrier.pos) < 30);
     const passPool = visibleTeammates.length > 0 ? visibleTeammates : teammates;
 
+    const structuredAttack = getStructuredAttackForTeam(team, cpuCarrier, attackSign as 1 | -1);
+    const structuredCarrierRole = getStructuredAttackRole(structuredAttack, cpuCarrier);
+    if (structuredAttack && structuredCarrierRole === 'CARRIER') {
+      const moveKey = structuredAttackKey(structuredAttack);
+      if (carrierAny._structuredAttackKey !== moveKey) {
+        carrierAny._structuredAttackKey = moveKey;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_ATTACK_START', team, 'TEAM', {
+          type: structuredAttack.type,
+          carrier: cpuCarrier.name || 'Unknown',
+          carrierRole,
+          carrierX: +cpuCarrier.pos.x.toFixed(2),
+          carrierZ: +cpuCarrier.pos.z.toFixed(2),
+        });
+      }
+    }
+    if (
+      structuredAttack
+      && structuredCarrierRole === 'CARRIER'
+      && shouldStructuredCarrierDeliver({
+        state: structuredAttack,
+        carrier: cpuCarrier,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        penaltyDepth,
+      })
+    ) {
+      const structuredDeliveryCooldownKey = team === 'A' ? '_structuredDeliveryCooldownA' : '_structuredDeliveryCooldownB';
+      const lastStructuredDeliveryAt = Number((gameState as any)[structuredDeliveryCooldownKey] ?? -999);
+      if (elapsed - lastStructuredDeliveryAt < 5.0) {
+        const structuredCarryTarget = computeStructuredCarrierTarget({
+          carrier: cpuCarrier,
+          state: structuredAttack,
+          fieldWidth: FIELD_W,
+          fieldDepth: FIELD_D,
+          penaltyDepth,
+        });
+        maybeEmitCarrierTrace({
+          carrier: cpuCarrier,
+          team,
+          attackSign,
+          branch: 'SIMPLE',
+          action: 'structured_wing_carry',
+          target: structuredCarryTarget,
+          detail: {
+            structuredAttackType: structuredAttack.type,
+            structuredRole: structuredCarrierRole,
+            deliveryReady: true,
+            deliveryCooldown: true,
+            legacyBypassed: true,
+          },
+        });
+        setPlayerAIState(cpuCarrier, 'CARRY');
+        steerSimpleAttackPlayer(cpuCarrier, structuredCarryTarget, dt, getUniformPlayerRunSpeed() * 1.05, 2.5, 0.06);
+        if ((gameState as any)[cooldownKey] <= 0) {
+          (gameState as any)[cooldownKey] = 0.08;
+        }
+        return;
+      }
+      const structuredTargets = teammates
+        .filter((tm: any) => tm !== cpuCarrier && !isGoalkeeper(tm))
+        .map((tm: any) => ({ player: tm, role: getStructuredAttackRole(structuredAttack, tm) }))
+        .filter((entry) => ['NEAR_POST', 'FAR_POST', 'CUTBACK', 'SECOND_WAVE'].includes(entry.role))
+        .map((entry) => {
+          const tm = entry.player;
+          const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+          const forwardProg = (tm.pos.x - cpuCarrier.pos.x) * attackSign;
+          const distToGoal = Math.abs(goalX - tm.pos.x);
+          const oppSpace = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tm.pos)), 99);
+          const roleBonus =
+            entry.role === 'NEAR_POST' ? 3.0
+            : entry.role === 'FAR_POST' ? 2.4
+            : entry.role === 'CUTBACK' ? 2.0
+            : 1.2;
+          const score =
+            roleBonus
+            + THREE.MathUtils.clamp(forwardProg / 8, -1.2, 1.6)
+            + oppSpace * 0.42
+            - distToGoal * 0.08;
+          return { ...entry, score, forwardProg };
+        })
+        .filter((entry) => entry.role === 'CUTBACK' ? entry.forwardProg > -7 : entry.forwardProg > -2)
+        .sort((a, b) => b.score - a.score);
+      const structuredTarget = structuredTargets[0]?.player || findCrossTarget(cpuCarrier, team, attackSign);
+      if (structuredTarget) {
+        const crossDist = cpuCarrier.pos.distanceTo(structuredTarget.pos);
+        const style: 'LONG_LOFTED' | 'DRIVEN' = crossDist > 10 ? 'LONG_LOFTED' : 'DRIVEN';
+        (gameState as any)[structuredDeliveryCooldownKey] = elapsed;
+        let launched = false;
+        if (style === 'LONG_LOFTED') {
+          launched = executeAILoftedPass(cpuCarrier, structuredTarget, elapsed, 'LONG_LOFTED');
+        } else {
+          launched = executeAIGroundPass(cpuCarrier, structuredTarget, elapsed, { style: 'DRIVEN' });
+        }
+        if (launched) {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+            patternType: 'STRUCTURED_WING_ATTACK',
+            passer: cpuCarrier.name,
+            target: structuredTarget.name,
+            targetRole: getStructuredAttackRole(structuredAttack, structuredTarget),
+            crossDist: +crossDist.toFixed(1),
+            style,
+          });
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_ATTACK_DELIVERY', team, 'TEAM', {
+            type: structuredAttack.type,
+            passer: cpuCarrier.name || 'Unknown',
+            target: structuredTarget.name || 'Unknown',
+            targetRole: getStructuredAttackRole(structuredAttack, structuredTarget),
+            crossDist: +crossDist.toFixed(1),
+            style,
+          });
+        }
+        (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+        return;
+      }
+      const structuredCarryTarget = computeStructuredCarrierTarget({
+        carrier: cpuCarrier,
+        state: structuredAttack,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        penaltyDepth,
+      });
+      maybeEmitCarrierTrace({
+        carrier: cpuCarrier,
+        team,
+        attackSign,
+        branch: 'SIMPLE',
+        action: 'structured_wing_carry',
+        target: structuredCarryTarget,
+        detail: {
+          structuredAttackType: structuredAttack.type,
+          structuredRole: structuredCarrierRole,
+          legacyBypassed: true,
+        },
+      });
+      setPlayerAIState(cpuCarrier, 'CARRY');
+      steerSimpleAttackPlayer(cpuCarrier, structuredCarryTarget, dt, getUniformPlayerRunSpeed() * 1.05, 2.5, 0.06);
+      if ((gameState as any)[cooldownKey] <= 0) {
+        (gameState as any)[cooldownKey] = 0.08;
+      }
+      return;
+    }
+    if (structuredAttack && structuredCarrierRole === 'CARRIER') {
+      const structuredCarryTarget = computeStructuredCarrierTarget({
+        carrier: cpuCarrier,
+        state: structuredAttack,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        penaltyDepth,
+      });
+      maybeEmitCarrierTrace({
+        carrier: cpuCarrier,
+        team,
+        attackSign,
+        branch: 'SIMPLE',
+        action: 'structured_wing_carry',
+        target: structuredCarryTarget,
+        detail: {
+          structuredAttackType: structuredAttack.type,
+          structuredRole: structuredCarrierRole,
+          legacyBypassed: true,
+          deliveryReady: false,
+        },
+      });
+      setPlayerAIState(cpuCarrier, 'CARRY');
+      steerSimpleAttackPlayer(cpuCarrier, structuredCarryTarget, dt, getUniformPlayerRunSpeed() * 1.05, 2.5, 0.06);
+      if ((gameState as any)[cooldownKey] <= 0) {
+        (gameState as any)[cooldownKey] = 0.08;
+      }
+      return;
+    }
+
     // Phase 2.5 Part 3: pattern-driven carrier decision override.
     // When CARRIER is in a WING_ATTACK pattern and has reached crossing position,
     // immediately execute a cross to NEAR_POST_RUNNER / CUTBACK_RECEIVER / FAR_POST_RUNNER
@@ -12419,14 +12628,14 @@ export function initGame(container: HTMLElement) {
     //     isn't always the one who actually dribbles to the byline
     //   - Carrier past midfield (>0) instead of well into final third (>10)
     //   - Wide (|z| > goalMouthWidth * 0.65) — was 0.9, too restrictive
-    //   - Close enough to goal that a cross makes sense (penaltyDepth + 14)
+    //   - Close enough to goal that an early delivery makes sense (penaltyDepth + 20)
     const _p25_isCrossablePattern = _p25_isWingAttack || _p25_isCounterAttack;
     const _p25_carrierCanCross = _p25_carrierRole === 'CARRIER' || _p25_carrierRole === 'RUNNER' || _p25_carrierRole === 'NONE';
     const _p25_crossingZone = _p25_isCrossablePattern
       && _p25_carrierCanCross
       && _p25_carrierAttackX > 0
       && _p25_absZ > goalMouthWidth * 0.65
-      && _p25_distToGoalLocal < penaltyDepth + 14;
+      && _p25_distToGoalLocal < penaltyDepth + 20;
     if (_p25_crossingZone && _p25_teamPattern) {
       const findByRole = (target: string): any | null => {
         for (const tm of teammates) {
@@ -12448,12 +12657,11 @@ export function initGame(container: HTMLElement) {
       const scoreCandidate = (tgt: any, roleLabelForScore: string) => {
         if (!tgt) return null;
         const tgtAttackX = tgt.pos.x * attackSign;
-        // Reject crosses to targets who haven't actually advanced:
-        // cross must progress the ball toward goal (target ahead of crosser in attack direction).
-        // Otherwise we get "cross" events that go backwards 20 units because role-assigned
-        // player never reached their pattern position.
+        // Reject only deep resets. Cutbacks can sit level/slightly behind the
+        // crosser; post runners still need to be at least level.
         const carrierAttackXLocal2 = cpuCarrier.pos.x * attackSign;
-        if (tgtAttackX < carrierAttackXLocal2 - 1) return null;
+        const minProg = roleLabelForScore === 'CUTBACK_RECEIVER' ? -6 : -1;
+        if (tgtAttackX < carrierAttackXLocal2 + minProg) return null;
         const tgtDistToGoal = Math.abs(goalXLocal - tgt.pos.x);
         const oppNear = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tgt.pos)), 99);
         let score = tgtAttackX * 0.3 + oppNear * 0.6 - tgtDistToGoal * 0.1;
@@ -12470,7 +12678,7 @@ export function initGame(container: HTMLElement) {
       if (farScored) candidates.push(farScored);
       if (cutbackScored) candidates.push(cutbackScored);
       candidates.sort((a, b) => b.score - a.score);
-      const crossTargetPlayer = candidates[0]?.player || null;
+      const crossTargetPlayer = candidates[0]?.player || findCrossTarget(cpuCarrier, team, attackSign);
       // Suppress ref unused warning
       void carrierAttackXLocal;
       if (crossTargetPlayer) {
@@ -12497,18 +12705,21 @@ export function initGame(container: HTMLElement) {
           }
           {
             patternMeta.lastCrossAt = elapsed;
-            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
-              patternType: _p25_teamPattern.type,
-              passer: cpuCarrier.name,
-              target: crossTargetPlayer.name,
-              targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
-              crossDist: +crossDist.toFixed(1),
-              style,
-            });
+            let launched = false;
             if (style === 'LONG_LOFTED') {
-              executeAILoftedPass(cpuCarrier, crossTargetPlayer, elapsed, 'LONG_LOFTED');
+              launched = executeAILoftedPass(cpuCarrier, crossTargetPlayer, elapsed, 'LONG_LOFTED');
             } else {
-              executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
+              launched = executeAIGroundPass(cpuCarrier, crossTargetPlayer, elapsed, { style: 'DRIVEN' });
+            }
+            if (launched) {
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', {
+                patternType: _p25_teamPattern.type,
+                passer: cpuCarrier.name,
+                target: crossTargetPlayer.name,
+                targetRole: getTeamPatternRole(_p25_teamPattern, crossTargetPlayer),
+                crossDist: +crossDist.toFixed(1),
+                style,
+              });
             }
             (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
             return;
@@ -12656,6 +12867,8 @@ export function initGame(container: HTMLElement) {
     };
     const recentAdvancedRecycleUntil = Number(cornerTrapPlayer._simpleRecentAdvancedRecycleUntil) || 0;
     const recentAdvancedRecycleTarget = String(cornerTrapPlayer._simpleRecentAdvancedRecycleTarget || '');
+    const recentNoRecycleUntil = Number(cornerTrapPlayer._simpleNoRecycleUntil) || 0;
+    const recentNoRecycleTarget = String(cornerTrapPlayer._simpleNoRecycleTarget || '');
     const midfieldSupportCandidates = teammates.filter((tm: any) => {
       const role = (tm.displayRole || tm.role || '').toString().toUpperCase();
       if (!['CM', 'DM', 'LM', 'RM', 'CAM'].includes(role)) return false;
@@ -12844,12 +13057,34 @@ export function initGame(container: HTMLElement) {
       && recentAdvancedRecycleTarget.length > 0
       && recentAdvancedRecycleTarget === passTargetName
       && passForwardProg < 2.0;
+    const advancedNoRecycleVetoRaw =
+      !!passTarget
+      && cpuCarrier.pos.x * attackSign > 0
+      && passForwardProg < -2.0
+      && !passTargetIsLateral
+      && !passTargetIsCutback
+      && !centralCutbackPassAvailable
+      && !bylineCutbackPassAvailable;
+    if (advancedNoRecycleVetoRaw && passTargetName) {
+      cornerTrapPlayer._simpleNoRecycleUntil = Math.max(recentNoRecycleUntil, elapsed + 0.5);
+      cornerTrapPlayer._simpleNoRecycleTarget = passTargetName;
+    }
+    const advancedNoRecycleVeto =
+      advancedNoRecycleVetoRaw
+      || (
+        !!passTarget
+        && recentNoRecycleUntil > elapsed
+        && recentNoRecycleTarget.length > 0
+        && recentNoRecycleTarget === passTargetName
+        && passForwardProg < -1.0
+      );
     const hardBackpassVeto =
       anyBoxBackpassVeto
       || attackerBackpassVeto
       || attackerBackpassLoopVeto
       || strikerFinalThirdWallBackVeto
-      || repeatedAdvancedRecycleVeto;
+      || repeatedAdvancedRecycleVeto
+      || advancedNoRecycleVeto;
     const noteRecentAttackerBackpass = () => {
       if (!passTarget || !isAttackingCarrier || !inFinalThird || passForwardProg >= 0.75 || !cpuCarrier.name || !passTargetName) return;
       (gameState as any).recentAttackerBackpassPair = {
@@ -13246,6 +13481,8 @@ export function initGame(container: HTMLElement) {
           boxDecisionLoopCount,
           boxDecisionLoopSeconds: +boxDecisionLoopSeconds.toFixed(2),
           anyBoxBackpassVeto,
+          advancedNoRecycleVeto,
+          advancedNoRecycleCooldown: recentNoRecycleUntil > elapsed ? +(recentNoRecycleUntil - elapsed).toFixed(2) : 0,
           boxIndecisionShotForce,
           strikerHesitationSeconds: strikerHesitationZone ? +strikerHesitationSeconds.toFixed(2) : 0,
           strikerHesitationLoops,
@@ -13706,7 +13943,7 @@ export function initGame(container: HTMLElement) {
         (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
         return;
       }
-      if ((shouldPass || shouldForceRecycle || forceDefenderPass || forceCarryDistPass) && passTarget) {
+      if ((shouldPass || shouldForceRecycle || forceDefenderPass || forceCarryDistPass) && passTarget && (!advancedNoRecycleVeto || forceDefenderPass)) {
         const passStyle = passForwardProg > 9 ? 'DRIVEN' : (passForwardProg > 2 ? 'SHORT' : 'BACK');
         emitSimplePassDecision({
           target: passTarget.name || passTarget.displayRole || passTarget.role || 'Unknown',
@@ -13773,7 +14010,7 @@ export function initGame(container: HTMLElement) {
           holdReason: naturalShotSelection
             ? 'selected_shot'
             : (hardBackpassVeto
-              ? (attackerBackpassLoopVeto ? 'reject_backpass_loop' : (repeatedAdvancedRecycleVeto ? 'reject_advanced_recycle' : 'reject_attacker_backpass'))
+              ? (advancedNoRecycleVeto ? 'reject_advanced_no_recycle' : (attackerBackpassLoopVeto ? 'reject_backpass_loop' : (repeatedAdvancedRecycleVeto ? 'reject_advanced_recycle' : 'reject_attacker_backpass')))
               : (centralCutbackPassAvailable ? 'cutback_available' : (preferCarryOverBackpass ? 'reject_backpass_carry' : (strikerHesitationShotForce ? 'hesitation_force_shot' : 'carry_preferred')))),
           strikerHesitationShotForce,
           missedShotWindowOpen,
@@ -13841,6 +14078,8 @@ export function initGame(container: HTMLElement) {
         recentAdvancedRecycleUntil: recentAdvancedRecycleUntil > elapsed ? +(recentAdvancedRecycleUntil - elapsed).toFixed(2) : 0,
         recentAdvancedRecycleTarget: recentAdvancedRecycleTarget || null,
         repeatedAdvancedRecycleVeto,
+        advancedNoRecycleVeto,
+        advancedNoRecycleCooldown: recentNoRecycleUntil > elapsed ? +(recentNoRecycleUntil - elapsed).toFixed(2) : 0,
         boxDecisionLoopCount,
         boxDecisionLoopSeconds: +boxDecisionLoopSeconds.toFixed(2),
         strikerHesitationSeconds: +strikerHesitationSeconds.toFixed(2),
@@ -14006,6 +14245,7 @@ export function initGame(container: HTMLElement) {
     if (gameState.fsmPositioningEnabled && player !== carrier && roleLabel !== 'GK') {
       const teamPattern = player.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
       const attackPhase = player.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
+      const structuredAttack = getStructuredAttackForTeam(player.team as 'A' | 'B', carrier, attackSign as 1 | -1);
       const fsmTarget = computeFsmOffBallTarget({
         player,
         carrier,
@@ -14018,6 +14258,7 @@ export function initGame(container: HTMLElement) {
         attackPhase,
         allPlayers: players,
         ballPos: ballState.pos,
+        structuredAttack,
       });
       _suppFT.copy(fsmTarget);
       return _suppFT;
@@ -19708,6 +19949,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const teamPattern = p.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
             const attackPhase = p.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
             const attackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
+            const structuredAttack = getStructuredAttackForTeam(p.team as 'A' | 'B', fsmCarrier || null, attackSign as 1 | -1);
             const target = computeFsmOffBallTarget({
               player: p,
               // Pass the actual carrier (regardless of team) so COLLAPSE_DEFEND
@@ -19723,7 +19965,25 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               attackPhase,
               allPlayers: players,
               ballPos: ballState.pos,
+              structuredAttack,
             });
+            const structuredRole = getStructuredAttackRole(structuredAttack, p);
+            if (structuredAttack && structuredRole !== 'NONE') {
+              const pAny = p as any;
+              const nowMs = performance.now();
+              const lastRoleAt = Number(pAny._lastStructuredAttackRoleEventAt) || 0;
+              if (nowMs - lastRoleAt > 650) {
+                pAny._lastStructuredAttackRoleEventAt = nowMs;
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_ATTACK_ROLE', p.team, structuredRole, {
+                  type: structuredAttack.type,
+                  player: p.name || 'Unknown',
+                  role: structuredRole,
+                  targetX: +target.x.toFixed(2),
+                  targetZ: +target.z.toFixed(2),
+                  legacyBypassed: true,
+                });
+              }
+            }
             _loopDir.subVectors(target, p.pos).setY(0);
             const dist = _loopDir.length();
             if (dist > 0.3) {
@@ -22975,6 +23235,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
     setHotSeatMode: (enabled: boolean) => { gameState.hotSeatMode = enabled; },
     setFsmPositioning: (enabled: boolean) => { gameState.fsmPositioningEnabled = !!enabled; },
     isFsmPositioning: () => gameState.fsmPositioningEnabled === true,
+    setStructuredAttack: (enabled: boolean) => { gameState.structuredAttackEnabled = !!enabled; },
+    isStructuredAttack: () => gameState.structuredAttackEnabled === true,
     setPracticeMode: (enabled: boolean) => {
       practiceModeEnabled = enabled;
       gameState.practiceModeEnabled = enabled; // Synchronize with the state object the UI reads

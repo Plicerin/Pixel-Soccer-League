@@ -81,10 +81,10 @@ const RETRIGGER_COOLDOWN_SECONDS: Record<AttackPatternType, number> = {
 const DEFAULT_DURATION_SECONDS: Record<AttackPatternType, number> = {
   PATIENT_BUILDUP: 6,
   COUNTER_ATTACK: 5,
-  // Extended from 5 to 7 so role-runners (ST to near post, winger to far post,
+  // Extended so role-runners (ST to near post, winger to far post,
   // CM to penalty spot) have time to cover 20+ units to their target positions.
-  WING_ATTACK_LEFT: 7,
-  WING_ATTACK_RIGHT: 7,
+  WING_ATTACK_LEFT: 8.5,
+  WING_ATTACK_RIGHT: 8.5,
   CENTRAL_COMBO: 4,
   SWITCH_OF_PLAY: 3,
   NEUTRAL: 1,
@@ -390,8 +390,8 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const farSide = -(Math.sign(carrierZ) || 1);
-      const farPostZ = farSide * goalMouthHalfWidth * 0.9;
-      const farPostX = goalX - attackSign * 3.5;
+      const farPostZ = farSide * Math.max(goalMouthHalfWidth * 2.6, fieldDepth * 0.18);
+      const farPostX = goalX - attackSign * 5.2;
       return { x: farPostX, z: farPostZ, blend: 0.85 };
     }
     case 'CUTBACK_RECEIVER': {
@@ -399,8 +399,8 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const side = Math.sign(carrierZ) || 0;
-      const cutbackZ = side * goalMouthHalfWidth * 0.4;
-      return { x: penaltySpotX, z: cutbackZ, blend: 0.85 };
+      const cutbackZ = side * Math.max(goalMouthHalfWidth * 1.8, fieldDepth * 0.11);
+      return { x: penaltySpotX + attackSign * 1.2, z: cutbackZ, blend: 0.88 };
     }
     case 'OUTLET': {
       // Short safe option near keeper/carrier during buildup. Stay spread wide.
@@ -427,7 +427,7 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
         const sprintAheadX = carrier.pos.x + attackSign * 18;
         // Preserve own z roughly; don't all crash central.
         const runnerZ = player.homePos?.z ?? 0;
-        return { x: sprintAheadX, z: runnerZ * 0.7, blend: 0.60 };
+        return { x: sprintAheadX, z: runnerZ * 0.92, blend: 0.66 };
       }
       if (pattern.type === 'PATIENT_BUILDUP') {
         // Hold forward line ~ near attacking third edge.
@@ -439,12 +439,16 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       return null;
     }
     case 'SUPPORT': {
-      // Midfielder under-the-ball support. Short distance from carrier, opposite side.
+      // Midfielder support. In the attacking half, arrive level/ahead so the
+      // carrier has a usable outlet instead of another backward recycle.
       if (!carrier) return null;
-      const supportX = carrier.pos.x - attackSign * 4;
+      const carrierAttackX = carrier.pos.x * attackSign;
+      const supportX = carrier.pos.x + attackSign * (carrierAttackX > 0 ? 1.4 : -3.2);
       const carrierZ = carrier.pos.z;
-      const supportZ = carrierZ === 0 ? (player.homePos?.z ?? 0) : -Math.sign(carrierZ) * 4;
-      return { x: supportX, z: supportZ, blend: 0.35 };
+      const supportZ = carrierZ === 0
+        ? (player.homePos?.z ?? 0)
+        : -Math.sign(carrierZ) * Math.max(5.8, fieldDepth * 0.14);
+      return { x: supportX, z: supportZ, blend: 0.48 };
     }
     case 'WALL': {
       // 1-2 wall player: 3-4 units from carrier, slightly ahead.
