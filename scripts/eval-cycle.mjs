@@ -309,6 +309,7 @@ async function main() {
     '--games', String(opts.games),
     '--speed', '1',
     '--half-seconds', String(opts.halfSeconds),
+    '--gpu-headless',
     '--timeout-ms', String(totalTimeoutMs),
   ]
   if (opts.url) simArgs.push('--url', opts.url)

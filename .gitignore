@@ -20,6 +20,9 @@ psl.db
 psl.db-shm
 psl.db-wal
 
+# Public sample tracking datasets used for local analysis
+data/metrica-sample-data/
+
 # Temporary patcher scripts
 tmp-*.cjs
 

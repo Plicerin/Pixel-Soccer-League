@@ -299,6 +299,18 @@ function tuningRelayPlugin(): Plugin {
     req.on('error', reject);
   });
 
+  const isSplashGhostPayload = (parsed: any): boolean => {
+    const bundle = parsed?.bundle || parsed;
+    const snapshot = parsed?.snapshot || bundle?.snapshot || {};
+    if (parsed?.sessionActive === false || bundle?.sessionActive === false || snapshot?.sessionActive === false) {
+      return true;
+    }
+    const teamA = String(bundle?.teamA?.name || snapshot?.teamA?.name || '');
+    const teamB = String(bundle?.teamB?.name || snapshot?.teamB?.name || '');
+    const matchId = String(snapshot?.matchId || bundle?.matchId || bundle?.metadata?.matchId || '').trim();
+    return teamA === 'Inter Miami' && teamB === 'LA Galaxy' && !matchId;
+  };
+
   return {
     name: 'tuning-relay',
     configureServer(server) {
@@ -309,10 +321,27 @@ function tuningRelayPlugin(): Plugin {
           const body = await readBody(req);
           const parsed = JSON.parse(body);
           const mod = await getDbModule();
+          if (isSplashGhostPayload(parsed)) {
+            mod.clearLiveTuning?.();
+            console.warn('[psl-db] rejected ghost live tuning:', parsed?.bundle?.teamA?.name, 'vs', parsed?.bundle?.teamB?.name);
+            res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":false,"reason":"ghost_live_tuning_rejected"}');
+            return;
+          }
           mod.upsertLiveTuning(parsed.ts || Date.now(), body);
           res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
         } catch (err) {
           res.writeHead(400).end(String(err));
+        }
+      });
+
+      server.middlewares.use('/__tuning/clear', async (req: any, res: any) => {
+        if (req.method !== 'POST') { res.writeHead(405).end(); return; }
+        try {
+          const mod = await getDbModule();
+          mod.clearLiveTuning?.();
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
+        } catch (err) {
+          res.writeHead(500).end(String(err));
         }
       });
 
@@ -341,13 +370,18 @@ function tuningRelayPlugin(): Plugin {
           // never reach the DB.
           let bundle: any = null;
           try { bundle = body.bundle_json ? JSON.parse(body.bundle_json) : null; } catch {}
-          if (bundle && bundle.sessionActive === false) {
+          if (isSplashGhostPayload(bundle)) {
             console.warn('[psl-db] rejected ghost match:', body.team_a_name, 'vs', body.team_b_name, 'session', body.session_id);
             res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":false,"reason":"ghost_match_rejected"}');
             return;
           }
           const mod = await getDbModule();
-          mod.insertMatchResult(body);
+          const inserted = mod.insertMatchResult(body);
+          if (!inserted) {
+            console.warn('[psl-db] rejected invalid match row:', body.team_a_name, 'vs', body.team_b_name, 'session', body.session_id);
+            res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"ok":false,"reason":"invalid_match_rejected"}');
+            return;
+          }
           res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
         } catch (err) {
           res.writeHead(400).end(String(err));
@@ -387,7 +421,9 @@ export default defineConfig(({mode}) => {
       port: 3001,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',      allowedHosts: ['gakeen'],      watch: {
+      hmr: process.env.DISABLE_HMR !== 'true',
+      allowedHosts: ['localhost', '127.0.0.1', 'gakeen'],
+      watch: {
         ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**', '**/telemetry/latest-report.json', '**/telemetry/latest-report.md', '**/telemetry/snapshot-*.json', '**/telemetry/eval/**', '**/telemetry/overnight/**'],
       },
     },

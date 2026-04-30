@@ -102,8 +102,8 @@ function runHeadlessSim({ games, speed, label }) {
     const child = spawn(
       process.platform === 'win32' ? 'cmd.exe' : 'npm',
       process.platform === 'win32'
-        ? ['/d', '/s', '/c', `npm run sim:headless -- --games ${games} --speed ${speed}`]
-        : ['run', 'sim:headless', '--', '--games', String(games), '--speed', String(speed)],
+        ? ['/d', '/s', '/c', `npm run sim:headless -- --games ${games} --speed ${speed} --gpu-headless`]
+        : ['run', 'sim:headless', '--', '--games', String(games), '--speed', String(speed), '--gpu-headless'],
       { stdio: 'inherit', windowsHide: true }
     )
 

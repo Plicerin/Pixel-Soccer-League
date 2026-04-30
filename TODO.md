@@ -26,3 +26,4 @@
 - [ ] Fix throw-in taker vibration/jitter during the restart presentation.
 - [ ] Keep the throw-in taker outside the touchline briefly before play resumes, then release cleanly after the restart.
 - [ ] Ensure match end stops on the game-over/full-time screen and does not auto-transition into a new game.
+- [ ] Revisit Composio integration without WSL: use dashboard connection plus native Windows SDK/MCP route instead of the unsupported Universal CLI installer.

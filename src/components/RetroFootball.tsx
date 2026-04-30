@@ -552,8 +552,8 @@ const RetroFootball: React.FC = () => {
   const [stadiumCamTiltShiftEnabled, setStadiumCamTiltShiftEnabled] = useState(true);
   const [teamAUniform, setTeamAUniform] = useState(0);
   const [teamBUniform, setTeamBUniform] = useState(0);
-  const [teamAName, setTeamAName] = useState('Inter Miami');
-  const [teamBName, setTeamBName] = useState('LA Galaxy');
+  const [teamAName, setTeamAName] = useState('LA Galaxy');
+  const [teamBName, setTeamBName] = useState('LAFC');
   const [teamAFormation, setTeamAFormation] = useState('3-4-3');
   const [teamBFormation, setTeamBFormation] = useState('3-4-3');
   const [teamAAggressiveness, setTeamAAggressiveness] = useState<AggressivenessKey>('BALANCED');
@@ -638,12 +638,8 @@ const RetroFootball: React.FC = () => {
   const splashAdvancedRef = useRef(false);
   const splashAudioStartedRef = useRef(false);
   const splashSceneStartedRef = useRef(false);
-  const [isFullTime, setIsFullTime] = useState(() => {
-    try { return sessionStorage.getItem('psl_fullTime') === '1'; } catch { return false; }
-  });
-  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(() => {
-    try { const s = sessionStorage.getItem('psl_fullTimeScore'); return s ? JSON.parse(s) : null; } catch { return null; }
-  });
+  const [isFullTime, setIsFullTime] = useState(false);
+  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(null);
   const fullTimeReturnArmedRef = useRef(false);
   const prevIsLive = useRef(false);
 
@@ -665,6 +661,13 @@ const RetroFootball: React.FC = () => {
 
   const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
   const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season, 6=Practice
+
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+  }, []);
 
   // ── Splash screen dismiss handler ──
   useEffect(() => {
@@ -806,6 +809,8 @@ const RetroFootball: React.FC = () => {
   }, [startMenuVisible]);
 
   const hasActiveMatchSessionRef = useRef(false);
+  const showSplashRef = useRef(showSplash);
+  const liveTuningClearedForSplashRef = useRef(false);
   const prevMatchSnapshotRef = useRef<any | null>(null);
   const autoScanOnPauseRef = useRef(true);
   const lastAutoScanAtRef = useRef(0);
@@ -819,6 +824,13 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     hasActiveMatchSessionRef.current = hasActiveMatchSession;
   }, [hasActiveMatchSession]);
+
+  useEffect(() => {
+    showSplashRef.current = showSplash;
+    if (!showSplash) {
+      liveTuningClearedForSplashRef.current = false;
+    }
+  }, [showSplash]);
 
   useEffect(() => {
     const recorder = telemetryRecorderRef.current;
@@ -980,10 +992,23 @@ const RetroFootball: React.FC = () => {
     const dashInterval = setInterval(() => {
       _dashTick++;
       // Skip broadcasting during splash/menu — only track real matches
+      if (showSplashRef.current) {
+        if (!liveTuningClearedForSplashRef.current) {
+          liveTuningClearedForSplashRef.current = true;
+          try { fetch('/__tuning/clear', { method: 'POST', keepalive: true }).catch(() => {}); } catch {}
+        }
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: splash screen visible');
+        return;
+      }
       if (!hasActiveMatchSessionRef.current) {
+        if (!liveTuningClearedForSplashRef.current) {
+          liveTuningClearedForSplashRef.current = true;
+          try { fetch('/__tuning/clear', { method: 'POST', keepalive: true }).catch(() => {}); } catch {}
+        }
         if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: no active match session');
         return;
       }
+      liveTuningClearedForSplashRef.current = false;
       const g = (window as any).__gameRef;
       if (!g) {
         if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: __gameRef not set');
@@ -1005,8 +1030,17 @@ const RetroFootball: React.FC = () => {
         if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: getTuningBundle returned null, phase=', phase);
         return;
       }
+      const bundleMatchId = snap2?.matchId || (bundle as any).matchId || (bundle as any).metadata?.matchId || null;
+      const defaultSplashGhostLive =
+        bundle.teamA?.name === 'Inter Miami'
+        && bundle.teamB?.name === 'LA Galaxy'
+        && !bundleMatchId;
+      if (defaultSplashGhostLive) {
+        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: default splash ghost without match id');
+        return;
+      }
       const live2 = g.getLiveTelemetry?.();
-      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: true };
+      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: snap2?.sessionActive !== false };
 
       // Live in-memory channels: send every tick (2s) so dashboard gets data quickly
       if (_dashTick % 5 === 0) {
@@ -1038,6 +1072,17 @@ const RetroFootball: React.FC = () => {
         try {
           const a = bundle.teamA, b = bundle.teamB;
           const matchId = snap2?.matchId || null;
+          const defaultSplashGhost =
+            a?.name === 'Inter Miami'
+            && b?.name === 'LA Galaxy'
+            && !matchId
+            && !(bundle as any).matchId
+            && !(bundle as any).metadata?.matchId;
+          if (defaultSplashGhost) {
+            console.warn('[PSL] skipped ghost full-time row: Inter Miami vs LA Galaxy without match id');
+            prevPhase = phase;
+            return;
+          }
           if (matchId && !(bundle as any).matchId) (bundle as any).matchId = matchId;
           fetch('/__db/match-result', {
             method: 'POST',

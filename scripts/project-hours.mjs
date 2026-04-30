@@ -45,6 +45,19 @@ function isoNow() {
   return new Date().toISOString()
 }
 
+function validDateMs(value) {
+  const ms = new Date(value || '').getTime()
+  return Number.isFinite(ms) ? ms : null
+}
+
+function earliestDated(candidates) {
+  const dated = candidates
+    .map((candidate) => ({ ...candidate, ms: validDateMs(candidate.value) }))
+    .filter((candidate) => candidate.ms !== null)
+    .sort((a, b) => a.ms - b.ms)
+  return dated[0] || { value: null, source: 'unknown' }
+}
+
 function parseArgs(argv) {
   const options = { command: 'summary', json: false, note: '' }
   const rest = [...argv]
@@ -136,7 +149,8 @@ function runGit(args) {
 }
 
 function summarizeGit(config) {
-  const first = runGit(['log', '--reverse', '--format=%cI', '-1'])
+  const rootCommit = runGit(['rev-list', '--max-parents=0', 'HEAD'])?.split(/\r?\n/).filter(Boolean)[0] || ''
+  const first = rootCommit ? runGit(['show', '-s', '--format=%cI', rootCommit]) : null
   const last = runGit(['log', '-1', '--format=%cI'])
   const countRaw = runGit(['rev-list', '--count', 'HEAD'])
   const timestampsRaw = runGit(['log', '--format=%cI'])
@@ -178,6 +192,14 @@ function collectFileMtimes(config) {
     if (fs.existsSync(abs)) visit(abs)
   }
   return timestamps
+}
+
+function earliestActivityEvent(activity) {
+  const firstSession = activity.sessions
+    .map((session) => session.startedAt)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a) - new Date(b))[0]
+  return firstSession || null
 }
 
 function estimateActivityHours(config, gitSummary) {
@@ -452,6 +474,13 @@ export function collectProjectHours() {
   const activity = estimateActivityHours(config, git)
   const automated = summarizeAutomatedRuntime()
   const telemetry = summarizeTelemetryDbRuntime()
+  const projectStart = earliestDated([
+    { value: config.projectStart, source: 'config' },
+    { value: git.firstCommitAt, source: 'git-first-commit' },
+    { value: codexCli.blocks[0]?.startedAt, source: 'codex-cli-session' },
+    { value: earliestActivityEvent(activity), source: 'git-file-activity' },
+    { value: telemetry.firstMatchAt, source: 'telemetry-db' },
+  ])
   const humanSource = manual.totalHours > 0
     ? 'manual-worklog'
     : (codexCli.totalHours > 0 ? 'codex-cli-session' : 'git-file-activity')
@@ -460,7 +489,8 @@ export function collectProjectHours() {
     : (humanSource === 'codex-cli-session' ? codexCli.totalHours : activity.totalHours)
   return {
     generatedAt: isoNow(),
-    projectStart: git.firstCommitAt || config.projectStart,
+    projectStart: projectStart.value,
+    projectStartSource: projectStart.source,
     git,
     manual,
     codexCli,

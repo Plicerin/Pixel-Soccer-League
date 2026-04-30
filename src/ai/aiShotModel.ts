@@ -17,6 +17,9 @@ export type AIShotDecisionContext = {
   activeAIStyle: any;
   team: 'A' | 'B';
   gameState: any;
+  crowdedShotLane?: boolean;
+  shotCorridorDefenders?: number;
+  shotBoxDefenders?: number;
 };
 
 export type AIShotDecisionResult = {
@@ -53,16 +56,26 @@ export function evaluateShotDecision(context: AIShotDecisionContext): AIShotDeci
     passChance,
     activeAIStyle,
     gameState,
+    crowdedShotLane,
+    shotCorridorDefenders,
+    shotBoxDefenders,
   } = context;
 
-  const baseShotChance = inTapInZone ? 0.30 : (insidePenaltyArea ? 0.22 : (distToGoal < 18 ? 0.09 : 0.03));
-  const pressurePenalty = closePressure * (insidePenaltyArea ? 0.06 : 0.11);
-  const urgencyBoost = inTapInZone ? 0.20 : (insidePenaltyArea ? 0.06 : (distToGoal < 14 ? 0.02 : 0));
+  const longRangeFactor = clamp((distToGoal - 18) / 14, 0, 1);
+  const centralLongRangeFactor = longRangeFactor * (inShootingLane ? 1 : 0.55);
+  const crowdedLane = crowdedShotLane === true || Number(shotCorridorDefenders ?? 0) >= 2.5 || Number(shotBoxDefenders ?? 0) >= 4;
+  const oneMorePassAvailable = !!passTarget && hasForwardPassOption;
+  const crowdedPassSuppression = crowdedLane && oneMorePassAvailable && !inTapInZone
+    ? (insidePenaltyArea ? 0.13 : 0.19)
+    : 0;
+  const baseShotChance = inTapInZone ? 0.34 : (insidePenaltyArea ? 0.27 : (distToGoal < 18 ? 0.12 : 0.022));
+  const pressurePenalty = closePressure * (insidePenaltyArea ? 0.045 : 0.105);
+  const urgencyBoost = inTapInZone ? 0.22 : (insidePenaltyArea ? 0.09 : (distToGoal < 16 ? 0.04 : 0));
   const roleBias = (roleProfile.shootBias ?? 0.5) - 0.5;
   const skillBonus = (shotSkill - 0.5) * 0.24;
   const supportBonus = hasGoalSupport ? 0.03 : 0;
   const anglePenaltyValue = !inShootingLane && !insidePenaltyArea ? anglePenalty(carrier) : 0;
-  const passOptionPenalty = hasForwardPassOption ? (insidePenaltyArea ? 0.03 : 0.10) : (passTarget ? 0.03 : 0);
+  const passOptionPenalty = hasForwardPassOption ? (insidePenaltyArea ? 0.015 : 0.07) : (passTarget ? 0.02 : 0);
   const teamShotTrend = (() => {
     const shots = carrier.team === 'A' ? gameState.shotsA : gameState.shotsB;
     const onTarget = carrier.team === 'A' ? gameState.shotsOnTargetA : gameState.shotsOnTargetB;
@@ -79,22 +92,27 @@ export function evaluateShotDecision(context: AIShotDecisionContext): AIShotDeci
       + supportBonus
       - anglePenaltyValue
       - passOptionPenalty
+      - crowdedPassSuppression
+      - centralLongRangeFactor * 0.105
+      - longRangeFactor * closePressure * 0.018
       + teamShotTrend,
     0.02,
-    0.58,
+    insidePenaltyArea ? 0.66 : 0.42,
   );
 
   const shotUrgency = clamp(shootChance + (inTapInZone ? 0.16 : 0), 0, 1);
   const supportSuppression = hasForwardPassOption && !insidePenaltyArea ? 0.14 : 0;
 
-  const shouldShoot = inTapInZone
-    || insidePenaltyArea && inShootingLane && closePressure <= 2 && shootChance > 0.22
-    || (!hasForwardPassOption && shootChance > 0.42)
-    || (shootChance > 0.56 && !passTarget)
+  const crowdedPassVeto = crowdedLane && oneMorePassAvailable && !inTapInZone && distToGoal > 7.5;
+  const shouldShoot = inTapInZone || (!crowdedPassVeto && (
+    insidePenaltyArea && inShootingLane && closePressure <= 3 && shootChance > 0.20
+    || (!hasForwardPassOption && shootChance > 0.36)
+    || (shootChance > 0.50 && !passTarget)
     || (
       (!passChance || shootChance >= passChance - 0.04)
-      && Math.random() < (shootChance * (hasForwardPassOption && !insidePenaltyArea ? 0.18 : 0.42))
-    );
+      && Math.random() < (shootChance * (hasForwardPassOption && !insidePenaltyArea ? 0.13 : 0.38) * (1 - longRangeFactor * 0.34))
+    )
+  ));
 
   return {
     shouldShoot,

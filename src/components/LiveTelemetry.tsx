@@ -37,6 +37,19 @@ interface LiveTelemetryData {
   eventLog: TelemEvent[];
   shotDecisions?: any[];
   passDecisions?: any[];
+  possessionDirector?: {
+    active: boolean;
+    team: 'A' | 'B' | '';
+    intent: string;
+    reason: string;
+    targetWidth: number | null;
+    supportDistance: { min: number; median: number; max: number };
+    crossDelaySeconds: { min: number; median: number; max: number };
+    minBoxAttackersBeforeCross: number;
+    currentBoxAttackers: number;
+    dangerousMarkDistance: { median: number; warning: number };
+    action: string;
+  };
 }
 
 interface Props {
@@ -105,6 +118,7 @@ export default function LiveTelemetry({ gameRef }: Props) {
   const { teamA, teamB, carrier, eventLog } = data;
   const shotDecisions = data.shotDecisions || [];
   const passDecisions = data.passDecisions || [];
+  const director = data.possessionDirector;
 
   function copyTelemetry() {
     if (!data) return;
@@ -256,6 +270,34 @@ export default function LiveTelemetry({ gameRef }: Props) {
           </div>
         ) : (
           <div className="text-[11px] text-white/30">No carrier — ball is loose</div>
+        )}
+      </div>
+
+      {/* Possession Director */}
+      <div className="border border-amber-400/20 rounded-lg p-3 bg-amber-950/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[9px] text-amber-300/70 uppercase tracking-widest">Director</div>
+          <div className="text-[9px] text-white/35 uppercase tracking-widest">
+            {director?.active ? director.action : 'watching'}
+          </div>
+        </div>
+        {director?.active ? (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+            <div className="text-white/40">Intent</div>
+            <div className="text-white/85 text-right">{director.intent.replaceAll('_', ' ')}</div>
+            <div className="text-white/40">Reason</div>
+            <div className="text-white/65 text-right">{director.reason.replaceAll('_', ' ')}</div>
+            <div className="text-white/40">Target width</div>
+            <div className="text-white/85 text-right">{director.targetWidth ?? '-'}m</div>
+            <div className="text-white/40">Support</div>
+            <div className="text-white/85 text-right">{director.supportDistance.median}m</div>
+            <div className="text-white/40">Box before cross</div>
+            <div className="text-white/85 text-right">{director.currentBoxAttackers}/{director.minBoxAttackersBeforeCross}</div>
+            <div className="text-white/40">Mark danger</div>
+            <div className="text-white/85 text-right">{director.dangerousMarkDistance.median}m</div>
+          </div>
+        ) : (
+          <div className="text-[11px] text-white/30">Waiting for a possession plan</div>
         )}
       </div>
 

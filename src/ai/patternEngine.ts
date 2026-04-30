@@ -73,7 +73,7 @@ const RETRIGGER_COOLDOWN_SECONDS: Record<AttackPatternType, number> = {
   COUNTER_ATTACK: 3.0,
   WING_ATTACK_LEFT: 3.5,
   WING_ATTACK_RIGHT: 3.5,
-  CENTRAL_COMBO: 2.0,
+  CENTRAL_COMBO: 0.6,
   SWITCH_OF_PLAY: 3.0,
   NEUTRAL: 0,
 };
@@ -83,9 +83,9 @@ const DEFAULT_DURATION_SECONDS: Record<AttackPatternType, number> = {
   COUNTER_ATTACK: 5,
   // Extended so role-runners (ST to near post, winger to far post,
   // CM to penalty spot) have time to cover 20+ units to their target positions.
-  WING_ATTACK_LEFT: 8.5,
-  WING_ATTACK_RIGHT: 8.5,
-  CENTRAL_COMBO: 4,
+  WING_ATTACK_LEFT: 10,
+  WING_ATTACK_RIGHT: 10,
+  CENTRAL_COMBO: 10,
   SWITCH_OF_PLAY: 3,
   NEUTRAL: 1,
 };
@@ -248,6 +248,109 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
   };
 }
 
+function commitmentSeconds(type: AttackPatternType): number {
+  if (type === 'CENTRAL_COMBO') return 3.2;
+  if (type === 'WING_ATTACK_LEFT' || type === 'WING_ATTACK_RIGHT') return 3.0;
+  if (type === 'COUNTER_ATTACK') return 2.2;
+  if (type === 'PATIENT_BUILDUP') return 2.6;
+  return 0;
+}
+
+function tryCentralCombo(inputs: PatternInputs): TeamPatternState | null {
+  const { carrier, teammates, opponents, attackSign, elapsedSeconds, team, fieldWidth, fieldDepth } = inputs;
+  if (!carrier) return null;
+  if (onCooldown('CENTRAL_COMBO', inputs)) return null;
+
+  const carrierRole = roleLabelOf(carrier);
+  if (!['CM', 'CAM', 'ST', 'CF', 'LM', 'RM'].includes(carrierRole)) return null;
+  if (['LM', 'RM'].includes(carrierRole) && Math.abs(carrier.pos.z) > fieldDepth * 0.14) return null;
+  const carrierAttackX = attackProgressX(carrier, attackSign);
+  const carrierAbsZ = Math.abs(carrier.pos.z);
+  if (carrierAttackX < -fieldWidth * 0.08 || carrierAttackX > fieldWidth * 0.48) return null;
+  if (carrierAbsZ > fieldDepth * 0.32) return null;
+
+  const pressure = opponents.filter((opp) => opp.pos.distanceTo(carrier.pos) < 6.5).length;
+  if (pressure > 6) return null;
+
+  const outfield = teammates.filter((tm) => tm !== carrier && !isGK(tm));
+  const wall = outfield
+    .filter((tm) => ['ST', 'CF', 'CAM', 'CM'].includes(roleLabelOf(tm)))
+    .filter((tm) => {
+      const progress = attackProgressX(tm, attackSign) - carrierAttackX;
+      const dist = tm.pos.distanceTo(carrier.pos);
+      return progress > -7.0 && progress < 11 && dist >= 2.5 && dist <= 16;
+    })
+    .sort((a, b) => {
+      const score = (tm: any) => {
+        const role = roleLabelOf(tm);
+        const progress = attackProgressX(tm, attackSign) - carrierAttackX;
+        const separation = opponents.reduce((best, opp) => Math.min(best, opp.pos.distanceTo(tm.pos)), 99);
+        const roleBonus = carrierRole === 'ST' || carrierRole === 'CF'
+          ? (role === 'CAM' ? 3.0 : role === 'CM' ? 2.4 : 1.8)
+          : (role === 'ST' || role === 'CF' ? 3.8 : role === 'CAM' ? 2.5 : 1.6);
+        const wallDistance = tm.pos.distanceTo(carrier.pos);
+        const wallDistanceFit = 1.5 - Math.abs(wallDistance - 7.0) * 0.14;
+        const centralLaneFit = Math.max(0, 6.5 - Math.abs(tm.pos.z)) * 0.10;
+        return roleBonus + progress * 0.22 + separation * 0.28 + wallDistanceFit + centralLaneFit - Math.abs(tm.pos.z) * 0.06;
+      };
+      return score(b) - score(a);
+    })[0];
+  if (!wall) return null;
+
+  const used = new Set<any>([carrier, wall]);
+  const runner = outfield
+    .filter((tm) => !used.has(tm))
+    .filter((tm) => ['ST', 'CF', 'LM', 'RM', 'CAM', 'CM'].includes(roleLabelOf(tm)))
+    .sort((a, b) => {
+      const score = (tm: any) => {
+        const role = roleLabelOf(tm);
+        const progress = attackProgressX(tm, attackSign) - carrierAttackX;
+        const wideLane = Math.min(Math.abs(tm.pos.z || tm.homePos?.z || 0), fieldDepth * 0.28);
+        const roleBonus = role === 'ST' || role === 'CF' ? 2.4 : role === 'LM' || role === 'RM' ? 2.0 : 1.2;
+        return roleBonus + progress * 0.25 + wideLane * 0.08;
+      };
+      return score(b) - score(a);
+    })[0] || carrier;
+
+  const roles = new Map<string, PatternRole>();
+  roles.set(nameKey(carrier), 'CARRIER');
+  roles.set(nameKey(wall), 'WALL');
+  if (runner !== carrier) {
+    roles.set(nameKey(runner), 'RUNNER');
+    used.add(runner);
+  }
+
+  for (const tm of outfield) {
+    if (used.has(tm) || roles.has(nameKey(tm))) continue;
+    const label = roleLabelOf(tm);
+    if (['CM', 'CAM', 'DM'].includes(label)) {
+      roles.set(nameKey(tm), 'SUPPORT');
+      used.add(tm);
+      break;
+    }
+  }
+
+  for (const tm of teammates) {
+    if (roles.has(nameKey(tm)) || isGK(tm)) continue;
+    const label = roleLabelOf(tm);
+    if (['CB', 'LB', 'RB', 'DM'].includes(label)) roles.set(nameKey(tm), 'ANCHOR');
+  }
+
+  return {
+    type: 'CENTRAL_COMBO',
+    startedAt: elapsedSeconds,
+    expiresAt: elapsedSeconds + DEFAULT_DURATION_SECONDS.CENTRAL_COMBO,
+    side: team,
+    roles,
+    initiatorName: nameKey(carrier),
+    metadata: {
+      playName: 'GIVE_AND_GO',
+      wallName: nameKey(wall),
+      runnerName: nameKey(runner),
+    },
+  };
+}
+
 function tryPatientBuildup(inputs: PatternInputs): TeamPatternState | null {
   const { carrier, teammates, opponents, attackSign, elapsedSeconds, team, fieldWidth } = inputs;
   if (!carrier) return null;
@@ -299,6 +402,7 @@ function tryPatientBuildup(inputs: PatternInputs): TeamPatternState | null {
 export function selectPattern(inputs: PatternInputs): TeamPatternState | null {
   return (
     tryCounterAttack(inputs)
+    || tryCentralCombo(inputs)
     || tryWingAttack(inputs)
     || tryPatientBuildup(inputs)
     || null
@@ -314,6 +418,9 @@ export function isPatternStillValid(state: TeamPatternState, inputs: PatternInpu
   if (!inputs.carrier) return false;
   // Carrier switched teams — pattern dead.
   if (inputs.carrier.team !== state.side) return false;
+  const patternAge = inputs.elapsedSeconds - state.startedAt;
+  const commitment = commitmentSeconds(state.type);
+  if (patternAge >= 0 && patternAge < commitment) return true;
 
   // Type-specific invalidations.
   if (state.type === 'COUNTER_ATTACK') {
@@ -324,10 +431,15 @@ export function isPatternStillValid(state: TeamPatternState, inputs: PatternInpu
     // Wing attack ends if carrier moves far to opposite flank or deeply into own half.
     // Loosened from previous -3 margin which caused 2s flip-flops during central runs.
     const carrierAttackX = attackProgressX(inputs.carrier, inputs.attackSign);
-    if (carrierAttackX < -6) return false;
+    if (carrierAttackX < -8) return false;
     const carrierZ = inputs.carrier.pos.z;
-    if (state.type === 'WING_ATTACK_LEFT' && carrierZ > 7) return false;
-    if (state.type === 'WING_ATTACK_RIGHT' && carrierZ < -7) return false;
+    if (state.type === 'WING_ATTACK_LEFT' && carrierZ > 10) return false;
+    if (state.type === 'WING_ATTACK_RIGHT' && carrierZ < -10) return false;
+  }
+  if (state.type === 'CENTRAL_COMBO') {
+    const carrierAttackX = attackProgressX(inputs.carrier, inputs.attackSign);
+    if (carrierAttackX < -6) return false;
+    if (Math.abs(inputs.carrier.pos.z) > inputs.fieldDepth * 0.44) return false;
   }
   if (state.type === 'PATIENT_BUILDUP') {
     // Buildup ends when ball crosses midfield.
@@ -375,6 +487,14 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
   const penaltySpotX = goalX - attackSign * penaltyDepth * 0.6; // ~12-yard mark
 
   switch (role) {
+    case 'CARRIER': {
+      if (!carrier || pattern.type !== 'CENTRAL_COMBO') return null;
+      const side =
+        Math.sign(player.homePos?.z || player.pos?.z || carrier.pos?.z || 1) || 1;
+      const channelX = carrier.pos.x + attackSign * 8.8;
+      const channelZ = side * Math.max(goalMouthHalfWidth * 2.4, fieldDepth * 0.15);
+      return { x: channelX, z: channelZ, blend: 0.78 };
+    }
     case 'NEAR_POST_RUNNER': {
       // Fire as soon as carrier is past mid-third — runners need head start to reach post.
       const carrierAttackX = (carrier?.pos?.x ?? 0) * attackSign;
@@ -390,8 +510,8 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const farSide = -(Math.sign(carrierZ) || 1);
-      const farPostZ = farSide * Math.max(goalMouthHalfWidth * 2.6, fieldDepth * 0.18);
-      const farPostX = goalX - attackSign * 5.2;
+      const farPostZ = farSide * Math.max(goalMouthHalfWidth * 3.6, fieldDepth * 0.27);
+      const farPostX = goalX - attackSign * 4.8;
       return { x: farPostX, z: farPostZ, blend: 0.85 };
     }
     case 'CUTBACK_RECEIVER': {
@@ -399,8 +519,8 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       if (carrierAttackX < -10) return null;
       const carrierZ = carrier?.pos?.z ?? 0;
       const side = Math.sign(carrierZ) || 0;
-      const cutbackZ = side * Math.max(goalMouthHalfWidth * 1.8, fieldDepth * 0.11);
-      return { x: penaltySpotX + attackSign * 1.2, z: cutbackZ, blend: 0.88 };
+      const cutbackZ = side * Math.max(goalMouthHalfWidth * 2.6, fieldDepth * 0.18);
+      return { x: penaltySpotX + attackSign * 2.2, z: cutbackZ, blend: 0.90 };
     }
     case 'OUTLET': {
       // Short safe option near keeper/carrier during buildup. Stay spread wide.
@@ -424,17 +544,29 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       // In PATIENT_BUILDUP: hold forward line (don't drop deep).
       if (!carrier) return null;
       if (pattern.type === 'COUNTER_ATTACK') {
-        const sprintAheadX = carrier.pos.x + attackSign * 18;
+        const sprintAheadX = carrier.pos.x + attackSign * 20;
         // Preserve own z roughly; don't all crash central.
         const runnerZ = player.homePos?.z ?? 0;
-        return { x: sprintAheadX, z: runnerZ * 0.92, blend: 0.66 };
+        return { x: sprintAheadX, z: runnerZ * 1.08, blend: 0.66 };
+      }
+      if (pattern.type === 'CENTRAL_COMBO') {
+        const side = Math.sign(player.homePos?.z || player.pos?.z || carrier.pos.z || 1) || 1;
+        const runnerX = carrier.pos.x + attackSign * 11.0;
+        const runnerZ = side * Math.max(goalMouthHalfWidth * 2.8, fieldDepth * 0.18);
+        return { x: runnerX, z: runnerZ, blend: 0.82 };
+      }
+      if (pattern.type === 'WING_ATTACK_LEFT' || pattern.type === 'WING_ATTACK_RIGHT') {
+        const side = pattern.type === 'WING_ATTACK_LEFT' ? -1 : 1;
+        const overlapX = carrier.pos.x + attackSign * 7.5;
+        const overlapZ = side * Math.max(Math.abs(player.homePos?.z ?? 0), fieldDepth * 0.42);
+        return { x: overlapX, z: overlapZ, blend: 0.84 };
       }
       if (pattern.type === 'PATIENT_BUILDUP') {
         // Hold forward line ~ near attacking third edge.
         const forwardLineAttackX = fieldWidth * 0.18;
         const holdX = attackSign * forwardLineAttackX;
         const runnerZ = player.homePos?.z ?? 0;
-        return { x: holdX, z: runnerZ * 0.9, blend: 0.40 };
+        return { x: holdX, z: runnerZ * 1.05, blend: 0.40 };
       }
       return null;
     }
@@ -443,19 +575,25 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       // carrier has a usable outlet instead of another backward recycle.
       if (!carrier) return null;
       const carrierAttackX = carrier.pos.x * attackSign;
-      const supportX = carrier.pos.x + attackSign * (carrierAttackX > 0 ? 1.4 : -3.2);
+      const wingPattern = pattern.type === 'WING_ATTACK_LEFT' || pattern.type === 'WING_ATTACK_RIGHT';
+      const supportX = carrier.pos.x + attackSign * (
+        wingPattern ? 1.8 : (carrierAttackX > fieldWidth * 0.12 ? 4.2 : (carrierAttackX > 0 ? 2.4 : -3.2))
+      );
       const carrierZ = carrier.pos.z;
-      const supportZ = carrierZ === 0
-        ? (player.homePos?.z ?? 0)
-        : -Math.sign(carrierZ) * Math.max(5.8, fieldDepth * 0.14);
-      return { x: supportX, z: supportZ, blend: 0.48 };
+      const wingSupportSide = pattern.type === 'WING_ATTACK_LEFT' ? -1 : pattern.type === 'WING_ATTACK_RIGHT' ? 1 : null;
+      const supportZ = wingSupportSide
+        ? wingSupportSide * Math.max(7.2, fieldDepth * 0.20)
+        : carrierZ === 0
+          ? (player.homePos?.z ?? 0)
+          : -Math.sign(carrierZ) * Math.max(6.2, fieldDepth * 0.16);
+      return { x: supportX, z: supportZ, blend: wingPattern ? 0.74 : (carrierAttackX > fieldWidth * 0.12 ? 0.66 : 0.52) };
     }
     case 'WALL': {
       // 1-2 wall player: 3-4 units from carrier, slightly ahead.
       if (!carrier) return null;
-      const wallX = carrier.pos.x + attackSign * 3;
+      const wallX = carrier.pos.x + attackSign * (pattern.type === 'CENTRAL_COMBO' ? 3.8 : 3);
       const wallZ = (carrier.pos.z + (player.homePos?.z ?? 0)) * 0.5;
-      return { x: wallX, z: wallZ, blend: 0.55 };
+      return { x: wallX, z: wallZ, blend: pattern.type === 'CENTRAL_COMBO' ? 0.84 : 0.55 };
     }
     default:
       return null;

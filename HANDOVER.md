@@ -1,388 +1,353 @@
-# PSL Handover — 2026-04-26
+# PSL Handover - 2026-04-29
 
-You're picking up Pixel Soccer League (PSL) cold. This document gets you from "what is this repo" to "I can keep working" in 15 minutes. Read top to bottom the first time.
+This is the current handover for Pixel Soccer League after the coach-layer work and the headless-runner failures on the original machine.
 
----
+## Project Context
 
-## What is this project
+Pixel Soccer League is a browser soccer simulation with Three.js/TypeScript/Vite. Most runtime logic still lives in `src/gameEngine.ts`. The user is tuning CPU-vs-CPU gameplay toward an MLS-like baseline using match telemetry, browser observation, and headless runs.
 
-Pixel Soccer League is a browser-based soccer simulation, pixel-art aesthetic, deep tactical AI. CPU-vs-CPU matches run in real time with two teams of 11 players each on an MLS-licensed roster. The user (Plicerin / vrocket@gmail.com) is iterating on the AI to produce realistic match telemetry — goals per match, pass distribution, shape, pattern execution, etc., benchmarked against MLS 2025 baselines.
+Primary goal right now: stop tiny parameter tuning and introduce a stronger tactical "coach" system that can issue explicit attacking and defensive commands, then measure whether players obey and whether those commands create real soccer actions.
 
-The user is the only player and reviewer. They run matches in a browser, watch what happens, give feedback. There is no other team or stakeholder.
+## User Preferences And Constraints
 
-The repo is at `C:\Users\vrock\Documents\Pixel Soccer League` (Windows, PowerShell, Vite dev server on port 3001).
+- Do not run smoke tests, headless games, or match simulations without explicit authorization.
+- When starting a run, always announce a local timestamp, PID, and output folder.
+- Runs should be background/detached so chat remains available.
+- Headless game runs should use Chrome/Chromium GPU mode: `--gpu-headless`.
+- Do not push code unless the user explicitly asks.
+- Do not include team names in telemetry/database access approval requests.
+- Use `rg` for search and `apply_patch` for manual edits.
+- Do not revert unrelated dirty worktree changes.
 
----
+## Protected Ports From The Old Machine
 
-## Tech stack
+The old machine had many conflicts. If still relevant:
 
-- **Three.js + React Three Fiber** — 3D rendering of the field, ball, players (rectangular pixel sprites, fixed cameras)
-- **TypeScript + Vite** — bundler and dev server with HMR
-- **React** for non-canvas UI (menus, scoreboard, pre-match setup, season hub)
-- **better-sqlite3** as a Vite middleware-served match database (`psl.db` at repo root)
-- **Playwright (chromium)** for headless match runs
-- **No backend** — Vite dev plugin (`vite.config.ts`) exposes `/__db/match-result`, `/__db/matches`, `/__tuning/push` middlewares that read/write `psl.db`. There is no separate Node server in production.
+- `5173` was Aphelion. Do not touch it.
+- `8188` was ComfyUI. Do not touch it.
+- `8765` was an internal tool. Do not touch it.
+- `9224` was protected/debug tooling. Do not touch it.
+- `3002` was later approved to kill and was killed.
 
-Run locally:
-```bash
+The move to another computer is meant to avoid these conflicts.
+
+## Recent Gameplay Direction
+
+We concluded that the visual audit was not enough. Screenshots without player IDs cannot tell individual players apart; players have no shirt-number rendering, hair color is random, and sprites are visually ambiguous.
+
+Important distinction:
+
+- Visual audit = after-the-fact screenshots for human sanity checks.
+- Coach layer = live tactical command system that tells known engine players what to do.
+
+The user wants a real coach, not an audit. Since the engine already knows player identity, role, team, position, ball state, and target assignment, the coach should use internal state rather than a vision model to identify players.
+
+## Code Changes Implemented
+
+### 1. Structured finish/cutback adjustment
+
+File: `src/gameEngine.ts`
+
+Changes made before coach layer:
+
+- Loosened structured cutback finish rules.
+- Cutback receivers can now shoot through moderate pressure and blocked lanes if central enough.
+- `STRUCTURED_FINISH_INTENT_HELD` now includes `holdReason`.
+- Cutbacks prefer `PLACED` shots out to roughly 15 yards.
+- Older pattern crossing logic favors cutbacks more, penalizes covered near-post runners, and avoids converting blocked driven cutbacks into floated lofts.
+
+Telemetry to watch:
+
+- `STRUCTURED_FINISH_INTENT_ARMED`
+- `STRUCTURED_FINISH_INTENT_HELD`
+- `STRUCTURED_FINISH_INTENT_SHOT`
+- `holdReason`
+
+### 2. Coach command layer
+
+File: `src/gameEngine.ts`
+
+Added a first real coach play: `WING_CUTBACK_01`.
+
+New types:
+
+- `CoachCommandRole`
+- `CoachDefenseRole`
+- `CoachCommandState`
+
+New `gameState` fields:
+
+- `activeCoachCommand`
+- `coachCommandSeq`
+- `coachCommandLastEndByTeam`
+
+New helper functions:
+
+- `playerCoachKey`
+- `findPlayerByCoachKey`
+- `getActiveCoachCommand`
+- `endCoachCommand`
+- `coachTargetForAttackRole`
+- `getCoachAttackRole`
+- `maybeEmitCoachPlayerReached`
+- `chooseCoachDefender`
+- `issueWingCutbackCoachCommand`
+- `getCoachSupportTarget`
+- `getCoachDefensiveTarget`
+
+Attack coach assigns:
+
+- carrier
+- near-post runner
+- far-post runner
+- cutback receiver
+- second-wave support
+
+Defense coach assigns:
+
+- pressure carrier
+- cover near-post runner
+- cover cutback lane
+- track far-post runner
+- block second-wave support
+
+First-version behavioral changes:
+
+- Off-ball attackers now obey coach support targets strongly during an active command.
+- Defenders now obey coach defensive targets during the same command.
+- Coach can force a driven cutback instead of waiting for the old director heuristics.
+- Coach command ends on shot, delivery failure, possession loss, or expiration.
+
+Follow-up authority changes made after the first telemetry pass:
+
+- Added `getCoachElapsedSeconds()` so coach commands use a single absolute match-clock basis.
+- Changed `endCoachCommand()` to default to the coach clock and clamp negative durations to zero.
+- Added `coachAttackRoleReached()` and runner-readiness gates.
+- Carrier now waits under `coach_waiting_for_runner` while a coach command is active instead of treating the coach as a soft delivery boost.
+- Added `COACH_COMMAND_WAIT` telemetry so we can see when the coach is intentionally holding the carrier for runners.
+- Coached attackers now enter `COACH_ATTACK` and run harder to assigned targets.
+- Coached defenders now enter `COACH_DEFENSE` and stay owned by the coach target instead of immediately falling back to normal defense when close.
+
+New telemetry:
+
+- `COACH_COMMAND_ISSUED`
+- `COACH_DEFENSE_ASSIGNED`
+- `COACH_PLAYER_REACHED`
+- `COACH_COMMAND_DELIVERY`
+- `COACH_DELIVERY_RESOLVED`
+- `COACH_FINISH_SHOT`
+- `COACH_COMMAND_END`
+- `COACH_COMMAND_WAIT`
+
+### 3. Headless match launcher
+
+Added file: `scripts/start-headless-match.ps1`
+
+Purpose: replace fragile ad hoc PowerShell wrappers. It starts headless runs with stable logging and output paths.
+
+Expected command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-headless-match.ps1 -Games 1 -Speed 1 -Prefix coach-wing-cutback-onegame
+```
+
+It creates a run folder under `telemetry/` with:
+
+- `start-manifest.json`
+- `command.txt`
+- `launcher.log`
+- `runner.pid`
+- `runner.out.log`
+- `runner.err.log`
+- `monitor-runner.ps1`
+- `monitor.pid`
+- `exit-code.txt` after monitor succeeds
+- `sim.json` if the match completes
+- `visual-audit/` if visual audit captures frames
+
+Current status: the launcher was later fixed enough to run detached successfully. It now writes a worker script into the run folder, starts PowerShell detached, stores `worker.pid` and `runner.pid`, captures stdout/stderr, and writes `exit-code.txt`.
+
+Known remaining runner problem: if the browser page reloads/navigates while `scripts/headless-sim.mjs` is polling with `page.evaluate()`, the worker exits with code `998` and the series report may not be written. The next reliability fix should catch transient `Execution context was destroyed` errors during polling, retry after navigation, and write partial series results incrementally after every completed match.
+
+## Verification Already Passed
+
+After the coach-layer changes:
+
+```powershell
+npm run lint
+node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
+```
+
+Both passed.
+
+After adding `scripts/start-headless-match.ps1`:
+
+```powershell
+$tokens=$null; $errors=$null; $null=[System.Management.Automation.Language.Parser]::ParseFile('scripts\start-headless-match.ps1',[ref]$tokens,[ref]$errors); if ($errors -and $errors.Count) { $errors | Format-List *; exit 1 } else { 'parse=ok' }
+npm run lint
+```
+
+Both passed.
+
+After the coach-authority changes:
+
+```powershell
+npm run lint
+node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
+```
+
+Both passed.
+
+## Latest Coach Telemetry
+
+First successful one-game run after the first coach implementation:
+
+```text
+telemetry\coach-wing-cutback-onegame-2026-04-29-185317
+Toronto FC 1 - 0 Orlando City
+```
+
+Key coach telemetry:
+
+- total events: 8830
+- coach events: 168
+- `COACH_COMMAND_ISSUED`: 36
+- `COACH_DEFENSE_ASSIGNED`: 36
+- `COACH_PLAYER_REACHED`: 26
+- `COACH_COMMAND_DELIVERY`: 16
+- `COACH_DELIVERY_RESOLVED`: 16
+- `COACH_COMMAND_END`: 36
+- `COACH_FINISH_SHOT`: 2
+- command end reasons: `possession_lost` 20, `expired` 13, `delivery_unresolved` 1, `shot_taken` 2
+- delivery outcomes: `COMPLETED` 12, `SELF_CAUGHT` 3, `UNRESOLVED` 1
+- reached roles were only `PRESS_CARRIER`; no attacking coach roles reached
+
+Conclusion: the coach existed, issued commands, and produced deliveries, but it still lacked real authority over attacking runners. That led directly to the authority changes described above.
+
+Latest 10-match attempt after authority changes:
+
+```text
+telemetry\coach-authority-tenmatch-2026-04-29-191018
+started=2026-04-29 19:10:18
+workerPid=39256
+```
+
+It completed 6 games and failed during game 7:
+
+```text
+workerException=page.evaluate: Execution context was destroyed, most likely because of a navigation
+finished=2026-04-29 19:43:33 exitCode=998
+```
+
+This was a headless-runner/browser-context failure, not a confirmed gameplay crash. The page likely reloaded or navigated while the runner was polling `window.__gameRef.getMatchSnapshot()`. Because the runner only writes `sim.json` at the end, no clean series report was produced even though six game summaries were preserved in stdout.
+
+Last completed game before failure:
+
+```text
+Game 6 | New York Red Bulls 0 - 0 Colorado Rapids | DRAW
+Shots 5-6 | SOG 0-1 | Saves 1-0 | Headers 0-1
+Passes 37(36)-39(37) | Tackles 21-20 | Fouls 3-5
+Possession 49%-51% | Corners 0-1 | Clearances 1-1
+```
+
+Next runner fix: make `scripts/headless-sim.mjs` resilient to page-context loss and write partial results after each completed match.
+
+## Important Recent Telemetry Before Coach Layer
+
+The last successful visual-audit run before the coach change was:
+
+```text
+telemetry\visual-audit-fixed-onegame-2026-04-29-153915
+Seattle Sounders 0 - 0 New York City FC
+```
+
+Key findings:
+
+- 33 total shots, only 3 on target.
+- 19 blocked shots.
+- 141 neo-play starts.
+- 44 structured deliveries.
+- 14 real crosses.
+- 16 shot-producing structured attacks.
+- 0 goal-producing structured attacks.
+- `STRUCTURED_FINISH_INTENT_ARMED`: 5
+- `STRUCTURED_FINISH_INTENT_HELD`: 5
+- `STRUCTURED_FINISH_INTENT_SHOT`: 0
+
+Conclusion: the system was creating situations but refusing to finish them. That directly motivated the cutback/finish changes and then the coach layer.
+
+## Why The Coach Layer Matters
+
+The previous possession director was too weak. It mostly suggested behavior through pattern selection and boosts, but the regular AI could still drift, shoot from distance, pass elsewhere, or arrive late.
+
+The new direction is stronger:
+
+- issue explicit commands to known players
+- make off-ball attackers and defenders obey for a short window
+- force a specific delivery
+- require measurable phase outcomes
+
+The first play is deliberately narrow: `WING_CUTBACK_01`. If this works, the playbook can become data-driven and expand into give-and-go, overlaps, switches, early crosses, third-man runs, etc.
+
+## Next Steps On The New Computer
+
+1. Pull/verify latest repo state.
+2. Run:
+
+```powershell
 npm install
-npm run dev    # starts Vite on http://localhost:3001
+npm run lint
+node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
 ```
 
-Open the URL, click through the splash, choose teams, kick off. Match plays in real time (~5 min real-time per half).
+3. Start one visible or headless check only with explicit user approval.
+4. If testing headless, prefer the detached launcher:
 
----
-
-## Architecture orientation
-
-### The big files
-
-- **`src/gameEngine.ts`** — ~24,000 lines, single factory function `initGame(container)`. This is everything: scene setup, players, ball physics, AI decisions, restart logic, halftime, FT, telemetry emission. **Almost all engine logic lives here.** The size is intentional (everything is closure-scoped on the same factory) but searching/editing requires Grep+Read patterns rather than Plan-mode reasoning. Use `grep -n <symbol> src/gameEngine.ts` to navigate.
-- **`src/components/RetroFootball.tsx`** — main React component. Mounts the engine, renders DOM overlays (FT screen, menu, history dashboard), wires Vite middleware fetches, runs a 2s `setInterval` "dashboard bridge" that pushes telemetry and triggers FT save.
-- **`src/ai/*`** — pure modules pulled out of gameEngine.ts for testability. `patternEngine.ts`, `fsmPositioning.ts`, `tacticalPositioning.ts`, `forceFieldPositioning.ts`, `simpleOffenseModel.ts`, `aiPassModel.ts`, `aiShotModel.ts`. Each is a few hundred lines.
-- **`scripts/*`** — Node CLI tools. `headless-sim.mjs` drives chromium for automated games, `telemetry-analyze-latest.mjs` reads psl.db and prints a match report, `iterate-overnight.mjs` runs cycles, `eval-cycle.mjs` is a parked aggregator (see Known limitations).
-
-### The runtime model
-
-When you load the page:
-1. React mounts `RetroFootball.tsx`, which calls `initGame(container)` from `gameEngine.ts`. That returns a `gameRef` object with public API (`startKickoffPresentation`, `setTeamNames`, `getMatchSnapshot`, `getTuningBundle`, etc.) and stashes itself at `window.__gameRef`.
-2. The engine sets up Three.js scene, players, ball physics, an `animate()` `requestAnimationFrame` loop calling `_simulateStep(now)` every frame, and a `setInterval`-based fallback for backgrounded tabs.
-3. React then runs `useEffect`s that drive the splash screen, menu, kickoff handler, telemetry bridge, FT screen.
-4. When the user picks teams and clicks Kick Off, React calls `gameRef.setTeamNames`, `setCpuVsCpu(true)`, `startKickoffPresentation(true)`. Engine takes over.
-5. Each frame: `_simulateStep` calls AI decision logic for every player, runs ball physics, records telemetry events, checks half / FT.
-6. At full time, the engine emits FULL_TIME phase. React's dashboard bridge sees this, posts a bundle to `/__db/match-result`, which writes to `psl.db`.
-7. `npm run telemetry:analyze` reads the latest row from `psl.db` and prints a structured analysis.
-
-### Telemetry-driven iteration
-
-This is the workflow we live in:
-
-1. User plays a match
-2. After FT, run `npm run telemetry:analyze`
-3. Read the report — focus on goals, long-range SOT, pattern crosses, final-third overloads, defenders-in-box-at-goal, pattern → goal share
-4. Decide what's wrong; make a code change
-5. User plays another match
-6. Compare numbers
-
-Per-match snapshot files in `telemetry/snapshot-*.json` are saved by hand (just `node -e` writing aggregates) for posterity. The DB has the full data; snapshots are decision-point summaries.
-
-There's also an MLS-baseline JSON at `src/telemetry/mls2025-baselines.ts` with target ranges (goals 1.5-3.5, corners 4-7, etc.). The analyzer prints drift vs these.
-
----
-
-## Where to pick up (today)
-
-You are on `structured-attack-v1`. Latest pushed code state before this handover update:
-- `a3926f1 Backprop pass, goal, and cross telemetry guards`
-- `ff53b93 backprop §B.13 + §V.16: hide ghost match rows`
-- `cf59495 Add structured attack delivery controls`
-
-The repo is development-playable. The current structural target is **shape / width ownership**: wide attacking roles and home positions are still being swallowed by the broader movement-force stack. User-run Kansas City vs Atlanta telemetry showed pass resolution is no longer the immediate blocker, but average team width stayed around 15 units and home-position error stayed around 13.
-
-Important workflow rule: when the user gives two team names, two shorthand names, or a score line, assume they just ran a game and want telemetry analysis from existing saved data. Do **not** start a new sim unless they explicitly ask for one.
-
----
-
-## State of branch
-
-### What's deployed
-
-**FSM positioning substrate** (Phase A1 → A2 → A.5):
-- `src/ai/fsmPositioning.ts` — single-owner deterministic off-ball target.
-- The legacy off-ball pipeline had three layers (force-field, tactical, pattern role) all writing the same `finalTarget` Vector3 each frame. Last writer won, with `lerp` blends. Result: NEAR_POST_RUNNER fwdX swung -3 to +7 across matches with the same code — pure variance, not tunable.
-- FSM substrate replaces this with a hard pre-pass (in `gameEngine.ts` at the top of the per-tick player loop) that steers every off-ball player except: ball holder, both keepers, one designated `bestDefender` per team (closest non-keeper), human-controlled players. Skipped players fall through to legacy logic.
-- Pattern role override is authoritative when a pattern is active.
-- Phase A.5 added two states on top:
-  - `BOX_CRASH` — attackers (ST/CF/LM/RM/CM/CAM) run to NEAR_POST / FAR_POST / cutback / edge-of-D when their team carries past midfield
-  - `COLLAPSE_DEFEND` — 2 closest defenders (CB/LB/RB/DM) converge on ball+goal axis when opponent has ball in own final third
-
-**Pattern engine** (`src/ai/patternEngine.ts`):
-- `selectPattern`, `isPatternStillValid`, `getPatternRole`, `computePatternRoleTarget`
-- Per-team patterns: `WING_ATTACK_LEFT`, `WING_ATTACK_RIGHT`, `COUNTER_ATTACK`, `PATIENT_BUILDUP`, `CENTRAL_COMBO` (less used), `SWITCH_OF_PLAY` (less used)
-- Each pattern assigns roles to players: `CARRIER`, `NEAR_POST_RUNNER`, `FAR_POST_RUNNER`, `CUTBACK_RECEIVER`, `RUNNER`, `SUPPORT`, `OUTLET`, `ANCHOR`, `WALL`
-- Retrigger cooldowns (3-3.5s for WING/COUNTER, 1.5s for BUILDUP) prevent the same pattern firing immediately again
-- Halftime reset clears pattern + counter/transition state (commit `6e29b02`)
-
-**Pattern cross fire**:
-- When the carrier reaches a "crossing zone" during a WING_ATTACK or COUNTER pattern, fire a cross to NEAR_POST_RUNNER / FAR_POST_RUNNER / CUTBACK_RECEIVER
-- Widened crossing zone (carrier role CARRIER/RUNNER/NONE, carrierAttackX > 0, broader |z| and goal-distance) — was 0 events, now 0-5 per match
-- Pattern-scoped 1.5s cooldown prevents the 200-event spam from earlier (lane-blocked crosses re-fired every 0.1s)
-- LONG_LOFTED fallback when DRIVEN cross lane is blocked (Phase A.5 brings extra defenders into the box, so ground crosses get blocked more)
-
-**Telemetry guard fixes from `a3926f1`**:
-- `src/ai/passResolution.ts` adds segment-based route-target collection so receivers can gather a moving pass when the ball crosses their catch radius between frames.
-- Intended passes now expire through `expireIntendedPass(...)`, mark the latest `PASS` as `completed=false`, and emit `PASS_UNRESOLVED` instead of silently hanging.
-- `src/ai/goalValidation.ts` blocks non-shot goal crossings until an explicit own-goal classifier exists. Goals must be shot-backed under SPEC §V.17.
-- `src/ai/crossTelemetry.ts` separates structured deliveries from real crosses. `PATTERN_DELIVERY_EXECUTED` counts all launched deliveries; `PATTERN_CROSS_EXECUTED` is only for wide-channel passer into a central/box/scoring target under SPEC §V.18.
-- `scripts/telemetry-analyze-latest.mjs` and `scripts/eval-cycle.mjs` now report/track pattern deliveries and real crosses separately.
-
-**Ghost-match defenses** (this was an extended saga — see "Gotchas"):
-- Splash background demo permanently disabled (was the original ghost source; auto-fired Inter Miami vs LA Galaxy demo behind the splash screen)
-- Server-side `/__db/match-result` middleware rejects bundles with `sessionActive=false`
-- Smoke-test runs gated out of React auto-save (was polluting the dashboard)
-- Match-start hard-blocked when `splashSceneMode` is true (backstop)
-- `resetMatch` forces `isLive=false` after `startSoccerRestart` so the menu screen doesn't run a background simulation (this was the final, most stubborn ghost)
-- DB/dashboard filtering also hides ghost rows using SPEC §V.16: inactive/demo/smoke rows must not appear in the match dashboard or analyzer default path.
-
-**Diagnostic tooling**:
-- **FSM panel** (top-left of game canvas, green border when active): live `FSM:ON/OFF`, `CARR:ON/OFF`, ticks count, handled count, designated pressers per team, current carrier name, last carrier decision, active patterns. Click toggles FSM positioning. Shift-click toggles CARR (Phase B, branch only).
-- **MATCH START LOG** (top-right, orange border): every match start + every blocked match start with caller stack hint. Click to copy contents to clipboard. If a ghost match appears, the panel will name the function that triggered it.
-- `scripts/telemetry-analyze-latest.mjs` — full match analyzer: per-team×half flip splits with segment counts, pattern tempo with realism-fit bands, role alignment (NEAR_POST fwdX etc.), defenders-in-box-at-goal, final-third overloads, multi-touch sequences.
-- `scripts/eval-cycle.mjs` — multi-game cycle runner with delta vs baseline (currently parked because headless gameplay produces ~0 shots; see "Known limitations" below).
-
-### Verified across 17 matches
-
-| Metric | Pre-FSM | Current |
-|---|---|---|
-| Goals/match | 4-10 | 1-5 (mostly in MLS band) |
-| Long-range SOT | 11-21 | 0-12 (mostly low) |
-| Pattern → goal share | 30-50% | 50-100% |
-| Backpasses | 322-394 | 118-280 |
-| Final-third overloads | 0 every match | 0-21, both teams now register |
-| Pattern crosses | 0-1 (sometimes spam) | 0-5, mix of DRIVEN + LONG_LOFTED |
-| Defenders @ goal | 0.6-1.17 | 1.0-2.0 |
-
-Snapshots saved per match in `telemetry/snapshot-2026-04-2{4,5}*.json`. Each is a structured JSON with the headline numbers from that match.
-
----
-
-## Branches
-
-```
-structured-attack-v1    ← current working branch, pushed
-main                    ← older Phase A.5 + cross fix baseline
-fsm-positioning         ← merged into main via bae0448 (kept for reference)
-phase-b-carrier         ← parked, NOT merged (failed to ship; see post-mortem below)
-claude/determined-mcclintock ← unrelated old branch from earlier work
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-headless-match.ps1 -Games 1 -Speed 1 -Prefix coach-authority-onegame -Url http://127.0.0.1:3001/
 ```
 
-To revive Phase B: `git checkout phase-b-carrier`. To abandon it: `git branch -D phase-b-carrier` after the next clean merge.
+5. If a longer run is needed, first fix `scripts/headless-sim.mjs` so it writes partial results and recovers from transient page navigation during polling.
+6. Run one authorized match and analyze coach telemetry:
 
-The user has explicitly asked to commit and push recent handover/code changes on `structured-attack-v1`. Do not push unrelated generated telemetry or runtime files.
+Watch counts and outcomes for:
 
----
+- `COACH_COMMAND_ISSUED`
+- `COACH_PLAYER_REACHED`
+- `COACH_COMMAND_DELIVERY`
+- `COACH_DELIVERY_RESOLVED`
+- `COACH_FINISH_SHOT`
+- `COACH_COMMAND_END`
+- `COACH_COMMAND_WAIT`
+- `STRUCTURED_FINISH_INTENT_SHOT`
+- `STRUCTURED_FINISH_INTENT_HELD`
 
-## Conventions and gotchas
+Good first success criteria:
 
-### Caveman mode
-The user runs in `caveman` mode (a custom output style that drops articles/fillers). The user's messages will look terse — that's intentional. **Don't write code or commits in caveman style.** Caveman is for chat output, not artifacts. Comments and commit messages stay in normal English.
+- At least several coach commands issued per match.
+- Cutback receiver reaches target on a meaningful fraction of commands.
+- Coach delivery occurs.
+- Some coach deliveries resolve to the intended receiver.
+- Some coach possessions create immediate shots.
+- The screen visibly shows wide carry plus cutback/runner movement.
 
-### HMR caching
-Vite's HMR keeps stale closures alive in some cases. The React `useEffect` `setInterval` callback in particular: if you change code inside the callback, HMR replaces the module export but the running interval still holds the old closure. Symptoms: code change committed, hard reload shows new behavior, but soft reload (HMR) doesn't.
+Bad signs:
 
-**Always tell the user to hard reload (Ctrl+Shift+R) after changes that touch:**
-- React `useEffect` bodies
-- Anything inside `setInterval` / `setTimeout` callbacks
-- The `gameEngine.ts` factory function (for runtime state changes)
+- Commands issue but no players reach targets.
+- Carrier never delivers.
+- Cutback deliveries are intercepted every time.
+- Receiver still holds instead of shooting.
+- Defenders over-collapse and block everything.
 
-### Vite watch.ignored
-Telemetry files are in `vite.config.ts`'s `server.watch.ignored` list. **Don't write game state to a file outside that list during a running match** — Vite will trigger a page reload mid-match. We learned this the hard way; `telemetry/latest-report.json` was added to the ignore list (`26f4274`).
+## Files Most Likely To Touch Next
 
-### Match flow gotchas
-- `startKickoffPresentationSequence` is the official "start a match" entry point. It now traces to MATCH START LOG and refuses when `splashSceneMode` is true.
-- `resetMatch` (called from "Return to Main Menu") *also* calls `startSoccerRestart('KICK_OFF', ...)` to stage formation. The downstream `releaseRestart` flips `isLive=true`. We force it back to false in `resetMatch` (`d4a8a37`). If you ever re-enable matches from a menu state, check this.
-- Set-piece formations (corners, throw-ins, free kicks) bypass the FSM pre-pass via their own `cornerPresentation` / `throwInPresentation` paths. So during set pieces, players cluster — that's not a bug, the FSM only owns open-play.
+- `src/gameEngine.ts`
+- `scripts/start-headless-match.ps1`
+- `scripts/headless-sim.mjs`
+- `scripts/telemetry-analyze-latest.mjs`
 
-### Telemetry events
-`pushTuningEvent(elapsedInHalf, half, type, team, role, detail)` writes to `tuningEventLog`. The analyzer reads these. If you add a new event type, the analyzer won't know about it — add a handler in `scripts/telemetry-analyze-latest.mjs`.
+Potential analyzer improvement: add a coach section to `telemetry-analyze-latest.mjs` that summarizes command issuance, wait rate, reach rate by role, delivery rate, resolved rate, shot rate, and goal rate.
 
-### Telemetry access procedure
-When the user gives two teams or a score line, they just ran a match. Analyze existing telemetry; do not run a new sim.
+## Current Caveat
 
-Use this order:
-1. Check `telemetry-snapshots.json` to confirm the latest session, teams, score, and full-time state.
-2. Do not trust `telemetry/latest-report.json` or `telemetry/latest-report.md` blindly; those can be stale exports from a previous analyzer run.
-3. Query recent SQLite rows:
-   ```bash
-   sqlite3 psl.db "select id, session_id, datetime(timestamp/1000,'unixepoch'), team_a_name, team_b_name, score_a, score_b, shots_a, shots_b, shots_on_target_a, shots_on_target_b, possession_a from match_results order by id desc limit 12;"
-   ```
-4. Select the row that matches the user's fixture or score. Parse `match_results.bundle_json` as the authoritative telemetry bundle.
-5. Inspect `teamA/teamB`, `events`, `passLog`, `goalLog`, `shapeA/B`, `playerPositioning`, `teleportation`, and `passNetwork`.
-
-Known accounting smell: at least one user-run bundle had `passNetwork` edges where `completed > count`. Treat pass-network completion ratios as suspect until that is fixed; prefer `passLog`/team summary for pass completion.
-
-### Gameplay metrics
-- `MLS_BASELINE` is the realism target. We compare drift against this.
-- `force shots` count is high (often >90% of all shots are forced overrides). The intent is to keep matches dynamic; the user has mixed feelings about this.
-- `pattern → goal share` is our headline measure of whether the AI is "playing soccer" vs "just hoofing it forward".
-
-### Player object lifecycle
-Player objects are recreated at every halftime via `setupFormation()` (`gameEngine.ts:15229`). Anything stashed on `playerAny._someField` survives only the half. Engine-level state (`gameState.teamPatternA`, etc.) does survive, which is why we explicitly clear it at halftime.
-
-### File watchers and DB
-`psl.db` is at repo root. The Vite middleware in `vite.config.ts` opens it via `better-sqlite3` lazily (`getDbModule`). Schema is in `src/server/psl-db.ts`. To inspect manually:
-```js
-const Database = require('better-sqlite3');
-const db = new Database('./psl.db');
-console.log(db.prepare('SELECT id, team_a_name, team_b_name, score_a, score_b FROM match_results ORDER BY id DESC LIMIT 5').all());
-```
-
-### TypeScript forward references
-The engine factory is one giant function. Closures captured early (e.g. panel-render functions at line 3200) reference variables declared later (e.g. `gameState` at line 5700). TypeScript flags this as TS2448 "used before declaration." Workaround: stash on `window` or use try/catch with optional chaining. We hit this twice this session.
-
----
-
-## Known issues / what's still undercooked
-
-**Drive-then-backpass** (ORIGINAL user complaint, NOT FIXED on main):
-- Carrier sprints with ball, hits some legacy threshold, picks first backward pass option, recycles. Phase A.5 didn't address carrier decision logic. Phase B attempted full rewrite and failed (see post-mortem).
-- Still relevant, but not the current top blocker after the structured-attack pass/goal/cross guard pass.
-
-**Pattern role alignment variance**:
-- NEAR_POST_RUNNER and FAR_POST_RUNNER fwdX swings -11 to +11 across matches with same code. Box-crash is meant to fix this but pattern role lookup happens at pattern start and the player who got the role may not actually advance.
-
-**Corner volume always 0**:
-- MLS baseline is ~5 corners/team/match. We have 0-2. Deflection / blocked-shot / out-of-play logic isn't producing corner kicks. Untouched in this work.
-
-**Heat map narrow** (center+narrow 60-75%):
-- Shape holds tighter than real soccer. Wingers don't stretch wide enough during build-up. Latest Kansas City vs Atlanta user-run telemetry still had average widths around 15 units; target should be closer to 18+ before cross/play shape will look believable.
-- This is now the main structural concern: the movement-force stack can swallow finely tuned pattern and home-position intent.
-
-**Pass-network accounting bug**:
-- Some `passNetwork` edges report `completed > count`. Do not use those edge-level completion ratios as truth until the aggregation logic is fixed.
-
-**Cross baseline interpretation**:
-- Old telemetry inflated `PATTERN_CROSS_EXECUTED` because it counted every structured delivery as a cross. New code splits deliveries from actual crosses. Re-baseline with future user-run matches before tuning cross volume.
-
-**H2 zigzag noise**:
-- Per-segment flip rate H2/H1 ratio averages 1.2-1.5x. Original 4-match sample showed 2-6x but proved to be carrier turnover counts, not actual zigzag. Halftime-reset commit (`6e29b02`) reduced total flips ~30% but didn't eliminate the asymmetry. Low priority — confirmed mostly noise.
-
-**Long-range SOT 3-12 per match**:
-- Down from 11-21 pre-FSM but still above MLS realism (0-3 typical). Carrier shooting from edge of penalty area is the dominant remaining shot type. Tied to legacy carrier decision logic.
-
-**Pattern over-fire post halftime cooldown reset**:
-- Halftime clears pattern cooldowns so H2 can fire patterns immediately. Combined with FSM A.5 produces 100+ patterns per team per match (was 70-90). Each pattern is shorter (2-3s avg). Possible side effect: more carrier turnovers.
-
----
-
-## Phase B post-mortem (why carrier rewrite failed)
-
-Three commits on `phase-b-carrier` branch attempted to replace the legacy carrier decision tree with a sensible-soccer-style FSM. All failed in different ways:
-
-**v1** (`1f84bef`): three-state model SHOOT/PASS/CARRY with binary gates and 3 fixed-heading carry choices. Tested in Toronto-KC: 0 shots, 0 goals, 3 backpasses, 160 possessions. Failure mode: pass threshold too loose → carriers passed immediately → 1.4-touch sequences → ball never settled.
-
-**v1.5** (`5c64be4`): tightened pass threshold to require 9u progress (5u under pressure), 22% probability gate. Was never actually tested — user reloaded between matches without re-toggling CARR, so the "Mia-Sea" data point with 134 backpasses was actually Phase A.5, not Phase B.
-
-**v2** (`c45a8ba`): rewrote with weighted-influence dribble (mate/opp/goal weights for left/center/right turn) and probabilistic shoot (visualWidth × distance²). Default flipped to ON. Tested in Charlotte-NYC: 0 goals, 1 shot, 9 carrier flips total, top B-line 27.8u in 9.95s = 2.8 u/s.
-
-**Root cause across all three versions**: the FSM carrier returns a decision (SHOOT/PASS/CARRY) but doesn't write the carrier's motion state (sprint, dribble aggression, target speed). The legacy `executeSimpleCarrierDecision` configures these as side effects of its decision tree. When FSM short-circuits with just "go to target", the movement loop downstream falls back to default hold-speed (~2.8 u/s vs typical 5-8 u/s for a real run).
-
-**Architectural fix would be**: either return a full motion descriptor from FSM and have the movement loop read it, or detect FSM mode and apply higher default aggression. Either is more invasive than a single-session afternoon.
-
----
-
-## Recommended next step (shape ownership)
-
-The next useful work is not one-percent tuning. Treat this as a structural movement-ownership problem:
-
-1. Map the open-play movement pipeline in `src/gameEngine.ts`: FSM target, pattern role target, home-position pull, force-field pull, ball attraction, defensive collapse, and any final `lerp` writes to the same player target.
-2. Add or expose telemetry that shows, per role, which owner won the final target in each phase: home, pattern, support, box crash, defender collapse, carrier support, fallback force-field.
-3. Give wide roles an authoritative open-play owner during build-up and structured attacks. LM/RM/LW/RW/fullback outlet positions should not be blended back into the center every frame.
-4. Re-run against user-played telemetry only. Target first-order shape improvements: average width >= 18, lower home-position error, wide channels visibly occupied, and no loss of pass completion into the 70s.
-5. After width is believable, re-check real cross count using the new delivery/cross split. Do not tune cross volume from old `PATTERN_CROSS_EXECUTED` counts.
-6. Then fix pass-network accounting (`completed > count`) so dashboard ratios can be trusted again.
-
-Carrier/backpass cleanup remains useful, but width and final-target ownership are the bigger reason the game does not yet look like real soccer.
-
----
-
-## How to use the diagnostic tooling
-
-**During a match**:
-- Top-left FSM panel: live state. Click toggles FSM positioning. (Shift-click toggles CARR only on `phase-b-carrier` branch.)
-- Top-right MATCH START LOG: every kickoff. Click to copy text to clipboard. If a ghost match appears, the panel will name the caller.
-
-**After a match**:
-```bash
-npm run telemetry:analyze
-```
-Reads from `psl.db` and prints the full report (~80 lines). Key sections: MLS baselines, pattern → goals, role alignment, carrier trajectories with team×half splits, multi-touch opp-half, final-third overloads, defenders-in-box-at-goal.
-
-**To inspect the DB directly**:
-```bash
-sqlite3 psl.db "select id, session_id, datetime(timestamp/1000,'unixepoch'), team_a_name, team_b_name, score_a, score_b from match_results order by id desc limit 12;"
-```
-
-If the user gives a fixture, match by teams/session/score first, then inspect `bundle_json`. `latest-report` files are convenience exports, not authoritative source.
-
-**To delete a polluted row**:
-```bash
-node -e "const Database = require('better-sqlite3'); const db = new Database('./psl.db'); db.prepare('DELETE FROM match_results WHERE id = 999').run(); db.close();"
-```
-
-**Eval cycle (parked)**:
-```bash
-npm run eval:cycle -- --games 4 --label some-label
-```
-Currently produces near-zero shots due to headless playwright difference from real browser. Don't trust the output until that's investigated.
-
----
-
-## URL parameters (override flags)
-
-- `?fsm=off` — disable FSM positioning (legacy pipeline)
-- `?fsm=on` — force FSM positioning on
-- `?carrier=off` — disable Phase B carrier (only effective on `phase-b-carrier` branch)
-- `?carrier=on` — force Phase B carrier on (only effective on `phase-b-carrier` branch)
-
----
-
-## File map
-
-```
-src/ai/fsmPositioning.ts          — Phase A2 + A.5 substrate (single-owner off-ball)
-src/ai/patternEngine.ts           — pattern selection + role assignment + role targets
-src/ai/passResolution.ts          — route-target pass collection and segment crossing helper
-src/ai/goalValidation.ts          — shot-backed goal validation
-src/ai/crossTelemetry.ts          — delivery vs real-cross classifier
-src/ai/fsmCarrier.ts              — Phase B v2 (parked on phase-b-carrier branch only)
-src/ai/tacticalPositioning.ts     — legacy tactical layer (referenced from FSM-off path)
-src/ai/forceFieldPositioning.ts   — legacy force-field layer (referenced from FSM-off path)
-src/ai/aiPositioningModel.ts      — composes the legacy layers
-src/ai/aiPassModel.ts             — pass selection (used by carrier decision)
-src/ai/aiShotModel.ts             — shot decision evaluator
-src/ai/simpleOffenseModel.ts      — alternative simpler offense logic, parallel path
-src/gameEngine.ts                 — engine entry, FSM pre-pass, panel rendering, ~24k lines
-src/components/RetroFootball.tsx  — React app, dashboard bridge, FT save logic
-src/components/MatchHistoryDashboard.tsx — DB-backed history UI
-src/components/SeasonHub.tsx      — season-mode UI
-src/server/psl-db.ts              — better-sqlite3 wrapper, schema
-vite.config.ts                    — Vite plugins + middleware (the "backend")
-scripts/telemetry-analyze-latest.mjs  — match analyzer (Node CLI)
-scripts/eval-cycle.mjs            — multi-game cycle runner (parked)
-scripts/headless-sim.mjs          — playwright-driven headless match runner
-scripts/iterate-overnight.mjs     — older overnight cycle runner
-telemetry/snapshot-2026-04-*.json — per-match snapshots, 13+ files
-HANDOVER.md                       — this file
-handoff.md                        — older short handoff, keep current enough for telemetry procedure
-SPEC.md                           — older spec doc, partial coverage
-STRUCTURAL_PLAN.md                — earlier plan, mostly superseded
-psl.db                            — match results SQLite DB
-```
-
----
-
-## Working with the user
-
-The user is technical (writes commits, knows git, reads code), runs matches manually, gives terse feedback in caveman style. They prefer:
-
-- **Concrete progress over discussion.** They will say "do it" and expect code, not more questions.
-- **Team-name shorthand means telemetry analysis.** If they say "Dallas Chicago", "MIA 2 LA 0", or similar, analyze the match they just ran from saved telemetry. Do not kick off a new sim unless explicitly asked.
-- **Full sims are for overnight sessions.** During normal interactive work, prefer existing telemetry, analyzer runs, lint/tests, and short smoke checks.
-- **Recommendations over option lists.** When you offer choices, name your top pick first with reasoning.
-- **No fake autonomy.** I once said "I'll work on it overnight" — they correctly called me out: I'm not a background process. Don't promise work that requires me to keep running.
-- **Honesty about failure.** Phase B failed three times. Each time, I named it a failure clearly and rolled back. The user appreciated that more than papering over.
-- **Visual feedback.** They asked for on-screen panels instead of console output for diagnostics. Honor that pattern — if something needs to be visible to the user, render it on the canvas.
-- **Hard reload as a debug step.** When changes don't appear to take effect, the answer is almost always "hard reload" because of HMR caching. Tell them this every time.
-
-The user can't run shell commands themselves easily during a match — they're using the browser. If you need them to do something, give a single copy-pasteable instruction or surface it in a panel.
-
----
-
-## Open questions for whoever picks this up
-
-1. Should `phase-b-carrier` be deleted or kept around? Currently kept.
-2. Headless gameplay broken (0 shots in playwright). Is the eval-cycle worth the debugging investment, or do we accept that all evaluation goes through user-played matches?
-3. Pattern over-fire: is shorter / more frequent patterns a feature or a bug? Telemetry shows higher pattern → goal share with the new behaviour, but tempo readings are mostly TOO_SLOW.
-4. Corner volume 0: separate work item or roll into a "set piece pass" project?
-5. The legacy carrier decision tree (`executeSimpleCarrierDecision`, ~1500 lines in gameEngine.ts) is the largest remaining block of "tweakable behavior." Phase B tried to replace it wholesale and failed. Is incremental surgical patching the long-term plan, or is there a clean slate worth attempting later?
+The code compiles and a prior coach version completed one match. The latest authority changes have passed lint/tests, but the 10-match validation was interrupted by a headless browser context/navigation failure during game 7. The first task on the new machine should be runner reliability, then a short authorized coach-authority match to verify that attacking roles now reach their targets and that `COACH_COMMAND_WAIT` appears for intentional carrier holds.

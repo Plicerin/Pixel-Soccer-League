@@ -6,6 +6,7 @@ import {
 } from './patternEngine.ts';
 import {
   computeStructuredAttackTarget,
+  getStructuredAttackRole,
   type StructuredAttackState,
 } from './structuredAttack.ts';
 
@@ -44,10 +45,35 @@ export type FsmContext = {
   structuredAttack?: StructuredAttackState | null;
 };
 
+export type FsmMovementOwner =
+  | 'STRUCTURED_ATTACK'
+  | 'PATTERN_ROLE'
+  | 'COLLAPSE_DEFEND'
+  | 'DANGER_MARK'
+  | 'BOX_COVER'
+  | 'BOX_CRASH'
+  | 'WIDE_HOME'
+  | 'PHASE_HOME';
+
+export type FsmTargetResult = {
+  target: THREE.Vector3;
+  owner: FsmMovementOwner;
+  patternRole?: string;
+  structuredRole?: string;
+};
+
 const _tmp = new THREE.Vector3();
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
+}
+
+function roleLabelOf(player: any): string {
+  return (player?.displayRole || player?.role || '').toString().toUpperCase();
+}
+
+function isGK(player: any): boolean {
+  return roleLabelOf(player) === 'GK';
 }
 
 // Phase-aware shift on top of homePos. When team has the ball, push the
@@ -59,12 +85,13 @@ function phaseShiftedHome(
   attackSign: 1 | -1,
   hasPossession: boolean,
   attackPhase: string,
-): { x: number; z: number } {
+  fieldDepth: number,
+): { x: number; z: number; owner: FsmMovementOwner } {
   const home = player.homePos;
-  if (!home) return { x: 0, z: 0 };
+  if (!home) return { x: 0, z: 0, owner: 'PHASE_HOME' };
   const role = (player.displayRole || player.role || '').toString().toUpperCase();
   if (!hasPossession) {
-    return { x: home.x, z: home.z };
+    return { x: home.x, z: home.z, owner: 'PHASE_HOME' };
   }
   // Only forwards/wingers push noticeably; backline holds shape.
   let pushU = 0;
@@ -72,7 +99,20 @@ function phaseShiftedHome(
   else if (role === 'LM' || role === 'RM') pushU = attackPhase === 'FINAL_THIRD' ? 6 : 3;
   else if (role === 'CM' || role === 'CAM') pushU = attackPhase === 'FINAL_THIRD' ? 4 : 2;
   else if (role === 'DM') pushU = 1;
-  return { x: home.x + attackSign * pushU, z: home.z };
+
+  const isWideMid = role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW';
+  const isFullback = role === 'LB' || role === 'RB' || role === 'LWB' || role === 'RWB';
+  if (isWideMid || isFullback) {
+    const side = Math.sign(home.z || (role.includes('L') ? -1 : 1)) || 1;
+    const minWideAbsZ = isWideMid
+      ? fieldDepth * 0.56
+      : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.52 : attackPhase === 'TRANSITION' ? fieldDepth * 0.49 : fieldDepth * 0.46);
+    const naturalAbsZ = Math.abs(home.z || 0);
+    const z = side * Math.max(naturalAbsZ, minWideAbsZ);
+    return { x: home.x + attackSign * pushU, z, owner: 'WIDE_HOME' };
+  }
+
+  return { x: home.x + attackSign * pushU, z: home.z, owner: 'PHASE_HOME' };
 }
 
 // Designated defender per team — closest non-keeper opponent to the ball.
@@ -123,7 +163,7 @@ function computeBoxCrashTarget(
   if (role === 'ST' || role === 'CF') {
     // Penalty spot (~12 yards from goal line, central with slight near-side bias)
     return {
-      x: goalX - attackSign * (penaltyDepth * 0.6),
+      x: goalX - attackSign * (penaltyDepth * 0.52),
       z: carrierSide * goalMouthHalfWidth * 0.4,
     };
   }
@@ -132,21 +172,21 @@ function computeBoxCrashTarget(
       // Opposite-flank winger: arrive far-post but keep enough width to
       // stretch the block instead of joining the central crowd.
       return {
-        x: goalX - attackSign * 5.4,
-        z: -carrierSide * Math.max(goalMouthHalfWidth * 2.8, fieldDepth * 0.18),
+        x: goalX - attackSign * 4.8,
+        z: -carrierSide * Math.max(goalMouthHalfWidth * 4.6, fieldDepth * 0.42),
       };
     }
     // Same-flank winger: stay as a wide relief/cutback option.
     return {
       x: goalX - attackSign * (penaltyDepth + 3.5),
-      z: carrierSide * Math.max(goalMouthHalfWidth * 3.2, fieldDepth * 0.30),
+      z: carrierSide * Math.max(goalMouthHalfWidth * 4.8, fieldDepth * 0.54),
     };
   }
   if (role === 'CM' || role === 'CAM') {
     // Edge of D / half-space — second-wave pass and shot lane.
     return {
-      x: goalX - attackSign * (penaltyDepth + (role === 'CAM' ? 2.8 : 4.2)),
-      z: -carrierSide * Math.max(goalMouthHalfWidth * 1.8, fieldDepth * 0.11),
+      x: goalX - attackSign * (penaltyDepth + (role === 'CAM' ? 1.2 : 2.4)),
+      z: -carrierSide * Math.max(goalMouthHalfWidth * 2.2, fieldDepth * 0.14),
     };
   }
   return null; // backline + DM hold shape
@@ -215,7 +255,210 @@ function computeCollapseDefendTarget(
   return { x: targetX, z: targetZ };
 }
 
-export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
+function isDangerousAttacker(
+  attacker: any,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+  penaltyDepth: number,
+  goalMouthHalfWidth: number,
+): boolean {
+  if (!attacker || isGK(attacker)) return false;
+  const role = roleLabelOf(attacker);
+  if (!['ST', 'CF', 'CAM', 'CM', 'LM', 'RM', 'LW', 'RW'].includes(role)) return false;
+  const ownGoalX = -defenderAttackSign * (fieldWidth / 2);
+  const distToOwnGoal = Math.abs(ownGoalX - attacker.pos.x);
+  const centralDanger = Math.abs(attacker.pos.z) <= goalMouthHalfWidth * 5.4;
+  const boxOrEdge = distToOwnGoal <= penaltyDepth + 13.5;
+  const finalThird = distToOwnGoal <= fieldWidth * 0.38;
+  return boxOrEdge || (finalThird && centralDanger);
+}
+
+function scoreDangerousAttacker(
+  attacker: any,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+  penaltyDepth: number,
+  goalMouthHalfWidth: number,
+): number {
+  const ownGoalX = -defenderAttackSign * (fieldWidth / 2);
+  const distToOwnGoal = Math.abs(ownGoalX - attacker.pos.x);
+  const role = roleLabelOf(attacker);
+  const centrality = Math.abs(attacker.pos.z);
+  const roleBonus =
+    role === 'ST' || role === 'CF' ? 9
+    : role === 'CAM' ? 5.5
+    : role === 'CM' ? 3.2
+    : 2.5;
+  const boxBonus = distToOwnGoal <= penaltyDepth + 6 ? 8 : distToOwnGoal <= penaltyDepth + 10 ? 3 : 0;
+  const centralBonus = centrality <= goalMouthHalfWidth * 2.8 ? 6.5 : centrality <= goalMouthHalfWidth * 5.4 ? 2.8 : 0;
+  return roleBonus + boxBonus + centralBonus + Math.max(0, fieldWidth * 0.38 - distToOwnGoal) * 0.26;
+}
+
+function getDangerMarkAssignment(
+  player: any,
+  carrier: any | null,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+  fieldDepth: number,
+  penaltyDepth: number,
+  goalMouthHalfWidth: number,
+  allPlayers: any[],
+  ballPos: THREE.Vector3,
+): any | null {
+  if (!carrier || carrier.team === player.team) return null;
+  const role = roleLabelOf(player);
+  if (!['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'LM', 'RM'].includes(role)) return null;
+  void fieldDepth;
+  const ballPresser = pickFsmDefender(player.team, allPlayers, ballPos);
+
+  const dangerousAttackers = allPlayers
+    .filter((p) => p.team !== player.team)
+    .filter((p) => p !== carrier)
+    .filter((p) => isDangerousAttacker(p, defenderAttackSign, fieldWidth, penaltyDepth, goalMouthHalfWidth))
+    .sort((a, b) =>
+      scoreDangerousAttacker(b, defenderAttackSign, fieldWidth, penaltyDepth, goalMouthHalfWidth)
+      - scoreDangerousAttacker(a, defenderAttackSign, fieldWidth, penaltyDepth, goalMouthHalfWidth)
+    )
+    .slice(0, 8);
+  if (dangerousAttackers.length === 0) return null;
+
+  const defenders = allPlayers
+    .filter((p) => p.team === player.team)
+    .filter((p) => p !== ballPresser)
+    .filter((p) => {
+      if (isGK(p)) return false;
+      const r = roleLabelOf(p);
+      return ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'LM', 'RM'].includes(r);
+    });
+  const usedDefenders = new Set<any>();
+  for (const attacker of dangerousAttackers) {
+    let best: any = null;
+    let bestScore = Infinity;
+    for (const defender of defenders) {
+      if (usedDefenders.has(defender)) continue;
+      const d = defender.pos.distanceTo(attacker.pos);
+      const roleLabel = roleLabelOf(defender);
+      const markerBias =
+        ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM'].includes(roleLabel) ? -2.6
+        : roleLabel === 'CM' ? -1.0
+        : 0;
+      const goalSideBias = (defender.pos.x - attacker.pos.x) * defenderAttackSign < 0 ? -0.8 : 0.6;
+      const score = d + markerBias + goalSideBias;
+      if (score < bestScore) {
+        bestScore = score;
+        best = defender;
+      }
+    }
+    if (!best) continue;
+    usedDefenders.add(best);
+    if (best === player) return attacker;
+  }
+  return null;
+}
+
+function computeDangerMarkTarget(
+  attacker: any,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+): { x: number; z: number } {
+  const ownGoalX = -defenderAttackSign * (fieldWidth / 2);
+  const toGoalX = ownGoalX - attacker.pos.x;
+  const toGoalZ = -attacker.pos.z;
+  const len = Math.max(0.001, Math.hypot(toGoalX, toGoalZ));
+  const markDistance = 0.72;
+  return {
+    x: attacker.pos.x + (toGoalX / len) * markDistance,
+    z: attacker.pos.z + (toGoalZ / len) * markDistance,
+  };
+}
+
+function shouldBoxCoverDefend(
+  player: any,
+  carrier: any | null,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+  penaltyDepth: number,
+  goalMouthHalfWidth: number,
+  allPlayers: any[],
+  ballPos: THREE.Vector3,
+): boolean {
+  if (!carrier || carrier.team === player.team) return false;
+  const role = roleLabelOf(player);
+  if (!['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'LM', 'RM'].includes(role)) return false;
+  const ownGoalX = -defenderAttackSign * (fieldWidth / 2);
+  const distToOwnGoal = Math.abs(ownGoalX - ballPos.x);
+  const centralShotThreat = Math.abs(ballPos.z) <= goalMouthHalfWidth * 9.2;
+  const boxEdgeThreat = distToOwnGoal <= penaltyDepth + 28;
+  const urgentCentralThreat = distToOwnGoal <= penaltyDepth + 20 && Math.abs(ballPos.z) <= goalMouthHalfWidth * 6.8;
+  if (!boxEdgeThreat || !centralShotThreat) return false;
+
+  const ballPresser = pickFsmDefender(player.team, allPlayers, ballPos);
+  if (player === ballPresser) return false;
+  const coverCount = urgentCentralThreat ? 6 : 5;
+  const goalLaneScore = (p: any) => {
+    const toGoalX = ownGoalX - ballPos.x;
+    const toGoalZ = -ballPos.z;
+    const lenSq = Math.max(0.001, toGoalX * toGoalX + toGoalZ * toGoalZ);
+    const relX = p.pos.x - ballPos.x;
+    const relZ = p.pos.z - ballPos.z;
+    const t = clamp((relX * toGoalX + relZ * toGoalZ) / lenSq, 0, 1);
+    const laneX = ballPos.x + toGoalX * t;
+    const laneZ = ballPos.z + toGoalZ * t;
+    const laneDist = Math.hypot(p.pos.x - laneX, p.pos.z - laneZ);
+    const roleBias =
+      ['CB', 'DM'].includes(roleLabelOf(p)) ? -2.6
+      : ['LB', 'RB', 'LWB', 'RWB'].includes(roleLabelOf(p)) ? -1.2
+      : roleLabelOf(p) === 'CM' ? -0.8
+      : 0;
+    return laneDist * 2.4 + p.pos.distanceTo(ballPos) * 0.28 + roleBias;
+  };
+  const candidates = allPlayers
+    .filter((p) => p.team === player.team && p !== ballPresser && !isGK(p))
+    .filter((p) => ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'LM', 'RM'].includes(roleLabelOf(p)))
+    .sort((a, b) => goalLaneScore(a) - goalLaneScore(b));
+  return candidates.slice(0, coverCount).includes(player);
+}
+
+function computeBoxCoverTarget(
+  player: any,
+  ballPos: THREE.Vector3,
+  defenderAttackSign: 1 | -1,
+  fieldWidth: number,
+  goalMouthHalfWidth: number,
+  allPlayers: any[],
+): { x: number; z: number } {
+  const ownGoalX = -defenderAttackSign * (fieldWidth / 2);
+  const towardGoal = Math.sign(ownGoalX - ballPos.x) || -defenderAttackSign;
+  const goalLaneScore = (p: any) => {
+    const toGoalX = ownGoalX - ballPos.x;
+    const toGoalZ = -ballPos.z;
+    const lenSq = Math.max(0.001, toGoalX * toGoalX + toGoalZ * toGoalZ);
+    const relX = p.pos.x - ballPos.x;
+    const relZ = p.pos.z - ballPos.z;
+    const t = clamp((relX * toGoalX + relZ * toGoalZ) / lenSq, 0, 1);
+    const laneX = ballPos.x + toGoalX * t;
+    const laneZ = ballPos.z + toGoalZ * t;
+    return Math.hypot(p.pos.x - laneX, p.pos.z - laneZ);
+  };
+  const coverMates = allPlayers
+    .filter((p) => p.team === player.team && !isGK(p))
+    .filter((p) => ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'LM', 'RM'].includes(roleLabelOf(p)))
+    .sort((a, b) => goalLaneScore(a) - goalLaneScore(b));
+  const idx = Math.max(0, coverMates.indexOf(player));
+  const laneSlots = [0, -goalMouthHalfWidth * 1.05, goalMouthHalfWidth * 1.05, -goalMouthHalfWidth * 1.9, goalMouthHalfWidth * 1.9, 0];
+  const slot = laneSlots[idx % laneSlots.length];
+  const boxDepthSlots = [5.8, 6.8, 7.8, 8.7, 9.2, 7.2];
+  const boxDepth = boxDepthSlots[idx % boxDepthSlots.length];
+  const shieldX = ballPos.x + towardGoal * (4.8 + Math.min(idx, 3) * 0.65);
+  const boxX = ownGoalX - towardGoal * boxDepth;
+  const targetX = Math.abs(ownGoalX - shieldX) < Math.abs(ownGoalX - boxX) ? shieldX : boxX;
+  return {
+    x: targetX,
+    z: ballPos.z * 0.10 + slot * 0.90,
+  };
+}
+
+export function computeFsmOffBallTargetWithOwner(ctx: FsmContext): FsmTargetResult {
   const { player, carrier, teamPattern, attackSign, fieldWidth, fieldDepth,
     penaltyDepth, goalMouthHalfWidth, attackPhase, allPlayers, ballPos, structuredAttack } = ctx;
 
@@ -234,7 +477,11 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
     });
     if (target) {
       _tmp.copy(target);
-      return _tmp;
+      return {
+        target: _tmp,
+        owner: 'STRUCTURED_ATTACK',
+        structuredRole: getStructuredAttackRole(structuredAttack, player),
+      };
     }
   }
 
@@ -243,7 +490,7 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
   // carrier is a teammate.
   if (teamPattern && carrier && carrier.team === player.team) {
     const role = getPatternRole(teamPattern, player);
-    if (role !== 'NONE' && role !== 'CARRIER' && role !== 'DEFENDER') {
+    if (role !== 'NONE' && role !== 'DEFENDER' && (role !== 'CARRIER' || player !== carrier)) {
       const override = computePatternRoleTarget({
         player,
         role,
@@ -264,7 +511,7 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
           0.15,
           clamp(override.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
         );
-        return _tmp;
+        return { target: _tmp, owner: 'PATTERN_ROLE', patternRole: role };
       }
     }
   }
@@ -272,6 +519,35 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
   // 2. Phase A.5: COLLAPSE_DEFEND — opponent in our final third + I'm one
   //    of the two closest defenders → collapse toward ball/goal axis.
   if (allPlayers && ballPos && carrier && carrier.team !== player.team) {
+    const dangerMark = getDangerMarkAssignment(
+      player,
+      carrier,
+      attackSign,
+      fieldWidth,
+      fieldDepth,
+      penaltyDepth,
+      goalMouthHalfWidth,
+      allPlayers,
+      ballPos,
+    );
+    if (dangerMark) {
+      const t = computeDangerMarkTarget(dangerMark, attackSign, fieldWidth);
+      _tmp.set(
+        clamp(t.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),
+        0.15,
+        clamp(t.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
+      );
+      return { target: _tmp, owner: 'DANGER_MARK' };
+    }
+    if (shouldBoxCoverDefend(player, carrier, attackSign, fieldWidth, penaltyDepth, goalMouthHalfWidth, allPlayers, ballPos)) {
+      const t = computeBoxCoverTarget(player, ballPos, attackSign, fieldWidth, goalMouthHalfWidth, allPlayers);
+      _tmp.set(
+        clamp(t.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),
+        0.15,
+        clamp(t.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
+      );
+      return { target: _tmp, owner: 'BOX_COVER' };
+    }
     if (shouldCollapseDefend(player, carrier, ballPos, attackSign, fieldWidth, allPlayers)) {
       const t = computeCollapseDefendTarget(player, ballPos, attackSign, fieldWidth);
       _tmp.set(
@@ -279,7 +555,7 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
         0.15,
         clamp(t.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
       );
-      return _tmp;
+      return { target: _tmp, owner: 'COLLAPSE_DEFEND' };
     }
   }
 
@@ -299,7 +575,7 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
             0.15,
             clamp(t.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
           );
-          return _tmp;
+          return { target: _tmp, owner: 'BOX_CRASH' };
         }
       }
     }
@@ -308,11 +584,15 @@ export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
   // 4. No pattern role, no special state — phase-shifted home (sensible default).
   // hasPossession means *our* team has the ball, not just any carrier.
   const hasPossession = !!carrier && carrier.team === player.team;
-  const shifted = phaseShiftedHome(player, attackSign, hasPossession, attackPhase);
+  const shifted = phaseShiftedHome(player, attackSign, hasPossession, attackPhase, fieldDepth);
   _tmp.set(
     clamp(shifted.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),
     0.15,
     clamp(shifted.z, -fieldDepth / 2 + 1.5, fieldDepth / 2 - 1.5),
   );
-  return _tmp;
+  return { target: _tmp, owner: shifted.owner };
+}
+
+export function computeFsmOffBallTarget(ctx: FsmContext): THREE.Vector3 {
+  return computeFsmOffBallTargetWithOwner(ctx).target;
 }

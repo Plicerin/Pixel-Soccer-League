@@ -172,6 +172,14 @@ export function chooseSimplePassTarget(
   const inFinalThird = carrier.pos.x * attackSign > 14;
   const nearBox = carrier.pos.x * attackSign > 20;
   const wideCarrierInCutbackZone = inFinalThird && Math.abs(carrier.pos.z) > 8.5;
+  const goalX = attackSign > 0 ? 32.8 : -32.8;
+  const distToGoal = Math.abs(goalX - carrier.pos.x);
+  const crowdedCentralLane = distToGoal < 24
+    && Math.abs(carrier.pos.z) < 11.5
+    && opponents.filter((opp) =>
+      Math.abs(opp.pos.x - goalX) <= 12.8
+      && Math.abs(opp.pos.z) <= 5.2
+    ).length >= 3;
   let bestTarget: SimpleOffensePlayer | null = null;
   let bestScore = -Infinity;
 
@@ -223,6 +231,13 @@ export function chooseSimplePassTarget(
       && teammateCentrality < 6.8
       && progress > -2.5
       && progress < 7.0;
+    const teammateIsSecondPassOutlet =
+      crowdedCentralLane
+      && ['CAM', 'CM', 'DM', 'LM', 'RM'].includes(roleLabel)
+      && progress > -8.5
+      && progress < 8.0
+      && nearestOpp > 2.0
+      && laneTraffic < 1.4;
     const offside = isSimpleOffsideTarget(carrier, teammate, opponents, attackSign);
 
     if (offside && progress > 1.5) continue;
@@ -250,6 +265,12 @@ export function chooseSimplePassTarget(
     if (inFinalThird && progress > 1.5) score += 3.2;
     if (teammateIsCentralCutback) score += 5.2;
     if (teammateIsCentralCutback && nearestOpp > 3.0) score += 2.0;
+    if (teammateIsSecondPassOutlet) {
+      const lateralOutlet = Math.min(Math.abs(teammate.pos.z - carrier.pos.z), 11) * 0.45;
+      const centralLayoff = Math.max(0, 7.5 - Math.abs(teammate.pos.z)) * 0.34;
+      score += 9.0 + lateralOutlet + centralLayoff;
+      if (progress < 0.5) score += 3.2;
+    }
     if (wideCarrierInCutbackZone && teammateCentrality > Math.abs(carrier.pos.z) - 1.5) score -= 2.8;
     if (carrierPressure >= 4 && progress < 0) score += 0.8;
     if (carrierPressure >= 4) {
@@ -266,9 +287,9 @@ export function chooseSimplePassTarget(
     if (nearestOpp < 1.8) score -= 4.0;
     if (laneTraffic > 2.6) score -= 2.8;
     if (laneProfile.frontBlockerLateral < 1.45) score -= 4.8;
-    if (progress < 0) score -= Math.abs(progress) * (isAttackingCarrier ? 2.8 : 1.45);
-    if (isAttackingCarrier && progress < -1) score -= 5.5;
-    if (inFinalThird && isAttackingCarrier && progress < 0) score -= 7.5;
+    if (progress < 0) score -= Math.abs(progress) * (teammateIsSecondPassOutlet ? 0.55 : (isAttackingCarrier ? 2.8 : 1.45));
+    if (isAttackingCarrier && progress < -1 && !teammateIsSecondPassOutlet) score -= 5.5;
+    if (inFinalThird && isAttackingCarrier && progress < 0 && !teammateIsSecondPassOutlet) score -= 7.5;
     if (!isBuildoutCarrier && progress < -3) score -= 4.2;
 
     if (score > bestScore) {
@@ -286,6 +307,19 @@ export function chooseSimplePassTarget(
 
   return teammates
     .filter((teammate) => teammate && teammate !== carrier && teammate.team === team && getRoleLabel(teammate) !== 'GK')
+    .filter((teammate) => {
+      const dist = carrier.pos.distanceTo(teammate.pos);
+      const progress = (teammate.pos.x - carrier.pos.x) * attackSign;
+      const laneProfile = getSimpleLaneBlockerProfile(carrier.pos, teammate.pos, opponents, dist > 16 ? 2.8 : 2.3);
+      const directLaneBlocker =
+        laneProfile.frontBlockerLateral < (dist > 14 ? 1.35 : 1.15)
+        && laneProfile.frontBlockerT > 0.14
+        && laneProfile.frontBlockerT < 0.84;
+      if (directLaneBlocker) return false;
+      if (isSimpleOffsideTarget(carrier, teammate, opponents, attackSign) && progress > 1.5) return false;
+      if (progress < -8 && carrierPressure < 5) return false;
+      return true;
+    })
     .sort((a, b) => {
       const aProgress = (a.pos.x - carrier.pos.x) * attackSign;
       const bProgress = (b.pos.x - carrier.pos.x) * attackSign;
@@ -401,6 +435,7 @@ export function getSimpleShotTargetPoint(
     forceShotNow?: boolean;
     closePressure?: number;
     shotAngle?: number;
+    designedChance?: boolean;
   },
 ) {
   if (humanAimZ !== undefined && humanAimY !== undefined) {
@@ -412,13 +447,16 @@ export function getSimpleShotTargetPoint(
   }
 
   const forcedShot = context?.forceShotNow === true || context?.shotSelectionType === 'forced_shot';
+  const designedChance = context?.designedChance === true;
   const closePressure = context?.closePressure ?? 0;
   const shotAngle = context?.shotAngle ?? Math.abs(Math.atan2(Math.abs(shooter.pos.z), Math.max(0.5, distToGoal)));
   const longRangeFactor = THREE.MathUtils.clamp((distToGoal - 16) / 18, 0, 1);
+  const veryLongRangeFactor = THREE.MathUtils.clamp((distToGoal - 20) / 14, 0, 1);
   const pressureFactor = THREE.MathUtils.clamp((closePressure - 1) / 4, 0, 1);
   const forcedFactor = forcedShot ? 1 : 0;
   const angleFactor = THREE.MathUtils.clamp((shotAngle - 0.18) / 0.7, 0, 1);
   const centralSightFactor = THREE.MathUtils.clamp(1 - shotAngle / 0.38, 0, 1);
+  const forcedLongCentralFactor = forcedFactor * veryLongRangeFactor * centralSightFactor;
   const farPostSign = keeperZ !== null ? (keeperZ >= 0 ? -1 : 1) : (shooter.pos.z >= 0 ? -1 : 1);
   const wideAngleFactor = THREE.MathUtils.clamp(
     Math.abs(shooter.pos.z) / Math.max(constants.goalMouthWidth * 1.9, 1),
@@ -432,8 +470,9 @@ export function getSimpleShotTargetPoint(
     shotStyle === 'TOE_POKE' ? 0.16 :
     shotStyle === 'HEADER' ? 0.14 :
     0.20;
-  if (distToGoal > 20) lateralBias *= shotStyle === 'PLACED' ? 0.58 : 0.66;
-  lateralBias *= 1 + longRangeFactor * 0.30 + forcedFactor * 0.24;
+  if (distToGoal > 20) lateralBias *= shotStyle === 'PLACED' ? 0.54 : 0.60;
+  lateralBias *= 1 + longRangeFactor * 0.42 + forcedFactor * 0.28 + forcedLongCentralFactor * 0.30 + pressureFactor * 0.08;
+  if (designedChance && distToGoal <= 16) lateralBias *= 0.82;
   if (wideAngleFactor > 0) {
     lateralBias *= THREE.MathUtils.lerp(1, distToGoal < 14 ? 0.82 : 0.64, wideAngleFactor);
   }
@@ -453,16 +492,19 @@ export function getSimpleShotTargetPoint(
     * constants.goalMouthWidth
     * (
       0.025
-      + longRangeFactor * 0.13
+      + longRangeFactor * (designedChance && distToGoal <= 16 ? 0.11 : 0.18)
       + forcedFactor * 0.085
-      + longRangeFactor * forcedFactor * 0.08
-      + pressureFactor * 0.045
+      + longRangeFactor * forcedFactor * 0.12
+      + forcedLongCentralFactor * 0.20
+      + pressureFactor * 0.065
       + angleFactor * 0.035
       + (shotStyle === 'LACES_DRIVE' && distToGoal > 18 ? 0.045 : 0)
       + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.03 : 0)
     );
   const baseTargetZ = (farPostSign * lateralBias + bodyBias) * constants.goalMouthWidth;
-  const bailoutBias = forcedShot ? farPostSign * constants.goalMouthWidth * 0.025 : 0;
+  const bailoutBias = forcedShot
+    ? farPostSign * constants.goalMouthWidth * (0.025 + forcedLongCentralFactor * 0.10)
+    : 0;
   const targetZ = THREE.MathUtils.clamp(baseTargetZ + bailoutBias + lateralNoise, -lateralClamp, lateralClamp);
   let targetY =
     shotStyle === 'CHIP' ? THREE.MathUtils.clamp(1.8 + distToGoal * 0.03, 1.8, 2.8) :
@@ -473,26 +515,28 @@ export function getSimpleShotTargetPoint(
     THREE.MathUtils.clamp(0.35 + distToGoal * 0.015, 0.35, 1.25);
   const heightNoise =
     (Math.random() * 2 - 1)
-    * (0.04 + longRangeFactor * 0.20 + forcedFactor * 0.13 + longRangeFactor * forcedFactor * 0.08 + pressureFactor * 0.07);
-  const targetYMax = constants.goalMouthHeight * (1 + longRangeFactor * 0.10 + forcedFactor * 0.06);
+    * (0.04 + longRangeFactor * 0.28 + forcedFactor * 0.14 + longRangeFactor * forcedFactor * 0.12 + pressureFactor * 0.10);
+  const targetYMax = constants.goalMouthHeight * (1 + longRangeFactor * 0.16 + forcedFactor * 0.08 + pressureFactor * 0.04);
   targetY = THREE.MathUtils.clamp(targetY + heightNoise, 0.18, targetYMax);
 
   const offFrameChance = THREE.MathUtils.clamp(
-    longRangeFactor * 0.38
+    longRangeFactor * 0.52
     + forcedFactor * 0.22
-    + longRangeFactor * forcedFactor * 0.16
-    + pressureFactor * 0.11
-    + centralSightFactor * Math.max(longRangeFactor - 0.05, 0) * 0.32
+    + longRangeFactor * forcedFactor * 0.22
+    + forcedLongCentralFactor * 0.42
+    + pressureFactor * 0.16
+    + centralSightFactor * Math.max(longRangeFactor - 0.05, 0) * 0.46
     + ((shotStyle === 'TOE_POKE' || shotStyle === 'HALF_VOLLEY') ? 0.12 : 0)
     + (shotStyle === 'LACES_DRIVE' ? 0.16 : 0)
-    + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.18 : 0),
+    + (shotStyle === 'PLACED' && distToGoal > 18 ? 0.18 : 0)
+    - (designedChance && distToGoal <= 16 ? 0.24 : 0),
     0,
-    0.88,
+    0.94,
   );
   if (distToGoal > 12 && Math.random() < offFrameChance) {
     const missHigh =
       Math.random()
-      < (0.34 + longRangeFactor * 0.22 + (shotStyle === 'HALF_VOLLEY' || shotStyle === 'LACES_DRIVE' ? 0.10 : 0));
+      < (0.40 + longRangeFactor * 0.27 + pressureFactor * 0.08 + (shotStyle === 'HALF_VOLLEY' || shotStyle === 'LACES_DRIVE' ? 0.10 : 0));
     if (missHigh) {
       targetY = constants.goalMouthHeight * (1.03 + longRangeFactor * 0.18 + pressureFactor * 0.08);
     } else {
@@ -501,7 +545,7 @@ export function getSimpleShotTargetPoint(
       return new THREE.Vector3(
         goalX,
         targetY,
-        missSign * constants.goalMouthWidth * (0.62 + longRangeFactor * 0.22 + forcedFactor * 0.10),
+        missSign * constants.goalMouthWidth * (0.68 + longRangeFactor * 0.32 + forcedFactor * 0.12 + pressureFactor * 0.08),
       );
     }
   }

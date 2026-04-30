@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+import { METRICA_DIRECTOR_TARGETS } from './possessionDirector.ts';
+
 export type StructuredAttackType = 'WING_LEFT' | 'WING_RIGHT' | 'NONE';
 
 export type StructuredAttackRole =
@@ -64,6 +66,24 @@ function isGoalkeeper(player: any): boolean {
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
+}
+
+function metersToDepthUnits(meters: number, fieldDepth: number) {
+  return (meters / 68) * fieldDepth;
+}
+
+function directorHalfWidthTarget(fieldDepth: number, phase: 'progression' | 'finalThird') {
+  const widthMeters = METRICA_DIRECTOR_TARGETS.teamWidthMeters[phase];
+  const halfWidth = metersToDepthUnits(widthMeters, fieldDepth) * 0.5;
+  return clamp(halfWidth, fieldDepth * 0.32, fieldDepth * 0.49);
+}
+
+function directorSupportDistance(fieldDepth: number) {
+  return clamp(
+    metersToDepthUnits(METRICA_DIRECTOR_TARGETS.supportDistanceMeters.preferredMedian, fieldDepth),
+    fieldDepth * 0.10,
+    fieldDepth * 0.20,
+  );
 }
 
 function findByRoles(players: any[], roles: string[], except = new Set<any>()) {
@@ -151,27 +171,30 @@ export function computeStructuredAttackTarget(inputs: StructuredTargetInputs): T
   const goalX = attackSign > 0 ? fieldWidth / 2 : -fieldWidth / 2;
   const side = state.carrierSide;
   const y = 0.15;
+  const finalThirdHalfWidth = directorHalfWidthTarget(fieldDepth, 'finalThird');
+  const progressionHalfWidth = directorHalfWidthTarget(fieldDepth, 'progression');
+  const supportDistance = directorSupportDistance(fieldDepth);
   let x = player.homePos?.x ?? player.pos.x;
   let z = player.homePos?.z ?? player.pos.z;
 
   if (role === 'NEAR_POST') {
-    x = goalX - attackSign * 5.2;
-    z = side * goalMouthHalfWidth * 0.55;
+    x = goalX - attackSign * 4.2;
+    z = side * Math.max(goalMouthHalfWidth * 0.78, fieldDepth * 0.07);
   } else if (role === 'FAR_POST') {
-    x = goalX - attackSign * 6.2;
-    z = -side * Math.max(goalMouthHalfWidth * 2.8, fieldDepth * 0.18);
+    x = goalX - attackSign * 4.4;
+    z = -side * Math.max(finalThirdHalfWidth * 1.08, goalMouthHalfWidth * 4.9, fieldDepth * 0.38);
   } else if (role === 'CUTBACK') {
-    x = goalX - attackSign * (penaltyDepth + 1.8);
-    z = side * Math.max(goalMouthHalfWidth * 1.8, fieldDepth * 0.11);
+    x = goalX - attackSign * (penaltyDepth + 0.2);
+    z = side * clamp(finalThirdHalfWidth * 0.62, goalMouthHalfWidth * 3.2, fieldDepth * 0.32);
   } else if (role === 'SECOND_WAVE') {
-    x = goalX - attackSign * (penaltyDepth + 5.2);
-    z = -side * Math.max(goalMouthHalfWidth * 2.1, fieldDepth * 0.13);
+    x = goalX - attackSign * (penaltyDepth + 1.4);
+    z = -side * clamp(finalThirdHalfWidth * 0.58, goalMouthHalfWidth * 3.0, fieldDepth * 0.30);
   } else if (role === 'WIDE_OUTLET') {
-    x = carrier.pos.x - attackSign * 4.4;
-    z = side * Math.max(Math.abs(player.homePos?.z ?? 0), fieldDepth * 0.42);
+    x = carrier.pos.x - attackSign * supportDistance;
+    z = side * Math.max(Math.abs(player.homePos?.z ?? 0), progressionHalfWidth, fieldDepth * 0.46);
   } else if (role === 'SAFETY') {
-    x = carrier.pos.x - attackSign * 12;
-    z = clamp(player.homePos?.z ?? 0, -fieldDepth * 0.24, fieldDepth * 0.24);
+    x = carrier.pos.x - attackSign * supportDistance * 1.75;
+    z = clamp(player.homePos?.z ?? 0, -fieldDepth * 0.30, fieldDepth * 0.30);
   }
 
   return new THREE.Vector3(
@@ -191,7 +214,12 @@ export function computeStructuredCarrierTarget(inputs: StructuredCarrierTargetIn
     ? Math.min(deliveryAttackX, currentAttackX + 8) * state.attackSign
     : carrier.pos.x + state.attackSign * 3.5;
   const homeWide = Math.abs(carrier.homePos?.z ?? 0);
-  const targetZ = state.carrierSide * Math.max(homeWide, Math.abs(carrier.pos.z), fieldDepth * 0.34);
+  const targetZ = state.carrierSide * Math.max(
+    homeWide,
+    Math.abs(carrier.pos.z),
+    directorHalfWidthTarget(fieldDepth, 'progression'),
+    fieldDepth * 0.46,
+  );
 
   return new THREE.Vector3(
     clamp(targetX, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),
@@ -218,5 +246,5 @@ export function shouldStructuredCarrierDeliver(inputs: {
   const distToGoal = Math.abs(goalX - carrier.pos.x);
   return Math.abs(carrier.pos.z) > fieldDepth * 0.16
     && carrier.pos.x * state.attackSign > 0
-    && distToGoal < penaltyDepth + 22;
+    && distToGoal < penaltyDepth + 24;
 }

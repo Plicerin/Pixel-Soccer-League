@@ -10,6 +10,12 @@ import {
   shouldStructuredCarrierDeliver,
   structuredAttackKey,
 } from '../src/ai/structuredAttack.ts';
+import {
+  computePatternRoleTarget,
+  getPatternRole,
+  isPatternStillValid,
+  selectPattern,
+} from '../src/ai/patternEngine.ts';
 
 const constants = {
   fieldWidth: 65.6,
@@ -152,4 +158,284 @@ test('structured carrier target preserves wide lane before delivery', () => {
   assert.ok(target.x > carrier.pos.x);
   assert.ok(target.z > constants.fieldDepth * 0.33);
   assert.equal(structuredAttackKey(state), 'A:WING_RIGHT:RM Carrier:1');
+});
+
+test('structured wing attack keeps same-side outlet near the carrier', () => {
+  const carrier = makePlayer('RM Carrier', 'A', 9, 11, 'RM');
+  const striker = makePlayer('Striker', 'A', 11, 0, 'ST');
+  const farWinger = makePlayer('Left Mid', 'A', 4, -12, 'LM');
+  const cutback = makePlayer('Ten', 'A', 5, 1, 'CAM');
+  const secondWave = makePlayer('Eight', 'A', 2, -2, 'CM');
+  const outlet = makePlayer('Right Back', 'A', 3, 13, 'RB');
+  const state = selectStructuredAttack({
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, farWinger, cutback, secondWave, outlet],
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(state);
+  assert.equal(getStructuredAttackRole(state, outlet), 'WIDE_OUTLET');
+
+  const outletTarget = computeStructuredAttackTarget({
+    player: outlet,
+    carrier,
+    state,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(outletTarget);
+  const supportDistance = carrier.pos.x - outletTarget.x;
+  assert.ok(supportDistance > constants.fieldDepth * 0.10);
+  assert.ok(supportDistance < constants.fieldDepth * 0.20);
+  assert.ok(outletTarget.z > constants.fieldDepth * 0.32);
+});
+
+test('structured wing attack preserves real-data weak-side width', () => {
+  const carrier = makePlayer('RM Carrier', 'A', 9, 10, 'RM');
+  const striker = makePlayer('Striker', 'A', 11, 0, 'ST');
+  const farWinger = makePlayer('Left Mid', 'A', 4, -9, 'LM');
+  const cutback = makePlayer('Ten', 'A', 5, 1, 'CAM');
+  const secondWave = makePlayer('Eight', 'A', 2, -2, 'CM');
+  const state = selectStructuredAttack({
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, farWinger, cutback, secondWave],
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(state);
+  const farTarget = computeStructuredAttackTarget({
+    player: farWinger,
+    carrier,
+    state,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(farTarget);
+  assert.ok(farTarget.z < -constants.fieldDepth * 0.32);
+});
+
+test('pattern engine selects a central give-and-go set play', () => {
+  const carrier = makePlayer('Ten', 'A', 6, 0.6, 'CAM');
+  const striker = makePlayer('Nine', 'A', 10, 0.2, 'ST');
+  const runner = makePlayer('Right Mid', 'A', 8, 9, 'RM');
+  const support = makePlayer('Eight', 'A', 3, -2, 'CM');
+  const defenders = [
+    makePlayer('Def 1', 'B', 14, 0, 'CB'),
+    makePlayer('Def 2', 'B', 15, -3, 'CB'),
+    makePlayer('Def 3', 'B', 11, 4, 'DM'),
+  ];
+
+  const state = selectPattern({
+    elapsedSeconds: 25,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, runner, support],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 8,
+    lastEndByType: {},
+  });
+
+  assert.ok(state);
+  assert.equal(state.type, 'CENTRAL_COMBO');
+  assert.equal(state.metadata.playName, 'GIVE_AND_GO');
+  assert.equal(getPatternRole(state, carrier), 'CARRIER');
+  assert.equal(getPatternRole(state, striker), 'WALL');
+});
+
+test('central combo sends wall player close and original carrier into return channel', () => {
+  const carrier = makePlayer('Ten', 'A', 6, 0.6, 'CAM');
+  const striker = makePlayer('Nine', 'A', 10, 0.2, 'ST');
+  const runner = makePlayer('Right Mid', 'A', 8, 9, 'RM');
+  const defenders = [makePlayer('Def 1', 'B', 14, 0, 'CB')];
+  const state = selectPattern({
+    elapsedSeconds: 25,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, runner],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 8,
+    lastEndByType: {},
+  });
+
+  assert.ok(state);
+  const wallTarget = computePatternRoleTarget({
+    player: striker,
+    role: 'WALL',
+    pattern: state,
+    carrier,
+    attackSign: 1,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+  const carrierReturnTarget = computePatternRoleTarget({
+    player: carrier,
+    role: 'CARRIER',
+    pattern: state,
+    carrier: striker,
+    attackSign: 1,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(wallTarget);
+  assert.ok(carrierReturnTarget);
+  assert.ok(wallTarget.x > carrier.pos.x);
+  assert.ok(carrierReturnTarget.x > striker.pos.x);
+  assert.ok(Math.abs(carrierReturnTarget.z) > constants.goalMouthHalfWidth * 2);
+});
+
+test('central combo gives a striker a nearby midfielder wall option', () => {
+  const carrier = makePlayer('Nine', 'A', 9, 0.8, 'ST');
+  const wall = makePlayer('Ten', 'A', 4, 1.4, 'CAM');
+  const runner = makePlayer('Right Mid', 'A', 10, 8, 'RM');
+  const support = makePlayer('Eight', 'A', 2, -2, 'CM');
+  const defenders = [
+    makePlayer('Def 1', 'B', 13, 0, 'CB'),
+    makePlayer('Def 2', 'B', 14, -3, 'CB'),
+  ];
+
+  const state = selectPattern({
+    elapsedSeconds: 31,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, wall, runner, support],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 10,
+    lastEndByType: {},
+  });
+
+  assert.ok(state);
+  assert.equal(state.type, 'CENTRAL_COMBO');
+  assert.equal(getPatternRole(state, carrier), 'CARRIER');
+  assert.equal(getPatternRole(state, wall), 'WALL');
+});
+
+test('central combo survives its commitment window before lateral invalidation', () => {
+  const carrier = makePlayer('Ten', 'A', 6, 0.6, 'CAM');
+  const striker = makePlayer('Nine', 'A', 10, 0.2, 'ST');
+  const runner = makePlayer('Right Mid', 'A', 8, 9, 'RM');
+  const defenders = [makePlayer('Def 1', 'B', 14, 0, 'CB')];
+  const state = selectPattern({
+    elapsedSeconds: 25,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, runner],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 8,
+    lastEndByType: {},
+  });
+
+  assert.ok(state);
+  assert.equal(state.type, 'CENTRAL_COMBO');
+  carrier.pos.z = constants.fieldDepth * 0.5;
+
+  assert.equal(isPatternStillValid(state, {
+    elapsedSeconds: 27.5,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, runner],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 10.5,
+    lastEndByType: {},
+  }), true);
+
+  assert.equal(isPatternStillValid(state, {
+    elapsedSeconds: 29,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, runner],
+    opponents: defenders,
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 12,
+    lastEndByType: {},
+  }), false);
+});
+
+test('wing attack survives brief opposite-lane drift during commitment window', () => {
+  const carrier = makePlayer('RM Carrier', 'A', 7, 10, 'RM');
+  const striker = makePlayer('Striker', 'A', 8, 0, 'ST');
+  const farWinger = makePlayer('Left Mid', 'A', 4, -12, 'LM');
+  const cutback = makePlayer('Ten', 'A', 5, 1, 'CAM');
+  const state = selectPattern({
+    elapsedSeconds: 12,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, farWinger, cutback],
+    opponents: [makePlayer('Def 1', 'B', 12, 0, 'CB')],
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 5,
+    lastEndByType: { CENTRAL_COMBO: 11.7 },
+  });
+
+  assert.ok(state);
+  assert.equal(state.type, 'WING_ATTACK_RIGHT');
+  carrier.pos.z = -12;
+
+  assert.equal(isPatternStillValid(state, {
+    elapsedSeconds: 14,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, farWinger, cutback],
+    opponents: [],
+    ball: carrier.pos,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 7,
+    lastEndByType: {},
+  }), true);
 });

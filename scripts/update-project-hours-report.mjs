@@ -49,6 +49,7 @@ Generated: ${formatDate(summary.generatedAt)}
 ## Project Bounds
 
 - Project start: ${formatDate(summary.projectStart)}
+- Project start source: ${summary.projectStartSource || 'unknown'}
 - Git available: ${summary.git.available ? 'yes' : 'no'}
 - First commit: ${formatDate(summary.git.firstCommitAt)}
 - Last commit: ${formatDate(summary.git.lastCommitAt)}

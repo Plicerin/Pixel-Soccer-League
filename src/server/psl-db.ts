@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { filterGhostMatchRows } from './matchFilters';
+import { filterGhostMatchRows, isGhostMatchRow } from './matchFilters';
 
 const DB_PATH = path.resolve(__dirname, '..', '..', 'psl.db');
 
@@ -63,6 +63,11 @@ export function getLiveTuning(): { ts: number; payload_json: string } | undefine
   return db.prepare('SELECT ts, payload_json FROM live_tuning WHERE id = 1').get() as any;
 }
 
+export function clearLiveTuning() {
+  const db = getDb();
+  db.prepare('DELETE FROM live_tuning WHERE id = 1').run();
+}
+
 // ── Match results ──
 
 export interface MatchResultRow {
@@ -89,7 +94,8 @@ export interface MatchResultRow {
   bundle_json?: string;
 }
 
-export function insertMatchResult(row: MatchResultRow) {
+export function insertMatchResult(row: MatchResultRow): boolean {
+  if (isGhostMatchRow(row)) return false;
   const db = getDb();
   db.prepare(`
     INSERT OR REPLACE INTO match_results (
@@ -108,6 +114,7 @@ export function insertMatchResult(row: MatchResultRow) {
       @possession_a, @phase, @half, @elapsed_in_half, @bundle_json
     )
   `).run(row);
+  return true;
 }
 
 export function getRecentMatches(limit = 50): MatchResultRow[] {

@@ -23,6 +23,8 @@ function parseArgs(argv) {
     latest: false,
     reportJson: '',
     reportMd: '',
+    bundleJson: '',
+    resultIndex: -1,
   }
 
   for (let i = 0; i < argv.length; i++) {
@@ -39,6 +41,10 @@ function parseArgs(argv) {
       options.reportJson = argv[++i] || ''
     } else if (arg === '--report-md') {
       options.reportMd = argv[++i] || ''
+    } else if (arg === '--bundle-json') {
+      options.bundleJson = argv[++i] || ''
+    } else if (arg === '--result-index') {
+      options.resultIndex = Number(argv[++i])
     } else if (arg === '--help' || arg === '-h') {
       printHelp()
       process.exit(0)
@@ -51,7 +57,7 @@ function parseArgs(argv) {
     throw new Error('Use --home and --away together when filtering by matchup')
   }
 
-  if (!options.latest && !options.sessionId && !options.homeTeam) {
+  if (!options.latest && !options.sessionId && !options.homeTeam && !options.bundleJson) {
     options.latest = true
   }
 
@@ -78,6 +84,8 @@ Options:
   --home <team>       Filter by the latest matching fixture
   --away <team>       Filter by the latest matching fixture
   --session-id <id>   Analyze one exact session
+  --bundle-json <p>   Analyze a saved headless sim report or raw tuning bundle
+  --result-index <n>  Result index inside a headless sim report (default: last)
   --report-json <p>   Write the machine-readable report JSON
   --report-md <p>     Write the human-readable markdown report
 `)
@@ -827,6 +835,198 @@ function summarizeDefendersInBoxAtGoal(bundle) {
   }
 }
 
+function summarizeShotBoxDefense(events) {
+  const FIELD_W = 65.6
+  const PENALTY_DEPTH = 9.6
+  const GOAL_MOUTH_HALF_WIDTH = 1.85
+  const snapshots = events.filter((event) => event.type === 'SHOT_POSITION_SNAPSHOT')
+  const stats = {
+    shots: 0,
+    avgDefendersInBox: 0,
+    avgDefendersInCorridor: 0,
+    emptyBoxShots: 0,
+    emptyCorridorShots: 0,
+    samples: [],
+  }
+  let sumBox = 0
+  let sumCorridor = 0
+  for (const event of snapshots) {
+    const ball = event.detail?.ball
+    const players = Array.isArray(event.detail?.players) ? event.detail.players : []
+    if (!ball || players.length === 0) continue
+    const attackingTeam = event.team
+    const goalX = Number(ball.x) >= 0 ? FIELD_W / 2 : -FIELD_W / 2
+    const defenders = players.filter((p) => p.team !== attackingTeam && p.role !== 'GK')
+    const defendersInBox = defenders.filter((p) =>
+      Math.abs(Number(p.x) - goalX) <= PENALTY_DEPTH
+      && Math.abs(Number(p.z)) <= GOAL_MOUTH_HALF_WIDTH * 4.4
+    ).length
+    const defendersInCorridor = defenders.filter((p) =>
+      Math.abs(Number(p.x) - goalX) <= PENALTY_DEPTH + 3
+      && Math.abs(Number(p.z)) <= GOAL_MOUTH_HALF_WIDTH * 2.5
+    ).length
+    stats.shots++
+    sumBox += defendersInBox
+    sumCorridor += defendersInCorridor
+    if (defendersInBox === 0) stats.emptyBoxShots++
+    if (defendersInCorridor === 0) stats.emptyCorridorShots++
+    if (stats.samples.length < 8) {
+      stats.samples.push({
+        t: round(getEventElapsed(event), 1),
+        team: attackingTeam,
+        shooter: event.detail?.shooter?.name || 'Unknown',
+        shooterRole: event.detail?.shooter?.role || event.role || 'UNK',
+        ballX: round(Number(ball.x), 1),
+        ballZ: round(Number(ball.z), 1),
+        defendersInBox,
+        defendersInCorridor,
+      })
+    }
+  }
+  stats.avgDefendersInBox = stats.shots ? round(sumBox / stats.shots) : 0
+  stats.avgDefendersInCorridor = stats.shots ? round(sumCorridor / stats.shots) : 0
+  return stats
+}
+
+function getEventElapsed(event) {
+  return (event.half === 2 ? 150 : 0) + Number(event.t || 0)
+}
+
+function summarizeKickoffGoalCorrelation(events) {
+  const passes = events
+    .filter((event) => event.type === 'KICKOFF_PASS')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const receives = events
+    .filter((event) => event.type === 'KICKOFF_RECEIVED')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const goals = events
+    .filter((event) => event.type === 'GOAL_SCORER')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+
+  const byTeam = {
+    A: { passes: 0, receives: 0, goals: 0, sameAsLatestKickoffReceiverGoals: 0, sameAsLatestKickoffReceiverPct: 0, receivers: [], scorers: [], samples: [] },
+    B: { passes: 0, receives: 0, goals: 0, sameAsLatestKickoffReceiverGoals: 0, sameAsLatestKickoffReceiverPct: 0, receivers: [], scorers: [], samples: [] },
+  }
+  const receiverStats = { A: new Map(), B: new Map() }
+  const scorerStats = { A: new Map(), B: new Map() }
+
+  const ensureReceiver = (team, name, role = null) => {
+    if (!receiverStats[team]) return null
+    const key = name || 'Unknown'
+    if (!receiverStats[team].has(key)) {
+      receiverStats[team].set(key, {
+        player: key,
+        role,
+        intendedTargets: 0,
+        actualReceives: 0,
+        matchedExpectedReceives: 0,
+        goalsAfterLatestKickoffReceive: 0,
+        avgSecondsFromReceiveToGoal: 0,
+        goalSeconds: [],
+      })
+    }
+    const stat = receiverStats[team].get(key)
+    if (!stat.role && role) stat.role = role
+    return stat
+  }
+  const ensureScorer = (team, name, role = null) => {
+    if (!scorerStats[team]) return null
+    const key = name || 'Unknown'
+    if (!scorerStats[team].has(key)) {
+      scorerStats[team].set(key, { player: key, role, goals: 0 })
+    }
+    const stat = scorerStats[team].get(key)
+    if (!stat.role && role) stat.role = role
+    return stat
+  }
+
+  for (const pass of passes) {
+    const team = pass.team
+    if (!byTeam[team]) continue
+    byTeam[team].passes++
+    const target = pass.detail?.target || null
+    if (target) {
+      const stat = ensureReceiver(team, target, pass.detail?.targetRole)
+      if (stat) stat.intendedTargets++
+    }
+  }
+
+  for (const receive of receives) {
+    const team = receive.team
+    if (!byTeam[team]) continue
+    byTeam[team].receives++
+    const receiver = receive.detail?.receiver || 'Unknown'
+    const stat = ensureReceiver(team, receiver, receive.detail?.receiverRole)
+    if (stat) {
+      stat.actualReceives++
+      if (receive.detail?.matchedExpectedReceiver) stat.matchedExpectedReceives++
+    }
+  }
+
+  for (const goal of goals) {
+    const team = goal.team
+    if (!byTeam[team]) continue
+    byTeam[team].goals++
+    const scorer = goal.detail?.scorer || 'Unknown'
+    const scorerStat = ensureScorer(team, scorer, goal.detail?.scorerRole)
+    if (scorerStat) scorerStat.goals++
+    const latestReceive = receives
+      .filter((receive) => receive.team === team && receive.__elapsed <= goal.__elapsed)
+      .at(-1)
+    if (!latestReceive) continue
+    const receiver = latestReceive.detail?.receiver || 'Unknown'
+    const samePlayer = receiver === scorer
+    const secondsToGoal = round(goal.__elapsed - latestReceive.__elapsed)
+    if (samePlayer) {
+      byTeam[team].sameAsLatestKickoffReceiverGoals++
+      const stat = ensureReceiver(team, receiver, latestReceive.detail?.receiverRole)
+      if (stat) {
+        stat.goalsAfterLatestKickoffReceive++
+        stat.goalSeconds.push(secondsToGoal)
+      }
+    }
+    if (byTeam[team].samples.length < 6) {
+      byTeam[team].samples.push({
+        scorer,
+        scorerRole: goal.detail?.scorerRole || null,
+        kickoffReceiver: receiver,
+        kickoffReceiverRole: latestReceive.detail?.receiverRole || null,
+        samePlayer,
+        secondsToGoal,
+        sequenceId: latestReceive.detail?.sequenceId ?? null,
+        minute: goal.detail?.matchMinute ?? null,
+      })
+    }
+  }
+
+  for (const team of ['A', 'B']) {
+    byTeam[team].sameAsLatestKickoffReceiverPct = pct(byTeam[team].sameAsLatestKickoffReceiverGoals, byTeam[team].goals)
+    byTeam[team].receivers = Array.from(receiverStats[team].values())
+      .map((stat) => ({
+        ...stat,
+        avgSecondsFromReceiveToGoal: stat.goalSeconds.length
+          ? round(stat.goalSeconds.reduce((a, b) => a + b, 0) / stat.goalSeconds.length)
+          : 0,
+        goalSeconds: undefined,
+      }))
+      .sort((a, b) => (b.actualReceives - a.actualReceives) || (b.intendedTargets - a.intendedTargets) || (b.goalsAfterLatestKickoffReceive - a.goalsAfterLatestKickoffReceive))
+      .slice(0, 8)
+    byTeam[team].scorers = Array.from(scorerStats[team].values())
+      .sort((a, b) => b.goals - a.goals)
+      .slice(0, 8)
+  }
+
+  return {
+    kickoffPasses: passes.length,
+    kickoffReceives: receives.length,
+    goalScorerEvents: goals.length,
+    byTeam,
+  }
+}
+
 // User-requested metric: how many 1-second windows have 3+ distinct attackers
 // from the same team in opposition final third. Measures attacking commitment
 // (overloads in the final third) vs sterile solo attacks.
@@ -857,6 +1057,44 @@ function summarizeFinalThirdOverloads(events) {
     if (set.size >= 3) stats.bucketsWithOverload++
   }
   return { A: statsA, B: statsB }
+}
+
+function summarizeDangerMarking(events) {
+  const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE' && event.detail?.dangerMarkingZone)
+  const byTeam = {
+    A: { samples: 0, marked: 0, unmarked: 0, markedPct: 0, avgNearestDefenderDist: 0, worstSamples: [] },
+    B: { samples: 0, marked: 0, unmarked: 0, markedPct: 0, avgNearestDefenderDist: 0, worstSamples: [] },
+  }
+  const sums = { A: 0, B: 0 }
+  for (const event of traces) {
+    const team = event.team
+    if (team !== 'A' && team !== 'B') continue
+    const row = byTeam[team]
+    row.samples++
+    const dist = Number(event.detail?.nearestDefenderDist ?? NaN)
+    if (Number.isFinite(dist)) sums[team] += dist
+    if (event.detail?.dangerMarked) row.marked++
+    else {
+      row.unmarked++
+      row.worstSamples.push({
+        t: round((event.half === 2 ? 150 : 0) + Number(event.t || 0), 1),
+        player: event.detail?.playerName || 'Unknown',
+        role: event.role,
+        zone: event.detail?.zone || 'UNKNOWN',
+        distToGoal: round(Number(event.detail?.distToGoal ?? 0), 1),
+        nearestDefenderDist: Number.isFinite(dist) ? round(dist, 2) : null,
+        patternRole: event.detail?.patternRole || 'NONE',
+      })
+    }
+  }
+  for (const team of ['A', 'B']) {
+    const row = byTeam[team]
+    row.markedPct = pct(row.marked, row.samples)
+    row.avgNearestDefenderDist = row.samples ? round(sums[team] / row.samples) : 0
+    row.worstSamples.sort((a, b) => (b.nearestDefenderDist ?? 0) - (a.nearestDefenderDist ?? 0))
+    row.worstSamples = row.worstSamples.slice(0, 6)
+  }
+  return { samples: traces.length, byTeam }
 }
 
 // User-requested metric: how many sequences have 2+ distinct players touching the
@@ -1055,6 +1293,115 @@ function summarizePatternTempo(events) {
   return result
 }
 
+function neoPlayNameFor(type, detail = {}) {
+  return detail.playName || (type === 'CENTRAL_COMBO' ? 'GIVE_AND_GO' : type || 'UNKNOWN')
+}
+
+function summarizeNeoPlayEffectiveness(events) {
+  const starts = events
+    .filter((event) => event.type === 'PATTERN_START')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+  const deliveries = events
+    .filter((event) => event.type === 'PATTERN_DELIVERY_EXECUTED' || event.type === 'PATTERN_CROSS_EXECUTED')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const shots = events
+    .filter((event) => event.type === 'SHOT')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const goals = events
+    .filter((event) => event.type === 'GOAL' || event.type === 'GOAL_SCORER')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+
+  const byPlay = {}
+  const ensure = (playName, patternType) => {
+    const key = playName || patternType || 'UNKNOWN'
+    if (!byPlay[key]) {
+      byPlay[key] = {
+        playName: key,
+        patternTypes: {},
+        starts: 0,
+        deliveries: 0,
+        crosses: 0,
+        shotCreatingDeliveries: 0,
+        goalCreatingDeliveries: 0,
+        effectivenessPct: 0,
+        goalRatePct: 0,
+        samples: [],
+      }
+    }
+    if (patternType) byPlay[key].patternTypes[patternType] = (byPlay[key].patternTypes[patternType] || 0) + 1
+    return byPlay[key]
+  }
+
+  for (const start of starts) {
+    const patternType = start.detail?.type || 'UNKNOWN'
+    const row = ensure(neoPlayNameFor(patternType, start.detail), patternType)
+    row.starts++
+  }
+
+  const outcomeWindowSeconds = 8
+  for (const delivery of deliveries) {
+    const detail = delivery.detail || {}
+    const patternType = detail.patternType || detail.type || 'UNKNOWN'
+    const row = ensure(neoPlayNameFor(patternType, detail), patternType)
+    row.deliveries++
+    if (delivery.type === 'PATTERN_CROSS_EXECUTED' || detail.realCross) row.crosses++
+
+    const windowEnd = delivery.__elapsed + outcomeWindowSeconds
+    const shot = shots.find((event) =>
+      event.team === delivery.team
+      && event.__elapsed >= delivery.__elapsed
+      && event.__elapsed <= windowEnd)
+    const goal = goals.find((event) =>
+      event.team === delivery.team
+      && event.__elapsed >= delivery.__elapsed
+      && event.__elapsed <= windowEnd)
+
+    if (shot) row.shotCreatingDeliveries++
+    if (goal) row.goalCreatingDeliveries++
+    if (row.samples.length < 5) {
+      row.samples.push({
+        team: delivery.team,
+        t: round(delivery.__elapsed, 1),
+        patternType,
+        passer: detail.passer || null,
+        passerRole: detail.passerRole || null,
+        target: detail.target || null,
+        targetRole: detail.targetRole || null,
+        style: detail.style || null,
+        shotWithinSeconds: shot ? round(shot.__elapsed - delivery.__elapsed, 1) : null,
+        goalWithinSeconds: goal ? round(goal.__elapsed - delivery.__elapsed, 1) : null,
+      })
+    }
+  }
+
+  let totalStarts = 0
+  let totalDeliveries = 0
+  let totalShotCreatingDeliveries = 0
+  let totalGoalCreatingDeliveries = 0
+  for (const row of Object.values(byPlay)) {
+    totalStarts += row.starts
+    totalDeliveries += row.deliveries
+    totalShotCreatingDeliveries += row.shotCreatingDeliveries
+    totalGoalCreatingDeliveries += row.goalCreatingDeliveries
+    row.effectivenessPct = pct(row.shotCreatingDeliveries, row.deliveries)
+    row.goalRatePct = pct(row.goalCreatingDeliveries, row.deliveries)
+  }
+
+  return {
+    outcomeWindowSeconds,
+    totalStarts,
+    totalDeliveries,
+    totalShotCreatingDeliveries,
+    totalGoalCreatingDeliveries,
+    effectivenessPct: pct(totalShotCreatingDeliveries, totalDeliveries),
+    goalRatePct: pct(totalGoalCreatingDeliveries, totalDeliveries),
+    byPlay,
+  }
+}
+
 function summarizeRolePositions(events) {
   const traces = events.filter((event) => event.type === 'ATTACKER_ZONE_TRACE')
   const byTeamRole = new Map()
@@ -1135,6 +1482,46 @@ function summarizeShape(shapeSamples, teamName) {
     centerLockedPct: pct(centerLocked.length, samples.length),
     narrowPct: pct(narrow.length, samples.length),
     centerAndNarrowPct: pct(centerAndNarrow.length, samples.length),
+  }
+}
+
+function summarizePositionOwners(events) {
+  const samples = events.filter((event) => event.type === 'POSITION_OWNER_SAMPLE')
+  const byTeam = { A: {}, B: {} }
+  const wideByTeam = {
+    A: { samples: 0, sumAbsZ: 0, sumTargetAbsZ: 0, byOwner: {} },
+    B: { samples: 0, sumAbsZ: 0, sumTargetAbsZ: 0, byOwner: {} },
+  }
+  const wideRoles = new Set(['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'])
+
+  for (const event of samples) {
+    const team = event.team === 'B' ? 'B' : 'A'
+    const role = String(event.role || '').toUpperCase()
+    const owner = String(event.detail?.owner || 'UNKNOWN')
+    byTeam[team][owner] = (byTeam[team][owner] || 0) + 1
+    if (wideRoles.has(role)) {
+      const bucket = wideByTeam[team]
+      bucket.samples++
+      bucket.sumAbsZ += Number(event.detail?.absZ ?? 0)
+      bucket.sumTargetAbsZ += Number(event.detail?.targetAbsZ ?? 0)
+      bucket.byOwner[owner] = (bucket.byOwner[owner] || 0) + 1
+    }
+  }
+
+  const finalizeWide = (bucket) => ({
+    samples: bucket.samples,
+    avgAbsZ: bucket.samples ? round(bucket.sumAbsZ / bucket.samples) : 0,
+    avgTargetAbsZ: bucket.samples ? round(bucket.sumTargetAbsZ / bucket.samples) : 0,
+    byOwner: bucket.byOwner,
+  })
+
+  return {
+    samples: samples.length,
+    byTeam,
+    wide: {
+      A: finalizeWide(wideByTeam.A),
+      B: finalizeWide(wideByTeam.B),
+    },
   }
 }
 
@@ -1308,6 +1695,148 @@ function compareToBaselines(bundle, teamAName, teamBName) {
   return { global, teamComparison }
 }
 
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
+}
+
+function scoreRange(value, target, tolerance) {
+  if (!Number.isFinite(value) || !Number.isFinite(target) || !Number.isFinite(tolerance) || tolerance <= 0) return 0
+  return clamp01(1 - Math.abs(value - target) / tolerance)
+}
+
+function scoreMax(value, maxValue) {
+  if (!Number.isFinite(value) || !Number.isFinite(maxValue) || maxValue <= 0) return 0
+  return clamp01(1 - value / maxValue)
+}
+
+function scoreMin(value, minValue) {
+  if (!Number.isFinite(value) || !Number.isFinite(minValue) || minValue <= 0) return 0
+  return clamp01(value / minValue)
+}
+
+function weightedScore(parts) {
+  let totalWeight = 0
+  let weighted = 0
+  for (const part of parts) {
+    const weight = Number(part.weight ?? 0)
+    if (weight <= 0) continue
+    totalWeight += weight
+    weighted += clamp01(Number(part.score ?? 0)) * weight
+  }
+  return totalWeight > 0 ? round((weighted / totalWeight) * 100, 1) : 0
+}
+
+function gradeKpi(score) {
+  if (score >= 85) return 'green'
+  if (score >= 70) return 'watch'
+  return 'red'
+}
+
+function summarizeKpis(report) {
+  const goals = Number(report.baselines.global.totalGoals.simulated ?? 0)
+  const shots = Number(report.baselines.global.totalShots.simulated ?? 0)
+  const sot = Number(report.baselines.global.totalShotsOnTarget.simulated ?? 0)
+  const corners = Number(report.baselines.global.totalCorners.simulated ?? 0)
+  const widthA = Number(report.shape.A.avgWidth ?? 0)
+  const widthB = Number(report.shape.B.avgWidth ?? 0)
+  const centerNarrowWorst = Math.max(Number(report.shape.A.centerAndNarrowPct ?? 0), Number(report.shape.B.centerAndNarrowPct ?? 0))
+  const overloadShareA = Number(report.finalThirdOverloads.A.totalBuckets ?? 0) > 0
+    ? Number(report.finalThirdOverloads.A.bucketsWithOverload ?? 0) / Number(report.finalThirdOverloads.A.totalBuckets)
+    : 0
+  const overloadShareB = Number(report.finalThirdOverloads.B.totalBuckets ?? 0) > 0
+    ? Number(report.finalThirdOverloads.B.bucketsWithOverload ?? 0) / Number(report.finalThirdOverloads.B.totalBuckets)
+    : 0
+  const overloadShare = (overloadShareA + overloadShareB) / 2
+  const dangerMarkingSamples = Number(report.dangerMarking?.byTeam?.A?.samples ?? 0) + Number(report.dangerMarking?.byTeam?.B?.samples ?? 0)
+  const dangerMarkedPct = dangerMarkingSamples > 0
+    ? ((Number(report.dangerMarking.byTeam.A.marked ?? 0) + Number(report.dangerMarking.byTeam.B.marked ?? 0)) / dangerMarkingSamples) * 100
+    : 100
+  const shotBoxDefenseShots = Number(report.shotBoxDefense?.shots ?? 0)
+  const shotBoxEmptyRate = shotBoxDefenseShots > 0
+    ? Number(report.shotBoxDefense.emptyBoxShots ?? 0) / shotBoxDefenseShots
+    : 0
+  const shotCorridorDefenders = shotBoxDefenseShots > 0
+    ? Number(report.shotBoxDefense.avgDefendersInCorridor ?? 0)
+    : 1.5
+  const patternTempoValues = Object.values(report.patternTempo || {})
+  const avgPatternTouches = patternTempoValues.length
+    ? patternTempoValues.reduce((sum, entry) => sum + Number(entry.avgTouches ?? 0), 0) / patternTempoValues.length
+    : 0
+  const forcedShotShare = Number(report.shotDecisionSummary.total ?? 0) > 0
+    ? Number(report.shotDecisionSummary.forcedShots ?? 0) / Number(report.shotDecisionSummary.total)
+    : 0
+  const longRangeSot = Number(report.eventStream.longRangeOnTargetCount ?? 0)
+  const attackerBackpasses = Number(report.passDecisionSummary.attackerBackpassesInFinalThird ?? 0)
+  const zigzagFlips = Number(report.movement.totalLateralFlips ?? 0)
+
+  const baselineFit = {
+    score: weightedScore([
+      { label: 'goals', score: scoreRange(goals, 2.8, 2.2), weight: 0.22 },
+      { label: 'shots', score: scoreRange(shots, 26, 9), weight: 0.22 },
+      { label: 'shotsOnTarget', score: scoreRange(sot, 9.5, 5.5), weight: 0.24 },
+      { label: 'longRangeSot', score: scoreMax(longRangeSot, 4), weight: 0.16 },
+      { label: 'corners', score: scoreRange(corners, 8, 6), weight: 0.16 },
+    ]),
+    inputs: { goals, shots, shotsOnTarget: sot, longRangeSot, corners },
+    target: 'one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3',
+  }
+
+  const soccerStructure = {
+    score: weightedScore([
+      { label: 'teamWidthA', score: scoreMin(widthA, 18), weight: 0.17 },
+      { label: 'teamWidthB', score: scoreMin(widthB, 18), weight: 0.17 },
+      { label: 'centerAndNarrow', score: scoreMax(centerNarrowWorst, 35), weight: 0.18 },
+      { label: 'overloads', score: scoreMin(overloadShare, 0.25), weight: 0.14 },
+      { label: 'dangerMarking', score: scoreMin(dangerMarkedPct, 78), weight: 0.12 },
+      { label: 'shotBoxDefense', score: Math.min(scoreMin(shotCorridorDefenders, 1.2), scoreMax(shotBoxEmptyRate, 0.35)), weight: 0.10 },
+      { label: 'patternTouches', score: scoreMin(avgPatternTouches, 2.0), weight: 0.14 },
+      { label: 'realCrosses', score: scoreMin(Number(report.patternCrosses.total ?? 0), 5), weight: 0.10 },
+    ]),
+    inputs: {
+      widthA,
+      widthB,
+      centerAndNarrowWorst: centerNarrowWorst,
+      finalThirdOverloadShare: round(overloadShare * 100, 1),
+      dangerMarkedPct: round(dangerMarkedPct, 1),
+      shotCorridorDefenders: round(shotCorridorDefenders, 2),
+      emptyBoxShotPct: round(shotBoxEmptyRate * 100, 1),
+      avgPatternTouches: round(avgPatternTouches, 2),
+      realCrosses: Number(report.patternCrosses.total ?? 0),
+    },
+    target: 'soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5',
+  }
+
+  const tuningEfficiency = {
+    score: weightedScore([
+      { label: 'forcedShotShare', score: scoreMax(forcedShotShare, 0.55), weight: 0.25 },
+      { label: 'attackerBackpasses', score: scoreMax(attackerBackpasses, 18), weight: 0.24 },
+      { label: 'zigzagFlips', score: scoreMax(zigzagFlips, 90), weight: 0.18 },
+      { label: 'directBlockerPasses', score: scoreMax(Number(report.passDecisionSummary.directBlockerPassDecisions ?? 0), 70), weight: 0.18 },
+      { label: 'brokenShotRows', score: scoreMax(Number(report.shotDecisionSummary.aiSimpleBrokenPct ?? 0), 10), weight: 0.15 },
+    ]),
+    inputs: {
+      forcedShotSharePct: round(forcedShotShare * 100, 1),
+      attackerBackpasses,
+      zigzagFlips,
+      directBlockerPasses: Number(report.passDecisionSummary.directBlockerPassDecisions ?? 0),
+      brokenShotRowsPct: Number(report.shotDecisionSummary.aiSimpleBrokenPct ?? 0),
+    },
+    target: 'low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%',
+  }
+
+  const kpis = {
+    baselineFit: { ...baselineFit, grade: gradeKpi(baselineFit.score) },
+    soccerStructure: { ...soccerStructure, grade: gradeKpi(soccerStructure.score) },
+    tuningEfficiency: { ...tuningEfficiency, grade: gradeKpi(tuningEfficiency.score) },
+  }
+  const scores = Object.values(kpis).map((entry) => Number(entry.score ?? 0))
+  kpis.overall = {
+    score: scores.length ? round(scores.reduce((sum, score) => sum + score, 0) / scores.length, 1) : 0,
+  }
+  kpis.overall.grade = gradeKpi(kpis.overall.score)
+  return kpis
+}
+
 function buildRecommendations(report) {
   const recommendations = []
   const worstBackpassRate = Math.max(report.passProfile.A.backwardPct, report.passProfile.B.backwardPct)
@@ -1322,6 +1851,13 @@ function buildRecommendations(report) {
   const brokenAiSimpleRows = report.shotDecisionSummary.aiSimpleBrokenRows ?? 0
   const forcedBrokenAiSimpleRows = report.shotDecisionSummary.forcedAiSimpleBrokenRows ?? 0
   const brokenAiSimplePct = report.shotDecisionSummary.aiSimpleBrokenPct ?? 0
+  const dangerMarkedWorst = Math.min(
+    report.dangerMarking?.byTeam?.A?.samples ? report.dangerMarking.byTeam.A.markedPct : 100,
+    report.dangerMarking?.byTeam?.B?.samples ? report.dangerMarking.byTeam.B.markedPct : 100,
+  )
+  const emptyShotBoxRate = report.shotBoxDefense?.shots
+    ? report.shotBoxDefense.emptyBoxShots / report.shotBoxDefense.shots
+    : 0
 
   if (forcedBrokenAiSimpleRows >= 3 || brokenAiSimplePct >= 20) {
     recommendations.push('AI_SIMPLE shot decisions are still collapsing into zeroed/null evaluation rows. Separate computed shot/pass values from forced overrides and block forced shots when the real evaluation is missing.')
@@ -1337,6 +1873,12 @@ function buildRecommendations(report) {
   }
   if (centerAndNarrowWorst > 30 || report.shape.A.avgWidth < 18 || report.shape.B.avgWidth < 18) {
     recommendations.push('Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.')
+  }
+  if (dangerMarkedWorst < 70) {
+    recommendations.push('Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.')
+  }
+  if (report.shotBoxDefense?.shots >= 3 && emptyShotBoxRate > 0.25) {
+    recommendations.push('Too many shots are arriving with an empty defensive box. Keep one presser, but pull two non-pressing defenders into the goal corridor when the carrier reaches shooting range.')
   }
   if ((report.roleCentrality.A.wideShotShareVsCentral ?? 0) < 0.2 || (report.roleCentrality.B.wideShotShareVsCentral ?? 0) < 0.2) {
     recommendations.push('Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.')
@@ -1360,38 +1902,56 @@ function buildRecommendations(report) {
   return recommendations
 }
 
+function isGhostBundleRow(row) {
+  if (!row?.bundle_json) return false
+  try {
+    const bundle = JSON.parse(row.bundle_json)
+    if (bundle?.sessionActive === false) return true
+    const teamA = String(row.team_a_name || bundle?.teamA?.name || '')
+    const teamB = String(row.team_b_name || bundle?.teamB?.name || '')
+    const phase = String(row.phase || bundle?.phase || '')
+    const matchId = String(bundle?.matchId || bundle?.metadata?.matchId || '').trim()
+    return teamA === 'Inter Miami' && teamB === 'LA Galaxy' && phase === 'FULL_TIME' && !matchId
+  } catch {
+    return false
+  }
+}
+
 function findBundleRow(db, options) {
   if (options.sessionId) {
-    return db.prepare(`
-      SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+    const row = db.prepare(`
+      SELECT session_id, timestamp, team_a_name, team_b_name, phase, bundle_json
       FROM match_results
       WHERE session_id = ?
       LIMIT 1
     `).get(options.sessionId)
+    return row && !isGhostBundleRow(row) ? row : null
   }
 
   if (options.homeTeam && options.awayTeam) {
     const home = normalizeTeamName(options.homeTeam).toLowerCase()
     const away = normalizeTeamName(options.awayTeam).toLowerCase()
     const rows = db.prepare(`
-      SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+      SELECT session_id, timestamp, team_a_name, team_b_name, phase, bundle_json
       FROM match_results
       ORDER BY timestamp DESC
       LIMIT 250
     `).all()
     return rows.find((row) => {
+      if (isGhostBundleRow(row)) return false
       const a = normalizeTeamName(row.team_a_name).toLowerCase()
       const b = normalizeTeamName(row.team_b_name).toLowerCase()
       return (a === home && b === away) || (a === away && b === home)
     }) || null
   }
 
-  return db.prepare(`
-    SELECT session_id, timestamp, team_a_name, team_b_name, bundle_json
+  const latestRows = db.prepare(`
+    SELECT session_id, timestamp, team_a_name, team_b_name, phase, bundle_json
     FROM match_results
     ORDER BY timestamp DESC
-    LIMIT 1
-  `).get()
+    LIMIT 250
+  `).all()
+  return latestRows.find((row) => !isGhostBundleRow(row)) || null
 }
 
 function writeReportFile(reportJson, reportMd, report, markdown) {
@@ -1401,6 +1961,79 @@ function writeReportFile(reportJson, reportMd, report, markdown) {
   fs.mkdirSync(path.dirname(outMd), { recursive: true })
   fs.writeFileSync(outJson, JSON.stringify(report, null, 2))
   fs.writeFileSync(outMd, markdown)
+}
+
+function buildBundleFromHeadlessResult(report, result, index) {
+  const tuning = result?.tuning && typeof result.tuning === 'object' ? result.tuning : {}
+  const metadata = tuning.metadata || {}
+  return {
+    ...tuning,
+    matchId: metadata.matchId || `headless-${path.basename(report.__sourcePath || 'sim-report')}-${index}`,
+    sessionActive: true,
+    teamA: {
+      name: result.teamA,
+      score: result.scoreA ?? 0,
+      shots: result.shotsA ?? 0,
+      shotsOnTarget: result.sogA ?? 0,
+      saves: result.savesA ?? 0,
+      passes: result.passesA ?? 0,
+      passCompletions: result.passCompA ?? 0,
+      tackles: result.tacklesA ?? 0,
+      clearances: result.clearancesA ?? 0,
+      fouls: result.foulsA ?? 0,
+      corners: result.cornersA ?? 0,
+      possession: result.possA ?? 0,
+      roles: tuning.roleStatsA || {},
+    },
+    teamB: {
+      name: result.teamB,
+      score: result.scoreB ?? 0,
+      shots: result.shotsB ?? 0,
+      shotsOnTarget: result.sogB ?? 0,
+      saves: result.savesB ?? 0,
+      passes: result.passesB ?? 0,
+      passCompletions: result.passCompB ?? 0,
+      tackles: result.tacklesB ?? 0,
+      clearances: result.clearancesB ?? 0,
+      fouls: result.foulsB ?? 0,
+      corners: result.cornersB ?? 0,
+      possession: result.possB ?? 0,
+      roles: tuning.roleStatsB || {},
+    },
+    goalLog: Array.isArray(tuning.goalLog) ? tuning.goalLog : (Array.isArray(result.goals) ? result.goals : []),
+    passLog: Array.isArray(tuning.passLog) ? tuning.passLog : [],
+    shotDecisions: Array.isArray(tuning.shotDecisions) ? tuning.shotDecisions : [],
+    passDecisions: Array.isArray(tuning.passDecisions) ? tuning.passDecisions : [],
+  }
+}
+
+function loadBundleRowFromFile(filePath, resultIndex) {
+  const resolved = path.resolve(process.cwd(), filePath)
+  const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'))
+  parsed.__sourcePath = resolved
+  if (Array.isArray(parsed.results)) {
+    const index = Number.isInteger(resultIndex) && resultIndex >= 0
+      ? resultIndex
+      : parsed.results.length - 1
+    const result = parsed.results[index]
+    if (!result) throw new Error(`No result at index ${index} in ${resolved}`)
+    const bundle = buildBundleFromHeadlessResult(parsed, result, index)
+    return {
+      session_id: result.sessionId || `headless-report:${path.basename(resolved)}:${index}`,
+      timestamp: bundle.metadata?.timestamp || Date.parse(parsed.generatedAt || '') || Date.now(),
+      team_a_name: result.teamA || bundle.metadata?.teamAName || 'Team A',
+      team_b_name: result.teamB || bundle.metadata?.teamBName || 'Team B',
+      bundle_json: JSON.stringify(bundle),
+    }
+  }
+  const bundle = parsed.bundle || parsed
+  return {
+    session_id: bundle.metadata?.sessionId || bundle.matchId || `bundle-file:${path.basename(resolved)}`,
+    timestamp: bundle.metadata?.timestamp || Date.now(),
+    team_a_name: bundle.teamA?.name || bundle.metadata?.teamAName || 'Team A',
+    team_b_name: bundle.teamB?.name || bundle.metadata?.teamBName || 'Team B',
+    bundle_json: JSON.stringify(bundle),
+  }
 }
 
 function formatEventBullet(event) {
@@ -1428,6 +2061,15 @@ function buildMarkdownReport(report) {
     `- Timestamp: ${new Date(report.match.timestamp).toISOString()}`,
     `- Shots: ${report.match.shotsA}-${report.match.shotsB}`,
     `- Shots on target: ${report.match.shotsOnTargetA}-${report.match.shotsOnTargetB}`,
+    ``,
+    `## Tuning KPIs`,
+    `- Overall: ${report.kpis.overall.score} (${report.kpis.overall.grade})`,
+    `- Baseline Fit: ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) — ${report.kpis.baselineFit.target}`,
+    `  - Inputs: goals ${report.kpis.baselineFit.inputs.goals}, shots ${report.kpis.baselineFit.inputs.shots}, SOT ${report.kpis.baselineFit.inputs.shotsOnTarget}, long-range SOT ${report.kpis.baselineFit.inputs.longRangeSot}, corners ${report.kpis.baselineFit.inputs.corners}`,
+    `- Soccer Structure: ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) — ${report.kpis.soccerStructure.target}`,
+    `  - Inputs: width ${report.kpis.soccerStructure.inputs.widthA}/${report.kpis.soccerStructure.inputs.widthB}, center+narrow worst ${report.kpis.soccerStructure.inputs.centerAndNarrowWorst}%, overload share ${report.kpis.soccerStructure.inputs.finalThirdOverloadShare}%, danger marked ${report.kpis.soccerStructure.inputs.dangerMarkedPct}%, shot corridor defenders ${report.kpis.soccerStructure.inputs.shotCorridorDefenders}, empty-box shots ${report.kpis.soccerStructure.inputs.emptyBoxShotPct}%, pattern touches ${report.kpis.soccerStructure.inputs.avgPatternTouches}, real crosses ${report.kpis.soccerStructure.inputs.realCrosses}`,
+    `- Tuning Efficiency: ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade}) — ${report.kpis.tuningEfficiency.target}`,
+    `  - Inputs: forced shots ${report.kpis.tuningEfficiency.inputs.forcedShotSharePct}%, final-third backpasses ${report.kpis.tuningEfficiency.inputs.attackerBackpasses}, zigzag flips ${report.kpis.tuningEfficiency.inputs.zigzagFlips}, direct-blocker passes ${report.kpis.tuningEfficiency.inputs.directBlockerPasses}, broken shot rows ${report.kpis.tuningEfficiency.inputs.brokenShotRowsPct}%`,
     ``,
     `## MLS Baseline Comparison`,
     `- Total goals: ${global.totalGoals.simulated} vs ${global.totalGoals.baseline} baseline (drift ${global.totalGoals.drift})`,
@@ -1478,6 +2120,11 @@ function buildMarkdownReport(report) {
     `- ${teamB} wide touches vs central touches: ${report.roleCentrality.B.wideTouches} vs ${report.roleCentrality.B.centralTouches}`,
     `- ${teamA} wide shots vs central shots: ${report.roleCentrality.A.wideShots} vs ${report.roleCentrality.A.centralShots}`,
     `- ${teamB} wide shots vs central shots: ${report.roleCentrality.B.wideShots} vs ${report.roleCentrality.B.centralShots}`,
+    `- Position owner samples: ${report.positionOwners.samples}`,
+    `- ${teamA} owner mix: ${Object.entries(report.positionOwners.byTeam.A).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'}`,
+    `- ${teamB} owner mix: ${Object.entries(report.positionOwners.byTeam.B).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'}`,
+    `- ${teamA} wide owner avg |z| ${report.positionOwners.wide.A.avgAbsZ}, target |z| ${report.positionOwners.wide.A.avgTargetAbsZ}: ${Object.entries(report.positionOwners.wide.A.byOwner).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'}`,
+    `- ${teamB} wide owner avg |z| ${report.positionOwners.wide.B.avgAbsZ}, target |z| ${report.positionOwners.wide.B.avgTargetAbsZ}: ${Object.entries(report.positionOwners.wide.B.byOwner).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'}`,
     ``,
     `## Phase Time Distribution`,
     `- ${teamA}: buildup ${report.phaseTime.A.buildupPct}% | progression ${report.phaseTime.A.progressionPct}% | chance ${report.phaseTime.A.chanceCreationPct}% | finish ${report.phaseTime.A.finishPct}% (${report.phaseTime.A.samples} samples)`,
@@ -1496,6 +2143,12 @@ function buildMarkdownReport(report) {
         })
       : ['(no pattern tempo data)']),
     ``,
+    `## Neo-Play Effectiveness`,
+    `- Starts: ${report.neoPlays.totalStarts}; deliveries: ${report.neoPlays.totalDeliveries}; shot-producing deliveries: ${report.neoPlays.totalShotCreatingDeliveries} (${report.neoPlays.effectivenessPct}%); goal-producing deliveries: ${report.neoPlays.totalGoalCreatingDeliveries} (${report.neoPlays.goalRatePct}%)`,
+    ...(Object.values(report.neoPlays.byPlay || {}).length
+      ? Object.values(report.neoPlays.byPlay).map((v) => `- ${v.playName}: starts ${v.starts}, deliveries ${v.deliveries}, crosses ${v.crosses}, effective ${v.shotCreatingDeliveries}/${v.deliveries} (${v.effectivenessPct}%), goals ${v.goalCreatingDeliveries}/${v.deliveries} (${v.goalRatePct}%)`)
+      : ['(no neo-play delivery data)']),
+    ``,
     `## Defenders In Box At Goal (defensive presence)`,
     `- Goals: ${report.defendersInBoxAtGoal.goalCount}, avg ${report.defendersInBoxAtGoal.avgDefendersInBox} defenders + ${report.defendersInBoxAtGoal.avgAttackersInBox} attackers in box at moment of goal`,
     `- Distribution: ${Object.entries(report.defendersInBoxAtGoal.distribution).sort((a, b) => Number(a[0]) - Number(b[0])).map(([n, c]) => `${n} defenders: ${c} goals`).join(', ') || '(none)'}`,
@@ -1503,9 +2156,31 @@ function buildMarkdownReport(report) {
       ? [`- Samples:`, ...report.defendersInBoxAtGoal.samples.map((s) => `  - ${s.team} ${s.scorer} #${s.shirt} @ ${s.minute}': ${s.defendersInBox} defenders, ${s.attackersInBox} attackers (${s.playPattern}${s.isBreakaway ? ', breakaway' : ''})`)]
       : []),
     ``,
+    `## Shot Box Defense`,
+    `- Shots sampled: ${report.shotBoxDefense.shots}`,
+    `- Avg defenders in box: ${report.shotBoxDefense.avgDefendersInBox}`,
+    `- Avg defenders in goal corridor: ${report.shotBoxDefense.avgDefendersInCorridor}`,
+    `- Empty-box shots: ${report.shotBoxDefense.emptyBoxShots}`,
+    `- Empty-corridor shots: ${report.shotBoxDefense.emptyCorridorShots}`,
+    ...(report.shotBoxDefense.samples.length > 0
+      ? [`- Samples:`, ...report.shotBoxDefense.samples.map((s) => `  - Team ${s.team} ${s.shooter} ${s.shooterRole} @ ${s.t}s: ${s.defendersInBox} box, ${s.defendersInCorridor} corridor defenders`)]
+      : []),
+    ``,
     `## Final-Third Overloads (attacking commitment)`,
     `- ${teamA}: ${report.finalThirdOverloads.A.bucketsWithOverload}/${report.finalThirdOverloads.A.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.A.maxAttackersInBucket})`,
     `- ${teamB}: ${report.finalThirdOverloads.B.bucketsWithOverload}/${report.finalThirdOverloads.B.totalBuckets} 1s-windows had 3+ attackers in opp final third (max ${report.finalThirdOverloads.B.maxAttackersInBucket})`,
+    ``,
+    `## Danger-Zone Marking`,
+    `- Samples: ${report.dangerMarking.samples}`,
+    `- ${teamA} attackers marked: ${report.dangerMarking.byTeam.A.marked}/${report.dangerMarking.byTeam.A.samples} (${report.dangerMarking.byTeam.A.markedPct}%), avg nearest defender ${report.dangerMarking.byTeam.A.avgNearestDefenderDist}`,
+    `- ${teamB} attackers marked: ${report.dangerMarking.byTeam.B.marked}/${report.dangerMarking.byTeam.B.samples} (${report.dangerMarking.byTeam.B.markedPct}%), avg nearest defender ${report.dangerMarking.byTeam.B.avgNearestDefenderDist}`,
+    ...(report.dangerMarking.byTeam.A.worstSamples.length + report.dangerMarking.byTeam.B.worstSamples.length > 0
+      ? [
+          `- Worst unmarked samples:`,
+          ...report.dangerMarking.byTeam.A.worstSamples.slice(0, 3).map((s) => `  - ${teamA} ${s.player} ${s.role} @ ${s.t}s: nearest defender ${s.nearestDefenderDist}, ${s.distToGoal}u from goal (${s.patternRole})`),
+          ...report.dangerMarking.byTeam.B.worstSamples.slice(0, 3).map((s) => `  - ${teamB} ${s.player} ${s.role} @ ${s.t}s: nearest defender ${s.nearestDefenderDist}, ${s.distToGoal}u from goal (${s.patternRole})`),
+        ]
+      : []),
     ``,
     `## Multi-Touch Opp-Half Sequences (build-up quality)`,
     `- Sequences with 2+ distinct players touching ball in opp half: ${report.multiTouchOppHalf.multiTouchOppHalfCount} of ${report.multiTouchOppHalf.totalSequences}`,
@@ -1513,6 +2188,20 @@ function buildMarkdownReport(report) {
     `- Avg distinct players per possession: ${report.multiTouchOppHalf.avgDistinctPlayersPerSequence}`,
     ...(report.multiTouchOppHalf.exampleSequences.length > 0
       ? [`- Examples:`, ...report.multiTouchOppHalf.exampleSequences.map((ex) => `  - Team ${ex.team} @ ${ex.firstTouchAt?.toFixed(1)}s: ${ex.touchCount} touches by ${ex.players.join(' → ')}`)]
+      : []),
+    ``,
+    `## Kickoff Receiver / Goal Correlation`,
+    `- Kickoff passes recorded: ${report.kickoffGoalCorrelation.kickoffPasses}; kickoff receives recorded: ${report.kickoffGoalCorrelation.kickoffReceives}; scorer events: ${report.kickoffGoalCorrelation.goalScorerEvents}`,
+    `- ${teamA}: ${report.kickoffGoalCorrelation.byTeam.A.sameAsLatestKickoffReceiverGoals}/${report.kickoffGoalCorrelation.byTeam.A.goals} goals scored by latest kickoff receiver (${report.kickoffGoalCorrelation.byTeam.A.sameAsLatestKickoffReceiverPct}%)`,
+    `- ${teamB}: ${report.kickoffGoalCorrelation.byTeam.B.sameAsLatestKickoffReceiverGoals}/${report.kickoffGoalCorrelation.byTeam.B.goals} goals scored by latest kickoff receiver (${report.kickoffGoalCorrelation.byTeam.B.sameAsLatestKickoffReceiverPct}%)`,
+    `- ${teamA} kickoff receivers: ${report.kickoffGoalCorrelation.byTeam.A.receivers.map((r) => `${r.player} ${r.role || ''} recv:${r.actualReceives} intended:${r.intendedTargets} goals:${r.goalsAfterLatestKickoffReceive}`).join(' | ') || '(none)'}`,
+    `- ${teamB} kickoff receivers: ${report.kickoffGoalCorrelation.byTeam.B.receivers.map((r) => `${r.player} ${r.role || ''} recv:${r.actualReceives} intended:${r.intendedTargets} goals:${r.goalsAfterLatestKickoffReceive}`).join(' | ') || '(none)'}`,
+    ...(report.kickoffGoalCorrelation.byTeam.A.samples.length + report.kickoffGoalCorrelation.byTeam.B.samples.length > 0
+      ? [
+          `- Samples:`,
+          ...report.kickoffGoalCorrelation.byTeam.A.samples.map((s) => `  - ${teamA} goal ${s.scorer} @ ${s.minute ?? '?'}': latest kickoff receiver ${s.kickoffReceiver}, same=${s.samePlayer}, ${s.secondsToGoal}s later`),
+          ...report.kickoffGoalCorrelation.byTeam.B.samples.map((s) => `  - ${teamB} goal ${s.scorer} @ ${s.minute ?? '?'}': latest kickoff receiver ${s.kickoffReceiver}, same=${s.samePlayer}, ${s.secondsToGoal}s later`),
+        ]
       : []),
     ``,
     `## Pattern Engine (Phase 2.5)`,
@@ -1585,10 +2274,14 @@ function printSummary(report) {
 
   const mid = report.match.matchId ? ` [${report.match.matchId}]` : ''
   console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB}${mid} | session ${report.match.sessionId}`)
+  console.log(`Tuning KPIs | overall ${report.kpis.overall.score} (${report.kpis.overall.grade}) | baseline ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) | structure ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) | efficiency ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade})`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
   console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
   console.log(`Heat map | ${teamA} width ${report.shape.A.avgWidth}, center+narrow ${report.shape.A.centerAndNarrowPct}% | ${teamB} width ${report.shape.B.avgWidth}, center+narrow ${report.shape.B.centerAndNarrowPct}%`)
+  const ownerFmt = (team) => Object.entries(report.positionOwners.byTeam[team]).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'
+  console.log(`Position owners | samples ${report.positionOwners.samples} | A ${ownerFmt('A')} | B ${ownerFmt('B')}`)
+  console.log(`Wide owner targets | A avg |z| ${report.positionOwners.wide.A.avgAbsZ} target ${report.positionOwners.wide.A.avgTargetAbsZ} | B avg |z| ${report.positionOwners.wide.B.avgAbsZ} target ${report.positionOwners.wide.B.avgTargetAbsZ}`)
   console.log(`Event stream | long-range on-target ${report.eventStream.longRangeOnTargetCount} | bad-angle close shots ${report.eventStream.closeRangeBadAngleCount} | toe pokes on target ${report.eventStream.toePokesOnTargetCount}`)
   const ptA = report.phaseTime.A
   const ptB = report.phaseTime.B
@@ -1660,13 +2353,26 @@ function printSummary(report) {
   }
   const mt = report.multiTouchOppHalf
   console.log(`Multi-touch opp-half sequences | ${mt.multiTouchOppHalfCount} of ${mt.totalSequences} possessions (${mt.totalOppHalfTouches} opp-half touches total, avg ${mt.avgDistinctPlayersPerSequence} distinct players/possession)`)
+  const ko = report.kickoffGoalCorrelation
+  console.log(`Kickoff receiver correlation | passes ${ko.kickoffPasses}, receives ${ko.kickoffReceives}, scorer events ${ko.goalScorerEvents}`)
+  const koFmt = (team) => {
+    const row = ko.byTeam[team]
+    const receivers = row.receivers.slice(0, 4).map((r) => `${r.player}:${r.actualReceives} recv/${r.intendedTargets} target/${r.goalsAfterLatestKickoffReceive} goals`).join(' | ') || '(none)'
+    return `${row.sameAsLatestKickoffReceiverGoals}/${row.goals} goals same as latest KO receiver (${row.sameAsLatestKickoffReceiverPct}%) | ${receivers}`
+  }
+  console.log(`  A ${koFmt('A')}`)
+  console.log(`  B ${koFmt('B')}`)
   const ft = report.finalThirdOverloads
   console.log(`Final-third overloads (>=3 attackers, 1s windows) | A: ${ft.A.bucketsWithOverload}/${ft.A.totalBuckets} (max ${ft.A.maxAttackersInBucket}) | B: ${ft.B.bucketsWithOverload}/${ft.B.totalBuckets} (max ${ft.B.maxAttackersInBucket})`)
+  const dm = report.dangerMarking
+  console.log(`Danger marking | samples ${dm.samples} | A ${dm.byTeam.A.marked}/${dm.byTeam.A.samples} marked (${dm.byTeam.A.markedPct}%, avg ${dm.byTeam.A.avgNearestDefenderDist}u) | B ${dm.byTeam.B.marked}/${dm.byTeam.B.samples} marked (${dm.byTeam.B.markedPct}%, avg ${dm.byTeam.B.avgNearestDefenderDist}u)`)
   const db = report.defendersInBoxAtGoal
   if (db.goalCount > 0) {
     const dist = Object.entries(db.distribution).sort((a, b) => Number(a[0]) - Number(b[0])).map(([n, c]) => `${n}d:${c}`).join(' ')
     console.log(`Defenders in box at goal | ${db.goalCount} goals, avg ${db.avgDefendersInBox} defenders + ${db.avgAttackersInBox} attackers | dist ${dist}`)
   }
+  const sbd = report.shotBoxDefense
+  console.log(`Shot box defense | shots ${sbd.shots} | avg box defenders ${sbd.avgDefendersInBox} | avg corridor defenders ${sbd.avgDefendersInCorridor} | empty box ${sbd.emptyBoxShots} | empty corridor ${sbd.emptyCorridorShots}`)
   if (report.patternTempo) {
     console.log('Pattern tempo (realism fit):')
     for (const [type, v] of Object.entries(report.patternTempo)) {
@@ -1680,6 +2386,12 @@ function printSummary(report) {
     console.log(`Pattern delivery/cross | ${report.patternCrosses.deliveries} deliveries, ${report.patternCrosses.total} real crosses (L:${report.patternCrosses.longLofted} D:${report.patternCrosses.driven})`)
     for (const e of report.patternCrosses.samples) {
       console.log(`  ${e.team} ${e.passer} -> ${e.target} (${e.targetRole}, ${e.style}, ${e.crossDist}u)`)
+    }
+  }
+  if (report.neoPlays) {
+    console.log(`Neo-play effectiveness | starts ${report.neoPlays.totalStarts} | deliveries ${report.neoPlays.totalDeliveries} | shot-producing ${report.neoPlays.totalShotCreatingDeliveries} (${report.neoPlays.effectivenessPct}%) | goal-producing ${report.neoPlays.totalGoalCreatingDeliveries} (${report.neoPlays.goalRatePct}%)`)
+    for (const row of Object.values(report.neoPlays.byPlay || {})) {
+      console.log(`  ${row.playName}: starts=${row.starts} deliveries=${row.deliveries} crosses=${row.crosses} effective=${row.shotCreatingDeliveries}/${row.deliveries} (${row.effectivenessPct}%) goals=${row.goalCreatingDeliveries}/${row.deliveries} (${row.goalRatePct}%)`)
     }
   }
   if (mt.exampleSequences.length > 0) {
@@ -1698,9 +2410,14 @@ function printSummary(report) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2))
-  const dbPath = path.resolve(process.cwd(), 'psl.db')
-  const db = new Database(dbPath, { readonly: true })
-  const row = findBundleRow(db, options)
+  let db = null
+  const row = options.bundleJson
+    ? loadBundleRowFromFile(options.bundleJson, options.resultIndex)
+    : (() => {
+        const dbPath = path.resolve(process.cwd(), 'psl.db')
+        db = new Database(dbPath, { readonly: true })
+        return findBundleRow(db, options)
+      })()
   if (!row) {
     throw new Error('No matching telemetry bundle found.')
   }
@@ -1733,6 +2450,10 @@ function main() {
       midfieldSupport: countByType(events, 'MIDFIELD_SUPPORT'),
       carrierTraces: countByType(events, 'CARRIER_TRACE'),
       attackerZoneTraces: countByType(events, 'ATTACKER_ZONE_TRACE'),
+      positionOwnerSamples: countByType(events, 'POSITION_OWNER_SAMPLE'),
+      kickoffPasses: countByType(events, 'KICKOFF_PASS'),
+      kickoffReceives: countByType(events, 'KICKOFF_RECEIVED'),
+      goalScorerEvents: countByType(events, 'GOAL_SCORER'),
       shotSnapshots: countByType(events, 'SHOT_POSITION_SNAPSHOT'),
       shotOnTargetSnapshots: countByType(events, 'SHOT_ON_TARGET_POSITION_SNAPSHOT'),
       shotDecisions: shotDecisions.length,
@@ -1759,6 +2480,7 @@ function main() {
       A: summarizeRoleCentrality(bundle.teamA),
       B: summarizeRoleCentrality(bundle.teamB),
     },
+    positionOwners: summarizePositionOwners(events),
     eventStream: summarizeEventStream(events, passLog),
     baselines: compareToBaselines(bundle, row.team_a_name, row.team_b_name),
     phaseTime: summarizePhaseTime(events),
@@ -1769,8 +2491,12 @@ function main() {
     carrierTrajectories: summaryCarrierTrajectories(events),
     multiTouchOppHalf: summarizeMultiTouchOppHalfSequences(events),
     finalThirdOverloads: summarizeFinalThirdOverloads(events),
+    dangerMarking: summarizeDangerMarking(events),
     defendersInBoxAtGoal: summarizeDefendersInBoxAtGoal(bundle),
+    shotBoxDefense: summarizeShotBoxDefense(events),
+    kickoffGoalCorrelation: summarizeKickoffGoalCorrelation(events),
     patternTempo: summarizePatternTempo(events),
+    neoPlays: summarizeNeoPlayEffectiveness(events),
     patternCrosses: (() => {
       const crossEvents = events.filter((e) => e.type === 'PATTERN_CROSS_EXECUTED')
       const deliveryEvents = events.filter((e) => e.type === 'PATTERN_DELIVERY_EXECUTED' || e.type === 'PATTERN_CROSS_EXECUTED')
@@ -1787,6 +2513,7 @@ function main() {
     })(),
   }
 
+  report.kpis = summarizeKpis(report)
   report.recommendations = buildRecommendations(report)
   const markdown = buildMarkdownReport(report)
 
