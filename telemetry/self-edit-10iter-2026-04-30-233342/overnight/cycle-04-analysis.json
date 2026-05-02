@@ -1,0 +1,2258 @@
+{
+  "generatedAt": "2026-05-01T03:55:44.251Z",
+  "match": {
+    "sessionId": "headless-report:cycle-04-sim.json:0",
+    "matchId": "headless-cycle-04-sim.json-0",
+    "timestamp": 1777607737751,
+    "teamA": "Houston Dynamo",
+    "teamB": "New York City FC",
+    "score": "0-0",
+    "shotsA": 1,
+    "shotsB": 2,
+    "shotsOnTargetA": 1,
+    "shotsOnTargetB": 1
+  },
+  "counts": {
+    "events": 8826,
+    "passLog": 54,
+    "midfieldSupport": 2844,
+    "carrierTraces": 621,
+    "attackerZoneTraces": 370,
+    "positionOwnerSamples": 3768,
+    "kickoffPasses": 2,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "shotSnapshots": 3,
+    "shotOnTargetSnapshots": 2,
+    "shotDecisions": 3,
+    "passDecisions": 57,
+    "turnovers": 2,
+    "interceptions": 0,
+    "fouls": 6,
+    "tackles": 2
+  },
+  "passProfile": {
+    "A": {
+      "team": "Houston Dynamo",
+      "total": 27,
+      "avgProgress": -1.44,
+      "backwardPct": 51.9,
+      "forwardPct": 33.3,
+      "lateralPct": 14.8,
+      "topRoles": {
+        "ST": {
+          "total": 18,
+          "backward": 11,
+          "forward": 4,
+          "lateral": 3
+        },
+        "RM": {
+          "total": 3,
+          "backward": 2,
+          "forward": 1,
+          "lateral": 0
+        },
+        "LB": {
+          "total": 2,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        },
+        "CM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        },
+        "GK": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        },
+        "CB": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        }
+      }
+    },
+    "B": {
+      "team": "New York City FC",
+      "total": 27,
+      "avgProgress": -1.83,
+      "backwardPct": 48.1,
+      "forwardPct": 33.3,
+      "lateralPct": 18.5,
+      "topRoles": {
+        "ST": {
+          "total": 15,
+          "backward": 10,
+          "forward": 2,
+          "lateral": 3
+        },
+        "CM": {
+          "total": 5,
+          "backward": 1,
+          "forward": 2,
+          "lateral": 2
+        },
+        "RM": {
+          "total": 2,
+          "backward": 2,
+          "forward": 0,
+          "lateral": 0
+        },
+        "CB": {
+          "total": 2,
+          "backward": 0,
+          "forward": 2,
+          "lateral": 0
+        },
+        "GK": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        },
+        "RB": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 1,
+          "lateral": 0
+        }
+      }
+    }
+  },
+  "passDecisionSummary": {
+    "total": 57,
+    "attackerBackpassesInFinalThird": 10,
+    "attackerBackpassesInBox": 0,
+    "directBlockerPassDecisions": 0,
+    "topHoldReasons": {
+      "none": 17,
+      "reject_advanced_no_recycle": 14,
+      "striker_blocked_shot_escape": 11,
+      "carry_preferred": 11,
+      "reject_backpass_carry": 3,
+      "selected_shot": 1
+    },
+    "recentAttackerBackpasses": [
+      {
+        "timestamp": 1777607420458,
+        "team": "B",
+        "passer": "Alonso Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": -11.09,
+        "carrierZ": 3.24,
+        "passSkill": 0.7223522181286444,
+        "dribbleSkill": 0.8578109073829019,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 18.12,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0.16,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Maxi Moralez",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 9.3,
+        "forwardProg": -9,
+        "passNearestOppDist": 5.19,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607422896,
+        "team": "B",
+        "passer": "Alonso Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -12.53,
+        "carrierZ": 1.87,
+        "passSkill": 0.7223522181286444,
+        "dribbleSkill": 0.8578109073829019,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 16.53,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 5,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Maxi Moralez",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 6.2,
+        "forwardProg": -6.2,
+        "passNearestOppDist": 6.08,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607437864,
+        "team": "A",
+        "passer": "Duane Holmes",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 11.94,
+        "carrierZ": 3.1,
+        "passSkill": 0.6511544044468613,
+        "dribbleSkill": 0.8850031455043958,
+        "passLaneTraffic": 1,
+        "passFrontBlockerLateral": 22.7,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.26,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ezequiel Ponce",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 8.6,
+        "forwardProg": -2.1,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607439397,
+        "team": "A",
+        "passer": "Ezequiel Ponce",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 17.66,
+        "carrierZ": -3.2,
+        "passSkill": 0.6896466773977058,
+        "dribbleSkill": 0.8447826480537176,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": 8.06,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 11.79,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0.22,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 7,
+        "boxDecisionLoopCount": 7,
+        "boxDecisionLoopSeconds": 0.19,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.47,
+        "strikerHesitationLoops": 15,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Duane Holmes",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 5.6,
+        "forwardProg": -2.6,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": false,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607449146,
+        "team": "B",
+        "passer": "Alonso Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": false,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": -12.72,
+        "carrierZ": 4.04,
+        "passSkill": 0.7223522181286444,
+        "dribbleSkill": 0.8578109073829019,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 16.65,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Hannes Wolf",
+        "targetRole": "RM",
+        "passStyle": "BACK",
+        "passDist": 9.3,
+        "forwardProg": -9.3,
+        "passNearestOppDist": 3.46,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607459677,
+        "team": "A",
+        "passer": "Ezequiel Ponce",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 15.46,
+        "carrierZ": 3.49,
+        "passSkill": 0.6896466773977058,
+        "dribbleSkill": 0.8447826480537176,
+        "passLaneTraffic": 1,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 13.87,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.41,
+        "strikerHesitationLoops": 13,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Duane Holmes",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 5.8,
+        "forwardProg": -5.8,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607615118,
+        "team": "A",
+        "passer": "Ezequiel Ponce",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -11.41,
+        "carrierZ": -1.49,
+        "passSkill": 0.6896466773977058,
+        "dribbleSkill": 0.8447826480537176,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.62,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ondřej Lingr",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 10.1,
+        "forwardProg": -9.9,
+        "passNearestOppDist": 8.81,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607632086,
+        "team": "A",
+        "passer": "Duane Holmes",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -11.5,
+        "carrierZ": 0.72,
+        "passSkill": 0.6511544044468613,
+        "dribbleSkill": 0.8850031455043958,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.48,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ezequiel Ponce",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 2.9,
+        "forwardProg": -2.9,
+        "passNearestOppDist": 3.41,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "selected_shot",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777607632337,
+        "team": "A",
+        "passer": "Duane Holmes",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -12.63,
+        "carrierZ": 1.14,
+        "passSkill": 0.6511544044468613,
+        "dribbleSkill": 0.8850031455043958,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 1,
+        "nearestMidfieldSupportDist": 6.37,
+        "keeperDistToCarrier": 16.38,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ondřej Lingr",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 12.9,
+        "forwardProg": -5.1,
+        "passNearestOppDist": 8.42,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777607652493,
+        "team": "A",
+        "passer": "Duane Holmes",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -11.71,
+        "carrierZ": 0.84,
+        "passSkill": 0.6511544044468613,
+        "dribbleSkill": 0.8850031455043958,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.28,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ezequiel Ponce",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 2.3,
+        "forwardProg": -1.4,
+        "passNearestOppDist": 2.05,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      }
+    ]
+  },
+  "shotDecisionSummary": {
+    "total": 3,
+    "forcedShots": 0,
+    "selectedShots": 3,
+    "desperationShots": 0,
+    "goalLineForces": 0,
+    "longRangeDecisions": 2,
+    "pressuredLongRangeDecisions": 0,
+    "aiSimpleDecisions": 3,
+    "aiSimpleBrokenRows": 0,
+    "forcedAiSimpleBrokenRows": 0,
+    "aiSimpleBrokenPct": 0,
+    "recentForcedShots": []
+  },
+  "movement": {
+    "carrierTraceCount": 621,
+    "attackerZoneTraceCount": 370,
+    "carriersTracked": 15,
+    "totalForwardCarrySamples": 266,
+    "totalLateralFlips": 89,
+    "totalSwitchRequests": 73,
+    "totalBlockedSwitches": 73,
+    "totalCarryLockSamples": 452,
+    "avgForwardProgressPerFlip": 0.99,
+    "facingMovementMismatchPct": 14.6,
+    "desiredSteerMismatchPct": 8.5,
+    "topZigzagOffenders": [
+      {
+        "carrier": "Ezequiel Ponce",
+        "team": "A",
+        "role": "ST",
+        "traces": 149,
+        "forwardCarrySamples": 74,
+        "lateralFlips": 27,
+        "lateralFlipRate": 0.37,
+        "switchRequests": 12,
+        "blockedSwitches": 12,
+        "carryLockSamples": 146,
+        "avgForwardProgressPerFlip": 1.05,
+        "facingMovementMismatchPct": 9.2,
+        "desiredSteerMismatchPct": 4.1
+      },
+      {
+        "carrier": "Malachi Jones",
+        "team": "B",
+        "role": "ST",
+        "traces": 110,
+        "forwardCarrySamples": 52,
+        "lateralFlips": 18,
+        "lateralFlipRate": 0.35,
+        "switchRequests": 14,
+        "blockedSwitches": 14,
+        "carryLockSamples": 110,
+        "avgForwardProgressPerFlip": 0.97,
+        "facingMovementMismatchPct": 29.9,
+        "desiredSteerMismatchPct": 9.2
+      },
+      {
+        "carrier": "Hannes Wolf",
+        "team": "B",
+        "role": "RM",
+        "traces": 61,
+        "forwardCarrySamples": 35,
+        "lateralFlips": 11,
+        "lateralFlipRate": 0.32,
+        "switchRequests": 7,
+        "blockedSwitches": 7,
+        "carryLockSamples": 27,
+        "avgForwardProgressPerFlip": 0.74,
+        "facingMovementMismatchPct": 8.3,
+        "desiredSteerMismatchPct": 3.3
+      },
+      {
+        "carrier": "Alonso Martínez",
+        "team": "B",
+        "role": "ST",
+        "traces": 83,
+        "forwardCarrySamples": 27,
+        "lateralFlips": 10,
+        "lateralFlipRate": 0.38,
+        "switchRequests": 13,
+        "blockedSwitches": 13,
+        "carryLockSamples": 54,
+        "avgForwardProgressPerFlip": 1.07,
+        "facingMovementMismatchPct": 12.7,
+        "desiredSteerMismatchPct": 12.2
+      },
+      {
+        "carrier": "Duane Holmes",
+        "team": "A",
+        "role": "ST",
+        "traces": 62,
+        "forwardCarrySamples": 21,
+        "lateralFlips": 8,
+        "lateralFlipRate": 0.4,
+        "switchRequests": 9,
+        "blockedSwitches": 9,
+        "carryLockSamples": 62,
+        "avgForwardProgressPerFlip": 1.43,
+        "facingMovementMismatchPct": 14.8,
+        "desiredSteerMismatchPct": 14.8
+      },
+      {
+        "carrier": "Mitja Ilenič",
+        "team": "B",
+        "role": "RB",
+        "traces": 43,
+        "forwardCarrySamples": 16,
+        "lateralFlips": 7,
+        "lateralFlipRate": 0.47,
+        "switchRequests": 1,
+        "blockedSwitches": 1,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 1.24,
+        "facingMovementMismatchPct": 4.7,
+        "desiredSteerMismatchPct": 11.6
+      },
+      {
+        "carrier": "Nicolás Fernández",
+        "team": "B",
+        "role": "LM",
+        "traces": 13,
+        "forwardCarrySamples": 8,
+        "lateralFlips": 3,
+        "lateralFlipRate": 0.43,
+        "switchRequests": 1,
+        "blockedSwitches": 1,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.54,
+        "facingMovementMismatchPct": 38.5,
+        "desiredSteerMismatchPct": 15.4
+      },
+      {
+        "carrier": "Amine Bassi",
+        "team": "A",
+        "role": "RM",
+        "traces": 29,
+        "forwardCarrySamples": 10,
+        "lateralFlips": 2,
+        "lateralFlipRate": 0.22,
+        "switchRequests": 4,
+        "blockedSwitches": 4,
+        "carryLockSamples": 2,
+        "avgForwardProgressPerFlip": 0.29,
+        "facingMovementMismatchPct": 13.8,
+        "desiredSteerMismatchPct": 10.3
+      }
+    ]
+  },
+  "boxBehavior": {
+    "totalBoxTraces": 6,
+    "playersTracked": 4,
+    "topBoxLoiterers": [
+      {
+        "player": "Alonso Martínez",
+        "team": "B",
+        "role": "ST",
+        "traces": 3,
+        "maxBoxDwellSeconds": 4.19,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Ondřej Lingr",
+        "team": "A",
+        "role": "LM",
+        "traces": 1,
+        "maxBoxDwellSeconds": 1.13,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Duane Holmes",
+        "team": "A",
+        "role": "ST",
+        "traces": 1,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Ezequiel Ponce",
+        "team": "A",
+        "role": "ST",
+        "traces": 1,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      }
+    ]
+  },
+  "shotSupport": [
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Ezequiel Ponce",
+      "shooterRole": "ST",
+      "nearestMid": 22.1,
+      "secondMid": 24.3
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Ezequiel Ponce",
+      "shooterRole": "ST",
+      "nearestMid": 22.9,
+      "secondMid": 25.2
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 43,
+      "shooter": "Alonso Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 19.3,
+      "secondMid": 21.4
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 43,
+      "shooter": "Alonso Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 20,
+      "secondMid": 23
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 43,
+      "shooter": "Alonso Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 23.3,
+      "secondMid": 27.3
+    }
+  ],
+  "shape": {
+    "A": {
+      "team": "Houston Dynamo",
+      "snapshots": 58,
+      "avgWidth": 15.88,
+      "minWidth": 6.4,
+      "maxWidth": 40.4,
+      "avgDepth": 26.33,
+      "avgCompactness": 9.57,
+      "avgAbsAvgZ": 1.47,
+      "centerLockedPct": 93.1,
+      "narrowPct": 69,
+      "centerAndNarrowPct": 62.1
+    },
+    "B": {
+      "team": "New York City FC",
+      "snapshots": 58,
+      "avgWidth": 17.29,
+      "minWidth": 5.7,
+      "maxWidth": 28.8,
+      "avgDepth": 27.66,
+      "avgCompactness": 9.73,
+      "avgAbsAvgZ": 1.31,
+      "centerLockedPct": 89.7,
+      "narrowPct": 56.9,
+      "centerAndNarrowPct": 53.4
+    }
+  },
+  "roleCentrality": {
+    "A": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    },
+    "B": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    }
+  },
+  "positionOwners": {
+    "samples": 3768,
+    "byTeam": {
+      "A": {
+        "PHASE_HOME": 935,
+        "BOX_COVER": 649,
+        "DANGER_MARK": 60,
+        "COLLAPSE_DEFEND": 2,
+        "PATTERN_ROLE": 233,
+        "WIDE_HOME": 11,
+        "BOX_CRASH": 23,
+        "STRUCTURED_ATTACK": 40
+      },
+      "B": {
+        "WIDE_HOME": 27,
+        "PHASE_HOME": 980,
+        "PATTERN_ROLE": 132,
+        "BOX_CRASH": 25,
+        "BOX_COVER": 537,
+        "DANGER_MARK": 30,
+        "COLLAPSE_DEFEND": 2,
+        "STRUCTURED_ATTACK": 82
+      }
+    },
+    "wide": {
+      "A": {
+        "samples": 817,
+        "avgAbsZ": 3.69,
+        "avgTargetAbsZ": 6.77,
+        "byOwner": {
+          "PHASE_HOME": 373,
+          "BOX_COVER": 260,
+          "DANGER_MARK": 42,
+          "COLLAPSE_DEFEND": 2,
+          "PATTERN_ROLE": 101,
+          "WIDE_HOME": 11,
+          "BOX_CRASH": 16,
+          "STRUCTURED_ATTACK": 12
+        }
+      },
+      "B": {
+        "samples": 750,
+        "avgAbsZ": 4.61,
+        "avgTargetAbsZ": 7.42,
+        "byOwner": {
+          "WIDE_HOME": 27,
+          "PATTERN_ROLE": 53,
+          "PHASE_HOME": 385,
+          "BOX_CRASH": 15,
+          "BOX_COVER": 223,
+          "DANGER_MARK": 18,
+          "COLLAPSE_DEFEND": 2,
+          "STRUCTURED_ATTACK": 27
+        }
+      }
+    }
+  },
+  "eventStream": {
+    "totalShots": 3,
+    "onTargetShots": 2,
+    "goals": 0,
+    "longRangeOnTargetCount": 1,
+    "closeRangeBadAngleCount": 0,
+    "toePokesOnTargetCount": 0,
+    "attackerResetPassCount": 27,
+    "longRangeOnTarget": [
+      {
+        "minute": 43,
+        "team": "B",
+        "role": "ST",
+        "style": "CURLED",
+        "distYards": 28.8,
+        "pressure": 1,
+        "angle": 0.27,
+        "goal": false
+      }
+    ],
+    "closeRangeBadAngles": [],
+    "toePokesOnTarget": [],
+    "attackerResetPasses": [
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -6.9,
+        "distToGoal": 34.7
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -9,
+        "distToGoal": 21.7
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -6.2,
+        "distToGoal": 20.3
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -7,
+        "distToGoal": 22.9
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -2.7,
+        "distToGoal": 16.6
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -2.1,
+        "distToGoal": 20.9
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -2.6,
+        "distToGoal": 15.1
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -1.2,
+        "distToGoal": 11.2
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -9.3,
+        "distToGoal": 20.1
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "RM",
+        "style": "WALL",
+        "progress": -19.3,
+        "distToGoal": 24.8
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -0.6,
+        "distToGoal": 29.7
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -5.8,
+        "distToGoal": 17.3
+      },
+      {
+        "minute": 1,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": 1,
+        "distToGoal": 41.2
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": 0.7,
+        "distToGoal": 26.4
+      },
+      {
+        "minute": 2,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -10,
+        "distToGoal": 23
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": 0.9,
+        "distToGoal": 40.9
+      }
+    ]
+  },
+  "baselines": {
+    "global": {
+      "totalGoals": {
+        "simulated": 0,
+        "baseline": 2.78,
+        "drift": -2.78
+      },
+      "totalShots": {
+        "simulated": 3,
+        "baseline": 26.2,
+        "drift": -23.2
+      },
+      "totalShotsOnTarget": {
+        "simulated": 2,
+        "baseline": 9.4,
+        "drift": -7.4
+      },
+      "totalCorners": {
+        "simulated": 0,
+        "baseline": 8,
+        "drift": -8
+      }
+    },
+    "teamComparison": [
+      {
+        "team": "Houston Dynamo",
+        "simulated": {
+          "goals": 0,
+          "shots": 1,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 0,
+          "possessionPct": 47,
+          "corners": 0
+        },
+        "baseline": {
+          "goals": 2.05,
+          "shots": 13.7,
+          "shotsOnTarget": 4.9,
+          "passCompletionPct": 77,
+          "possessionPct": 51,
+          "corners": 4.2
+        }
+      },
+      {
+        "team": "New York City FC",
+        "simulated": {
+          "goals": 0,
+          "shots": 2,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 0,
+          "possessionPct": 53,
+          "corners": 0
+        },
+        "baseline": {
+          "goals": 2.18,
+          "shots": 14.8,
+          "shotsOnTarget": 5.4,
+          "passCompletionPct": 80,
+          "possessionPct": 54,
+          "corners": 4.6
+        }
+      }
+    ]
+  },
+  "phaseTime": {
+    "A": {
+      "samples": 298,
+      "buildupPct": 3.7,
+      "progressionPct": 88.6,
+      "chanceCreationPct": 7,
+      "finishPct": 0.7
+    },
+    "B": {
+      "samples": 323,
+      "buildupPct": 0,
+      "progressionPct": 88.5,
+      "chanceCreationPct": 11.5,
+      "finishPct": 0
+    }
+  },
+  "passByZone": {
+    "evaluated": {
+      "BUILDUP_CENTRAL": 26,
+      "FINAL_THIRD_HALFSPACE": 4,
+      "FINAL_THIRD_CENTRAL": 9,
+      "BUILDUP_HALFSPACE": 15,
+      "BUILDUP_WIDE": 3
+    },
+    "executed": {
+      "FINAL_THIRD_HALFSPACE": 4,
+      "FINAL_THIRD_CENTRAL": 8,
+      "BUILDUP_CENTRAL": 6,
+      "BUILDUP_HALFSPACE": 7,
+      "BUILDUP_WIDE": 3
+    }
+  },
+  "rolePositions": {
+    "A": [
+      {
+        "role": "LM",
+        "samples": 19,
+        "avgX": -9.31,
+        "avgAbsZ": 10.76,
+        "avgDistToGoal": 23.07,
+        "oppHalfSamples": 2,
+        "avgForwardXInOppHalf": 10.19,
+        "finalThirdSamples": 7,
+        "avgAbsZInFinalThird": 16.97
+      },
+      {
+        "role": "RM",
+        "samples": 18,
+        "avgX": 0.91,
+        "avgAbsZ": 9.33,
+        "avgDistToGoal": 29.47,
+        "oppHalfSamples": 9,
+        "avgForwardXInOppHalf": 9.56,
+        "finalThirdSamples": 1,
+        "avgAbsZInFinalThird": 2.22
+      },
+      {
+        "role": "ST",
+        "samples": 111,
+        "avgX": 1.15,
+        "avgAbsZ": 5.18,
+        "avgDistToGoal": 24.75,
+        "oppHalfSamples": 59,
+        "avgForwardXInOppHalf": 9.19,
+        "finalThirdSamples": 21,
+        "avgAbsZInFinalThird": 3.11
+      }
+    ],
+    "B": [
+      {
+        "role": "LM",
+        "samples": 14,
+        "avgX": 10.07,
+        "avgAbsZ": 11.01,
+        "avgDistToGoal": 22.73,
+        "oppHalfSamples": 2,
+        "avgForwardXInOppHalf": 1.47,
+        "finalThirdSamples": 6,
+        "avgAbsZInFinalThird": 10.94
+      },
+      {
+        "role": "RM",
+        "samples": 44,
+        "avgX": 2.36,
+        "avgAbsZ": 11.73,
+        "avgDistToGoal": 27.12,
+        "oppHalfSamples": 18,
+        "avgForwardXInOppHalf": 5.94,
+        "finalThirdSamples": 7,
+        "avgAbsZInFinalThird": 10.17
+      },
+      {
+        "role": "ST",
+        "samples": 164,
+        "avgX": 2.34,
+        "avgAbsZ": 6.46,
+        "avgDistToGoal": 23.67,
+        "oppHalfSamples": 70,
+        "avgForwardXInOppHalf": 8.12,
+        "finalThirdSamples": 43,
+        "avgAbsZInFinalThird": 6.71
+      }
+    ]
+  },
+  "patterns": {
+    "totalStarts": 76,
+    "totalEnds": 74,
+    "typesPerTeam": {
+      "A": {
+        "COUNTER_ATTACK": 10,
+        "CENTRAL_COMBO": 11,
+        "WING_ATTACK_RIGHT": 9,
+        "PATIENT_BUILDUP": 7,
+        "WING_ATTACK_LEFT": 5
+      },
+      "B": {
+        "CENTRAL_COMBO": 13,
+        "COUNTER_ATTACK": 5,
+        "WING_ATTACK_RIGHT": 7,
+        "PATIENT_BUILDUP": 4,
+        "WING_ATTACK_LEFT": 5
+      }
+    },
+    "distinctTypesA": 5,
+    "distinctTypesB": 5,
+    "avgDurationByType": {
+      "CENTRAL_COMBO": 4.22,
+      "COUNTER_ATTACK": 3.85,
+      "WING_ATTACK_RIGHT": 4.24,
+      "PATIENT_BUILDUP": 2.54,
+      "WING_ATTACK_LEFT": 4.31
+    },
+    "endReasonCounts": {
+      "possession_lost": 54,
+      "invalidated": 20
+    },
+    "shotsByActivePattern": {
+      "CENTRAL_COMBO": 1,
+      "NONE": 1,
+      "PATIENT_BUILDUP": 1
+    },
+    "goalsByActivePattern": {},
+    "patternsPerTeamA": 42,
+    "patternsPerTeamB": 34
+  },
+  "patternRoleAlignment": {
+    "RUNNER": {
+      "samples": 102,
+      "avgForwardX": 0.6,
+      "avgAbsZ": 6.97,
+      "avgDistToGoal": 24.63
+    },
+    "CARRIER": {
+      "samples": 113,
+      "avgForwardX": -0.7,
+      "avgAbsZ": 8.92,
+      "avgDistToGoal": 24.83
+    },
+    "WALL": {
+      "samples": 48,
+      "avgForwardX": 3.48,
+      "avgAbsZ": 3.09,
+      "avgDistToGoal": 23.39
+    },
+    "NEAR_POST_RUNNER": {
+      "samples": 38,
+      "avgForwardX": -8.57,
+      "avgAbsZ": 6.79,
+      "avgDistToGoal": 24.49
+    },
+    "FAR_POST_RUNNER": {
+      "samples": 13,
+      "avgForwardX": -8.44,
+      "avgAbsZ": 6.73,
+      "avgDistToGoal": 24.36
+    },
+    "SUPPORT": {
+      "samples": 8,
+      "avgForwardX": -6.63,
+      "avgAbsZ": 10.57,
+      "avgDistToGoal": 26.17
+    }
+  },
+  "carrierTrajectories": {
+    "totalSegments": 56,
+    "avgBLineRatio": 0.74,
+    "straightRunsOver15Units": 4,
+    "byLineRunSegments": [
+      {
+        "carrier": "Alonso Martínez",
+        "team": "B",
+        "duration": 2.68,
+        "directDist": 23.1,
+        "pathLength": 23.1,
+        "bLineRatio": 1
+      },
+      {
+        "carrier": "Alonso Martínez",
+        "team": "B",
+        "duration": 3.03,
+        "directDist": 22.4,
+        "pathLength": 22.6,
+        "bLineRatio": 0.99
+      },
+      {
+        "carrier": "Duane Holmes",
+        "team": "A",
+        "duration": 3.38,
+        "directDist": 21.2,
+        "pathLength": 21.9,
+        "bLineRatio": 0.96
+      },
+      {
+        "carrier": "Alonso Martínez",
+        "team": "B",
+        "duration": 2.28,
+        "directDist": 16.1,
+        "pathLength": 16.8,
+        "bLineRatio": 0.96
+      }
+    ],
+    "curlingSegments": 7,
+    "totalFlips": 59,
+    "totalFlippyCarriers": 3,
+    "flipsByTeam": {
+      "A": 27,
+      "B": 32
+    },
+    "flipsByTeamHalf": {
+      "A1": 14,
+      "A2": 13,
+      "B1": 18,
+      "B2": 14
+    },
+    "flipsByDirection": {
+      "L2R": 28,
+      "R2L": 31
+    },
+    "segmentsByTeam": {
+      "A": 28,
+      "B": 28
+    },
+    "segmentsByDirection": {
+      "L2R": 26,
+      "R2L": 29
+    },
+    "segmentsByTeamHalf": {
+      "A1": 15,
+      "A2": 13,
+      "B1": 16,
+      "B2": 12
+    }
+  },
+  "multiTouchOppHalf": {
+    "totalSequences": 21,
+    "multiTouchOppHalfCount": 13,
+    "totalOppHalfTouches": 68,
+    "avgDistinctPlayersPerSequence": 1.9,
+    "exampleSequences": [
+      {
+        "team": "B",
+        "players": [
+          "Alonso Martínez",
+          "Maxi Moralez",
+          "Malachi Jones",
+          "Keaton Parks"
+        ],
+        "touchCount": 19,
+        "firstTouchAt": 3.441
+      },
+      {
+        "team": "A",
+        "players": [
+          "Duane Holmes",
+          "Ezequiel Ponce",
+          "ST"
+        ],
+        "touchCount": 8,
+        "firstTouchAt": 19.841
+      },
+      {
+        "team": "B",
+        "players": [
+          "Alonso Martínez",
+          "Hannes Wolf"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 33.58
+      },
+      {
+        "team": "A",
+        "players": [
+          "Duane Holmes",
+          "Ezequiel Ponce"
+        ],
+        "touchCount": 4,
+        "firstTouchAt": 40.27
+      },
+      {
+        "team": "B",
+        "players": [
+          "Alonso Martínez",
+          "Malachi Jones"
+        ],
+        "touchCount": 2,
+        "firstTouchAt": 114.99
+      },
+      {
+        "team": "B",
+        "players": [
+          "Alonso Martínez",
+          "Malachi Jones"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 117.8
+      }
+    ]
+  },
+  "finalThirdOverloads": {
+    "A": {
+      "totalBuckets": 16,
+      "bucketsWithOverload": 0,
+      "maxAttackersInBucket": 2
+    },
+    "B": {
+      "totalBuckets": 30,
+      "bucketsWithOverload": 3,
+      "maxAttackersInBucket": 4
+    }
+  },
+  "dangerMarking": {
+    "samples": 33,
+    "byTeam": {
+      "A": {
+        "samples": 11,
+        "marked": 8,
+        "unmarked": 3,
+        "markedPct": 72.7,
+        "avgNearestDefenderDist": 2.87,
+        "worstSamples": [
+          {
+            "t": 261.1,
+            "player": "Ondřej Lingr",
+            "role": "LM",
+            "zone": "BYLINE",
+            "distToGoal": 8.5,
+            "nearestDefenderDist": 8.64,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 261.7,
+            "player": "Ondřej Lingr",
+            "role": "LM",
+            "zone": "BOX_WIDE",
+            "distToGoal": 9.5,
+            "nearestDefenderDist": 4.69,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 23.8,
+            "player": "Ezequiel Ponce",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 15.9,
+            "nearestDefenderDist": 4.44,
+            "patternRole": "RUNNER"
+          }
+        ]
+      },
+      "B": {
+        "samples": 22,
+        "marked": 13,
+        "unmarked": 9,
+        "markedPct": 59.1,
+        "avgNearestDefenderDist": 2.89,
+        "worstSamples": [
+          {
+            "t": 192.3,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.8,
+            "nearestDefenderDist": 6.13,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 284.9,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 6.3,
+            "nearestDefenderDist": 5.84,
+            "patternRole": "NEAR_POST_RUNNER"
+          },
+          {
+            "t": 298.1,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 11.6,
+            "nearestDefenderDist": 5.41,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 282.8,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 3.2,
+            "nearestDefenderDist": 5.34,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 284.1,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 5.6,
+            "nearestDefenderDist": 5.17,
+            "patternRole": "NEAR_POST_RUNNER"
+          },
+          {
+            "t": 210.6,
+            "player": "Alonso Martínez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_CENTRAL",
+            "distToGoal": 15.8,
+            "nearestDefenderDist": 4.49,
+            "patternRole": "CARRIER"
+          }
+        ]
+      }
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goalCount": 0,
+    "avgDefendersInBox": 0,
+    "avgAttackersInBox": 0,
+    "distribution": {},
+    "samples": []
+  },
+  "shotBoxDefense": {
+    "shots": 3,
+    "avgDefendersInBox": 6,
+    "avgDefendersInCorridor": 6.33,
+    "emptyBoxShots": 0,
+    "emptyCorridorShots": 0,
+    "samples": [
+      {
+        "t": 26.3,
+        "team": "A",
+        "shooter": "Ezequiel Ponce",
+        "shooterRole": "ST",
+        "ballX": 26.9,
+        "ballZ": -0.6,
+        "defendersInBox": 7,
+        "defendersInCorridor": 7
+      },
+      {
+        "t": 192.7,
+        "team": "B",
+        "shooter": "Alonso Martínez",
+        "shooterRole": "ST",
+        "ballX": 17.5,
+        "ballZ": 4.2,
+        "defendersInBox": 6,
+        "defendersInCorridor": 6
+      },
+      {
+        "t": 210.7,
+        "team": "B",
+        "shooter": "Alonso Martínez",
+        "shooterRole": "ST",
+        "ballX": 18,
+        "ballZ": -2.6,
+        "defendersInBox": 5,
+        "defendersInCorridor": 6
+      }
+    ]
+  },
+  "kickoffGoalCorrelation": {
+    "kickoffPasses": 2,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "byTeam": {
+      "A": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Duane Holmes",
+            "role": "ST",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      },
+      "B": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Malachi Jones",
+            "role": "ST",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      }
+    }
+  },
+  "patternTempo": {
+    "COUNTER_ATTACK": {
+      "count": 15,
+      "multiTouchCount": 2,
+      "avgTouches": 0.67,
+      "avgDuration": 2.74,
+      "avgPace": 3.77,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        4,
+        12
+      ],
+      "expectedLabel": "fast direct",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "CENTRAL_COMBO": {
+      "count": 24,
+      "multiTouchCount": 5,
+      "avgTouches": 0.92,
+      "avgDuration": 3.39,
+      "avgPace": 3.59,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        2.5,
+        6
+      ],
+      "expectedLabel": "short sharp",
+      "touchFit": "TOO_FEW",
+      "paceFit": "OK"
+    },
+    "WING_ATTACK_RIGHT": {
+      "count": 16,
+      "multiTouchCount": 0,
+      "avgTouches": 0.38,
+      "avgDuration": 0,
+      "avgPace": null,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "no_multi_touch_data"
+    },
+    "PATIENT_BUILDUP": {
+      "count": 11,
+      "multiTouchCount": 1,
+      "avgTouches": 0.73,
+      "avgDuration": 3.63,
+      "avgPace": 0.8,
+      "expectedTouches": [
+        3,
+        7
+      ],
+      "expectedPace": [
+        1,
+        4
+      ],
+      "expectedLabel": "deliberate",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_LEFT": {
+      "count": 10,
+      "multiTouchCount": 2,
+      "avgTouches": 0.8,
+      "avgDuration": 5.66,
+      "avgPace": -3.11,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    }
+  },
+  "neoPlays": {
+    "outcomeWindowSeconds": 8,
+    "totalStarts": 76,
+    "totalDeliveries": 13,
+    "totalShotCreatingDeliveries": 1,
+    "totalGoalCreatingDeliveries": 0,
+    "effectivenessPct": 7.7,
+    "goalRatePct": 0,
+    "byPlay": {
+      "GIVE_AND_GO": {
+        "playName": "GIVE_AND_GO",
+        "patternTypes": {
+          "CENTRAL_COMBO": 36
+        },
+        "starts": 24,
+        "deliveries": 12,
+        "crosses": 0,
+        "shotCreatingDeliveries": 1,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 8.3,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 2,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Malachi Jones",
+            "passerRole": "CARRIER",
+            "target": "Maxi Moralez",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 3.4,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Maxi Moralez",
+            "passerRole": "WALL",
+            "target": "Alonso Martínez",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 6.3,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Maxi Moralez",
+            "passerRole": "WALL",
+            "target": "Alonso Martínez",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 15,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Keaton Parks",
+            "passerRole": "CARRIER",
+            "target": "Alonso Martínez",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 16,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Alonso Martínez",
+            "passerRole": "WALL",
+            "target": "Malachi Jones",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "COUNTER_ATTACK": {
+        "playName": "COUNTER_ATTACK",
+        "patternTypes": {
+          "COUNTER_ATTACK": 15
+        },
+        "starts": 15,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "WING_ATTACK_RIGHT": {
+        "playName": "WING_ATTACK_RIGHT",
+        "patternTypes": {
+          "WING_ATTACK_RIGHT": 16
+        },
+        "starts": 16,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "PATIENT_BUILDUP": {
+        "playName": "PATIENT_BUILDUP",
+        "patternTypes": {
+          "PATIENT_BUILDUP": 11
+        },
+        "starts": 11,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "WING_ATTACK_LEFT": {
+        "playName": "WING_ATTACK_LEFT",
+        "patternTypes": {
+          "WING_ATTACK_LEFT": 10
+        },
+        "starts": 10,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "STRUCTURED_WING_ATTACK": {
+        "playName": "STRUCTURED_WING_ATTACK",
+        "patternTypes": {
+          "STRUCTURED_WING_ATTACK": 1
+        },
+        "starts": 0,
+        "deliveries": 1,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 285.9,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Nicolás Fernández",
+            "passerRole": null,
+            "target": "Alonso Martínez",
+            "targetRole": "NEAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      }
+    }
+  },
+  "patternCrosses": {
+    "total": 0,
+    "deliveries": 13,
+    "longLofted": 0,
+    "driven": 0,
+    "samples": []
+  },
+  "kpis": {
+    "baselineFit": {
+      "score": 12,
+      "inputs": {
+        "goals": 0,
+        "shots": 3,
+        "shotsOnTarget": 2,
+        "longRangeSot": 1,
+        "corners": 0
+      },
+      "target": "one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3",
+      "grade": "red"
+    },
+    "soccerStructure": {
+      "score": 52.5,
+      "inputs": {
+        "widthA": 15.88,
+        "widthB": 17.29,
+        "centerAndNarrowWorst": 62.1,
+        "finalThirdOverloadShare": 5,
+        "dangerMarkedPct": 63.6,
+        "shotCorridorDefenders": 6.33,
+        "emptyBoxShotPct": 0,
+        "avgPatternTouches": 0.7,
+        "realCrosses": 0
+      },
+      "target": "soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5",
+      "grade": "red"
+    },
+    "tuningEfficiency": {
+      "score": 68.9,
+      "inputs": {
+        "forcedShotSharePct": 0,
+        "attackerBackpasses": 10,
+        "zigzagFlips": 89,
+        "directBlockerPasses": 0,
+        "brokenShotRowsPct": 0
+      },
+      "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
+      "grade": "red"
+    },
+    "overall": {
+      "score": 44.5,
+      "grade": "red"
+    }
+  },
+  "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+    "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+    "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+    "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+    "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+    "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.",
+    "Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes."
+  ]
+}

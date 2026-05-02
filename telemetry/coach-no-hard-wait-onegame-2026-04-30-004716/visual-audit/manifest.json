@@ -1,0 +1,730 @@
+{
+  "generatedAt": "2026-04-30T04:52:47.069Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-onegame-2026-04-30-004716\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00201_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 20.09,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.32,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00201_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 20.09,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.32,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00201_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 20.09,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.32,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00328_GOAL_p00.jpg",
+      "event": {
+        "t": 32.78,
+        "half": 1,
+        "minute": 0,
+        "type": "GOAL",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00323_SHOT_p00.jpg",
+      "event": {
+        "t": 32.25,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.9,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00328_GOAL_p12.jpg",
+      "event": {
+        "t": 32.78,
+        "half": 1,
+        "minute": 0,
+        "type": "GOAL",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00328_GOAL_p24.jpg",
+      "event": {
+        "t": 32.78,
+        "half": 1,
+        "minute": 0,
+        "type": "GOAL",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00323_SHOT_p12.jpg",
+      "event": {
+        "t": 32.25,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.9,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00323_SHOT_p24.jpg",
+      "event": {
+        "t": 32.25,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.9,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00614_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 61.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anders Dreyer",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00614_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 61.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anders Dreyer",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00614_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 61.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anders Dreyer",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00949_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 94.91,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00961_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 96.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": "Hirving Lozano",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.09,
+          "nearestDefenderDist": 1.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00949_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 94.91,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00961_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 96.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": "Hirving Lozano",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.09,
+          "nearestDefenderDist": 1.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00949_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 94.91,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00961_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 96.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Marcus Ingvartsen",
+          "target": "Hirving Lozano",
+          "collector": "Hirving Lozano",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.09,
+          "nearestDefenderDist": 1.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01020_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 101.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01037_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 103.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": "Marcus Ingvartsen",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.98,
+          "nearestDefenderDist": 2.91
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01020_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 101.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01020_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 101.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01037_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 103.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": "Marcus Ingvartsen",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.98,
+          "nearestDefenderDist": 2.91
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01037_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 103.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Hirving Lozano",
+          "target": "Marcus Ingvartsen",
+          "collector": "Marcus Ingvartsen",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.98,
+          "nearestDefenderDist": 2.91
+        }
+      }
+    }
+  ]
+}

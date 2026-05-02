@@ -75,6 +75,7 @@ type FixtureRunResult = {
   elapsedInHalf: number;
   startedAt: number;
   completedAt: number;
+  positionalDrift?: any[];
 };
 
 // Store state on window so HMR module reloads don't lose it
@@ -135,8 +136,11 @@ function normalizeFixtureOptions(input: FixtureRunOptions = {}): Required<Fixtur
 }
 
 async function configureFixture(game: any, options: Required<FixtureRunOptions>): Promise<void> {
+  game.setSplashSceneMode?.(false);
+  game.setMenuVisible?.(false);
   game.resetMatch?.();
   await sleep(300);
+  game.setSplashSceneMode?.(false);
   game.setTeamNames?.(options.homeTeam, options.awayTeam);
   game.setTeamFormations?.(options.formationA, options.formationB);
   game.setCpuVsCpu?.(true);
@@ -171,6 +175,7 @@ function buildFixtureResult(game: any, options: Required<FixtureRunOptions>, fin
     elapsedInHalf: snap.elapsedInHalf ?? 0,
     startedAt: Date.now(),
     completedAt: Date.now(),
+    positionalDrift: game.getPositionalDriftReport?.() || bundle?.positionalDrift || [],
   };
 }
 

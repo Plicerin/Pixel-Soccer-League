@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-05-01T04:28:42.975Z",
+  "mode": "apply",
+  "findingsPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\overnight-findings.json",
+  "selected": {
+    "key": "deeper-box-cover",
+    "confidence": "high"
+  },
+  "recipe": {
+    "key": "deeper-box-cover",
+    "title": "Deeper physical box cover",
+    "reason": "Empty-box shots or low shot-corridor defenders indicate assignment is firing but bodies are not arriving in the lane.",
+    "files": [
+      "src/ai/fsmPositioning.ts",
+      "src/gameEngine.ts"
+    ],
+    "replacementCount": 7
+  },
+  "guardrails": {
+    "maxChangedLines": 80,
+    "noMatchSimulations": true,
+    "applyRequiresFlag": true,
+    "validation": [
+      "npm test",
+      "npm run lint",
+      "npm run build"
+    ]
+  },
+  "kpis": {
+    "overall": 52.4,
+    "baselineFit": 16.5,
+    "soccerStructure": 62.5,
+    "tuningEfficiency": 78.1
+  },
+  "structure": {
+    "widthA": 18.42,
+    "widthB": 17.95,
+    "centerAndNarrowWorst": 51.56,
+    "finalThirdOverloadShare": 14.53,
+    "dangerMarkedPct": 74.18,
+    "shotCorridorDefenders": 5.12,
+    "emptyBoxShotPct": 1.43,
+    "avgPatternTouches": 0.95,
+    "realCrosses": 1.3
+  },
+  "efficiency": {
+    "forcedShotSharePct": 2,
+    "attackerBackpasses": 4.8,
+    "zigzagFlips": 73,
+    "directBlockerPasses": 0,
+    "brokenShotRowsPct": 0
+  },
+  "baselineComparison": {
+    "goals": {
+      "simulated": 3,
+      "baseline": 27.8,
+      "drift": -24.8
+    },
+    "shots": {
+      "simulated": 46,
+      "baseline": 262,
+      "drift": -216
+    },
+    "shotsOnTarget": {
+      "simulated": 8,
+      "baseline": 94,
+      "drift": -86
+    },
+    "corners": {
+      "simulated": 20,
+      "baseline": 80,
+      "drift": -60
+    }
+  }
+}

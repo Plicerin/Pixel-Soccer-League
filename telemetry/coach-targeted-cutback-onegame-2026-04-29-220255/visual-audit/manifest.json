@@ -1,0 +1,3250 @@
+{
+  "generatedAt": "2026-04-30T02:08:19.615Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-targeted-cutback-onegame-2026-04-29-220255\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00042_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 4.17,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.05,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00042_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 4.17,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.05,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00042_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 4.17,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.05,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00370_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00388_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 38.76,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.01,
+          "nearestDefenderDist": 0.3
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00370_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00370_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00388_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 38.76,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.01,
+          "nearestDefenderDist": 0.3
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00388_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 38.76,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Rominigue Kouamé",
+          "target": "Kellyn Acosta",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.01,
+          "nearestDefenderDist": 0.3
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00688_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 68.77,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.85,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00688_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 68.77,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.85,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00688_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 68.77,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.85,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00793_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 79.33,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00811_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.4,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_SHOT_p00.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00811_DIRECTOR_FINISH_BOOST_p00.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00793_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 79.33,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00811_SHOT_p00.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00793_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 79.33,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00811_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.4,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_SHOT_p12.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00811_DIRECTOR_FINISH_BOOST_p12.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00811_SHOT_p12.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00811_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Ryan Gauld",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.4,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 4.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00811_STRUCTURED_FINISH_INTENT_SHOT_p24.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00811_DIRECTOR_FINISH_BOOST_p24.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00811_SHOT_p24.jpg",
+      "event": {
+        "t": 81.06,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01054_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 105.41,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01068_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.97,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01054_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 105.41,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01054_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 105.41,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01068_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.97,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01068_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sebastian Berhalter",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.97,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.81
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01068_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 106.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01117_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 111.7,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01117_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 111.7,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01136_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.1,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11.7,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01117_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 111.7,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01136_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.1,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11.7,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01136_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.1,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 5.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01136_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 113.62,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11.7,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01450_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 145.03,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01465_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 146.5,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Joel Waterman",
+          "collectorRole": "CB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.69,
+          "nearestDefenderDist": 0.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01450_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 145.03,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01450_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 145.03,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01465_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 146.5,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Joel Waterman",
+          "collectorRole": "CB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.69,
+          "nearestDefenderDist": 0.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01465_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 146.5,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Joel Waterman",
+          "collectorRole": "CB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.69,
+          "nearestDefenderDist": 0.67
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00086_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 8.61,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00099_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 9.94,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": false,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": "Brian Gutiérrez",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.07,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00086_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 8.61,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00086_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 8.61,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00099_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 9.94,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": false,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": "Brian Gutiérrez",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.07,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00099_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 9.94,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": false,
+          "passer": "Hugo Cuypers",
+          "target": "Rominigue Kouamé",
+          "collector": "Brian Gutiérrez",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.07,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00379_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 37.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00395_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 39.46,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Philip Zinckernagel",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.44,
+          "nearestDefenderDist": 1.07
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00379_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 37.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00379_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 37.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00395_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 39.46,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Philip Zinckernagel",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.44,
+          "nearestDefenderDist": 1.07
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00395_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 39.46,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Ryan Gauld",
+          "target": "Sebastian Berhalter",
+          "collector": "Philip Zinckernagel",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.44,
+          "nearestDefenderDist": 1.07
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00432_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 43.2,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00432_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 43.2,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00432_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 43.2,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00559_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 55.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00570_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 9.88,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00559_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 55.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00559_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 55.89,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00570_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 9.88,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00570_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Andrés Cubas",
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 9.88,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Sebastian Berhalter",
+          "collector": "Sebastian Berhalter",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.8
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00570_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 56.97,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.45,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.45,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.45,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00757_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 75.72,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00757_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 75.72,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00781_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.76,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_SHOT_p00.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00781_DIRECTOR_FINISH_BOOST_p00.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00757_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 75.72,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00781_SHOT_p00.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00781_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.76,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_SHOT_p12.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00781_DIRECTOR_FINISH_BOOST_p12.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00781_SHOT_p12.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00781_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Thomas Müller",
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": "DM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.76,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Kenji Cabrera",
+          "collector": "Kenji Cabrera",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 8.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00781_STRUCTURED_FINISH_INTENT_SHOT_p24.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00781_DIRECTOR_FINISH_BOOST_p24.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00781_SHOT_p24.jpg",
+      "event": {
+        "t": 78.14,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT",
+        "team": "A",
+        "role": "DM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.1,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    }
+  ]
+}

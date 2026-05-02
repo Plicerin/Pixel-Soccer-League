@@ -105,8 +105,8 @@ function phaseShiftedHome(
   if (isWideMid || isFullback) {
     const side = Math.sign(home.z || (role.includes('L') ? -1 : 1)) || 1;
     const minWideAbsZ = isWideMid
-      ? fieldDepth * 0.56
-      : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.52 : attackPhase === 'TRANSITION' ? fieldDepth * 0.49 : fieldDepth * 0.46);
+      ? (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.62 : fieldDepth * 0.57)
+      : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.58 : attackPhase === 'TRANSITION' ? fieldDepth * 0.54 : fieldDepth * 0.50);
     const naturalAbsZ = Math.abs(home.z || 0);
     const z = side * Math.max(naturalAbsZ, minWideAbsZ);
     return { x: home.x + attackSign * pushU, z, owner: 'WIDE_HOME' };
@@ -145,6 +145,28 @@ export function pickFsmDefender(team: 'A' | 'B', allPlayers: any[], ballPos: THR
 //   LM/RM (opposite-flank from carrier): far post
 //   LM/RM (same flank as carrier): cutback receiver at edge of box
 //   CM/CAM: edge of D for second-wave shot
+function countCentralFinalThirdAttackers(
+  player: any,
+  carrier: any,
+  allPlayers: any[] | undefined,
+  attackSign: 1 | -1,
+  fieldWidth: number,
+  penaltyDepth: number,
+  goalMouthHalfWidth: number,
+): number {
+  if (!allPlayers || allPlayers.length === 0) return 0;
+  const goalX = attackSign > 0 ? fieldWidth / 2 : -fieldWidth / 2;
+  return allPlayers
+    .filter((p) => p.team === player.team)
+    .filter((p) => p !== player)
+    .filter((p) => !isGK(p))
+    .filter((p) => ['ST', 'CF', 'CAM', 'CM', 'LM', 'RM', 'LW', 'RW'].includes(roleLabelOf(p)))
+    .filter((p) => Math.abs(goalX - p.pos.x) <= penaltyDepth + 12)
+    .filter((p) => Math.abs(p.pos.z) <= goalMouthHalfWidth * 4.8)
+    .filter((p) => p === carrier || (p.pos.x * attackSign) > fieldWidth * 0.18)
+    .length;
+}
+
 function computeBoxCrashTarget(
   player: any,
   carrier: any,
@@ -153,18 +175,37 @@ function computeBoxCrashTarget(
   fieldDepth: number,
   penaltyDepth: number,
   goalMouthHalfWidth: number,
+  allPlayers?: any[],
 ): { x: number; z: number } | null {
   const role = (player.displayRole || player.role || '').toString().toUpperCase();
   const goalX = attackSign > 0 ? fieldWidth / 2 : -fieldWidth / 2;
   const carrierZ = carrier.pos.z;
   const carrierSide = Math.sign(carrierZ) || 1;
   const playerSide = Math.sign(player.homePos?.z || 0) || (role === 'LM' ? -1 : role === 'RM' ? 1 : 0);
+  const centralCrowd = countCentralFinalThirdAttackers(
+    player,
+    carrier,
+    allPlayers,
+    attackSign,
+    fieldWidth,
+    penaltyDepth,
+    goalMouthHalfWidth,
+  );
 
   if (role === 'ST' || role === 'CF') {
-    // Penalty spot (~12 yards from goal line, central with slight near-side bias)
+    const laneSide = playerSide || Math.sign(player.pos?.z || 0) || -carrierSide || 1;
+    if (centralCrowd >= 2) {
+      // If the box is already occupied, rotate the striker into a half-space
+      // receiver instead of adding another body to the blocked central lane.
+      return {
+        x: goalX - attackSign * (penaltyDepth + 2.2),
+        z: laneSide * Math.max(goalMouthHalfWidth * 3.2, fieldDepth * 0.24),
+      };
+    }
+    // Arrive in a channel, not on the same central penalty spot every attack.
     return {
       x: goalX - attackSign * (penaltyDepth * 0.52),
-      z: carrierSide * goalMouthHalfWidth * 0.4,
+      z: laneSide * Math.max(goalMouthHalfWidth * 1.7, fieldDepth * 0.09),
     };
   }
   if (role === 'LM' || role === 'RM') {
@@ -183,10 +224,11 @@ function computeBoxCrashTarget(
     };
   }
   if (role === 'CM' || role === 'CAM') {
-    // Edge of D / half-space — second-wave pass and shot lane.
+    // Edge of D / half-space — second-wave pass and shot lane. Keep this lane
+    // visibly separate from the striker channel so cutbacks have a real target.
     return {
-      x: goalX - attackSign * (penaltyDepth + (role === 'CAM' ? 1.2 : 2.4)),
-      z: -carrierSide * Math.max(goalMouthHalfWidth * 2.2, fieldDepth * 0.14),
+      x: goalX - attackSign * (penaltyDepth + (role === 'CAM' ? 2.2 : 4.5)),
+      z: -carrierSide * Math.max(goalMouthHalfWidth * 3.0, fieldDepth * 0.18),
     };
   }
   return null; // backline + DM hold shape
@@ -568,7 +610,7 @@ export function computeFsmOffBallTargetWithOwner(ctx: FsmContext): FsmTargetResu
       const role = (player.displayRole || player.role || '').toString().toUpperCase();
       const isAttacker = role === 'ST' || role === 'CF' || role === 'LM' || role === 'RM' || role === 'CM' || role === 'CAM';
       if (isAttacker) {
-        const t = computeBoxCrashTarget(player, carrier, attackSign, fieldWidth, fieldDepth, penaltyDepth, goalMouthHalfWidth);
+        const t = computeBoxCrashTarget(player, carrier, attackSign, fieldWidth, fieldDepth, penaltyDepth, goalMouthHalfWidth, allPlayers);
         if (t) {
           _tmp.set(
             clamp(t.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),

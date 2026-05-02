@@ -39,6 +39,7 @@ function parseArgs(argv) {
     halfSeconds: 150,
     fsm: '',  // 'on' | 'off' | '' (default: whatever gameEngine inits to)
     url: '',
+    guard: '',
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -50,6 +51,7 @@ function parseArgs(argv) {
     else if (a === '--half-seconds') opts.halfSeconds = Number(argv[++i])
     else if (a === '--fsm') opts.fsm = (argv[++i] || '').toLowerCase()
     else if (a === '--url') opts.url = argv[++i] || ''
+    else if (a === '--guard') opts.guard = (argv[++i] || '').toLowerCase()
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0) }
   }
   if (!opts.label) {
@@ -69,6 +71,7 @@ function printHelp() {
   --half-seconds <n>   half duration override (default 150)
   --fsm <on|off>       force FSM positioning mode (default: gameEngine init value)
   --url <url>          override dev server URL (default: http://127.0.0.1:5173/)
+  --guard <name>       fail if protected metrics regress; use "coach-authority"
 `)
 }
 
@@ -131,6 +134,12 @@ function extractMetrics(row) {
   // deliveries include launched pattern passes that may be cutbacks/recycles.
   const patternCrosses = events.filter(e => e.type === 'PATTERN_CROSS_EXECUTED').length
   const patternDeliveries = events.filter(e => e.type === 'PATTERN_DELIVERY_EXECUTED' || e.type === 'PATTERN_CROSS_EXECUTED').length
+  const coachForceEvents = events.filter(e => e.type === 'COACH_ATTACK_RESOLUTION_FORCE')
+  const coachAuthorityEvents = events.filter(e => e.type === 'COACH_AUTHORITY_WATCHDOG')
+  const coachCarrierControlEvents = events.filter(e => e.type === 'TELEMETRY_COACH_CARRIER_CONTROL')
+  const shotDecisions = bundle.shotDecisions || []
+  const forcedShotDecisions = shotDecisions.filter(s => s.forceShotNow === true || s.decisionType === 'COACH_AUTHORITY').length
+  const forcedShotShare = shotDecisions.length ? forcedShotDecisions / shotDecisions.length : 0
 
   // Pattern→goal share — find PATTERN_GOAL events or correlate with goalLog
   const patternGoalEvents = events.filter(e => e.type === 'PATTERN_GOAL' || (e.type === 'GOAL' && e.detail?.patternType))
@@ -194,6 +203,12 @@ function extractMetrics(row) {
     patternCrosses,
     patternDeliveries,
     patternGoals,
+    coachForceEvents: coachForceEvents.length,
+    coachAuthorityEvents: coachAuthorityEvents.length,
+    coachCarrierControlEvents: coachCarrierControlEvents.length,
+    forcedShotDecisions,
+    shotDecisions: shotDecisions.length,
+    forcedShotShare,
     avgDefAtGoal,
     finalThirdOverloads,
     traceH1: h1Flips,
@@ -220,12 +235,35 @@ function aggregate(matchMetrics) {
     avgPatternDeliveries: round(avg('patternDeliveries')),
     avgPatternCrosses: round(avg('patternCrosses')),
     avgPatternGoals: round(avg('patternGoals')),
+    avgCoachForceEvents: round(avg('coachForceEvents')),
+    avgCoachAuthorityEvents: round(avg('coachAuthorityEvents')),
+    avgCoachCarrierControlEvents: round(avg('coachCarrierControlEvents')),
+    forcedShotSharePct: round(avg('forcedShotShare') * 100),
     avgDefAtGoal: round(avg('avgDefAtGoal')),
     avgFinalThirdOverloads: round(avg('finalThirdOverloads')),
     traceH2overH1: (sum('traceH1') > 0 ? round(sum('traceH2') / sum('traceH1')) : null),
     traceH1Total: sum('traceH1'),
     traceH2Total: sum('traceH2'),
   }
+}
+
+function evaluateGuard(summary, guardName) {
+  if (!guardName) return { passed: true, failures: [] }
+  if (guardName !== 'coach-authority') {
+    return { passed: false, failures: [`unknown guard "${guardName}"`] }
+  }
+  const failures = []
+  const checks = [
+    ['avg goals >= 1.0', summary.avgGoals >= 1.0],
+    ['avg shots between 18 and 32', summary.avgShots >= 18 && summary.avgShots <= 32],
+    ['avg SOT >= 3.0', summary.avgSOT >= 3.0],
+    ['forced shot share <= 65%', summary.forcedShotSharePct <= 65],
+    ['coach control events present', (summary.avgCoachForceEvents + summary.avgCoachAuthorityEvents + summary.avgCoachCarrierControlEvents) > 0],
+  ]
+  for (const [label, ok] of checks) {
+    if (!ok) failures.push(label)
+  }
+  return { passed: failures.length === 0, failures }
 }
 
 function round(v) {
@@ -277,6 +315,9 @@ function printComparison(current, previousLabel, previous) {
     ['avg pattern deliveries', current.avgPatternDeliveries,  previous?.avgPatternDeliveries],
     ['avg pattern crosses',    current.avgPatternCrosses,     previous?.avgPatternCrosses],
     ['avg pattern goals',      current.avgPatternGoals,       previous?.avgPatternGoals],
+    ['avg coach force events', current.avgCoachForceEvents,   previous?.avgCoachForceEvents],
+    ['avg coach carrier control', current.avgCoachCarrierControlEvents, previous?.avgCoachCarrierControlEvents],
+    ['forced shot share %',    current.forcedShotSharePct,    previous?.forcedShotSharePct],
     ['avg defenders @ goal',   current.avgDefAtGoal,          previous?.avgDefAtGoal],
     ['avg final-third overloads', current.avgFinalThirdOverloads, previous?.avgFinalThirdOverloads],
     ['trace H2/H1 ratio',      current.traceH2overH1,         previous?.traceH2overH1],
@@ -354,6 +395,22 @@ async function main() {
     previousLabel = previous?.label || path.basename(path.dirname(comparePath))
   }
   printComparison(summary, previousLabel, previous)
+  if (opts.guard) {
+    const guard = evaluateGuard(summary, opts.guard)
+    summary.guard = {
+      name: opts.guard,
+      passed: guard.passed,
+      failures: guard.failures,
+    }
+    fs.writeFileSync(path.join(labelDir, 'cycle-summary.json'), JSON.stringify(summary, null, 2))
+    if (!guard.passed) {
+      console.error(`[eval-cycle] guard "${opts.guard}" failed:`)
+      for (const failure of guard.failures) console.error(`  - ${failure}`)
+      console.log(`Saved: ${path.join(labelDir, 'cycle-summary.json')}`)
+      process.exit(3)
+    }
+    console.log(`[eval-cycle] guard "${opts.guard}" passed`)
+  }
   console.log(`Saved: ${path.join(labelDir, 'cycle-summary.json')}`)
 }
 

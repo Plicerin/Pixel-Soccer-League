@@ -43,14 +43,68 @@ import {
   shouldHoldWideDeliveryForDirector,
   type PossessionDirectorSnapshot,
 } from './ai/possessionDirector.ts';
+import { chooseTempoReleaseTarget, type TempoReleaseTarget } from './ai/tempoRelease.ts';
 import { segmentCrossesReceiverRadius } from './ai/passResolution.ts';
 import { selectGoalActor, shouldAwardGoalCrossing, type GoalActorCandidate } from './ai/goalValidation.ts';
 import { isActualCrossDelivery } from './ai/crossTelemetry.ts';
+import {
+  enforceCoachAuthorityMovement,
+  enforceLiveMovementAuthority,
+  selectCoachAuthorityAction,
+  type CoachAuthorityMoveCommand,
+} from './ai/coachAuthority.ts';
+import {
+  chooseTelemetryCoachCounterActionRole,
+  chooseTelemetryOpponentCoachAdjustment,
+  createTelemetryCoachPlanFromRealMovement,
+  createTelemetryOpponentCoachThreatMemory,
+  isTelemetryCoachExperimentEnabled,
+  recordTelemetryOpponentCoachThreat,
+  shouldTelemetryCoachSuppressStrikerShot,
+  type TelemetryCoachPlan,
+  type TelemetryOpponentCoachAdjustment,
+  type TelemetryOpponentCoachThreatMemory,
+} from './ai/telemetryCoach.ts';
+import {
+  createRoboflowSportsTrackingFrame,
+  deriveRoboflowSportsCoachControl,
+  type RoboflowSportsCoachControl,
+  type RoboflowSportsTrackedEntity,
+  type RoboflowSportsTrackingFrame,
+} from './ai/roboflowSportsTracking.ts';
+import { deriveMetricaEventCoachControl } from './ai/metricaEventModel.ts';
+import {
+  computeKickoffReceiverSpot,
+  isKickoffPassSafe,
+  spaceCoachGoalMouthDefensiveTarget,
+  type CoachDefenseSpacingRole,
+} from './ai/restartAndDefenseRules.ts';
+import {
+  deriveReplayFacingFromVelocity,
+  findReplayFrameIndex,
+  interpolateReplayFrame,
+  normalizedMetricaPointToWorld,
+  type RealDataReplayAsset,
+} from './ai/realDataReplay.ts';
+import {
+  selectMetricaMotionFrame,
+  selectMetricaMotionTarget,
+  type MetricaMotionFrameMatch,
+} from './ai/metricaMotionLibrary.ts';
 
 type MatchPhase = 'FIRST_HALF' | 'HALFTIME' | 'SECOND_HALF' | 'FULL_TIME';
 
 type CoachCommandRole = 'CARRIER' | 'NEAR_POST' | 'FAR_POST' | 'CUTBACK' | 'SECOND_WAVE';
 type CoachDefenseRole = 'PRESS_CARRIER' | 'COVER_NEAR_POST' | 'COVER_CUTBACK' | 'TRACK_FAR_POST' | 'BLOCK_SECOND_WAVE';
+type TelemetryFullTeamAttackJob =
+  | CoachCommandRole
+  | 'WIDE_OUTLET'
+  | 'WEAK_SIDE_WIDTH'
+  | 'CENTRAL_SUPPORT'
+  | 'FULLBACK_WIDTH'
+  | 'REST_DEFENSE'
+  | 'PIN_CENTER_BACK'
+  | 'DECOY_OCCUPY_COVER';
 type CoachCommandState = {
   id: string;
   play: 'WING_CUTBACK_01';
@@ -61,7 +115,11 @@ type CoachCommandState = {
   carrierSide: 1 | -1;
   carrierName: string;
   attackRoles: Partial<Record<CoachCommandRole, string>>;
+  attackTargets?: Partial<Record<CoachCommandRole, { x: number; z: number }>>;
+  fullTeamAttackTargets?: Record<string, { job: TelemetryFullTeamAttackJob; x: number; z: number; timing: 'early' | 'arrive' | 'hold' }>;
   defenseRoles: Partial<Record<CoachDefenseRole, string>>;
+  telemetryCoachPlanId?: TelemetryCoachPlan['id'];
+  telemetryOpponentCoachPlan?: TelemetryOpponentCoachAdjustment;
   reached: Record<string, boolean>;
   delivered: boolean;
 };
@@ -482,6 +540,9 @@ export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
 }
 
 export function initGame(container: HTMLElement) {
+  const telemetryCoachExperiment = isTelemetryCoachExperimentEnabled(window.location.search);
+  const telemetryCoachPlan = createTelemetryCoachPlanFromRealMovement();
+  const telemetryCoachFullControl = true;
   // --- Sound Manager ---
   const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
   // Master bus: simple gain node for headroom — no DynamicsCompressor (causes pumping artifacts)
@@ -1188,6 +1249,53 @@ export function initGame(container: HTMLElement) {
     detail: Record<string, any>;
   };
   const tuningEventLog: TuningEvent[] = [];
+  type PositionalDriftCommand = {
+    targetX: number;
+    targetZ: number;
+    assignedAt: number;
+    matchSecond: number;
+    owner: string;
+    state: string;
+  };
+  type PositionalDriftTeamReport = {
+    t: number;
+    half: number;
+    team: 'A' | 'B';
+    commanded: number;
+    avgDrift: number;
+    maxDrift: number;
+    over5m: number;
+    worst: Array<{
+      player: string;
+      role: string;
+      state: string;
+      owner: string;
+      drift: number;
+      actualX: number;
+      actualZ: number;
+      targetX: number;
+      targetZ: number;
+      commandAge: number;
+    }>;
+  };
+  type CoachAuthorityFrameSnapshot = {
+    x: number;
+    z: number;
+    frame: number;
+  };
+  type LiveMovementAuthoritySnapshot = {
+    x: number;
+    z: number;
+    frame: number;
+  };
+  type LiveBallAuthoritySnapshot = LiveMovementAuthoritySnapshot & {
+    y: number;
+  };
+  const positionalDriftReports: PositionalDriftTeamReport[] = [];
+  let _lastPositionalDriftSampleSecond = -1;
+  let _coachAuthorityFrame = 0;
+  let _liveMovementAuthorityFrame = 0;
+  let _liveBallAuthoritySnapshot: LiveBallAuthoritySnapshot | null = null;
   const shouldExposeDashboardEvent = (event: TuningEvent) => ![
     'MIDFIELD_SUPPORT',
     'SHOT_ON_TARGET_POSITION_SNAPSHOT',
@@ -1197,6 +1305,302 @@ export function initGame(container: HTMLElement) {
     'POSITION_OWNER_SAMPLE',
   ].includes(event.type);
   const shouldPersistBundleEvent = (_event: TuningEvent) => true;
+  function recordPositionalDriftCommand(player: any, target: THREE.Vector3, owner: string) {
+    if (!player || !target || isGoalkeeper(player)) return;
+    const command: PositionalDriftCommand = {
+      targetX: +target.x.toFixed(3),
+      targetZ: +target.z.toFixed(3),
+      assignedAt: performance.now() / 1000,
+      matchSecond: Math.floor(matchClock.elapsedInHalf),
+      owner,
+      state: String(player.aiState || ''),
+    };
+    (player as any)._positionalDriftCommand = command;
+  }
+  function isCoachSupremeAuthorityActive() {
+    return !!gameState.cpuVsCpu
+      && !!gameState.isLive
+      && (matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF')
+      && !gameState.practiceModeEnabled;
+  }
+  function isCoachAuthorityPlayerExempt(player: any) {
+    if (!player) return true;
+    if (isGoalkeeper(player) && player.saveAnimType !== 'NONE' && matchClock.elapsedInHalf < Number(player.saveAnimUntil || 0)) return true;
+    if (throwInPresentation.active && throwInPresentation.thrower === player) return true;
+    if (isGoalDeadBallActive()) return true;
+    if (goalCelebration.active || halftimeWalkoff.active) return true;
+    return false;
+  }
+  function beginCoachAuthorityFrame() {
+    if (!isCoachSupremeAuthorityActive()) return;
+    _coachAuthorityFrame += 1;
+    for (const player of players) {
+      if (isCoachAuthorityPlayerExempt(player)) continue;
+      (player as any)._coachAuthorityFrameSnapshot = {
+        x: player.pos.x,
+        z: player.pos.z,
+        frame: _coachAuthorityFrame,
+      } satisfies CoachAuthorityFrameSnapshot;
+      (player as any)._coachAuthorityMoveCommand = null;
+    }
+  }
+  function recordCoachAuthorityMoveCommand(player: any, target: THREE.Vector3, owner: string, maxSpeed: number = getUniformPlayerRunSpeed()) {
+    if (!isCoachSupremeAuthorityActive() || isCoachAuthorityPlayerExempt(player) || !target) return;
+    if ((owner === 'steerPlayerTowards' || owner === 'steerSimpleAttackPlayer') && (player as any)._coachAuthorityMoveCommand) return;
+    const command: CoachAuthorityMoveCommand = {
+      target: {
+        x: +target.x.toFixed(3),
+        z: +target.z.toFixed(3),
+      },
+      owner,
+      maxSpeed: Math.max(0.01, Math.min(Math.max(maxSpeed, getUniformPlayerRunSpeed()), getUniformPlayerRunSpeed() * 1.35)),
+    };
+    (player as any)._coachAuthorityMoveCommand = command;
+  }
+  function enforceCoachAuthorityFrame(dt: number) {
+    if (!isCoachSupremeAuthorityActive()) return;
+    for (const player of players) {
+      if (isCoachAuthorityPlayerExempt(player)) continue;
+      const snapshot = (player as any)._coachAuthorityFrameSnapshot as CoachAuthorityFrameSnapshot | null;
+      if (!snapshot || snapshot.frame !== _coachAuthorityFrame) continue;
+      const command = ((player as any)._coachAuthorityMoveCommand || null) as CoachAuthorityMoveCommand | null;
+      const result = enforceCoachAuthorityMovement({
+        previous: { x: snapshot.x, z: snapshot.z },
+        attempted: { x: player.pos.x, z: player.pos.z },
+        command,
+        dt,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+      });
+      if (result.violations.length === 0) continue;
+      const playerAny = player as any;
+      const lastAt = Number(playerAny._lastCoachAuthorityViolationAt ?? -999);
+      if (matchClock.elapsedInHalf - lastAt >= 0.35) {
+        playerAny._lastCoachAuthorityViolationAt = matchClock.elapsedInHalf;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_AUTHORITY_VIOLATION', player.team, getRoleKey(player), {
+          player: player.name || playerCoachKey(player),
+          violations: result.violations,
+          owner: command?.owner || 'NONE',
+          fromX: +snapshot.x.toFixed(2),
+          fromZ: +snapshot.z.toFixed(2),
+          attemptedX: +player.pos.x.toFixed(2),
+          attemptedZ: +player.pos.z.toFixed(2),
+          correctedX: +result.position.x.toFixed(2),
+          correctedZ: +result.position.z.toFixed(2),
+          attemptedSpeed: +result.attemptedSpeed.toFixed(2),
+          allowedSpeed: +result.allowedSpeed.toFixed(2),
+          aiState: String(player.aiState || ''),
+        });
+      }
+      player.pos.x = result.position.x;
+      player.pos.z = result.position.z;
+      player.pos.y = 0.15;
+      if (result.violations.includes('missing_command')) {
+        player.vel.x = 0;
+        player.vel.z = 0;
+      } else if (result.violations.includes('speed_cap') || result.violations.includes('off_route')) {
+        const vx = (player.pos.x - snapshot.x) / Math.max(0.001, dt);
+        const vz = (player.pos.z - snapshot.z) / Math.max(0.001, dt);
+        player.vel.x = vx;
+        player.vel.z = vz;
+      }
+      if (player.mesh) player.mesh.position.copy(player.pos);
+    }
+  }
+  function isLiveMovementAuthorityActive() {
+    return !!gameState.cpuVsCpu
+      && !!gameState.isLive
+      && (matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF')
+      && !gameState.practiceModeEnabled
+      && !gameState.realDataReplayMode;
+  }
+  function isLegalLiveMotionTeleportActive() {
+    return !gameState.isLive
+      || delayedRestartState.active
+      || isGoalDeadBallActive()
+      || goalCelebration.active
+      || halftimeWalkoff.active
+      || kickoffPresentation.active
+      || freeKickPresentation.relocating
+      || throwInPresentation.relocating
+      || cornerPresentation.active
+      || penaltyPresentation.active
+      || gameState.isResetting;
+  }
+  function isLiveMovementAuthorityPlayerExempt(player: any) {
+    if (!player) return true;
+    if (isRemovedSoloOpponent(player)) return true;
+    if (isGoalkeeper(player) && player.saveAnimType !== 'NONE' && matchClock.elapsedInHalf < Number(player.saveAnimUntil || 0)) return true;
+    if (throwInPresentation.active && throwInPresentation.thrower === player) return true;
+    if (goalCelebration.active || halftimeWalkoff.active) return true;
+    return false;
+  }
+  function getLiveMovementAuthorityPlayerMaxSpeed(player: any) {
+    const base = Math.max(getUniformPlayerRunSpeed(), getPlayerMaxGroundSpeed(player, ballState.heldBy === player));
+    const carryingMul = ballState.heldBy === player ? 1.18 : 1.45;
+    return Math.max(0.01, base * carryingMul);
+  }
+  function getLiveMovementAuthorityOwner(player: any) {
+    const command = (player as any)._coachAuthorityMoveCommand as CoachAuthorityMoveCommand | null;
+    const driftCommand = (player as any)._positionalDriftCommand as PositionalDriftCommand | undefined;
+    return command?.owner || driftCommand?.owner || String(player.aiState || 'NONE');
+  }
+  function beginLiveMovementAuthorityFrame() {
+    if (!isLiveMovementAuthorityActive()) return;
+    _liveMovementAuthorityFrame += 1;
+    for (const player of players) {
+      if (isLiveMovementAuthorityPlayerExempt(player)) continue;
+      (player as any)._liveMovementAuthoritySnapshot = {
+        x: player.pos.x,
+        z: player.pos.z,
+        frame: _liveMovementAuthorityFrame,
+      } satisfies LiveMovementAuthoritySnapshot;
+    }
+    _liveBallAuthoritySnapshot = {
+      x: ballState.pos.x,
+      y: ballState.pos.y,
+      z: ballState.pos.z,
+      frame: _liveMovementAuthorityFrame,
+    };
+  }
+  function enforceLiveMovementAuthorityFrame(dt: number) {
+    if (!isLiveMovementAuthorityActive()) return;
+    const allowTeleport = isLegalLiveMotionTeleportActive();
+    for (const player of players) {
+      if (isLiveMovementAuthorityPlayerExempt(player)) continue;
+      const snapshot = (player as any)._liveMovementAuthoritySnapshot as LiveMovementAuthoritySnapshot | null;
+      if (!snapshot || snapshot.frame !== _liveMovementAuthorityFrame) continue;
+      const maxSpeed = getLiveMovementAuthorityPlayerMaxSpeed(player);
+      const result = enforceLiveMovementAuthority({
+        previous: { x: snapshot.x, z: snapshot.z },
+        attempted: { x: player.pos.x, z: player.pos.z },
+        dt,
+        maxSpeed,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        allowTeleport,
+      });
+      if (result.violations.length === 0) continue;
+      const playerAny = player as any;
+      const lastAt = Number(playerAny._lastLiveMovementAuthorityViolationAt ?? -999);
+      if (matchClock.elapsedInHalf - lastAt >= 0.35) {
+        playerAny._lastLiveMovementAuthorityViolationAt = matchClock.elapsedInHalf;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'LIVE_MOVEMENT_AUTHORITY_VIOLATION', player.team, getRoleKey(player), {
+          player: player.name || playerCoachKey(player),
+          violations: result.violations,
+          owner: getLiveMovementAuthorityOwner(player),
+          legalTeleport: allowTeleport,
+          fromX: +snapshot.x.toFixed(2),
+          fromZ: +snapshot.z.toFixed(2),
+          attemptedX: +player.pos.x.toFixed(2),
+          attemptedZ: +player.pos.z.toFixed(2),
+          correctedX: +result.position.x.toFixed(2),
+          correctedZ: +result.position.z.toFixed(2),
+          attemptedSpeed: +result.attemptedSpeed.toFixed(2),
+          allowedSpeed: +result.allowedSpeed.toFixed(2),
+          aiState: String(player.aiState || ''),
+        });
+      }
+      player.pos.x = result.position.x;
+      player.pos.z = result.position.z;
+      player.pos.y = 0.15;
+      const vx = (player.pos.x - snapshot.x) / Math.max(0.001, dt);
+      const vz = (player.pos.z - snapshot.z) / Math.max(0.001, dt);
+      player.vel.x = result.capped ? vx : player.vel.x;
+      player.vel.z = result.capped ? vz : player.vel.z;
+      if (player.mesh) player.mesh.position.copy(player.pos);
+    }
+
+    if (ballState.heldBy && !allowTeleport) {
+      updateDribbleBallPosition(ballState.heldBy, performance.now() / 1000, dt);
+    }
+
+    const ballSnapshot = _liveBallAuthoritySnapshot;
+    if (!ballSnapshot || ballSnapshot.frame !== _liveMovementAuthorityFrame) return;
+    const holderMax = ballState.heldBy ? getLiveMovementAuthorityPlayerMaxSpeed(ballState.heldBy) + 2.0 : 0;
+    const ballMaxSpeed = ballState.isFlying || ballState.isRolling || ballState.isShot
+      ? 28.0
+      : Math.max(holderMax, 9.0);
+    const ballResult = enforceLiveMovementAuthority({
+      previous: { x: ballSnapshot.x, z: ballSnapshot.z },
+      attempted: { x: ballState.pos.x, z: ballState.pos.z },
+      dt,
+      maxSpeed: ballMaxSpeed,
+      fieldWidth: FIELD_W + goalFloorDepth * 2,
+      fieldDepth: FIELD_D,
+      allowTeleport,
+    });
+    if (ballResult.violations.length === 0) return;
+    const lastAt = Number((ballState as any)._lastLiveBallAuthorityViolationAt ?? -999);
+    if (matchClock.elapsedInHalf - lastAt >= 0.25) {
+      (ballState as any)._lastLiveBallAuthorityViolationAt = matchClock.elapsedInHalf;
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'LIVE_BALL_AUTHORITY_VIOLATION', (ballState.heldBy?.team || gameState.offensiveTeam || 'A') as 'A' | 'B', 'BALL', {
+        violations: ballResult.violations,
+        legalTeleport: allowTeleport,
+        fromX: +ballSnapshot.x.toFixed(2),
+        fromZ: +ballSnapshot.z.toFixed(2),
+        attemptedX: +ballState.pos.x.toFixed(2),
+        attemptedZ: +ballState.pos.z.toFixed(2),
+        correctedX: +ballResult.position.x.toFixed(2),
+        correctedZ: +ballResult.position.z.toFixed(2),
+        attemptedSpeed: +ballResult.attemptedSpeed.toFixed(2),
+        allowedSpeed: +ballResult.allowedSpeed.toFixed(2),
+        heldBy: ballState.heldBy ? (ballState.heldBy.name || playerCoachKey(ballState.heldBy)) : null,
+        fly: !!ballState.isFlying,
+        roll: !!ballState.isRolling,
+      });
+    }
+    ballState.pos.x = ballResult.position.x;
+    ballState.pos.z = ballResult.position.z;
+    ballState.pos.y = Number.isFinite(ballState.pos.y) ? ballState.pos.y : ballSnapshot.y;
+    ballState.vel.x = (ballState.pos.x - ballSnapshot.x) / Math.max(0.001, dt);
+    ballState.vel.z = (ballState.pos.z - ballSnapshot.z) / Math.max(0.001, dt);
+    ballGroup.position.copy(ballState.pos);
+  }
+  function emitPositionalDriftReport(elapsed: number) {
+    if (!gameState.cpuVsCpu || !(matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF')) return;
+    const secondKey = matchClock.half * 10000 + Math.floor(matchClock.elapsedInHalf);
+    if (secondKey === _lastPositionalDriftSampleSecond) return;
+    _lastPositionalDriftSampleSecond = secondKey;
+    const nowSec = performance.now() / 1000;
+    for (const team of ['A', 'B'] as const) {
+      const rows = players
+        .filter((p: any) => p.team === team && !isGoalkeeper(p))
+        .map((p: any) => {
+          const command = p._positionalDriftCommand as PositionalDriftCommand | undefined;
+          if (!command || nowSec - command.assignedAt > 1.35) return null;
+          const drift = Math.hypot(p.pos.x - command.targetX, p.pos.z - command.targetZ);
+          return {
+            player: p.name || playerCoachKey(p),
+            role: getRoleKey(p),
+            state: String(p.aiState || command.state || ''),
+            owner: command.owner,
+            drift: +drift.toFixed(2),
+            actualX: +p.pos.x.toFixed(1),
+            actualZ: +p.pos.z.toFixed(1),
+            targetX: +command.targetX.toFixed(1),
+            targetZ: +command.targetZ.toFixed(1),
+            commandAge: +(nowSec - command.assignedAt).toFixed(2),
+          };
+        })
+        .filter(Boolean) as PositionalDriftTeamReport['worst'];
+      if (rows.length === 0) continue;
+      const sum = rows.reduce((acc, row) => acc + row.drift, 0);
+      const sorted = rows.slice().sort((a, b) => b.drift - a.drift);
+      const report: PositionalDriftTeamReport = {
+        t: +matchClock.elapsedInHalf.toFixed(1),
+        half: matchClock.half,
+        team,
+        commanded: rows.length,
+        avgDrift: +(sum / rows.length).toFixed(2),
+        maxDrift: sorted[0]?.drift ?? 0,
+        over5m: rows.filter((row) => row.drift >= 5).length,
+        worst: sorted.slice(0, 6),
+      };
+      positionalDriftReports.push(report);
+      pushTuningEvent(elapsed, matchClock.half, 'POSITIONAL_DRIFT_SNAPSHOT', team, 'TEAM', report);
+    }
+  }
   function resolveShotSnapshotShooter(team: 'A' | 'B', shooterOverride: any = null) {
     const candidates = [
       shooterOverride,
@@ -2260,21 +2664,90 @@ export function initGame(container: HTMLElement) {
       return;
     }
     const attackDir = teamAttacksRight(kicker.team) ? 1 : -1;
-    // Practice Mode: Teammates might be in different positions than a traditional match kickoff.
-    // Filter teammates based on who is standing BEHIND the ball relative to attacking direction.
-    const kickoffTeammates = players.filter((p: any) => p.team === kicker.team && p !== kicker);
-    
-    // Sort by proximity to the kicker first to ensure we aren't picking someone 50 yards away
-    const teammateTarget = kickoffTeammates
-      .filter((p: any) => (p.pos.x - kickoffLawState.centerPosition.x) * attackDir < -0.01)
-      .sort((a: any, b: any) => a.pos.distanceTo(kickoffLawState.centerPosition) - b.pos.distanceTo(kickoffLawState.centerPosition))[0] || null;
+    const center = kickoffLawState.centerPosition;
+    const kickoffTeammates = players.filter((p: any) =>
+      p.team === kicker.team
+      && p !== kicker
+      && !isGoalkeeper(p)
+      && !isRemovedSoloOpponent(p)
+    );
+    const scoreKickoffReceiver = (p: any) => {
+      const dxForward = (p.pos.x - center.x) * attackDir;
+      const dist = p.pos.distanceTo(center);
+      const isBehindOrSquare = dxForward <= 0.75;
+      const centralPenalty = Math.abs(p.pos.z) * 0.12;
+      return (isBehindOrSquare ? 0 : 50 + dxForward * 5) + dist + centralPenalty;
+    };
+    let receiverWasStaged = false;
+    let receiverFallback = 'formation';
+    let teammateTarget = kickoffTeammates
+      .filter((p: any) => p.pos.distanceTo(center) <= 18 && (p.pos.x - center.x) * attackDir <= 0.75)
+      .sort((a: any, b: any) => scoreKickoffReceiver(a) - scoreKickoffReceiver(b))[0] || null;
+    if (teammateTarget) {
+      const staged = computeKickoffReceiverSpot({
+        center,
+        attackDirection: attackDir as 1 | -1,
+        receiver: teammateTarget.pos,
+        fieldDepth: FIELD_D,
+      });
+      teammateTarget.pos.set(staged.x, 0.15, staged.z);
+      teammateTarget.vel?.set?.(0, 0, 0);
+      receiverWasStaged = true;
+      receiverFallback = 'metrica_short_forward_restart';
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'KICKOFF_RECEIVER_STAGED', kicker.team, getRoleKey(kicker), {
+        receiver: teammateTarget.name || 'Unknown',
+        receiverRole: getRoleKey(teammateTarget),
+        stagedX: Math.round(teammateTarget.pos.x * 10) / 10,
+        stagedZ: Math.round(teammateTarget.pos.z * 10) / 10,
+        reason: 'short_forward_lateral_restart',
+      });
+    } else {
+      teammateTarget = kickoffTeammates
+        .sort((a: any, b: any) => scoreKickoffReceiver(a) - scoreKickoffReceiver(b))[0] || null;
+      receiverFallback = teammateTarget ? 'nearest_outfield_staged' : 'missing';
+      if (teammateTarget) {
+        const staged = computeKickoffReceiverSpot({
+          center,
+          attackDirection: attackDir as 1 | -1,
+          receiver: teammateTarget.pos,
+          fieldDepth: FIELD_D,
+        });
+        teammateTarget.pos.set(staged.x, 0.15, staged.z);
+        teammateTarget.vel?.set?.(0, 0, 0);
+        receiverWasStaged = true;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'KICKOFF_RECEIVER_STAGED', kicker.team, getRoleKey(kicker), {
+          receiver: teammateTarget.name || 'Unknown',
+          receiverRole: getRoleKey(teammateTarget),
+          stagedX: Math.round(teammateTarget.pos.x * 10) / 10,
+          stagedZ: Math.round(teammateTarget.pos.z * 10) / 10,
+          reason: 'no_near_support_short_forward_lateral_restart',
+        });
+      }
+    }
+    if (teammateTarget && !isKickoffPassSafe({
+      center,
+      target: teammateTarget.pos,
+      attackDirection: attackDir as 1 | -1,
+      maxDistance: 8.0,
+    })) {
+      const staged = computeKickoffReceiverSpot({
+        center,
+        attackDirection: attackDir as 1 | -1,
+        receiver: teammateTarget.pos,
+        fieldDepth: FIELD_D,
+      });
+      teammateTarget.pos.set(staged.x, 0.15, staged.z);
+      teammateTarget.vel?.set?.(0, 0, 0);
+      receiverWasStaged = true;
+      receiverFallback = 'unsafe_receiver_restaged';
+    }
 
     const kickDirection = teammateTarget
       ? teammateTarget.pos.clone().sub(kickoffLawState.centerPosition)
-      : new THREE.Vector3(-attackDir, 0, 0); // Default to backward if no teammate found
+      : new THREE.Vector3(attackDir, 0, 0);
     kickDirection.y = 0;
     if (kickDirection.lengthSq() < 0.001) {
-      kickDirection.set(-attackDir, 0, 0);
+      kickDirection.set(attackDir, 0, 0);
     }
     kickDirection.normalize();
 
@@ -2287,6 +2760,7 @@ export function initGame(container: HTMLElement) {
     // Kickoff Pass: Needs to be crisp but slow enough to control immediately.
     // We set intendedReceiver here to trigger the "magnet/assist" logic in physics
     if (teammateTarget) {
+      recordPassAttempt(kicker, teammateTarget, 'KICKOFF', nowSec);
       setIntendedReceiver(teammateTarget, kicker.team, nowSec, 2.0);
       ballState.intendedIsPass = true;
     }
@@ -2302,6 +2776,8 @@ export function initGame(container: HTMLElement) {
       kickerRole: getRoleKey(kicker),
       target: teammateTarget?.name || null,
       targetRole: teammateTarget ? getRoleKey(teammateTarget) : null,
+      receiverWasStaged,
+      receiverFallback,
       restartMessage: soccerRestart.message || '',
       targetX: teammateTarget ? Math.round(teammateTarget.pos.x * 10) / 10 : null,
       targetZ: teammateTarget ? Math.round(teammateTarget.pos.z * 10) / 10 : null,
@@ -2401,6 +2877,8 @@ export function initGame(container: HTMLElement) {
     shapeSamplesA.length = 0;
     shapeSamplesB.length = 0;
     playerPositioningSamples.length = 0;
+    positionalDriftReports.length = 0;
+    _lastPositionalDriftSampleSecond = -1;
     _lastShapeSampleAt = 0;
     _lastDiagnosticLogAt = 0;
     _lastTuningEventAt = 0;
@@ -2536,6 +3014,48 @@ export function initGame(container: HTMLElement) {
 
   function startSoccerRestart(type: 'KICK_OFF' | 'THROW_IN' | 'GOAL_KICK' | 'CORNER' | 'TURNOVER' | 'PENALTY', team: 'A' | 'B', x: number, z: number, message: string) {
     if (matchClock.phase === 'FULL_TIME') return;
+    if (isSoloCpuMode() && team !== getSoloCpuTeam()) {
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'SOLO_CPU_RESTART_REDIRECTED', team, 'TEAM', {
+        originalType: type,
+        originalTeam: team,
+        soloTeam: getSoloCpuTeam(),
+      });
+      type = 'KICK_OFF';
+      team = getSoloCpuTeam();
+      x = 0;
+      z = 0;
+      message = 'KICK-OFF';
+    }
+    if (type === 'CORNER') {
+      const elapsed = getCoachElapsedSeconds();
+      const sameCorner =
+        gameState.lastCornerRestartTeam === team
+        && Math.hypot(gameState.lastCornerRestartX - x, gameState.lastCornerRestartZ - z) < 3.5
+        && elapsed - gameState.lastCornerRestartAt < 18.0;
+      gameState.repeatedCornerRestarts = sameCorner ? gameState.repeatedCornerRestarts + 1 : 1;
+      gameState.lastCornerRestartAt = elapsed;
+      gameState.lastCornerRestartTeam = team;
+      gameState.lastCornerRestartX = x;
+      gameState.lastCornerRestartZ = z;
+      if (gameState.repeatedCornerRestarts >= 3) {
+        const defendingTeam = team === 'A' ? 'B' : 'A';
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_CORNER_LOOP_SUPPRESSED', team, 'TEAM', {
+          repeatedCornerRestarts: gameState.repeatedCornerRestarts,
+          originalX: +x.toFixed(1),
+          originalZ: +z.toFixed(1),
+          restartTeam: defendingTeam,
+          redirectedTo: 'GOAL_KICK',
+        });
+        type = 'GOAL_KICK';
+        team = defendingTeam;
+        x = teamAttacksRight(defendingTeam) ? -FIELD_W / 2 + 3.0 : FIELD_W / 2 - 3.0;
+        z = 0;
+        message = 'GOAL KICK';
+        gameState.repeatedCornerRestarts = 0;
+      }
+    } else if (type !== 'THROW_IN') {
+      gameState.repeatedCornerRestarts = 0;
+    }
     // Diagnostic — every KICK_OFF restart is a strong ghost-match signal.
     // Logs to the MATCH START LOG panel so user can see the trigger source.
     if (type === 'KICK_OFF') {
@@ -4050,6 +4570,23 @@ export function initGame(container: HTMLElement) {
     A: { scoreName: 'LA GALAXY', rosterName: 'LA Galaxy' },
     B: { scoreName: 'LAFC', rosterName: 'LAFC' },
   };
+  const telemetryCoachPlanCache: Record<'A' | 'B', { key: string; plan: TelemetryCoachPlan }> = {
+    A: { key: '', plan: telemetryCoachPlan },
+    B: { key: '', plan: telemetryCoachPlan },
+  };
+  function getTelemetryCoachPlanForTeam(team: 'A' | 'B'): TelemetryCoachPlan {
+    const opponent = team === 'A' ? 'B' : 'A';
+    const teamName = activeTeams[team].rosterName || activeTeams[team].scoreName;
+    const opponentName = activeTeams[opponent].rosterName || activeTeams[opponent].scoreName;
+    const key = `${teamName}|${opponentName}`;
+    if (telemetryCoachPlanCache[team].key !== key) {
+      telemetryCoachPlanCache[team] = {
+        key,
+        plan: createTelemetryCoachPlanFromRealMovement(),
+      };
+    }
+    return telemetryCoachPlanCache[team].plan;
+  }
 
   const teamA = createTeamSection('/assets/logos/la-galaxy.png', activeTeams.A.scoreName, '#00245d', true);
   const teamB = createTeamSection('/assets/logos/lafc.png', activeTeams.B.scoreName, '#c39e6d', false);
@@ -5844,13 +6381,48 @@ export function initGame(container: HTMLElement) {
     humanPlayerIndexB: 0,
     manualSelectCooldownB: 0,
     cpuVsCpu: false,
+    realDataReplayMode: false,
     menuVisible: true,
     cpuDecisionCooldownA: 0,
     cpuDecisionCooldownB: 0,
     goalKickInProgress: false,
     cornerKickInProgress: false,
+    lastCornerRestartAt: -999,
+    lastCornerRestartTeam: '' as 'A' | 'B' | '',
+    lastCornerRestartX: 0,
+    lastCornerRestartZ: 0,
+    repeatedCornerRestarts: 0,
     saveSlowmoUntil: 0,
     aiStyle: 'AGGRESSIVE' as 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION',
+    coachAggression: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('coachAggression') ?? params.get('attackAggression') ?? params.get('aggression');
+        return THREE.MathUtils.clamp(Number(raw ?? 55), 0, 100);
+      } catch {
+        return 55;
+      }
+    })(),
+    defenseAggression: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('defenseAggression') ?? params.get('defAggression');
+        return THREE.MathUtils.clamp(Number(raw ?? 55), 0, 100);
+      } catch {
+        return 55;
+      }
+    })(),
+    noOppositionDebug: (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('noOpposition') ?? params.get('disableOpposition') ?? params.get('noDefense');
+        if (raw === null) return false;
+        const value = raw.trim().toLowerCase();
+        return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+      } catch {
+        return false;
+      }
+    })(),
     disableOpponentPressure: true,
     tuningLabel: 'CRANKED_PASS_SHOOT_V1',
     tuningDescription: 'Aggressive forward-pass bias and strict low-EV shot gating; large tuning change for tracking.',
@@ -5921,6 +6493,8 @@ export function initGame(container: HTMLElement) {
     crossAssistUntil: 0,
     attackPhaseA: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
     attackPhaseB: 'BUILD_UP' as 'BUILD_UP' | 'PROGRESSION' | 'TRANSITION' | 'FINAL_THIRD',
+    finalThirdEntryAtA: -999,
+    finalThirdEntryAtB: -999,
     // Phase 2.5: team-level attacking pattern state (coordinated multi-player intent)
     teamPatternA: null as null | import('./ai/patternEngine.ts').TeamPatternState,
     teamPatternB: null as null | import('./ai/patternEngine.ts').TeamPatternState,
@@ -5930,6 +6504,10 @@ export function initGame(container: HTMLElement) {
     activeCoachCommand: null as null | CoachCommandState,
     coachCommandSeq: 0,
     coachCommandLastEndByTeam: { A: -999, B: -999 } as Record<'A' | 'B', number>,
+    telemetryOpponentCoachThreats: {
+      A: createTelemetryOpponentCoachThreatMemory(),
+      B: createTelemetryOpponentCoachThreatMemory(),
+    } as Record<'A' | 'B', TelemetryOpponentCoachThreatMemory>,
     // Global possession tracking (fixes bug A: per-team version never detected re-gains)
     ballPossessionChangedAt: 0,
     ballLastTeam: '' as 'A' | 'B' | '',
@@ -6121,6 +6699,20 @@ export function initGame(container: HTMLElement) {
     return 'BUILD_UP';
   }
 
+  function getFinalThirdResolutionAge(team: 'A' | 'B', inFinalThird: boolean, elapsed: number): number {
+    const key = team === 'A' ? 'finalThirdEntryAtA' : 'finalThirdEntryAtB';
+    if (!inFinalThird) {
+      (gameState as any)[key] = -999;
+      return 0;
+    }
+    const startedAt = Number((gameState as any)[key] ?? -999);
+    if (!Number.isFinite(startedAt) || startedAt < 0) {
+      (gameState as any)[key] = elapsed;
+      return 0;
+    }
+    return Math.max(0, elapsed - startedAt);
+  }
+
   // Phase 2.5: Team pattern engine tick. Called when team has possession.
   // Also handles global possession change detection.
   function tickTeamPattern(team: 'A' | 'B', carrier: any, attackSign: 1 | -1) {
@@ -6132,6 +6724,8 @@ export function initGame(container: HTMLElement) {
       const losingTeam = gameState.ballLastTeam;
       gameState.ballLastTeam = ballTeam;
       gameState.ballPossessionChangedAt = elapsed;
+      gameState.finalThirdEntryAtA = -999;
+      gameState.finalThirdEntryAtB = -999;
       // End losing team's pattern on possession loss.
       if (losingTeam === 'A' || losingTeam === 'B') {
         const losingKey = losingTeam === 'A' ? 'teamPatternA' : 'teamPatternB';
@@ -6241,6 +6835,82 @@ export function initGame(container: HTMLElement) {
     return matchClock.elapsedInHalf + (matchClock.half === 2 ? getHalfDurationSeconds() : 0);
   }
 
+  function getCoachAggression01(): number {
+    return THREE.MathUtils.clamp(Number(gameState.coachAggression ?? 55) / 100, 0, 1);
+  }
+
+  function getDefenseAggression01(): number {
+    return THREE.MathUtils.clamp(Number(gameState.defenseAggression ?? 55) / 100, 0, 1);
+  }
+
+  function applyCoachAggressionDepth(baseDepth: number, aggressiveDepth: number): number {
+    return THREE.MathUtils.lerp(baseDepth, aggressiveDepth, getCoachAggression01());
+  }
+
+  function getNoOppositionPossessionTeam(): 'A' | 'B' | null {
+    const team = ballState.heldBy?.team || ballState.lastHeldBy?.team || ballState.intendedTeam || null;
+    return team === 'A' || team === 'B' ? team : null;
+  }
+
+  function isSoloCpuMode(): boolean {
+    return !!gameState.noOppositionDebug;
+  }
+
+  function getSoloCpuTeam(): 'A' {
+    return 'A';
+  }
+
+  function isRemovedSoloOpponent(player: any): boolean {
+    return isSoloCpuMode() && player?.team !== getSoloCpuTeam();
+  }
+
+  function applyRemovedOpponentVisualState(player: any) {
+    if (!player) return;
+    player.vel?.set?.(0, 0, 0);
+    player.pos?.set?.(999, 0.15, 999);
+    if (player.mesh) player.mesh.visible = false;
+    if (player.glow) player.glow.visible = false;
+    if (player.controlMarker) player.controlMarker.visible = false;
+    if (player.positionLabel) player.positionLabel.visible = false;
+    if (player.aiStateLabel) player.aiStateLabel.visible = false;
+    setPlayerAIState(player, 'REMOVED_SOLO_CPU');
+  }
+
+  function shouldDisableOppositionForPlayer(player: any, ballCarrier?: any): boolean {
+    if (isRemovedSoloOpponent(player)) return true;
+    const possessionTeam = ballCarrier?.team || getNoOppositionPossessionTeam();
+    return !!gameState.noOppositionDebug
+      && !!possessionTeam
+      && player?.team !== possessionTeam
+      && !isGoalkeeper(player);
+  }
+
+  function freezeNoOppositionPlayer(player: any, dt: number, elapsed: number): boolean {
+    if (isRemovedSoloOpponent(player)) {
+      applyRemovedOpponentVisualState(player);
+      return true;
+    }
+    if (!shouldDisableOppositionForPlayer(player)) return false;
+    const target = player.homePos || player.pos;
+    setPlayerAIState(player, 'NO_OPPOSITION_DEBUG');
+    if (player.pos.distanceTo(target) > 0.35) {
+      steerSimpleAttackPlayer(player, target, dt, getUniformPlayerRunSpeed() * 0.22, 0.9, 0.18);
+    } else {
+      player.vel.multiplyScalar(Math.max(0, 1 - dt * 12));
+    }
+    const lastAt = Number((player as any)._noOppositionFreezeAt ?? -999);
+    if (elapsed - lastAt >= 2.0) {
+      (player as any)._noOppositionFreezeAt = elapsed;
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'NO_OPPOSITION_FREEZE', player.team, getRoleKey(player), {
+        possessionTeam: getNoOppositionPossessionTeam(),
+        player: player.name || 'Unknown',
+        x: +player.pos.x.toFixed(1),
+        z: +player.pos.z.toFixed(1),
+      });
+    }
+    return true;
+  }
+
   function getActiveCoachCommand(team: 'A' | 'B' | null, elapsed: number = getCoachElapsedSeconds()): CoachCommandState | null {
     const command = gameState.activeCoachCommand;
     if (!command) return null;
@@ -6277,6 +6947,41 @@ export function initGame(container: HTMLElement) {
     const attackSign = command.team === 'A' ? (teamAttacksRight('A') ? 1 : -1) : (teamAttacksRight('B') ? 1 : -1);
     const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const side = command.carrierSide;
+    const coachAggression = getCoachAggression01();
+    if (telemetryCoachExperiment && command.telemetryCoachPlanId) {
+      if (role === 'CARRIER') {
+        const carrier = findPlayerByCoachKey(command.team, command.carrierName) || player;
+        return new THREE.Vector3(
+          THREE.MathUtils.clamp(
+            carrier.pos.x + attackSign * THREE.MathUtils.lerp(5.8, 11.5, coachAggression),
+            -FIELD_W / 2 + 4,
+            FIELD_W / 2 - THREE.MathUtils.lerp(penaltyDepth + 2.6, penaltyDepth - 1.2, coachAggression),
+          ),
+          0.15,
+          side * Math.max(THREE.MathUtils.lerp(FIELD_D * 0.30, FIELD_D * 0.37, coachAggression), goalMouthWidth * 3.3),
+        );
+      }
+      if (role === 'CUTBACK') {
+        return new THREE.Vector3(
+          goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 3.8, penaltyDepth + 0.2),
+          0.15,
+          side * Math.max(goalMouthWidth * 0.42, FIELD_D * THREE.MathUtils.lerp(0.055, 0.035, coachAggression)),
+        );
+      }
+      if (role === 'SECOND_WAVE') {
+        return new THREE.Vector3(
+          goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 7.2, penaltyDepth + 2.8),
+          0.15,
+          -side * Math.max(goalMouthWidth * 0.75, FIELD_D * 0.07),
+        );
+      }
+      if (role === 'NEAR_POST') {
+        return new THREE.Vector3(goalX - attackSign * THREE.MathUtils.lerp(6.2, 3.5, coachAggression), 0.15, side * Math.max(goalMouthWidth * 0.36, FIELD_D * 0.03));
+      }
+      if (role === 'FAR_POST') {
+        return new THREE.Vector3(goalX - attackSign * THREE.MathUtils.lerp(7.0, 4.2, coachAggression), 0.15, -side * Math.max(goalMouthWidth * 2.45, FIELD_D * 0.19));
+      }
+    }
     if (role === 'CARRIER') {
       const carrier = findPlayerByCoachKey(command.team, command.carrierName) || player;
       const state = structuredAttack || getStructuredAttackForTeam(command.team, carrier, attackSign as 1 | -1);
@@ -6286,7 +6991,7 @@ export function initGame(container: HTMLElement) {
       return new THREE.Vector3(
         goalX - attackSign * (penaltyDepth + 0.6),
         0.15,
-        side * Math.max(goalMouthWidth * 0.62, FIELD_D * 0.055),
+        side * Math.max(goalMouthWidth * 0.42, FIELD_D * 0.04),
       );
     }
     if (role === 'NEAR_POST') {
@@ -6310,11 +7015,156 @@ export function initGame(container: HTMLElement) {
     return null;
   }
 
+  function vectorFromCoachTarget(command: CoachCommandState, role: CoachCommandRole): THREE.Vector3 | null {
+    const point = command.attackTargets?.[role];
+    return point ? new THREE.Vector3(point.x, 0.15, point.z) : null;
+  }
+
+  function updateCoachAttackTarget(command: CoachCommandState, role: CoachCommandRole, target: THREE.Vector3, reason: string, elapsed: number) {
+    const commandAny = command as any;
+    commandAny._retargetedRoles = commandAny._retargetedRoles || {};
+    if (commandAny._retargetedRoles[role]) return;
+    const player = command.attackRoles[role] ? findPlayerByCoachKey(command.team, command.attackRoles[role] || '') : null;
+    const playerDist = player ? player.pos.distanceTo(target) : 99;
+    if (playerDist > 12.0) return;
+    const current = command.attackTargets?.[role];
+    if (current && Math.hypot(current.x - target.x, current.z - target.z) < 1.0) return;
+    command.attackTargets = command.attackTargets || {};
+    command.attackTargets[role] = { x: target.x, z: target.z };
+    commandAny._retargetedRoles[role] = true;
+    const key = `${role}:${command.attackRoles[role] || ''}`;
+    if (command.reached[key]) delete command.reached[key];
+    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_ADJUSTED', command.team, 'TEAM', {
+      id: command.id,
+      play: command.play,
+      role,
+      reason,
+      targetX: +target.x.toFixed(1),
+      targetZ: +target.z.toFixed(1),
+      playerDist: +playerDist.toFixed(2),
+      age: +(elapsed - command.issuedAt).toFixed(2),
+    });
+  }
+
+  function updateActiveCoachCommand(carrier: any, structuredAttack: StructuredAttackState | null, elapsed: number) {
+    const command = getActiveCoachCommand(carrier?.team || null, elapsed);
+    if (!command || command.team !== carrier?.team || command.delivered) return;
+    const commandAny = command as any;
+    const lastAdjustAt = Number(commandAny._lastAdaptiveTickAt ?? -999);
+    if (elapsed - lastAdjustAt < 0.55) return;
+    commandAny._lastAdaptiveTickAt = elapsed;
+    const attackSign = teamAttacksRight(command.team) ? 1 : -1;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const age = Math.max(0, elapsed - command.issuedAt);
+    const makeFinishTarget = (player: any, role: CoachCommandRole) => {
+      const depth = role === 'SECOND_WAVE'
+        ? (telemetryCoachExperiment && command.telemetryCoachPlanId ? penaltyDepth + 4.8 : penaltyDepth + 4.8)
+        : (telemetryCoachExperiment && command.telemetryCoachPlanId ? penaltyDepth + 1.5 : penaltyDepth + 1.2);
+      const maxZ = role === 'SECOND_WAVE' ? penaltyHalfZ * 1.08 : penaltyHalfZ * 0.92;
+      const minZ = role === 'SECOND_WAVE' ? goalMouthWidth * 0.35 : goalMouthWidth * 0.28;
+      const rawZ = THREE.MathUtils.clamp(player?.pos?.z ?? command.carrierSide * minZ, -maxZ, maxZ);
+      const zSign = Math.sign(rawZ || command.carrierSide) || command.carrierSide;
+      const z = zSign * THREE.MathUtils.clamp(Math.abs(rawZ), minZ, maxZ);
+      return new THREE.Vector3(goalX - attackSign * depth, 0.15, z);
+    };
+    for (const role of ['CUTBACK', 'SECOND_WAVE'] as CoachCommandRole[]) {
+      const key = command.attackRoles[role];
+      const player = key ? findPlayerByCoachKey(command.team, key) : null;
+      if (!player) continue;
+      const currentTarget = vectorFromCoachTarget(command, role) || coachTargetForAttackRole(command, role, player, structuredAttack);
+      if (!currentTarget) continue;
+      const dist = player.pos.distanceTo(currentTarget);
+      const currentDistToGoal = Math.abs(goalX - player.pos.x);
+      const tooFarForFinish = role === 'CUTBACK'
+        ? currentDistToGoal > penaltyDepth + 6.2 || Math.abs(player.pos.z) > penaltyHalfZ * 1.18
+        : currentDistToGoal > penaltyDepth + 9.0 || Math.abs(player.pos.z) > penaltyHalfZ * 1.35;
+      if (age >= 1.8 && dist <= 14.0 && (dist > 8.0 || tooFarForFinish)) {
+        updateCoachAttackTarget(command, role, makeFinishTarget(player, role), tooFarForFinish ? 'finish_zone_retarget' : 'route_lag_retarget', elapsed);
+      }
+    }
+  }
+
+  function buildTelemetryFullTeamAttackTargets(
+    command: CoachCommandState,
+    carrier: any,
+    structuredAttack: StructuredAttackState,
+  ): Record<string, { job: TelemetryFullTeamAttackJob; x: number; z: number; timing: 'early' | 'arrive' | 'hold' }> {
+    const attackSign = teamAttacksRight(command.team) ? 1 : -1;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const side = command.carrierSide;
+    const coachAggression = getCoachAggression01();
+    const fullTeamTargets: Record<string, { job: TelemetryFullTeamAttackJob; x: number; z: number; timing: 'early' | 'arrive' | 'hold' }> = {};
+    const teammates = players.filter((p: any) => p.team === command.team && !isGoalkeeper(p));
+    const assignedKeys = new Set(Object.values(command.attackRoles).filter(Boolean));
+
+    const assign = (player: any, job: TelemetryFullTeamAttackJob, target: THREE.Vector3, timing: 'early' | 'arrive' | 'hold') => {
+      if (!player) return;
+      target.x = THREE.MathUtils.clamp(target.x, -FIELD_W / 2 + 2.0, FIELD_W / 2 - 2.0);
+      target.z = THREE.MathUtils.clamp(target.z, -FIELD_D / 2 + 1.4, FIELD_D / 2 - 1.4);
+      fullTeamTargets[playerCoachKey(player)] = {
+        job,
+        x: target.x,
+        z: target.z,
+        timing,
+      };
+    };
+
+    for (const role of ['CARRIER', 'NEAR_POST', 'FAR_POST', 'CUTBACK', 'SECOND_WAVE'] as CoachCommandRole[]) {
+      const key = command.attackRoles[role];
+      const player = key ? findPlayerByCoachKey(command.team, key) : null;
+      const target = player ? (vectorFromCoachTarget(command, role) || coachTargetForAttackRole(command, role, player, structuredAttack)) : null;
+      if (player && target) assign(player, role, target, role === 'CARRIER' ? 'early' : 'arrive');
+    }
+
+    for (const tm of teammates) {
+      const key = playerCoachKey(tm);
+      if (fullTeamTargets[key]) continue;
+      const role = getRoleKey(tm).toUpperCase();
+      const naturalSide = Math.sign(tm.homePos?.z || tm.pos.z || side) || side;
+      const sameSide = Math.sign(naturalSide) === Math.sign(side);
+      let job: TelemetryFullTeamAttackJob = 'CENTRAL_SUPPORT';
+      let timing: 'early' | 'arrive' | 'hold' = 'arrive';
+      let target: THREE.Vector3;
+
+      if (assignedKeys.has(key)) continue;
+      if (['ST', 'CF'].includes(role)) {
+        job = 'PIN_CENTER_BACK';
+        target = new THREE.Vector3(goalX - attackSign * THREE.MathUtils.lerp(8.5, 4.6, coachAggression), 0.15, -side * goalMouthWidth * 0.35);
+      } else if (['CAM', 'CM'].includes(role)) {
+        job = 'CENTRAL_SUPPORT';
+        target = new THREE.Vector3(goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 8.2, penaltyDepth + 3.2), 0.15, -side * Math.max(goalMouthWidth * 0.6, FIELD_D * 0.055));
+      } else if (role === 'DM') {
+        job = 'REST_DEFENSE';
+        timing = 'hold';
+        target = new THREE.Vector3(goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 15.0, penaltyDepth + 8.8), 0.15, -side * Math.max(goalMouthWidth * 1.2, FIELD_D * 0.10));
+      } else if (['LM', 'LW', 'RM', 'RW'].includes(role)) {
+        job = sameSide ? 'WIDE_OUTLET' : 'WEAK_SIDE_WIDTH';
+        target = sameSide
+          ? new THREE.Vector3(goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 9.0, penaltyDepth + 4.2), 0.15, naturalSide * Math.max(FIELD_D * THREE.MathUtils.lerp(0.34, 0.39, coachAggression), goalMouthWidth * 3.6))
+          : new THREE.Vector3(goalX - attackSign * THREE.MathUtils.lerp(8.2, 4.8, coachAggression), 0.15, -side * Math.max(goalMouthWidth * 2.9, FIELD_D * 0.23));
+      } else if (['LB', 'RB', 'LWB', 'RWB'].includes(role)) {
+        job = sameSide ? 'FULLBACK_WIDTH' : 'REST_DEFENSE';
+        timing = sameSide ? 'early' : 'hold';
+        target = sameSide
+          ? new THREE.Vector3(goalX - attackSign * applyCoachAggressionDepth(penaltyDepth + 14.0, penaltyDepth + 7.0), 0.15, naturalSide * Math.max(FIELD_D * 0.31, goalMouthWidth * 3.0))
+          : new THREE.Vector3(goalX - attackSign * (penaltyDepth + 18.0), 0.15, naturalSide * Math.max(FIELD_D * 0.18, goalMouthWidth * 1.8));
+      } else {
+        job = 'REST_DEFENSE';
+        timing = 'hold';
+        target = new THREE.Vector3(goalX - attackSign * (penaltyDepth + 22.0), 0.15, THREE.MathUtils.clamp(tm.homePos?.z ?? tm.pos.z, -FIELD_D * 0.18, FIELD_D * 0.18));
+      }
+      assign(tm, job, target, timing);
+    }
+
+    return fullTeamTargets;
+  }
+
   function maybeEmitCoachPlayerReached(command: CoachCommandState, player: any, role: CoachCommandRole | CoachDefenseRole, target: THREE.Vector3) {
     const key = `${role}:${playerCoachKey(player)}`;
     if (command.reached[key]) return;
     const dist = Math.hypot(player.pos.x - target.x, player.pos.z - target.z);
-    if (dist > 2.35) return;
+    const attackReachRadius = role === 'CUTBACK' || role === 'SECOND_WAVE' || role === 'NEAR_POST' || role === 'FAR_POST' ? 3.6 : 2.35;
+    if (dist > attackReachRadius) return;
     command.reached[key] = true;
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_PLAYER_REACHED', player.team, getRoleKey(player), {
       id: command.id,
@@ -6341,10 +7191,87 @@ export function initGame(container: HTMLElement) {
     return chosen;
   }
 
+  function rememberTelemetryOpponentCoachThreat(defendingTeam: 'A' | 'B', role: string, elapsed: number) {
+    if (!telemetryCoachExperiment) return;
+    const previous = gameState.telemetryOpponentCoachThreats[defendingTeam];
+    const next = recordTelemetryOpponentCoachThreat(previous, role);
+    gameState.telemetryOpponentCoachThreats[defendingTeam] = next;
+    const adjustment = chooseTelemetryOpponentCoachAdjustment(next);
+    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_OPPONENT_COACH_THREAT_LEARNED', defendingTeam, 'TEAM', {
+      observedAttackRole: role,
+      memory: { ...next },
+      primaryThreat: adjustment.primaryThreat,
+      confidence: +adjustment.confidence.toFixed(2),
+      overCoverRoles: [...adjustment.overCoverRoles],
+      pressCarrier: adjustment.pressCarrier,
+      elapsed: +elapsed.toFixed(2),
+    });
+  }
+
+  function getTelemetryOpponentCoachAdjustment(team: 'A' | 'B'): TelemetryOpponentCoachAdjustment | null {
+    if (!telemetryCoachExperiment) return null;
+    return chooseTelemetryOpponentCoachAdjustment(gameState.telemetryOpponentCoachThreats[team]);
+  }
+
+  function createRoboflowSportsEntity(player: any, hasBall: boolean): RoboflowSportsTrackedEntity {
+    return {
+      id: playerCoachKey(player),
+      team: player.team === 'A' || player.team === 'B' ? player.team : 'NEUTRAL',
+      className: isGoalkeeper(player) ? 'goalkeeper' : 'player',
+      role: getRoleKey(player),
+      x: THREE.MathUtils.clamp(player.pos?.x ?? 0, -60, 60),
+      z: THREE.MathUtils.clamp(player.pos?.z ?? 0, -35, 35),
+      vx: player.vel?.x ?? 0,
+      vz: player.vel?.z ?? 0,
+      hasBall,
+    };
+  }
+
+  function createCoachRoboflowSportsFrame(
+    team: 'A' | 'B',
+    attackSign: 1 | -1,
+    carrier: any | null,
+    elapsed: number,
+  ): RoboflowSportsTrackingFrame {
+    return createRoboflowSportsTrackingFrame({
+      attackingTeam: team,
+      attackingDirection: attackSign,
+      frameTimeSeconds: elapsed,
+      ball: {
+        id: 'ball',
+        team: ballState.heldBy?.team === 'A' || ballState.heldBy?.team === 'B' ? ballState.heldBy.team : 'NEUTRAL',
+        x: THREE.MathUtils.clamp(ballState.pos?.x ?? 0, -60, 60),
+        z: THREE.MathUtils.clamp(ballState.pos?.z ?? 0, -35, 35),
+        vx: ballState.vel?.x ?? 0,
+        vz: ballState.vel?.z ?? 0,
+      },
+      entities: players.map((player: any) => createRoboflowSportsEntity(player, player === carrier)),
+    });
+  }
+
   function issueWingCutbackCoachCommand(team: 'A' | 'B', carrier: any, structuredAttack: StructuredAttackState, elapsed: number): CoachCommandState | null {
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
     const existing = getActiveCoachCommand(team, elapsed);
     if (existing) return existing;
-    if (elapsed - gameState.coachCommandLastEndByTeam[team] < 1.6) return null;
+    if (elapsed - gameState.coachCommandLastEndByTeam[team] < (telemetryCoachExperiment ? 0.25 : 1.0)) return null;
+    if (telemetryCoachExperiment && !(gameState as any)._telemetryCoachPlanEmitted) {
+      (gameState as any)._telemetryCoachPlanEmitted = true;
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_GAME_PLAN', team, 'TEAM', {
+        plan: teamTelemetryCoachPlan.id,
+        source: teamTelemetryCoachPlan.source,
+        targetWidth: teamTelemetryCoachPlan.attackingPrinciples.targetWidth,
+        supportDistance: teamTelemetryCoachPlan.attackingPrinciples.supportDistance,
+        maxCrossDelaySeconds: teamTelemetryCoachPlan.attackingPrinciples.maxCrossDelaySeconds,
+        minBoxAttackersBeforeDelivery: teamTelemetryCoachPlan.attackingPrinciples.minBoxAttackersBeforeDelivery,
+        finishDistance: teamTelemetryCoachPlan.attackingPrinciples.finishDistance,
+        deliveryPriority: [...teamTelemetryCoachPlan.deliveryPriority],
+        suppressions: { ...teamTelemetryCoachPlan.suppressions },
+        positionalTracking: teamTelemetryCoachPlan.positionalTracking,
+        eventModel: teamTelemetryCoachPlan.eventModel,
+        coachAggression: gameState.coachAggression,
+        defenseAggression: gameState.defenseAggression,
+      });
+    }
     const attackRoles: Partial<Record<CoachCommandRole, string>> = {
       CARRIER: playerCoachKey(carrier),
     };
@@ -6359,32 +7286,110 @@ export function initGame(container: HTMLElement) {
 
     gameState.coachCommandSeq += 1;
     const defendingTeam = team === 'A' ? 'B' : 'A';
+    const estimateRunSeconds = (role: CoachCommandRole) => {
+      const key = attackRoles[role];
+      const runner = key ? findPlayerByCoachKey(team, key) : null;
+      if (!runner) return 0;
+      const target = coachTargetForAttackRole({
+        id: '',
+        play: 'WING_CUTBACK_01',
+        team,
+        defendingTeam: team === 'A' ? 'B' : 'A',
+        issuedAt: elapsed,
+        expiresAt: elapsed,
+        carrierSide: structuredAttack.carrierSide,
+        carrierName: playerCoachKey(carrier),
+        attackRoles,
+        attackTargets: {},
+        defenseRoles: {},
+        reached: {},
+        delivered: false,
+      }, role, runner, structuredAttack);
+      if (!target) return 0;
+      return runner.pos.distanceTo(target) / Math.max(1, getUniformPlayerRunSpeed() * 1.65);
+    };
+    const commandTtl = THREE.MathUtils.clamp(
+      Math.max(
+        5.2,
+        estimateRunSeconds('CUTBACK') + 1.3,
+        estimateRunSeconds('NEAR_POST') + 1.0,
+        estimateRunSeconds('SECOND_WAVE') + 1.1,
+      ),
+      5.2,
+      8.4,
+    );
     const command: CoachCommandState = {
       id: `coach-${gameState.coachCommandSeq}`,
       play: 'WING_CUTBACK_01',
       team,
       defendingTeam,
       issuedAt: elapsed,
-      expiresAt: elapsed + 5.2,
+      expiresAt: elapsed + commandTtl,
       carrierSide: structuredAttack.carrierSide,
       carrierName: playerCoachKey(carrier),
       attackRoles,
+      attackTargets: {},
       defenseRoles: {},
+      telemetryCoachPlanId: telemetryCoachExperiment ? teamTelemetryCoachPlan.id : undefined,
+      telemetryOpponentCoachPlan: getTelemetryOpponentCoachAdjustment(defendingTeam) || undefined,
       reached: {},
       delivered: false,
     };
 
     const defenders = players.filter((p: any) => p.team === defendingTeam);
+    const defenseAggression = getDefenseAggression01();
     const used = new Set<any>();
     const nearTarget = coachTargetForAttackRole(command, 'NEAR_POST', findPlayerByCoachKey(team, attackRoles.NEAR_POST || '') || carrier, structuredAttack) || ballState.pos;
     const cutbackTarget = coachTargetForAttackRole(command, 'CUTBACK', findPlayerByCoachKey(team, attackRoles.CUTBACK || '') || carrier, structuredAttack) || ballState.pos;
     const farTarget = attackRoles.FAR_POST ? coachTargetForAttackRole(command, 'FAR_POST', findPlayerByCoachKey(team, attackRoles.FAR_POST) || carrier, structuredAttack) : null;
     const secondWaveTarget = attackRoles.SECOND_WAVE ? coachTargetForAttackRole(command, 'SECOND_WAVE', findPlayerByCoachKey(team, attackRoles.SECOND_WAVE) || carrier, structuredAttack) : null;
-    command.defenseRoles.PRESS_CARRIER = playerCoachKey(chooseCoachDefender(defenders, used, ['LB', 'RB', 'LM', 'RM', 'LWB', 'RWB'], carrier.pos) || null);
-    command.defenseRoles.COVER_NEAR_POST = playerCoachKey(chooseCoachDefender(defenders, used, ['CB'], nearTarget) || null);
-    command.defenseRoles.COVER_CUTBACK = playerCoachKey(chooseCoachDefender(defenders, used, ['CB', 'DM', 'CM'], cutbackTarget) || null);
-    if (farTarget) command.defenseRoles.TRACK_FAR_POST = playerCoachKey(chooseCoachDefender(defenders, used, ['LB', 'RB', 'LM', 'RM'], farTarget) || null);
-    if (secondWaveTarget) command.defenseRoles.BLOCK_SECOND_WAVE = playerCoachKey(chooseCoachDefender(defenders, used, ['DM', 'CM'], secondWaveTarget) || null);
+    command.attackTargets = {
+      NEAR_POST: { x: nearTarget.x, z: nearTarget.z },
+      CUTBACK: { x: cutbackTarget.x, z: cutbackTarget.z },
+    };
+    if (farTarget) command.attackTargets.FAR_POST = { x: farTarget.x, z: farTarget.z };
+    if (secondWaveTarget) command.attackTargets.SECOND_WAVE = { x: secondWaveTarget.x, z: secondWaveTarget.z };
+    if (telemetryCoachExperiment && command.telemetryCoachPlanId) {
+      command.fullTeamAttackTargets = buildTelemetryFullTeamAttackTargets(command, carrier, structuredAttack);
+      const jobs = Object.values(command.fullTeamAttackTargets).reduce((acc: Record<string, number>, target) => {
+        acc[target.job] = (acc[target.job] || 0) + 1;
+        return acc;
+      }, {});
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_FULL_TEAM_PLAN', team, 'TEAM', {
+        id: command.id,
+        play: command.play,
+        playerCount: Object.keys(command.fullTeamAttackTargets).length,
+        jobs,
+        coachAggression: gameState.coachAggression,
+        targets: { ...command.fullTeamAttackTargets },
+      });
+    }
+    const opponentCoachPlan = command.telemetryOpponentCoachPlan;
+    const opponentPrimaryThreat = opponentCoachPlan?.primaryThreat || 'BALANCED';
+    const opponentOverCovers = new Set(opponentCoachPlan?.overCoverRoles || []);
+    const shouldPressCarrier = !!opponentCoachPlan?.pressCarrier || defenseAggression >= 0.72;
+    const nearPostDefenderRoles = opponentOverCovers.has('NEAR_POST') ? ['CB', 'DM', 'CM'] : ['CB'];
+    const cutbackDefenderRoles = opponentOverCovers.has('CUTBACK') ? ['DM', 'CM', 'CB'] : ['CB', 'DM', 'CM'];
+    const secondWaveDefenderRoles = opponentOverCovers.has('SECOND_WAVE') ? ['DM', 'CM', 'CB'] : ['DM', 'CM'];
+    const farPostDefenderRoles = opponentOverCovers.has('FAR_POST') ? ['LB', 'RB', 'CB', 'LM', 'RM'] : ['LB', 'RB', 'LM', 'RM'];
+    command.defenseRoles.PRESS_CARRIER = playerCoachKey(chooseCoachDefender(defenders, used, shouldPressCarrier ? ['DM', 'CM', 'LB', 'RB', 'LM', 'RM'] : ['LB', 'RB', 'LM', 'RM', 'LWB', 'RWB'], carrier.pos) || null);
+    command.defenseRoles.COVER_NEAR_POST = playerCoachKey(chooseCoachDefender(defenders, used, nearPostDefenderRoles, nearTarget) || null);
+    command.defenseRoles.COVER_CUTBACK = playerCoachKey(chooseCoachDefender(defenders, used, cutbackDefenderRoles, cutbackTarget) || null);
+    if (farTarget) command.defenseRoles.TRACK_FAR_POST = playerCoachKey(chooseCoachDefender(defenders, used, farPostDefenderRoles, farTarget) || null);
+    if (secondWaveTarget) command.defenseRoles.BLOCK_SECOND_WAVE = playerCoachKey(chooseCoachDefender(defenders, used, secondWaveDefenderRoles, secondWaveTarget) || null);
+    if (telemetryCoachExperiment && opponentPrimaryThreat !== 'BALANCED') {
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_OPPONENT_COACH_PLAN', defendingTeam, 'TEAM', {
+        attackingTeam: team,
+        id: command.id,
+        play: command.play,
+        primaryThreat: opponentPrimaryThreat,
+        confidence: +(opponentCoachPlan?.confidence || 0).toFixed(2),
+        overCoverRoles: [...opponentOverCovers],
+        pressCarrier: shouldPressCarrier,
+        defenseAggression: gameState.defenseAggression,
+        memory: { ...gameState.telemetryOpponentCoachThreats[defendingTeam] },
+      });
+    }
 
     gameState.activeCoachCommand = command;
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_ISSUED', team, 'TEAM', {
@@ -6393,14 +7398,25 @@ export function initGame(container: HTMLElement) {
       carrier: carrier.name || command.carrierName,
       carrierSide: command.carrierSide,
       attackRoles: { ...command.attackRoles },
+      attackTargets: { ...command.attackTargets },
+      fullTeamAttackTargets: command.fullTeamAttackTargets || null,
       defenseRoles: { ...command.defenseRoles },
+      opponentCoachPlan: command.telemetryOpponentCoachPlan || null,
+      coachAggression: gameState.coachAggression,
+      defenseAggression: gameState.defenseAggression,
       expiresIn: +(command.expiresAt - elapsed).toFixed(2),
+      ttlBasis: telemetryCoachExperiment ? 'telemetry_plan_runner_distance' : 'runner_distance',
+      telemetryCoachExperiment,
+      telemetryCoachPlan: command.telemetryCoachPlanId || null,
     });
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_DEFENSE_ASSIGNED', defendingTeam, 'TEAM', {
       id: command.id,
       play: command.play,
       againstTeam: team,
       defenseRoles: { ...command.defenseRoles },
+      opponentCoachPlan: command.telemetryOpponentCoachPlan || null,
+      pressCarrier: shouldPressCarrier,
+      defenseAggression: gameState.defenseAggression,
     });
     return command;
   }
@@ -6408,19 +7424,605 @@ export function initGame(container: HTMLElement) {
   function getCoachSupportTarget(player: any, elapsed: number): THREE.Vector3 | null {
     const command = getActiveCoachCommand(player.team, elapsed);
     if (!command || command.team !== player.team) return null;
+    const fullTeamTarget = command.fullTeamAttackTargets?.[playerCoachKey(player)];
+    if (fullTeamTarget && fullTeamTarget.job !== 'CARRIER') {
+      const target = new THREE.Vector3(fullTeamTarget.x, 0.15, fullTeamTarget.z);
+      const dist = player.pos.distanceTo(target);
+      const playerAny = player as any;
+      const progressKey = `_telemetryFullTeamProgressAt_${command.id}_${fullTeamTarget.job}`;
+      const lastProgressAt = Number(playerAny[progressKey] ?? -999);
+      if (elapsed - lastProgressAt >= 1.0) {
+        playerAny[progressKey] = elapsed;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_FULL_TEAM_PROGRESS', player.team, getRoleKey(player), {
+          id: command.id,
+          play: command.play,
+          job: fullTeamTarget.job,
+          timing: fullTeamTarget.timing,
+          player: player.name || playerCoachKey(player),
+          distToTarget: +dist.toFixed(2),
+          speed: +Math.hypot(player.vel?.x || 0, player.vel?.z || 0).toFixed(2),
+          targetX: +target.x.toFixed(1),
+          targetZ: +target.z.toFixed(1),
+          playerX: +player.pos.x.toFixed(1),
+          playerZ: +player.pos.z.toFixed(1),
+          ballState: ballState.heldBy ? 'held' : ballState.isRolling ? 'rolling' : ballState.isFlying ? 'flying' : 'loose',
+        });
+      }
+      return target;
+    }
     const role = getCoachAttackRole(command, player);
     if (!role || role === 'CARRIER') return null;
     const carrier = findPlayerByCoachKey(command.team, command.carrierName);
     const attackSign = teamAttacksRight(command.team) ? 1 : -1;
     const state = carrier ? getStructuredAttackForTeam(command.team, carrier, attackSign as 1 | -1) : null;
-    const target = coachTargetForAttackRole(command, role, player, state);
-    if (target) maybeEmitCoachPlayerReached(command, player, role, target);
+    const target = vectorFromCoachTarget(command, role) || coachTargetForAttackRole(command, role, player, state);
+    if (target) {
+      const dist = player.pos.distanceTo(target);
+      const playerAny = player as any;
+      const progressKey = `_coachProgressAt_${command.id}_${role}`;
+      const lastProgressAt = Number(playerAny[progressKey] ?? -999);
+      if (elapsed - lastProgressAt >= 1.0) {
+        playerAny[progressKey] = elapsed;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_PROGRESS', player.team, getRoleKey(player), {
+          id: command.id,
+          play: command.play,
+          role,
+          player: player.name || playerCoachKey(player),
+          currentStructuredRole: getStructuredAttackRole(state, player),
+          distToTarget: +dist.toFixed(2),
+          speed: +Math.hypot(player.vel?.x || 0, player.vel?.z || 0).toFixed(2),
+          targetX: +target.x.toFixed(1),
+          targetZ: +target.z.toFixed(1),
+          playerX: +player.pos.x.toFixed(1),
+          playerZ: +player.pos.z.toFixed(1),
+          stableTarget: !!command.attackTargets?.[role],
+          ballState: ballState.heldBy ? 'held' : ballState.isRolling ? 'rolling' : ballState.isFlying ? 'flying' : 'loose',
+        });
+      }
+      maybeEmitCoachPlayerReached(command, player, role, target);
+    }
     return target;
+  }
+
+  function getCoachContractTarget(player: any, elapsed: number): { command: CoachCommandState; job: TelemetryFullTeamAttackJob; target: THREE.Vector3; timing: 'early' | 'arrive' | 'hold' } | null {
+    const command = getActiveCoachCommand(player?.team || null, elapsed);
+    if (!command || command.team !== player?.team) return null;
+    const contract = command.fullTeamAttackTargets?.[playerCoachKey(player)];
+    if (!contract) return null;
+    return {
+      command,
+      job: contract.job,
+      target: new THREE.Vector3(contract.x, 0.15, contract.z),
+      timing: contract.timing,
+    };
+  }
+
+  function emitCoachContractCompliance(player: any, contract: { command: CoachCommandState; job: TelemetryFullTeamAttackJob; target: THREE.Vector3; timing: 'early' | 'arrive' | 'hold' }, elapsed: number, owner: string) {
+    const playerAny = player as any;
+    const key = `_coachContractComplianceAt_${contract.command.id}_${contract.job}_${owner}`;
+    const lastAt = Number(playerAny[key] ?? -999);
+    if (elapsed - lastAt < 0.75) return;
+    playerAny[key] = elapsed;
+    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_CONTRACT_COMPLIANCE', player.team, getRoleKey(player), {
+      id: contract.command.id,
+      play: contract.command.play,
+      job: contract.job,
+      timing: contract.timing,
+      owner,
+      coachAggression: gameState.coachAggression,
+      player: player.name || playerCoachKey(player),
+      distToTarget: +player.pos.distanceTo(contract.target).toFixed(2),
+      targetX: +contract.target.x.toFixed(1),
+      targetZ: +contract.target.z.toFixed(1),
+      playerX: +player.pos.x.toFixed(1),
+      playerZ: +player.pos.z.toFixed(1),
+    });
+  }
+
+  const metricaMotionMatchCache: Record<'A' | 'B', {
+    key: string;
+    match: MetricaMotionFrameMatch | null;
+  }> = {
+    A: { key: '', match: null },
+    B: { key: '', match: null },
+  };
+
+  function getMetricaMotionGhostTarget(player: any, carrier: any, elapsed: number): THREE.Vector3 | null {
+    if (!telemetryCoachFullControl || !carrier || carrier.team !== player.team || player === carrier || isGoalkeeper(player)) return null;
+    if (gameState.realDataReplayMode || gameState.practiceModeEnabled) return null;
+    const asset = realDataReplay.asset;
+    if (!asset) {
+      void loadRealDataReplayAsset().catch(() => null);
+      return null;
+    }
+    const team = player.team as 'A' | 'B';
+    const orderedTeam = orderedReplayPlayers(team);
+    const playerIndex = orderedTeam.indexOf(player);
+    if (playerIndex < 0) return null;
+    const attackSign = (teamAttacksRight(team) ? 1 : -1) as 1 | -1;
+    const key = [
+      attackSign,
+      Math.round(ballState.pos.x * 2) / 2,
+      Math.round(ballState.pos.z * 2) / 2,
+    ].join(':');
+    let match = metricaMotionMatchCache[team].match;
+    if (metricaMotionMatchCache[team].key !== key) {
+      match = selectMetricaMotionFrame(asset, {
+        ball: { x: ballState.pos.x, z: ballState.pos.z },
+        attackSign,
+        fieldWidth: FIELD_W,
+        fieldDepth: FIELD_D,
+        sourcePitch: asset.pitch,
+        targetPitch: LOCAL_PITCH_METERS,
+        stride: 8,
+      });
+      metricaMotionMatchCache[team] = { key, match };
+    }
+    if (!match || match.confidence < 0.10) return null;
+    const target = selectMetricaMotionTarget(asset, match, playerIndex, {
+      fieldWidth: FIELD_W,
+      sourcePitch: asset.pitch,
+      targetPitch: LOCAL_PITCH_METERS,
+    });
+    if (!target) return null;
+    const playerAny = player as any;
+    const smoothed = playerAny._metricaMotionGhostTarget instanceof THREE.Vector3
+      ? playerAny._metricaMotionGhostTarget
+      : new THREE.Vector3(target.x, 0.15, target.z);
+    smoothed.lerp(new THREE.Vector3(target.x, 0.15, target.z), 0.22);
+    smoothed.x = THREE.MathUtils.clamp(smoothed.x, -FIELD_W / 2 + 1.2, FIELD_W / 2 - 1.2);
+    smoothed.z = THREE.MathUtils.clamp(smoothed.z, -FIELD_D / 2 + 1.2, FIELD_D / 2 - 1.2);
+    playerAny._metricaMotionGhostTarget = smoothed.clone();
+    const lastAt = Number(playerAny._metricaMotionGhostAt ?? -999);
+    if (elapsed - lastAt >= 1.4) {
+      playerAny._metricaMotionGhostAt = elapsed;
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'METRICA_MOTION_GHOST_TARGET', team, getRoleKey(player), {
+        player: player.name || playerCoachKey(player),
+        carrier: carrier.name || 'Unknown',
+        frameIndex: target.frameIndex,
+        sourceTeam: target.sourceTeam,
+        sourcePlayerIndex: target.sourcePlayerIndex,
+        confidence: +target.confidence.toFixed(2),
+        targetX: +smoothed.x.toFixed(1),
+        targetZ: +smoothed.z.toFixed(1),
+        playerX: +player.pos.x.toFixed(1),
+        playerZ: +player.pos.z.toFixed(1),
+        ballX: +ballState.pos.x.toFixed(1),
+        ballZ: +ballState.pos.z.toFixed(1),
+      });
+    }
+    return smoothed.clone();
+  }
+
+  function getTelemetryCoachFullControlTarget(player: any, carrier: any, elapsed: number): THREE.Vector3 | null {
+    if (!telemetryCoachFullControl || !carrier || carrier.team !== player.team || player === carrier || isGoalkeeper(player)) return null;
+    const metricaGhostTarget = getMetricaMotionGhostTarget(player, carrier, elapsed);
+    if (metricaGhostTarget) return metricaGhostTarget;
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(player.team as 'A' | 'B');
+    const attackSign = teamAttacksRight(player.team as 'A' | 'B') ? 1 : -1;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const role = getRoleKey(player).toUpperCase();
+    const carrierSide = (Math.sign(carrier.pos.z || player.homePos?.z || 1) || 1) as 1 | -1;
+    const carrierDistToGoal = Math.abs(goalX - carrier.pos.x);
+    const finalThird = carrierDistToGoal <= FIELD_W * 0.34;
+    const wideCarrier = Math.abs(carrier.pos.z) >= FIELD_D * 0.20;
+    let target: THREE.Vector3 | null = null;
+    let planRole = 'SUPPORT';
+
+    if (role === 'ST') {
+      planRole = wideCarrier ? 'NEAR_POST' : 'PIN_CENTER_BACK';
+      target = new THREE.Vector3(
+        goalX - attackSign * (finalThird ? 5.2 : penaltyDepth + 2.4),
+        0.15,
+        wideCarrier ? carrierSide * Math.max(goalMouthWidth * 0.45, FIELD_D * 0.035) : carrierSide * goalMouthWidth * 0.25,
+      );
+    } else if (['CAM', 'CM'].includes(role)) {
+      planRole = finalThird ? 'CUTBACK' : 'CENTRAL_SUPPORT';
+      target = new THREE.Vector3(
+        finalThird ? goalX - attackSign * (penaltyDepth + 1.6) : carrier.pos.x - attackSign * teamTelemetryCoachPlan.attackingPrinciples.supportDistance.median,
+        0.15,
+        THREE.MathUtils.clamp(carrierSide * Math.max(goalMouthWidth * 0.5, FIELD_D * 0.045), -penaltyHalfZ, penaltyHalfZ),
+      );
+    } else if (role === 'DM') {
+      planRole = finalThird ? 'SECOND_WAVE' : 'REST_DEFENSE';
+      target = new THREE.Vector3(
+        finalThird ? goalX - attackSign * (penaltyDepth + 5.0) : carrier.pos.x - attackSign * 12.0,
+        0.15,
+        THREE.MathUtils.clamp(-carrierSide * Math.max(goalMouthWidth * 0.65, FIELD_D * 0.06), -penaltyHalfZ * 1.2, penaltyHalfZ * 1.2),
+      );
+    } else if (['LM', 'LW', 'RM', 'RW'].includes(role)) {
+      const naturalSide = Math.sign(player.homePos?.z || player.pos.z || carrierSide) || carrierSide;
+      const sameSide = Math.sign(naturalSide) === Math.sign(carrierSide);
+      planRole = sameSide ? 'WIDE_OUTLET' : 'FAR_POST';
+      target = new THREE.Vector3(
+        sameSide
+          ? THREE.MathUtils.clamp(carrier.pos.x + attackSign * 3.0, -FIELD_W / 2 + 5, FIELD_W / 2 - penaltyDepth)
+          : goalX - attackSign * (finalThird ? 5.8 : penaltyDepth + 3.5),
+        0.15,
+        sameSide
+          ? naturalSide * Math.max(FIELD_D * 0.34, goalMouthWidth * 3.4)
+          : -carrierSide * Math.max(goalMouthWidth * 2.6, FIELD_D * 0.20),
+      );
+    } else if (['LB', 'RB'].includes(role)) {
+      const naturalSide = Math.sign(player.homePos?.z || player.pos.z || carrierSide) || carrierSide;
+      planRole = 'WIDTH_BALANCE';
+      target = new THREE.Vector3(
+        carrier.pos.x - attackSign * 9.0,
+        0.15,
+        naturalSide * Math.max(FIELD_D * 0.30, goalMouthWidth * 3.0),
+      );
+    } else if (role === 'CB') {
+      planRole = 'REST_DEFENSE';
+      target = new THREE.Vector3(
+        carrier.pos.x - attackSign * 16.0,
+        0.15,
+        THREE.MathUtils.clamp(player.homePos?.z ?? player.pos.z, -FIELD_D * 0.16, FIELD_D * 0.16),
+      );
+    }
+
+    if (!target) return null;
+    target.x = THREE.MathUtils.clamp(target.x, -FIELD_W / 2 + 2.0, FIELD_W / 2 - 2.0);
+    target.z = THREE.MathUtils.clamp(target.z, -FIELD_D / 2 + 1.4, FIELD_D / 2 - 1.4);
+    const playerAny = player as any;
+    const lastAt = Number(playerAny._telemetryCoachControlAt ?? -999);
+    if (elapsed - lastAt >= 1.2) {
+      playerAny._telemetryCoachControlAt = elapsed;
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_FULL_CONTROL', player.team, getRoleKey(player), {
+        plan: teamTelemetryCoachPlan.id,
+        source: teamTelemetryCoachPlan.source,
+        role: planRole,
+        player: player.name || playerCoachKey(player),
+        carrier: carrier.name || 'Unknown',
+        targetX: +target.x.toFixed(1),
+        targetZ: +target.z.toFixed(1),
+        carrierX: +carrier.pos.x.toFixed(1),
+        carrierZ: +carrier.pos.z.toFixed(1),
+        finalThird,
+        wideCarrier,
+      });
+    }
+    return target;
+  }
+
+  function maybeEmitTelemetryCoachFullControlPlan(team: 'A' | 'B') {
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
+    const key = `_telemetryCoachFullControlPlanEmitted_${team}`;
+    if ((gameState as any)[key]) return;
+    (gameState as any)[key] = true;
+    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_FULL_CONTROL_PLAN', team, 'TEAM', {
+      plan: teamTelemetryCoachPlan.id,
+      source: teamTelemetryCoachPlan.source,
+      targetWidth: teamTelemetryCoachPlan.attackingPrinciples.targetWidth,
+      supportDistance: teamTelemetryCoachPlan.attackingPrinciples.supportDistance,
+      finishDistance: teamTelemetryCoachPlan.attackingPrinciples.finishDistance,
+      deliveryPriority: [...teamTelemetryCoachPlan.deliveryPriority],
+      positionalTracking: teamTelemetryCoachPlan.positionalTracking,
+      eventModel: teamTelemetryCoachPlan.eventModel,
+      owns: ['movement', 'carrier_carry', 'passes', 'shots'],
+    });
+  }
+
+  function selectTelemetryCoachCarrierPassTarget(
+    carrier: any,
+    teammates: any[],
+    opponents: any[],
+    team: 'A' | 'B',
+    attackSign: 1 | -1,
+    liveControl?: RoboflowSportsCoachControl,
+  ) {
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
+    const learnedControl = liveControl || teamTelemetryCoachPlan.positionalTracking.learnedControl;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const carrierDistToGoal = Math.abs(goalX - carrier.pos.x);
+    const carrierWide = Math.abs(carrier.pos.z) >= FIELD_D * 0.20;
+    const finalThird = carrierDistToGoal <= FIELD_W * 0.34;
+    const carrierSide = (Math.sign(carrier.pos.z || carrier.homePos?.z || 1) || 1) as 1 | -1;
+    return teammates
+      .filter((tm: any) => tm && tm !== carrier && !isGoalkeeper(tm))
+      .map((tm: any) => {
+        const role = getRoleKey(tm).toUpperCase();
+        const forwardProg = (tm.pos.x - carrier.pos.x) * attackSign;
+        const lateralGap = Math.abs(tm.pos.z - carrier.pos.z);
+        const dist = carrier.pos.distanceTo(tm.pos);
+        const targetDistToGoal = Math.abs(goalX - tm.pos.x);
+        const nearestOppDist = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tm.pos)), 99);
+        const finishRole = ['ST', 'CF', 'CAM'].includes(role);
+        const midfieldRole = ['CAM', 'CM', 'DM'].includes(role);
+        const wideRole = ['LM', 'RM', 'LW', 'RW'].includes(role);
+        const isCutback =
+          finalThird
+          && carrierWide
+          && midfieldRole
+          && forwardProg >= -9.5
+          && forwardProg <= 2.5
+          && targetDistToGoal <= penaltyDepth + 9.5
+          && Math.abs(tm.pos.z) <= penaltyHalfZ * 1.25;
+        const isSecondWave =
+          finalThird
+          && midfieldRole
+          && targetDistToGoal >= penaltyDepth + 1.0
+          && targetDistToGoal <= teamTelemetryCoachPlan.attackingPrinciples.finishDistance.secondWaveMax + 4.5
+          && Math.abs(tm.pos.z) <= penaltyHalfZ * 1.45;
+        const isNearPost =
+          finalThird
+          && finishRole
+          && targetDistToGoal <= 13.5
+          && Math.abs(tm.pos.z) <= goalMouthWidth * 1.25;
+        const isFarPost =
+          finalThird
+          && (finishRole || wideRole)
+          && targetDistToGoal <= 14.5
+          && Math.sign(tm.pos.z || carrierSide) === -carrierSide;
+        const isWideOutlet =
+          wideRole
+          && Math.abs(tm.pos.z) >= Math.max(FIELD_D * 0.26, goalMouthWidth * 2.5)
+          && forwardProg >= -4.5;
+        const plannedRole =
+          isCutback ? 'CUTBACK'
+          : isSecondWave ? 'SECOND_WAVE'
+          : isNearPost ? 'NEAR_POST'
+          : isFarPost ? 'FAR_POST'
+          : isWideOutlet ? 'WIDE_OUTLET'
+          : finishRole ? 'NEAR_POST'
+          : midfieldRole ? 'SECOND_WAVE'
+          : 'SUPPORT';
+        const priorityIndex = teamTelemetryCoachPlan.deliveryPriority.indexOf(plannedRole as any);
+        const planPriority = priorityIndex >= 0 ? (teamTelemetryCoachPlan.deliveryPriority.length - priorityIndex) * 2.4 : 0;
+        const learnedRiskBonus =
+          (['CUTBACK', 'SECOND_WAVE', 'NEAR_POST'].includes(plannedRole) ? learnedControl.passRiskTolerance * 1.9 : 0)
+          + (plannedRole === 'WIDE_OUTLET' ? learnedControl.widthUrgency * 1.4 : 0)
+          + (forwardProg > 0 ? learnedControl.shotUrgency * 1.2 : 0);
+        const score =
+          planPriority
+          + learnedRiskBonus
+          + (isCutback ? 5.5 : 0)
+          + (isSecondWave ? 4.6 : 0)
+          + (isNearPost ? 4.0 : 0)
+          + (isFarPost ? 3.2 : 0)
+          + (isWideOutlet ? 2.4 : 0)
+          + THREE.MathUtils.clamp(forwardProg / 5, -1.8, 2.2)
+          + THREE.MathUtils.clamp(lateralGap / 8, 0, 1.1)
+          + THREE.MathUtils.clamp(nearestOppDist / 5.5, 0, 1.5)
+          - Math.max(0, dist - 22) * 0.12
+          - (forwardProg < -8 ? 3.5 : 0);
+        return { player: tm, dist, forwardProg, nearestOppDist, plannedRole, score };
+      })
+      .filter((entry) => entry.dist <= 32 && entry.forwardProg > -10)
+      .sort((a, b) => b.score - a.score);
+  }
+
+  function computeTelemetryCoachCarrierTarget(
+    carrier: any,
+    team: 'A' | 'B',
+    attackSign: 1 | -1,
+    liveControl?: RoboflowSportsCoachControl,
+  ): THREE.Vector3 {
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
+    const learnedControl = liveControl || teamTelemetryCoachPlan.positionalTracking.learnedControl;
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const distToGoal = Math.abs(goalX - carrier.pos.x);
+    const role = getRoleKey(carrier).toUpperCase();
+    const side = (Math.sign(carrier.pos.z || carrier.homePos?.z || 1) || 1) as 1 | -1;
+    const target = carrier.pos.clone();
+    const finalThird = distToGoal <= FIELD_W * 0.34;
+    const desiredWideZ =
+      side * Math.max(
+        finalThird
+          ? teamTelemetryCoachPlan.attackingPrinciples.targetWidth.finalThird * (0.42 + Math.max(0, learnedControl.widthUrgency) * 0.07)
+          : teamTelemetryCoachPlan.attackingPrinciples.targetWidth.progression * (0.48 + Math.max(0, learnedControl.widthUrgency) * 0.06),
+        goalMouthWidth * 2.4,
+      );
+
+    if (['LM', 'RM', 'LW', 'RW', 'LB', 'RB'].includes(role)) {
+      target.x = finalThird
+        ? goalX - attackSign * (penaltyDepth + 2.4)
+        : carrier.pos.x + attackSign * (5.0 + Math.max(0, learnedControl.riskBias) * 2.2);
+      target.z = THREE.MathUtils.lerp(carrier.pos.z, desiredWideZ, 0.62);
+    } else if (finalThird) {
+      target.x = goalX - attackSign * (penaltyDepth + 4.5);
+      target.z = THREE.MathUtils.clamp(side * Math.max(goalMouthWidth * 1.25, FIELD_D * 0.09), -penaltyHalfZ * 1.35, penaltyHalfZ * 1.35);
+    } else {
+      target.x = carrier.pos.x + attackSign * (5.8 + Math.max(0, learnedControl.shotUrgency) * 2.4);
+      target.z = THREE.MathUtils.clamp(side * Math.max(goalMouthWidth * 1.8, FIELD_D * 0.13), -FIELD_D * 0.34, FIELD_D * 0.34);
+    }
+    target.x = THREE.MathUtils.clamp(target.x, -FIELD_W / 2 + 2.0, FIELD_W / 2 - 2.0);
+    target.z = THREE.MathUtils.clamp(target.z, -FIELD_D / 2 + 1.6, FIELD_D / 2 - 1.6);
+    target.y = 0.15;
+    return target;
+  }
+
+  function runTelemetryCoachCarrierControl(
+    carrier: any,
+    team: 'A' | 'B',
+    attackSign: 1 | -1,
+    teammates: any[],
+    opponents: any[],
+    elapsed: number,
+    dt: number,
+    cooldownKey: 'cpuDecisionCooldownA' | 'cpuDecisionCooldownB',
+  ): boolean {
+    if (!telemetryCoachFullControl || !carrier || isGoalkeeper(carrier)) return false;
+    const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
+    const roboflowSportsFrame = createCoachRoboflowSportsFrame(team, attackSign, carrier, elapsed);
+    const positionalControl = deriveRoboflowSportsCoachControl(
+      roboflowSportsFrame,
+      teamTelemetryCoachPlan.positionalTracking.learnedControl,
+    );
+    const halfDuration = getHalfDurationSeconds();
+    const matchProgress = THREE.MathUtils.clamp(
+      ((matchClock.half === 1 ? 0 : halfDuration) + matchClock.elapsedInHalf) / Math.max(1, halfDuration * 2),
+      0.04,
+      1,
+    );
+    const metricaEventAdjustment = deriveMetricaEventCoachControl({
+      matchProgress,
+      teamShots: team === 'A' ? gameState.shotsA : gameState.shotsB,
+      teamPasses: team === 'A' ? gameState.passesA : gameState.passesB,
+      teamCorners: team === 'A' ? gameState.cornersA : gameState.cornersB,
+    }, positionalControl, teamTelemetryCoachPlan.eventModel);
+    const learnedControl = metricaEventAdjustment.control;
+    maybeEmitTelemetryCoachFullControlPlan(team);
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    const distToGoal = Math.abs(goalX - carrier.pos.x);
+    const shotAngle = Math.abs(Math.atan2(Math.abs(carrier.pos.z), Math.max(0.5, distToGoal)));
+    const closePressure = opponents.filter((opp: any) => opp.pos.distanceTo(carrier.pos) < 5.8).length;
+    const inShootingLane = Math.abs(carrier.pos.z) < goalMouthWidth * 0.78;
+    const inTapInZone = distToGoal < 9.5 && Math.abs(carrier.pos.z) < goalMouthWidth * 1.1;
+    const role = getRoleKey(carrier);
+    const passCandidates = selectTelemetryCoachCarrierPassTarget(carrier, teammates, opponents, team, attackSign, learnedControl);
+    const bestPass = passCandidates[0] || null;
+    const cooldown = Number((gameState as any)[cooldownKey] ?? 0);
+    const finalThird = distToGoal <= FIELD_W * 0.34;
+    const trackingMetrics = roboflowSportsFrame.metrics;
+    const positionalUrgency = THREE.MathUtils.clamp(
+      learnedControl.releaseUrgency
+      + learnedControl.shotUrgency
+      + (trackingMetrics.cutbackAvailable || trackingMetrics.secondWaveAvailable ? 0.28 : 0)
+      + (trackingMetrics.pressureCount >= 2 ? 0.18 : 0)
+      - (trackingMetrics.shotLaneCrowded ? 0.16 : 0),
+      -0.4,
+      1.25,
+    );
+    const finishDistanceMax = teamTelemetryCoachPlan.attackingPrinciples.finishDistance.max + Math.max(0, positionalUrgency) * 1.7;
+    const shotAngleMax = (inTapInZone ? 0.82 : 0.52) + Math.max(0, positionalUrgency) * 0.08;
+    const highQualityShot =
+      distToGoal <= finishDistanceMax
+      && shotAngle <= shotAngleMax
+      && closePressure <= 3;
+    const noBetterPass =
+      !bestPass
+      || bestPass.plannedRole === 'SUPPORT'
+      || bestPass.score < 4.0 + Math.max(0, positionalUrgency) * 0.8;
+
+    if (cooldown <= 0 && highQualityShot && (noBetterPass || inTapInZone || distToGoal <= 10.5)) {
+      gameState.pendingShotDecision = {
+        timestamp: Date.now(),
+        team,
+        shooter: carrier.name || 'Unknown',
+        role,
+        style: 'AUTO',
+        skillDriven: true,
+        distToGoal,
+        distToGoalYards: +(distToGoal / X_PER_YARD).toFixed(1),
+        shooterX: +carrier.pos.x.toFixed(2),
+        shooterZ: +carrier.pos.z.toFixed(2),
+        closePressure,
+        inShootingLane,
+        inTapInZone,
+        insidePenaltyArea: distToGoal < penaltyDepth,
+        half: matchClock.half,
+        phase: matchClock.phase,
+        elapsedInHalf: matchClock.elapsedInHalf,
+        decisionType: 'TELEMETRY_COACH_FULL_CONTROL',
+        coachPlan: teamTelemetryCoachPlan.id,
+      };
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_CARRIER_CONTROL', team, role, {
+        action: 'shot',
+        plan: teamTelemetryCoachPlan.id,
+        carrier: carrier.name || 'Unknown',
+        distToGoal: +distToGoal.toFixed(1),
+        shotAngle: +shotAngle.toFixed(2),
+        closePressure,
+        bestPassRole: bestPass?.plannedRole || null,
+        trackingSource: roboflowSportsFrame.source,
+        trackingPhase: trackingMetrics.phase,
+        eventSource: teamTelemetryCoachPlan.eventModel.source,
+        pressureCount: trackingMetrics.pressureCount,
+        runnersAhead: trackingMetrics.runnersAhead,
+        cutbackAvailable: trackingMetrics.cutbackAvailable,
+        secondWaveAvailable: trackingMetrics.secondWaveAvailable,
+        positionalUrgency: +positionalUrgency.toFixed(2),
+        shotDeficit: +metricaEventAdjustment.metrics.shotDeficit.toFixed(2),
+        passesPerShot: +metricaEventAdjustment.metrics.passesPerShot.toFixed(1),
+        targetPassesPerShot: +metricaEventAdjustment.metrics.targetPassesPerShot.toFixed(1),
+      });
+      takeShot(carrier, true, 1.0, chooseAIShotStyle(carrier, closePressure, distToGoal, inShootingLane, inTapInZone) as any);
+      (gameState as any)[cooldownKey] = 0.95;
+      return true;
+    }
+
+    if (cooldown <= 0 && bestPass && (finalThird || _carrierHoldTime >= 1.05 || bestPass.plannedRole !== 'SUPPORT')) {
+      for (const candidate of passCandidates.slice(0, Math.max(4, 4 + Math.ceil(Math.max(0, positionalUrgency))))) {
+        const target = candidate.player;
+        const passDist = carrier.pos.distanceTo(target.pos);
+        const forwardProg = (target.pos.x - carrier.pos.x) * attackSign;
+        const style: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+          forwardProg < -1.0 && positionalUrgency < 0.55 ? 'BACK'
+          : Math.abs(target.pos.z - carrier.pos.z) > 7.5 ? 'DIAGONAL'
+          : passDist > 12 || positionalUrgency > 0.65 ? 'DRIVEN'
+          : 'SHORT';
+        const launched = executeAIGroundPass(carrier, target, elapsed, { style, receiverWindow: 2.2 });
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_CARRIER_CONTROL', team, role, {
+          action: launched ? 'pass' : 'pass_rejected',
+          plan: teamTelemetryCoachPlan.id,
+          carrier: carrier.name || 'Unknown',
+          target: target.name || 'Unknown',
+          targetRole: getRoleKey(target),
+          plannedRole: candidate.plannedRole,
+          style,
+          passDist: +passDist.toFixed(1),
+          forwardProg: +forwardProg.toFixed(1),
+          distToGoal: +distToGoal.toFixed(1),
+          trackingSource: roboflowSportsFrame.source,
+          trackingPhase: trackingMetrics.phase,
+          eventSource: teamTelemetryCoachPlan.eventModel.source,
+          pressureCount: trackingMetrics.pressureCount,
+          runnersAhead: trackingMetrics.runnersAhead,
+          positionalUrgency: +positionalUrgency.toFixed(2),
+          shotDeficit: +metricaEventAdjustment.metrics.shotDeficit.toFixed(2),
+          passesPerShot: +metricaEventAdjustment.metrics.passesPerShot.toFixed(1),
+        });
+        if (launched) {
+          (gameState as any)[cooldownKey] = 0.82;
+          return true;
+        }
+      }
+    }
+
+    const target = computeTelemetryCoachCarrierTarget(carrier, team, attackSign, learnedControl);
+    setPlayerAIState(carrier, 'COACH_CARRY');
+    steerSimpleAttackPlayer(
+      carrier,
+      target,
+      dt,
+      (5.2 + getDribbleSkill(carrier) * 2.6) * GAME_SPEED_SCALE,
+      3.0,
+      0.04,
+    );
+    maybeEmitCarrierTrace({
+      carrier,
+      team,
+      attackSign,
+      branch: 'SIMPLE',
+      action: 'TELEMETRY_COACH_CARRY',
+      target,
+      detail: {
+        plan: teamTelemetryCoachPlan.id,
+        distToGoal: +distToGoal.toFixed(1),
+        bestPassRole: bestPass?.plannedRole || null,
+        bestPassScore: bestPass ? +bestPass.score.toFixed(2) : null,
+        trackingSource: roboflowSportsFrame.source,
+        trackingPhase: trackingMetrics.phase,
+        pressureCount: trackingMetrics.pressureCount,
+        teamWidthMeters: +trackingMetrics.teamWidthMeters.toFixed(1),
+        supportCount: trackingMetrics.supportCount,
+        runnersAhead: trackingMetrics.runnersAhead,
+        cutbackAvailable: trackingMetrics.cutbackAvailable,
+        secondWaveAvailable: trackingMetrics.secondWaveAvailable,
+        positionalUrgency: +positionalUrgency.toFixed(2),
+        eventSource: teamTelemetryCoachPlan.eventModel.source,
+        shotDeficit: +metricaEventAdjustment.metrics.shotDeficit.toFixed(2),
+        passesPerShot: +metricaEventAdjustment.metrics.passesPerShot.toFixed(1),
+        targetPassesPerShot: +metricaEventAdjustment.metrics.targetPassesPerShot.toFixed(1),
+      },
+    });
+    return true;
   }
 
   function getCoachDefensiveTarget(player: any, ballCarrier: any, elapsed: number): THREE.Vector3 | null {
     const command = getActiveCoachCommand(player.team, elapsed);
     if (!command || command.defendingTeam !== player.team) return null;
+    const defenseAggression = getDefenseAggression01();
     const key = playerCoachKey(player);
     let role: CoachDefenseRole | null = null;
     for (const candidate of ['PRESS_CARRIER', 'COVER_NEAR_POST', 'COVER_CUTBACK', 'TRACK_FAR_POST', 'BLOCK_SECOND_WAVE'] as CoachDefenseRole[]) {
@@ -6435,7 +8037,13 @@ export function initGame(container: HTMLElement) {
     let target: THREE.Vector3 | null = null;
     if (role === 'PRESS_CARRIER') {
       const carrier = ballCarrier && ballCarrier.team === command.team ? ballCarrier : findPlayerByCoachKey(command.team, command.carrierName);
-      if (carrier) target = carrier.pos.clone().add(new THREE.Vector3(-attackSign * 0.9, 0, command.carrierSide * 0.55));
+      if (carrier) {
+        target = carrier.pos.clone().add(new THREE.Vector3(
+          -attackSign * THREE.MathUtils.lerp(1.25, 0.35, defenseAggression),
+          0,
+          command.carrierSide * THREE.MathUtils.lerp(0.75, 0.25, defenseAggression),
+        ));
+      }
     } else if (role === 'COVER_NEAR_POST') {
       const attacker = command.attackRoles.NEAR_POST ? findPlayerByCoachKey(command.team, command.attackRoles.NEAR_POST) : null;
       target = coachTargetForAttackRole(command, 'NEAR_POST', attacker || player, state);
@@ -6448,6 +8056,86 @@ export function initGame(container: HTMLElement) {
     } else if (role === 'BLOCK_SECOND_WAVE') {
       const attacker = command.attackRoles.SECOND_WAVE ? findPlayerByCoachKey(command.team, command.attackRoles.SECOND_WAVE) : null;
       target = coachTargetForAttackRole(command, 'SECOND_WAVE', attacker || player, state);
+    }
+    if (target) {
+      const defendingAttackSign = teamAttacksRight(player.team as 'A' | 'B') ? 1 : -1;
+      const ownGoalX = defendingAttackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
+      const spaced = spaceCoachGoalMouthDefensiveTarget({
+        rawTarget: target,
+        role: role as CoachDefenseSpacingRole,
+        ownGoalX,
+        teamAttackDirection: defendingAttackSign,
+        playerHomeZ: player.homePos?.z,
+        playerZ: player.pos?.z,
+        shirtNumber: player.shirtNumber,
+        goalMouthWidth,
+        penaltyHalfZ,
+      });
+      if (spaced.x !== target.x || spaced.z !== target.z) {
+        target = new THREE.Vector3(spaced.x, target.y ?? 0.15, spaced.z);
+        const playerAny = player as any;
+        const lastAt = Number(playerAny._coachDefenseGoalMouthSpacingAt ?? -999);
+        if (elapsed - lastAt >= 1.2) {
+          playerAny._coachDefenseGoalMouthSpacingAt = elapsed;
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_DEFENSE_GOALMOUTH_SPACED', player.team, getRoleKey(player), {
+            id: command.id,
+            role,
+            ownGoalX: +ownGoalX.toFixed(1),
+            targetX: +target.x.toFixed(1),
+            targetZ: +target.z.toFixed(1),
+            playerX: +player.pos.x.toFixed(1),
+            playerZ: +player.pos.z.toFixed(1),
+          });
+        }
+      }
+    }
+    const opponentCoachPlan = command.telemetryOpponentCoachPlan;
+    if (target && opponentCoachPlan && opponentCoachPlan.primaryThreat !== 'BALANCED') {
+      const nearTarget = command.attackRoles.NEAR_POST
+        ? coachTargetForAttackRole(command, 'NEAR_POST', findPlayerByCoachKey(command.team, command.attackRoles.NEAR_POST) || player, state)
+        : null;
+      const cutbackTarget = command.attackRoles.CUTBACK
+        ? coachTargetForAttackRole(command, 'CUTBACK', findPlayerByCoachKey(command.team, command.attackRoles.CUTBACK) || player, state)
+        : null;
+      const secondWaveTarget = command.attackRoles.SECOND_WAVE
+        ? coachTargetForAttackRole(command, 'SECOND_WAVE', findPlayerByCoachKey(command.team, command.attackRoles.SECOND_WAVE) || player, state)
+        : null;
+      const farPostTarget = command.attackRoles.FAR_POST
+        ? coachTargetForAttackRole(command, 'FAR_POST', findPlayerByCoachKey(command.team, command.attackRoles.FAR_POST) || player, state)
+        : null;
+      const primaryTarget =
+        opponentCoachPlan.primaryThreat === 'NEAR_POST' ? nearTarget
+        : opponentCoachPlan.primaryThreat === 'CUTBACK' ? cutbackTarget
+        : opponentCoachPlan.primaryThreat === 'SECOND_WAVE' ? secondWaveTarget
+        : opponentCoachPlan.primaryThreat === 'FAR_POST' ? farPostTarget
+        : null;
+      if (primaryTarget && role !== 'PRESS_CARRIER') {
+        const overCoverStrength = opponentCoachPlan.overCoverRoles.includes(opponentCoachPlan.primaryThreat)
+          ? THREE.MathUtils.clamp(0.30 + opponentCoachPlan.confidence * 0.25 + defenseAggression * 0.18, 0.30, 0.68)
+          : THREE.MathUtils.lerp(0.20, 0.34, defenseAggression);
+        if (
+          (opponentCoachPlan.primaryThreat === 'NEAR_POST' && (role === 'COVER_CUTBACK' || role === 'TRACK_FAR_POST'))
+          || (opponentCoachPlan.primaryThreat === 'CUTBACK' && (role === 'COVER_NEAR_POST' || role === 'BLOCK_SECOND_WAVE'))
+          || (opponentCoachPlan.primaryThreat === 'SECOND_WAVE' && (role === 'COVER_CUTBACK' || role === 'TRACK_FAR_POST'))
+          || (opponentCoachPlan.primaryThreat === 'FAR_POST' && (role === 'COVER_NEAR_POST' || role === 'BLOCK_SECOND_WAVE'))
+        ) {
+          target = target.clone().lerp(primaryTarget, overCoverStrength);
+        }
+      }
+      const playerAny = player as any;
+      const lastPlanAt = Number(playerAny._telemetryOpponentCoachTargetAt ?? -999);
+      if (elapsed - lastPlanAt >= 1.2) {
+        playerAny._telemetryOpponentCoachTargetAt = elapsed;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_OPPONENT_COACH_TARGET', player.team, getRoleKey(player), {
+          id: command.id,
+          defensiveRole: role,
+          primaryThreat: opponentCoachPlan.primaryThreat,
+          confidence: +opponentCoachPlan.confidence.toFixed(2),
+          defenseAggression: gameState.defenseAggression,
+          targetX: +target.x.toFixed(1),
+          targetZ: +target.z.toFixed(1),
+        });
+      }
     }
     if (target) maybeEmitCoachPlayerReached(command, player, role, target);
     return target;
@@ -6462,6 +8150,20 @@ export function initGame(container: HTMLElement) {
         && Math.abs(tm.pos.z) <= goalMouthWidth * 2.5
         && (tm.pos.x - carrier.pos.x) * attackSign > -4;
     }).length;
+  }
+
+  function countCoachPlannedBoxAttackers(command: CoachCommandState | null | undefined): number {
+    if (!command) return 0;
+    const finishJobs = new Set<TelemetryFullTeamAttackJob>(['NEAR_POST', 'FAR_POST', 'CUTBACK', 'SECOND_WAVE', 'PIN_CENTER_BACK']);
+    const targets = command.fullTeamAttackTargets || {};
+    let count = 0;
+    for (const target of Object.values(targets)) {
+      if (finishJobs.has(target.job)) count += 1;
+    }
+    for (const role of ['NEAR_POST', 'FAR_POST', 'CUTBACK', 'SECOND_WAVE'] as CoachCommandRole[]) {
+      if (command.attackRoles[role] && !Object.values(targets).some((target) => target.job === role)) count += 1;
+    }
+    return count;
   }
 
   function directorPhaseForCarrier(carrier: any, attackSign: number): 'buildup' | 'progression' | 'finalThird' {
@@ -6517,6 +8219,8 @@ export function initGame(container: HTMLElement) {
       targetShirtNumber: number;
       targetX: number;
       targetZ: number;
+      intendedPointX?: number;
+      intendedPointZ?: number;
       style: string;
       realCross: boolean;
       directorForced: boolean;
@@ -6731,6 +8435,85 @@ export function initGame(container: HTMLElement) {
     }
   }
 
+  function findSecondWaveReboundTarget(shooter: any, team: 'A' | 'B', attackSign: 1 | -1): any | null {
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    return players
+      .filter((p: any) => p.team === team && p !== shooter && !isGoalkeeper(p))
+      .map((p: any) => {
+        const role = getRoleKey(p).toUpperCase();
+        const distToGoal = Math.abs(goalX - p.pos.x);
+        const distFromShooter = p.pos.distanceTo(shooter.pos);
+        const forwardProg = (p.pos.x - shooter.pos.x) * attackSign;
+        const central = Math.abs(p.pos.z) < penaltyHalfZ * 1.35;
+        const roleScore =
+          ['CM', 'CAM', 'DM'].includes(role) ? 2.2
+          : ['LM', 'RM', 'LW', 'RW'].includes(role) ? 1.1
+          : 0.4;
+        const score =
+          roleScore
+          + (central ? 1.4 : -0.4)
+          + THREE.MathUtils.clamp((22 - distToGoal) / 8, -0.8, 1.6)
+          + THREE.MathUtils.clamp((16 - distFromShooter) / 8, -0.8, 1.4)
+          - Math.max(0, forwardProg - 6) * 0.08;
+        return { player: p, role, distToGoal, distFromShooter, score };
+      })
+      .filter((entry) =>
+        ['CM', 'CAM', 'DM', 'LM', 'RM', 'LW', 'RW'].includes(entry.role)
+        && entry.distToGoal <= penaltyDepth + 13
+        && entry.distFromShooter <= 22
+      )
+      .sort((a, b) => b.score - a.score)[0]?.player || null;
+  }
+
+  function findStrikerBlockedShotEscapeTarget(
+    striker: any,
+    teammates: any[],
+    opponents: any[],
+    team: 'A' | 'B',
+    attackSign: 1 | -1,
+    fallbackTarget: any | null = null,
+  ): any | null {
+    const candidates = teammates
+      .filter((tm: any) => tm !== striker && !isGoalkeeper(tm))
+      .map((tm: any) => {
+        const role = getRoleKey(tm).toUpperCase();
+        const passDist = striker.pos.distanceTo(tm.pos);
+        const forwardProg = (tm.pos.x - striker.pos.x) * attackSign;
+        const lateralSep = Math.abs(tm.pos.z - striker.pos.z);
+        const receiverPressure = opponents.filter((opp: any) => opp.pos.distanceTo(tm.pos) < 4.8).length;
+        const laneProfile = getSimpleLaneBlockerProfile(striker.pos, tm.pos, team, passDist > 14 ? 2.7 : 2.15);
+        const laneBlocked = laneProfile.frontBlockerLateral < (passDist > 14 ? 1.45 : 1.15)
+          && laneProfile.frontBlockerT > 0.14
+          && laneProfile.frontBlockerT < 0.84;
+        const roleScore =
+          ['CAM', 'CM'].includes(role) ? 2.4
+          : ['DM'].includes(role) ? 1.4
+          : ['LM', 'RM', 'LW', 'RW'].includes(role) ? 1.2
+          : 0.5;
+        const score =
+          roleScore
+          + THREE.MathUtils.clamp(lateralSep / 7, 0, 1.6)
+          + THREE.MathUtils.clamp((14 - passDist) / 6, -0.8, 1.2)
+          + THREE.MathUtils.clamp((forwardProg + 5) / 8, -0.6, 0.8)
+          - receiverPressure * 0.55
+          - (laneBlocked ? 4.0 : 0);
+        return { player: tm, role, passDist, forwardProg, lateralSep, receiverPressure, laneBlocked, score };
+      })
+      .filter((entry) =>
+        ['CAM', 'CM', 'DM', 'LM', 'RM', 'LW', 'RW'].includes(entry.role)
+        && entry.passDist <= 18
+        && entry.forwardProg > -10
+        && entry.receiverPressure <= 3
+        && !entry.laneBlocked
+      )
+      .sort((a, b) => b.score - a.score);
+    if (candidates[0]) return candidates[0].player;
+    if (!fallbackTarget || fallbackTarget === striker || isGoalkeeper(fallbackTarget)) return null;
+    const passDist = striker.pos.distanceTo(fallbackTarget.pos);
+    const forwardProg = (fallbackTarget.pos.x - striker.pos.x) * attackSign;
+    return passDist <= 16 && forwardProg > -8 ? fallbackTarget : null;
+  }
+
   function tryDeflectShotBeforeGoal(
     shooter: any,
     shotDir: THREE.Vector3,
@@ -6769,30 +8552,68 @@ export function initGame(container: HTMLElement) {
     if (!bestBlocker) return false;
 
     const crowd = opponents.filter((opp: any) => opp.pos.distanceTo(shooter.pos) < 9.0).length;
+    const blockerDistToShooter = bestBlocker.pos.distanceTo(shooter.pos);
+    const laneSeal = THREE.MathUtils.clamp((shotLaneWidth - bestLateral) / Math.max(0.01, shotLaneWidth), 0, 1);
+    if (laneSeal < 0.25 && blockerDistToShooter > 8.0) return false;
+    if (laneSeal < 0.12 && blockerDistToShooter > 5.5) return false;
+    const blockerProximityFactor =
+      blockerDistToShooter < 4.2 ? 0.07
+      : blockerDistToShooter < 7.5 ? 0.03
+      : -0.05;
+    const rangeFactor =
+      distToGoal > 16 ? 0.055
+      : distToGoal > 9 ? 0.03
+      : 0;
+    const crowdFactor = THREE.MathUtils.clamp(Math.max(0, crowd - 1) * 0.014, 0, 0.06);
     const styleFactor =
-      shotStyle === 'LACES_DRIVE' ? 0.10
+      shotStyle === 'LACES_DRIVE' ? 0.06
       : shotStyle === 'TOE_POKE' || shotStyle === 'HALF_VOLLEY' || shotStyle === 'VOLLEY' ? 0.06
       : 0;
     const blockChance = THREE.MathUtils.clamp(
-      0.18
-      + (shotLaneWidth - bestLateral) * 0.22
-      + crowd * 0.035
-      + (forcedShot ? 0.10 : 0)
-      + (distToGoal > 9 ? 0.08 : 0)
+      0.055
+      + laneSeal * 0.19
+      + crowdFactor
+      + blockerProximityFactor
+      + (forcedShot ? 0.055 : 0)
+      + rangeFactor
       + styleFactor,
-      0.10,
-      0.58,
+      0.04,
+      0.42,
     );
     if (Math.random() >= blockChance) return false;
 
     const blockPoint = bestBlocker.pos.clone();
     blockPoint.y = Math.max(BALL_GROUND_Y, Math.min(ballState.pos.y + 0.25, 0.9));
     const side = Math.random() < 0.5 ? -1 : 1;
-    const scatter = new THREE.Vector3(
+    let scatter = new THREE.Vector3(
       -shotDir.x * THREE.MathUtils.lerp(1.5, 4.0, Math.random()) + shotDir.z * side * THREE.MathUtils.lerp(1.4, 3.6, Math.random()),
       THREE.MathUtils.lerp(0.35, 1.5, Math.random()),
       -shotDir.z * THREE.MathUtils.lerp(1.5, 4.0, Math.random()) - shotDir.x * side * THREE.MathUtils.lerp(1.4, 3.6, Math.random()),
     );
+    const shooterRole = getRoleKey(shooter).toUpperCase();
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const reboundTarget = shooterRole === 'ST' ? findSecondWaveReboundTarget(shooter, team, attackSign as 1 | -1) : null;
+    const forceCornerDeflection = shooterRole === 'ST' && !reboundTarget && Math.random() < 0.32;
+    let secondaryOutcome: 'SECOND_WAVE_REBOUND' | 'CORNER_DEFLECTION' | 'LOOSE_BLOCK' = 'LOOSE_BLOCK';
+    if (reboundTarget) {
+      const reboundDir = new THREE.Vector3().subVectors(reboundTarget.pos, blockPoint).setY(0);
+      if (reboundDir.lengthSq() > 0.01) {
+        reboundDir.normalize();
+        scatter = reboundDir.multiplyScalar(THREE.MathUtils.lerp(5.2, 7.8, Math.random()));
+        scatter.y = THREE.MathUtils.lerp(0.08, 0.35, Math.random());
+        secondaryOutcome = 'SECOND_WAVE_REBOUND';
+      }
+    } else if (forceCornerDeflection) {
+      const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+      const cornerZ = Math.sign(blockPoint.z || shooter.pos.z || side) * (FIELD_D / 2 + 6);
+      const cornerDir = new THREE.Vector3(goalX + attackSign * 7 - blockPoint.x, 0, cornerZ - blockPoint.z);
+      if (cornerDir.lengthSq() > 0.01) {
+        cornerDir.normalize();
+        scatter = cornerDir.multiplyScalar(THREE.MathUtils.lerp(7.0, 10.5, Math.random()));
+        scatter.y = THREE.MathUtils.lerp(0.45, 1.1, Math.random());
+        secondaryOutcome = 'CORNER_DEFLECTION';
+      }
+    }
     ballState.pos.copy(blockPoint);
     ballState.vel.copy(scatter);
     ballState.lastHeldBy = shooter;
@@ -6815,9 +8636,24 @@ export function initGame(container: HTMLElement) {
       forcedShot,
       blockT: +bestT.toFixed(2),
       blockerLateral: +bestLateral.toFixed(2),
+      blockerDistToShooter: +blockerDistToShooter.toFixed(2),
+      laneSeal: +laneSeal.toFixed(2),
       crowd,
       blockChance: +blockChance.toFixed(2),
+      secondaryOutcome,
+      reboundTarget: reboundTarget ? (reboundTarget.name || 'Unknown') : null,
+      reboundTargetRole: reboundTarget ? getRoleKey(reboundTarget) : null,
     });
+    if (secondaryOutcome !== 'LOOSE_BLOCK') {
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'SHOT_BLOCK_SECOND_CHANCE', team, getRoleKey(shooter), {
+        shooter: shooter.name || 'Unknown',
+        blocker: bestBlocker.name || 'Unknown',
+        outcome: secondaryOutcome,
+        target: reboundTarget ? (reboundTarget.name || 'Unknown') : null,
+        targetRole: reboundTarget ? getRoleKey(reboundTarget) : null,
+        distToGoal: +distToGoal.toFixed(2),
+      });
+    }
     sounds.catch();
     setTimeout(() => {
       if (gameState.message === 'BLOCKED!') gameState.message = '';
@@ -6997,7 +8833,11 @@ export function initGame(container: HTMLElement) {
     if (elapsed > pending.expiresAt + 0.8 && outcome !== 'UNRESOLVED') return;
 
     const intendedReceiver = ballState.intendedReceiver;
-    const targetPoint = new THREE.Vector3(pending.targetX, 0, pending.targetZ);
+    const targetPoint = new THREE.Vector3(
+      pending.intendedPointX ?? pending.targetX,
+      0,
+      pending.intendedPointZ ?? pending.targetZ,
+    );
     const collectorPoint = collector?.pos instanceof THREE.Vector3 ? collector.pos : null;
     const receiverPoint = intendedReceiver?.pos instanceof THREE.Vector3 ? intendedReceiver.pos : null;
     const opponents = players.filter((p: any) => p.team !== pending.team && !isGoalkeeper(p));
@@ -7033,6 +8873,8 @@ export function initGame(container: HTMLElement) {
       timeToResolve: +(elapsed - pending.startedAt).toFixed(2),
       targetX: +pending.targetX.toFixed(1),
       targetZ: +pending.targetZ.toFixed(1),
+      intendedPointX: +(pending.intendedPointX ?? pending.targetX).toFixed(1),
+      intendedPointZ: +(pending.intendedPointZ ?? pending.targetZ).toFixed(1),
       ballX: +ballState.pos.x.toFixed(1),
       ballZ: +ballState.pos.z.toFixed(1),
       ballDistFromIntendedPoint: +ballState.pos.distanceTo(targetPoint).toFixed(2),
@@ -7055,6 +8897,8 @@ export function initGame(container: HTMLElement) {
         collectorTeam: collector?.team || null,
         matchedTarget: !!collector && collector.team === pending.team && collector.shirtNumber === pending.targetShirtNumber,
         ballDistFromIntendedPoint: +ballState.pos.distanceTo(targetPoint).toFixed(2),
+        collectorDistFromIntendedPoint: collectorPoint ? +collectorPoint.distanceTo(targetPoint).toFixed(2) : null,
+        receiverDistFromIntendedPoint: receiverPoint ? +receiverPoint.distanceTo(targetPoint).toFixed(2) : null,
         nearestDefenderDist: Number.isFinite(nearestDefenderDist) ? +nearestDefenderDist.toFixed(2) : null,
       });
       if (command?.id === pending.coachCommandId && (outcome === 'INTERCEPTED' || outcome === 'UNRESOLVED')) {
@@ -7065,20 +8909,17 @@ export function initGame(container: HTMLElement) {
       collector
       && collector.team === pending.team
       && collector.shirtNumber === pending.targetShirtNumber
-      && ['CUTBACK', 'SECOND_WAVE'].includes(pending.targetRole)
+      && ['CUTBACK', 'SECOND_WAVE', 'NEAR_POST', 'FAR_POST'].includes(pending.targetRole)
       && (outcome === 'COMPLETED' || outcome === 'SELF_CAUGHT')
     ) {
-      (collector as any)._structuredFinishIntentUntil = elapsed + 1.8;
-      (collector as any)._structuredFinishIntentRole = pending.targetRole;
-      (collector as any)._structuredFinishIntentStyle = pending.targetRole === 'CUTBACK' ? 'PLACED' : 'LACES_DRIVE';
-      (collector as any)._structuredFinishIntentStartedAt = elapsed;
-      pushTuningEvent(elapsed, matchClock.half, 'STRUCTURED_FINISH_INTENT_ARMED', pending.team, getRoleKey(collector), {
-        role: pending.targetRole,
-        style: (collector as any)._structuredFinishIntentStyle,
+      armStructuredFinishIntent(collector, pending.team, pending.targetRole, elapsed, {
         target: pending.target,
-        collector: collector.name || 'Unknown',
-        timeToResolve: +(elapsed - pending.startedAt).toFixed(2),
-        nearestDefenderDist: Number.isFinite(nearestDefenderDist) ? +nearestDefenderDist.toFixed(2) : null,
+        coachCommandId: pending.coachCommandId || null,
+        directorForced: pending.directorForced,
+        source: 'structured_delivery_resolved',
+        timeToResolve: elapsed - pending.startedAt,
+        nearestDefenderDist,
+        collectorDistFromIntendedPoint: collectorPoint ? collectorPoint.distanceTo(targetPoint) : null,
       });
     }
     ballState.pendingStructuredDelivery = null;
@@ -7821,6 +9662,8 @@ export function initGame(container: HTMLElement) {
         steeringTarget = getCornerReliefTarget(player, activeCornerApex);
       }
     }
+    recordPositionalDriftCommand(player, steeringTarget, 'steerPlayerTowards');
+    recordCoachAuthorityMoveCommand(player, steeringTarget, 'steerPlayerTowards', maxSpeed);
 
     const toTarget = _steerT.subVectors(steeringTarget, player.pos);
     toTarget.y = 0;
@@ -8136,6 +9979,10 @@ export function initGame(container: HTMLElement) {
   const FIELD_W = FIELD_OF_PLAY_W + EZONE_W * 2;
   const FIELD_SCALE_PER_YARD = FIELD_W / PITCH_LENGTH_YDS;
   const FIELD_D = PITCH_WIDTH_YDS * FIELD_SCALE_PER_YARD;
+  const LOCAL_PITCH_METERS = {
+    lengthMeters: PITCH_LENGTH_YDS * 0.9144,
+    widthMeters: PITCH_WIDTH_YDS * 0.9144,
+  };
   broadcastCameraHome.set(0, 30, FIELD_D * 1.02);
   const UNITS_PER_YARD = FIELD_OF_PLAY_W / 100;
   const TEN_YARDS_UNITS = UNITS_PER_YARD * 10;
@@ -8177,6 +10024,32 @@ export function initGame(container: HTMLElement) {
   fieldGrass.position.y = 0.01;
   fieldGrass.receiveShadow = true;
   scene.add(fieldGrass);
+
+  function applyReplayVisualPitch(asset: RealDataReplayAsset | null) {
+    const scaleX = asset ? asset.pitch.lengthMeters / LOCAL_PITCH_METERS.lengthMeters : 1;
+    const scaleZ = asset ? asset.pitch.widthMeters / LOCAL_PITCH_METERS.widthMeters : 1;
+    const objects = [fieldGrass, ...fieldElements];
+    for (const object of objects) {
+      const userData = object.userData as any;
+      if (!userData._realDataReplayVisualBase) {
+        userData._realDataReplayVisualBase = {
+          position: object.position.clone(),
+          scale: object.scale.clone(),
+        };
+      }
+      const base = userData._realDataReplayVisualBase;
+      object.position.set(
+        base.position.x * scaleX,
+        base.position.y,
+        base.position.z * scaleZ,
+      );
+      object.scale.set(
+        base.scale.x * scaleX,
+        base.scale.y,
+        base.scale.z * scaleZ,
+      );
+    }
+  }
   const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
   const groundMaterial = M.fieldGreen;
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -9702,6 +11575,30 @@ export function initGame(container: HTMLElement) {
     tackler.tackleAnimDirZ = -sideSign;
   }
 
+  function isTackleRecovering(player: any, elapsed: number): boolean {
+    return !!player && Number((player as any)._tackleRecoveryUntil ?? 0) > elapsed;
+  }
+
+  function setTackleCommitment(player: any, elapsed: number, won: boolean, detail: Record<string, any> = {}) {
+    if (!player) return;
+    (player as any)._tackleRecoveryUntil = elapsed + (won ? 0.72 : 1.05);
+    (player as any)._tackleCommittedUntil = elapsed + (won ? 0.28 : 0.48);
+    player.tackleCooldown = Math.max(player.tackleCooldown || 0, won ? 1.65 : 1.25);
+    pushTuningEvent(elapsed, matchClock.half, 'TACKLE_COMMITMENT', player.team, getRoleKey(player), {
+      won,
+      recoveryUntil: +Number((player as any)._tackleRecoveryUntil).toFixed(2),
+      committedUntil: +Number((player as any)._tackleCommittedUntil).toFixed(2),
+      ...detail,
+    });
+  }
+
+  function holdTackleRecovery(player: any, elapsed: number, dt: number): boolean {
+    if (!isTackleRecovering(player, elapsed)) return false;
+    setPlayerAIState(player, 'TACKLE_RECOVER');
+    player.vel.multiplyScalar(Math.max(0, 1 - dt * 10.5));
+    return true;
+  }
+
   function getTacklePose(player: any, dt: number) {
     if (!player?.tackleAnimActive) {
       return { y: 0, rotX: 0, rotY: 0, rotZ: 0 };
@@ -10289,6 +12186,7 @@ export function initGame(container: HTMLElement) {
       style?: 'SHORT' | 'DRIVEN' | 'OUTSIDE' | 'BACK' | 'DIAGONAL' | 'WALL';
       receiverWindow?: number;
       skipOffside?: boolean;
+      targetPoint?: THREE.Vector3;
     }
   ): boolean {
     if (!passer || !target || passer === target) return false;
@@ -10301,7 +12199,12 @@ export function initGame(container: HTMLElement) {
     const nearbyOppPressure = getSimplePassOpponents(passer.team as 'A' | 'B')
       .filter((p: any) => p.pos.distanceTo(passer.pos) < 5.8)
       .length;
-    const targetPos = getSimplePassTargetPoint(passer, target, style);
+    const targetPos = options?.targetPoint
+      ? options.targetPoint.clone()
+      : getSimplePassTargetPoint(passer, target, style);
+    targetPos.x = THREE.MathUtils.clamp(targetPos.x, -FIELD_W / 2 + 1.0, FIELD_W / 2 - 1.0);
+    targetPos.z = THREE.MathUtils.clamp(targetPos.z, -FIELD_D / 2 + 1.0, FIELD_D / 2 - 1.0);
+    targetPos.y = 0.15;
     const dir = new THREE.Vector3().subVectors(targetPos, passer.pos);
     dir.y = 0;
     const dist = dir.length();
@@ -11501,11 +13404,106 @@ export function initGame(container: HTMLElement) {
   }
 
   // ── One-time shot: first-time finish off a teammate's pass or cross ──
+  function armStructuredFinishIntent(
+    receiver: any,
+    team: 'A' | 'B',
+    role: string,
+    elapsed: number,
+    input: {
+      style?: 'PLACED' | 'LACES_DRIVE';
+      until?: number;
+      target?: string;
+      coachCommandId?: string | null;
+      directorForced?: boolean;
+      source?: string;
+      collectorDistFromIntendedPoint?: number | null;
+      nearestDefenderDist?: number | null;
+      timeToResolve?: number | null;
+    } = {},
+  ): boolean {
+    if (!receiver || !['CUTBACK', 'SECOND_WAVE', 'NEAR_POST', 'FAR_POST'].includes(role)) return false;
+    const style = input.style || (role === 'CUTBACK' || role === 'NEAR_POST' ? 'PLACED' : 'LACES_DRIVE');
+    (receiver as any)._structuredFinishIntentUntil = input.until ?? elapsed + 1.8;
+    (receiver as any)._structuredFinishIntentRole = role;
+    (receiver as any)._structuredFinishIntentStyle = style;
+    (receiver as any)._structuredFinishIntentStartedAt = elapsed;
+    (receiver as any)._structuredFinishIntentCoachCommandId = input.coachCommandId || '';
+    (receiver as any)._structuredFinishIntentForced = !!input.directorForced;
+    (receiver as any)._structuredFinishIntentSource = input.source || 'structured_delivery';
+    pushTuningEvent(elapsed, matchClock.half, 'STRUCTURED_FINISH_INTENT_ARMED', team, getRoleKey(receiver), {
+      role,
+      style,
+      target: input.target || receiver.name || 'Unknown',
+      collector: receiver.name || 'Unknown',
+      source: input.source || 'structured_delivery',
+      timeToResolve: input.timeToResolve == null ? null : +input.timeToResolve.toFixed(2),
+      nearestDefenderDist: input.nearestDefenderDist == null || !Number.isFinite(input.nearestDefenderDist)
+        ? null
+        : +input.nearestDefenderDist.toFixed(2),
+      coachCommandId: input.coachCommandId || null,
+      collectorDistFromIntendedPoint: input.collectorDistFromIntendedPoint == null
+        ? null
+        : +input.collectorDistFromIntendedPoint.toFixed(2),
+    });
+    return true;
+  }
+
   function hasStructuredFinishIntent(player: any, elapsed: number): boolean {
     if (!player) return false;
     const role = String((player as any)._structuredFinishIntentRole || '');
     return elapsed <= Number((player as any)._structuredFinishIntentUntil ?? 0)
-      && ['CUTBACK', 'SECOND_WAVE'].includes(role);
+      && ['CUTBACK', 'SECOND_WAVE', 'NEAR_POST', 'FAR_POST'].includes(role);
+  }
+
+  function findFinishingCoachLayoffTarget(
+    collector: any,
+    role: string,
+    opponents: any[],
+    attackSign: 1 | -1,
+  ): any | null {
+    const team = collector.team as 'A' | 'B';
+    const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+    return players
+      .filter((tm: any) => tm.team === team && tm !== collector && !isGoalkeeper(tm))
+      .map((tm: any) => {
+        const tmRole = getRoleKey(tm).toUpperCase();
+        const passDist = collector.pos.distanceTo(tm.pos);
+        const forwardProg = (tm.pos.x - collector.pos.x) * attackSign;
+        const distToGoal = Math.abs(goalX - tm.pos.x);
+        const absZ = Math.abs(tm.pos.z);
+        const receiverPressure = opponents.filter((opp: any) => opp.pos.distanceTo(tm.pos) < 4.6).length;
+        const lane = getSimpleLaneBlockerProfile(collector.pos, tm.pos, team, passDist > 14 ? 2.8 : 2.2);
+        const laneBlocked = lane.frontBlockerLateral < (passDist > 14 ? 1.45 : 1.15)
+          && lane.frontBlockerT > 0.12
+          && lane.frontBlockerT < 0.84;
+        const secondWave = ['CM', 'CAM', 'DM'].includes(tmRole)
+          && distToGoal <= penaltyDepth + 11
+          && absZ <= penaltyHalfZ * 1.35;
+        const squareCutback = ['CM', 'CAM', 'LM', 'RM', 'LW', 'RW'].includes(tmRole)
+          && forwardProg > -7
+          && passDist <= 16;
+        const roleBonus =
+          secondWave ? 2.5
+          : squareCutback ? 1.5
+          : ['ST', 'CF'].includes(tmRole) && role === 'FAR_POST' ? 1.1
+          : 0.2;
+        const score =
+          roleBonus
+          + THREE.MathUtils.clamp((18 - passDist) / 7, -0.8, 1.5)
+          + THREE.MathUtils.clamp((penaltyDepth + 10 - distToGoal) / 9, -0.8, 1.4)
+          + THREE.MathUtils.clamp((forwardProg + 5) / 8, -0.5, 0.9)
+          - receiverPressure * 0.65
+          - (laneBlocked ? 4.0 : 0);
+        return { player: tm, passDist, forwardProg, receiverPressure, laneBlocked, score, secondWave, squareCutback };
+      })
+      .filter((entry) =>
+        (entry.secondWave || entry.squareCutback)
+        && entry.passDist <= 18
+        && entry.forwardProg > -10
+        && entry.receiverPressure <= 3
+        && !entry.laneBlocked
+      )
+      .sort((a, b) => b.score - a.score)[0]?.player || null;
   }
 
   function attemptStructuredFinishOnCollection(
@@ -11520,6 +13518,13 @@ export function initGame(container: HTMLElement) {
     if (!isCPU) return false;
 
     const intentRole = String((collector as any)._structuredFinishIntentRole || '');
+    const intentSource = String((collector as any)._structuredFinishIntentSource || '');
+    const intentForced = !!(collector as any)._structuredFinishIntentForced;
+    const intentCoachCommandId = String((collector as any)._structuredFinishIntentCoachCommandId || '');
+    const coachedCutbackIntent =
+      intentRole === 'CUTBACK'
+      && !!intentCoachCommandId;
+    const coachedFirstTouchMandate = !!intentCoachCommandId || intentForced || intentSource.includes('coach');
     const attackRight = teamAttacksRight(collector.team);
     const goalX = attackRight ? FIELD_W / 2 : -FIELD_W / 2;
     const distToGoal = Math.abs(goalX - collector.pos.x);
@@ -11535,18 +13540,36 @@ export function initGame(container: HTMLElement) {
     const shotLaneBlocked = shotLane.frontBlockerLateral < 1.05
       && shotLane.frontBlockerT > 0.08
       && shotLane.frontBlockerT < 0.74;
-    const laneWidth = intentRole === 'CUTBACK' ? goalMouthWidth * 1.95 : goalMouthWidth * 2.05;
-    const withinFinishDistance = distToGoal <= (intentRole === 'CUTBACK' ? 15.8 : 20.0);
+    const laneWidth =
+      intentRole === 'NEAR_POST' ? goalMouthWidth * 1.35
+      : intentRole === 'FAR_POST' ? goalMouthWidth * 2.35
+      : intentRole === 'CUTBACK' ? goalMouthWidth * 1.95
+      : goalMouthWidth * 2.05;
+    const withinFinishDistance =
+      intentRole === 'NEAR_POST' ? distToGoal <= 10.8
+      : intentRole === 'FAR_POST' ? distToGoal <= 13.8
+      : intentRole === 'CUTBACK' ? distToGoal <= 15.8
+      : distToGoal <= 20.0;
     const centralEnough = Math.abs(collector.pos.z) < laneWidth;
-    const angleOk = angleToGoal < (intentRole === 'CUTBACK' ? 0.70 : 0.58);
-    const pressureOk = closePressure <= (intentRole === 'CUTBACK' ? 6 : 4);
+    const angleOk =
+      intentRole === 'NEAR_POST' ? angleToGoal < 0.62
+      : intentRole === 'FAR_POST' ? angleToGoal < 0.74
+      : angleToGoal < (intentRole === 'CUTBACK' ? 0.70 : 0.58);
+    const pressureOk = closePressure <= (intentRole === 'CUTBACK' || intentRole === 'FAR_POST' ? 6 : 4);
     const blockedLaneStillShootable =
       intentRole === 'CUTBACK'
       && distToGoal <= 15.2
       && angleToGoal < 0.68
       && closePressure <= 6;
     const laneOk = !shotLaneBlocked || distToGoal <= 9.5 || blockedLaneStillShootable;
-    const viableShot = withinFinishDistance && centralEnough && angleOk && pressureOk && laneOk;
+    const coachedFirstTimeWindow =
+      coachedFirstTouchMandate
+      && distToGoal <= (intentRole === 'SECOND_WAVE' ? 20.5 : 17.5)
+      && angleToGoal < (intentRole === 'SECOND_WAVE' ? 0.66 : 0.84)
+      && closePressure <= 5
+      && incomingBallSpeed >= 5.4
+      && (!shotLaneBlocked || distToGoal <= 13.5 || intentRole === 'CUTBACK');
+    const viableShot = (withinFinishDistance && centralEnough && angleOk && pressureOk && laneOk) || coachedFirstTimeWindow;
 
     if (!viableShot) {
       const holdReason =
@@ -11556,7 +13579,76 @@ export function initGame(container: HTMLElement) {
         : !pressureOk ? 'pressure'
         : !laneOk ? 'shot_lane_blocked'
         : 'unknown';
-      (collector as any)._structuredFinishNoPassUntil = elapsed + 0.8;
+      (collector as any)._structuredFinishNoPassUntil = elapsed + (coachedFirstTouchMandate ? 0.28 : 0.8);
+      const layoffAllowed = intentSource !== 'finishing_coach_layoff';
+      const layoffTarget = layoffAllowed ? findFinishingCoachLayoffTarget(collector, intentRole, opponents, attackRight ? 1 : -1) : null;
+      if (layoffTarget) {
+        const layoffDist = collector.pos.distanceTo(layoffTarget.pos);
+        const forwardProg = (layoffTarget.pos.x - collector.pos.x) * (attackRight ? 1 : -1);
+        const style: 'SHORT' | 'BACK' | 'DRIVEN' =
+          forwardProg < -1.2 ? 'BACK'
+          : layoffDist > 11 ? 'DRIVEN'
+          : 'SHORT';
+        const launched = executeAIGroundPass(collector, layoffTarget, elapsed, {
+          style,
+          receiverWindow: 1.9,
+        });
+        if (launched) {
+          const layoffTargetDistToGoal = Math.abs(goalX - layoffTarget.pos.x);
+          const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(collector.team as 'A' | 'B');
+          if (layoffTargetDistToGoal <= teamTelemetryCoachPlan.attackingPrinciples.finishDistance.secondWaveMax) {
+            armStructuredFinishIntent(layoffTarget, collector.team, 'SECOND_WAVE', elapsed, {
+              style: 'LACES_DRIVE',
+              until: elapsed + 1.45,
+              target: layoffTarget.name || 'Unknown',
+              coachCommandId: String((collector as any)._structuredFinishIntentCoachCommandId || ''),
+              source: 'finishing_coach_layoff',
+            });
+          }
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'FINISHING_COACH_DECISION', collector.team, getRoleKey(collector), {
+            action: 'layoff',
+            reason: holdReason,
+            role: intentRole,
+            target: layoffTarget.name || 'Unknown',
+            targetRole: getRoleKey(layoffTarget),
+            passDist: +layoffDist.toFixed(1),
+            forwardProg: +forwardProg.toFixed(1),
+            targetDistToGoal: +layoffTargetDistToGoal.toFixed(1),
+            followupArmed: layoffTargetDistToGoal <= teamTelemetryCoachPlan.attackingPrinciples.finishDistance.secondWaveMax,
+            distToGoal: +distToGoal.toFixed(1),
+            angleToGoal: +angleToGoal.toFixed(2),
+            closePressure,
+            shotLaneBlocked,
+          });
+          (collector as any)._structuredFinishIntentUntil = 0;
+          (collector as any)._structuredFinishNoPassUntil = 0;
+          (collector as any)._structuredFinishIntentCoachCommandId = '';
+          (collector as any)._structuredFinishIntentForced = false;
+          (collector as any)._structuredFinishIntentSource = '';
+          return true;
+        }
+      }
+      const touchSide = Math.sign(collector.pos.z || (Math.random() < 0.5 ? -1 : 1)) || 1;
+      const correctionTarget = collector.pos.clone();
+      correctionTarget.x += (attackRight ? 1 : -1) * (intentRole === 'SECOND_WAVE' ? 1.1 : 1.6);
+      correctionTarget.z = THREE.MathUtils.clamp(
+        collector.pos.z - touchSide * (shotLaneBlocked ? 2.8 : 1.7),
+        -FIELD_D / 2 + 2.0,
+        FIELD_D / 2 - 2.0,
+      );
+      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'FINISHING_COACH_DECISION', collector.team, getRoleKey(collector), {
+        action: 'corrective_touch',
+        reason: layoffAllowed ? holdReason : `followup_${holdReason}`,
+        role: intentRole,
+        distToGoal: +distToGoal.toFixed(1),
+        angleToGoal: +angleToGoal.toFixed(2),
+        closePressure,
+        shotLaneBlocked,
+        targetX: +correctionTarget.x.toFixed(1),
+        targetZ: +correctionTarget.z.toFixed(1),
+      });
+      setPlayerAIState(collector, 'CARRY');
+      steerSimpleAttackPlayer(collector, correctionTarget, 1 / 60, getUniformPlayerRunSpeed() * 0.82, 1.3, 0.08);
       pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_FINISH_INTENT_HELD', collector.team, getRoleKey(collector), {
         role: intentRole,
         holdReason,
@@ -11566,11 +13658,31 @@ export function initGame(container: HTMLElement) {
         shotLaneBlocked,
         incomingBallSpeed: +incomingBallSpeed.toFixed(1),
         wasFlying,
+        coachedCutbackIntent,
+        coachedFirstTouchMandate,
       });
-      return false;
+      return true;
     }
 
-    const style = intentRole === 'CUTBACK' && distToGoal <= 15.2 ? 'PLACED' : 'LACES_DRIVE';
+    const style = intentRole === 'NEAR_POST'
+      ? 'PLACED'
+      : intentRole === 'FAR_POST'
+        ? 'LACES_DRIVE'
+        : coachedFirstTimeWindow && (shotLaneBlocked || !centralEnough)
+      ? 'LACES_DRIVE'
+      : intentRole === 'CUTBACK' && distToGoal <= 15.2 ? 'PLACED' : 'LACES_DRIVE';
+    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'FINISHING_COACH_DECISION', collector.team, getRoleKey(collector), {
+      action: 'shoot',
+      reason: 'lane_open',
+      role: intentRole,
+      style,
+      distToGoal: +distToGoal.toFixed(1),
+      angleToGoal: +angleToGoal.toFixed(2),
+      closePressure,
+      shotLaneBlocked,
+      incomingBallSpeed: +incomingBallSpeed.toFixed(1),
+      firstTouchMandate: coachedFirstTouchMandate,
+    });
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_FINISH_INTENT_SHOT', collector.team, getRoleKey(collector), {
       role: intentRole,
       style,
@@ -11581,9 +13693,42 @@ export function initGame(container: HTMLElement) {
       immediate: true,
       incomingBallSpeed: +incomingBallSpeed.toFixed(1),
       wasFlying,
+      coachedCutbackIntent,
+      coachedFirstTouchMandate,
     });
+    gameState.pendingShotDecision = {
+      timestamp: Date.now(),
+      team: collector.team,
+      shooter: collector.name || 'Unknown',
+      role: (collector.displayRole || collector.role || '').toString(),
+      style,
+      skillDriven: true,
+      distToGoal,
+      distToGoalYards: +(distToGoal / X_PER_YARD).toFixed(1),
+      shooterX: +collector.pos.x.toFixed(2),
+      shooterZ: +collector.pos.z.toFixed(2),
+      closePressure,
+      inShootingLane: Math.abs(collector.pos.z) < goalMouthWidth * 0.78,
+      inTapInZone: distToGoal < 9.5 && Math.abs(collector.pos.z) < goalMouthWidth * 1.1,
+      insidePenaltyArea: distToGoal < penaltyDepth,
+      half: matchClock.half,
+      phase: matchClock.phase,
+      elapsedInHalf: matchClock.elapsedInHalf,
+      shotChance: null,
+      passChance: null,
+      shotThreshold: null,
+      forceShotNow: false,
+      structuredFinishIntentActive: true,
+      structuredFinishIntentRole: intentRole,
+      decisionType: 'AI_FIRST_TOUCH_FINISH',
+      firstTouchMandate: coachedFirstTouchMandate,
+      incomingBallSpeed: +incomingBallSpeed.toFixed(1),
+    };
     (collector as any)._structuredFinishIntentUntil = 0;
     (collector as any)._structuredFinishNoPassUntil = 0;
+    (collector as any)._structuredFinishIntentCoachCommandId = '';
+    (collector as any)._structuredFinishIntentForced = false;
+    (collector as any)._structuredFinishIntentSource = '';
     takeShot(collector, true, 1.0, style as 'LACES_DRIVE' | 'PLACED');
     return true;
   }
@@ -13170,6 +15315,8 @@ export function initGame(container: HTMLElement) {
     const nowSec = performance.now() / 1000;
     _steerT.subVectors(target, player.pos).setY(0);
     const dist = _steerT.length();
+    recordPositionalDriftCommand(player, target, 'steerSimpleAttackPlayer');
+    recordCoachAuthorityMoveCommand(player, target, 'steerSimpleAttackPlayer', maxSpeed);
     if (dist <= arrivalEpsilon) {
       const damp = Math.max(0, 1 - dt * 6.5);
       player.vel.x *= damp;
@@ -13481,26 +15628,95 @@ export function initGame(container: HTMLElement) {
     const structuredCarrierRole = getStructuredAttackRole(structuredAttack, cpuCarrier);
     if (structuredAttack && structuredCarrierRole === 'CARRIER') {
       const moveKey = structuredAttackKey(structuredAttack);
+      const sequenceKey = `${structuredAttack.team}:${structuredAttack.type}:${structuredAttack.carrierSide}`;
+      const sequenceKeyProp = team === 'A' ? '_structuredAttackSequenceKeyA' : '_structuredAttackSequenceKeyB';
+      const sequenceStartedProp = team === 'A' ? '_structuredAttackSequenceStartedAtA' : '_structuredAttackSequenceStartedAtB';
+      const sequenceTouchesProp = team === 'A' ? '_structuredAttackSequenceTouchesA' : '_structuredAttackSequenceTouchesB';
+      const sequenceTouchCarrierProp = team === 'A' ? '_structuredAttackSequenceTouchCarrierA' : '_structuredAttackSequenceTouchCarrierB';
       if (carrierAny._structuredAttackKey !== moveKey) {
         carrierAny._structuredAttackKey = moveKey;
         carrierAny._structuredAttackStartedAt = elapsed;
         carrierAny._structuredAttackTouchCarrier = cpuCarrier.name || 'carrier';
         carrierAny._structuredAttackTouches = 1;
+        if ((gameState as any)[sequenceKeyProp] !== sequenceKey) {
+          (gameState as any)[sequenceKeyProp] = sequenceKey;
+          (gameState as any)[sequenceStartedProp] = elapsed;
+          (gameState as any)[sequenceTouchesProp] = 1;
+          (gameState as any)[sequenceTouchCarrierProp] = cpuCarrier.name || 'carrier';
+        } else if ((gameState as any)[sequenceTouchCarrierProp] !== (cpuCarrier.name || 'carrier')) {
+          (gameState as any)[sequenceTouchCarrierProp] = cpuCarrier.name || 'carrier';
+          (gameState as any)[sequenceTouchesProp] = Math.max(1, Number((gameState as any)[sequenceTouchesProp]) || 1) + 1;
+        }
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_ATTACK_START', team, 'TEAM', {
           type: structuredAttack.type,
           carrier: cpuCarrier.name || 'Unknown',
           carrierRole,
           carrierX: +cpuCarrier.pos.x.toFixed(2),
           carrierZ: +cpuCarrier.pos.z.toFixed(2),
+          sequenceTouches: Math.max(1, Number((gameState as any)[sequenceTouchesProp]) || 1),
+          sequenceAge: +(elapsed - Number((gameState as any)[sequenceStartedProp] ?? elapsed)).toFixed(2),
         });
       } else {
         const structuredTouchCarrier = cpuCarrier.name || `${carrierRole}:${Math.round(cpuCarrier.pos.x * 10)}:${Math.round(cpuCarrier.pos.z * 10)}`;
         if (carrierAny._structuredAttackTouchCarrier !== structuredTouchCarrier) {
           carrierAny._structuredAttackTouchCarrier = structuredTouchCarrier;
           carrierAny._structuredAttackTouches = Math.max(1, Number(carrierAny._structuredAttackTouches) || 1) + 1;
+          if ((gameState as any)[sequenceTouchCarrierProp] !== structuredTouchCarrier) {
+            (gameState as any)[sequenceTouchCarrierProp] = structuredTouchCarrier;
+            (gameState as any)[sequenceTouchesProp] = Math.max(1, Number((gameState as any)[sequenceTouchesProp]) || 1) + 1;
+          }
         }
       }
-      issueWingCutbackCoachCommand(team, cpuCarrier, structuredAttack, elapsed);
+      const coachCommandForAttack = issueWingCutbackCoachCommand(team, cpuCarrier, structuredAttack, elapsed);
+      if (coachCommandForAttack) updateActiveCoachCommand(cpuCarrier, structuredAttack, elapsed);
+      const coachCarrierContract = getCoachContractTarget(cpuCarrier, elapsed);
+      if (
+        coachCarrierContract
+        && coachCarrierContract.job === 'CARRIER'
+        && !ballState.isFlying
+        && !ballState.isRolling
+        && !insidePenaltyArea
+        && closePressure < 3
+      ) {
+        const distToContract = cpuCarrier.pos.distanceTo(coachCarrierContract.target);
+        const coachAggression = getCoachAggression01();
+        const contractAdvancedEnough = cpuCarrier.pos.x * attackSign > THREE.MathUtils.lerp(FIELD_W * 0.06, FIELD_W * 0.16, coachAggression);
+        const contractWideEnough = Math.abs(cpuCarrier.pos.z) > THREE.MathUtils.lerp(FIELD_D * 0.18, FIELD_D * 0.28, coachAggression);
+        if (distToContract > 1.2 && (!contractAdvancedEnough || !contractWideEnough)) {
+          gameState.possessionDirector = makeDirectorSnapshot({
+            team,
+            intent: 'WING_OVERLOAD',
+            phase: directorPhaseForCarrier(cpuCarrier, attackSign),
+            currentBoxAttackers: countDirectorBoxAttackers(teammates, cpuCarrier, attackSign),
+            action: 'carry',
+            reason: 'coach_contract_carrier_route',
+          });
+          emitCoachContractCompliance(cpuCarrier, coachCarrierContract, elapsed, 'CARRIER_ROUTE');
+          maybeEmitCarrierTrace({
+            carrier: cpuCarrier,
+            team,
+            attackSign,
+            branch: 'SIMPLE',
+            action: 'coach_contract_carrier_route',
+            target: coachCarrierContract.target,
+            detail: {
+              job: coachCarrierContract.job,
+              timing: coachCarrierContract.timing,
+              distToTarget: +distToContract.toFixed(2),
+              contractAdvancedEnough,
+              contractWideEnough,
+              coachAggression: gameState.coachAggression,
+              legacyBypassed: true,
+            },
+          });
+          setPlayerAIState(cpuCarrier, 'COACH_ATTACK');
+          steerSimpleAttackPlayer(cpuCarrier, coachCarrierContract.target, dt, getUniformPlayerRunSpeed() * THREE.MathUtils.lerp(1.0, 1.38, coachAggression), THREE.MathUtils.lerp(2.6, 4.2, coachAggression), 0.04);
+          if ((gameState as any)[cooldownKey] <= 0) {
+            (gameState as any)[cooldownKey] = 0.06;
+          }
+          return;
+        }
+      }
       const currentBoxAttackers = countDirectorBoxAttackers(teammates, cpuCarrier, attackSign);
       gameState.possessionDirector = makeDirectorSnapshot({
         team,
@@ -13625,9 +15841,22 @@ export function initGame(container: HTMLElement) {
         })
         .filter((entry) => entry.role === 'CUTBACK' ? entry.forwardProg > -7 : entry.forwardProg > -2)
         .sort((a, b) => b.score - a.score);
-      const boxAttackers = countDirectorBoxAttackers(teammates, cpuCarrier, attackSign);
-      const secondsSinceIntentStart = Math.max(0, elapsed - Number(carrierAny._structuredAttackStartedAt ?? elapsed));
-      const structuredTouchCount = Math.max(1, Number(carrierAny._structuredAttackTouches) || 1);
+      const coachCommand = getActiveCoachCommand(team, elapsed);
+      const physicalBoxAttackers = countDirectorBoxAttackers(teammates, cpuCarrier, attackSign);
+      const plannedCoachBoxAttackers = telemetryCoachExperiment && coachCommand?.telemetryCoachPlanId
+        ? countCoachPlannedBoxAttackers(coachCommand)
+        : 0;
+      const boxAttackers = physicalBoxAttackers;
+      const boxAttackersWithPlan = Math.max(physicalBoxAttackers, plannedCoachBoxAttackers);
+      const sequenceStartedProp = team === 'A' ? '_structuredAttackSequenceStartedAtA' : '_structuredAttackSequenceStartedAtB';
+      const sequenceStartedAt = Number((gameState as any)[sequenceStartedProp] ?? carrierAny._structuredAttackStartedAt ?? elapsed);
+      const secondsSinceIntentStart = Math.max(0, elapsed - sequenceStartedAt);
+      const sequenceTouchesProp = team === 'A' ? '_structuredAttackSequenceTouchesA' : '_structuredAttackSequenceTouchesB';
+      const structuredTouchCount = Math.max(
+        Number(carrierAny._structuredAttackTouches) || 1,
+        Number((gameState as any)[sequenceTouchesProp]) || 1,
+      );
+      const directorHold = shouldHoldWideDeliveryForDirector({ boxAttackers, secondsSinceIntentStart });
       const directorReadyTargets = structuredTargets.filter((entry) => {
         const forwardOk = entry.role === 'CUTBACK' || entry.role === 'SECOND_WAVE'
           ? entry.forwardProg > -8
@@ -13640,26 +15869,286 @@ export function initGame(container: HTMLElement) {
           && entry.score >= 3.6;
       });
       const directorTargetsReady = directorReadyTargets.length;
-      const coachCommand = getActiveCoachCommand(team, elapsed);
       const coachCutbackTarget = coachCommand?.attackRoles.CUTBACK
         ? structuredTargets.find((entry) => playerCoachKey(entry.player) === coachCommand.attackRoles.CUTBACK)
         : null;
+      const coachCutbackPlayer = coachCutbackTarget?.player || (coachCommand?.attackRoles.CUTBACK ? findPlayerByCoachKey(team, coachCommand.attackRoles.CUTBACK) : null);
+      const coachNearPostPlayer = coachCommand?.attackRoles.NEAR_POST ? findPlayerByCoachKey(team, coachCommand.attackRoles.NEAR_POST) : null;
+      const coachFarPostPlayer = coachCommand?.attackRoles.FAR_POST ? findPlayerByCoachKey(team, coachCommand.attackRoles.FAR_POST) : null;
+      const coachSecondWavePlayer = coachCommand?.attackRoles.SECOND_WAVE ? findPlayerByCoachKey(team, coachCommand.attackRoles.SECOND_WAVE) : null;
+      const coachCutbackPoint = coachCommand && coachCutbackPlayer
+        ? (vectorFromCoachTarget(coachCommand, 'CUTBACK') || coachTargetForAttackRole(coachCommand, 'CUTBACK', coachCutbackPlayer, structuredAttack))
+        : null;
+      const coachNearPostPoint = coachCommand && coachNearPostPlayer
+        ? (vectorFromCoachTarget(coachCommand, 'NEAR_POST') || coachTargetForAttackRole(coachCommand, 'NEAR_POST', coachNearPostPlayer, structuredAttack))
+        : null;
+      const coachFarPostPoint = coachCommand && coachFarPostPlayer
+        ? (vectorFromCoachTarget(coachCommand, 'FAR_POST') || coachTargetForAttackRole(coachCommand, 'FAR_POST', coachFarPostPlayer, structuredAttack))
+        : null;
+      const coachSecondWavePoint = coachCommand && coachSecondWavePlayer
+        ? (vectorFromCoachTarget(coachCommand, 'SECOND_WAVE') || coachTargetForAttackRole(coachCommand, 'SECOND_WAVE', coachSecondWavePlayer, structuredAttack))
+        : null;
+      const coachCutbackDist = coachCutbackPlayer && coachCutbackPoint ? coachCutbackPlayer.pos.distanceTo(coachCutbackPoint) : 99;
+      const coachNearPostDist = coachNearPostPlayer && coachNearPostPoint ? coachNearPostPlayer.pos.distanceTo(coachNearPostPoint) : 99;
+      const coachFarPostDist = coachFarPostPlayer && coachFarPostPoint ? coachFarPostPlayer.pos.distanceTo(coachFarPostPoint) : 99;
+      const coachSecondWaveDist = coachSecondWavePlayer && coachSecondWavePoint ? coachSecondWavePlayer.pos.distanceTo(coachSecondWavePoint) : 99;
+      const finishBandForCoachTarget = (player: any, role: CoachCommandRole | null): { ok: boolean; distToGoal: number; absZ: number } => {
+        if (!player || !role) return { ok: false, distToGoal: 99, absZ: 99 };
+        const playerDistToGoal = Math.abs(goalX - player.pos.x);
+        const playerAbsZ = Math.abs(player.pos.z);
+        const ok = role === 'CUTBACK'
+          ? playerDistToGoal >= penaltyDepth - 2.4 && playerDistToGoal <= penaltyDepth + 4.2 && playerAbsZ <= penaltyHalfZ * 1.02
+          : role === 'SECOND_WAVE'
+            ? playerDistToGoal >= penaltyDepth - 0.8 && playerDistToGoal <= penaltyDepth + 7.0 && playerAbsZ <= penaltyHalfZ * 1.18
+            : role === 'NEAR_POST'
+              ? playerDistToGoal <= penaltyDepth + 2.6 && playerAbsZ <= penaltyHalfZ * 0.78
+              : playerDistToGoal <= penaltyDepth + 4.2 && playerAbsZ <= penaltyHalfZ * 1.55;
+        return { ok, distToGoal: playerDistToGoal, absZ: playerAbsZ };
+      };
       const coachCommandAge = coachCommand ? Math.max(0, elapsed - coachCommand.issuedAt) : 0;
       const coachCutbackReady = coachAttackRoleReached(coachCommand, 'CUTBACK');
       const coachNearPostReady = coachAttackRoleReached(coachCommand, 'NEAR_POST');
       const coachFarPostReady = coachAttackRoleReached(coachCommand, 'FAR_POST');
-      const coachAnyRunnerReady = coachCutbackReady || coachNearPostReady || coachFarPostReady;
-      const coachLateDelivery = !!coachCommand && coachCommandAge >= 3.35;
+      const coachSecondWaveReady = coachAttackRoleReached(coachCommand, 'SECOND_WAVE');
+      const coachCutbackNearReady = !!coachCutbackPlayer && coachCutbackDist <= 5.8;
+      const coachNearPostNearReady = !!coachNearPostPlayer && coachNearPostDist <= 4.8;
+      const coachFarPostNearReady = !!coachFarPostPlayer && coachFarPostDist <= 5.4;
+      const coachSecondWaveNearReady = !!coachSecondWavePlayer && coachSecondWaveDist <= 5.8;
+      const coachAnyRunnerReady = coachCutbackReady || coachNearPostReady || coachFarPostReady
+        || coachSecondWaveReady
+        || coachCutbackNearReady || coachNearPostNearReady || coachFarPostNearReady || coachSecondWaveNearReady;
+      const coachLateDelivery = !!coachCommand && coachCommandAge >= 3.35 && coachCutbackNearReady;
       const coachReadyForDelivery = !!coachCommand && (coachCutbackReady || (coachAnyRunnerReady && coachCommandAge >= 1.45) || coachLateDelivery);
-      const coachNeedsRunnerWait = !!coachCommand && !coachReadyForDelivery;
+      const coachFallbackSecondWave =
+        !!coachCommand
+        && !coachCutbackNearReady
+        && coachCommandAge >= 2.9
+        && coachSecondWaveNearReady
+        && !!coachSecondWavePlayer
+        && !!coachSecondWavePoint;
+      const coachForcedTargetPlayer = coachFallbackSecondWave ? coachSecondWavePlayer : coachCutbackPlayer;
+      const coachForcedTargetPoint = coachFallbackSecondWave ? coachSecondWavePoint : coachCutbackPoint;
+      const coachForcedTargetRole: CoachCommandRole | null = coachFallbackSecondWave ? 'SECOND_WAVE' : coachForcedTargetPlayer ? 'CUTBACK' : null;
+      const coachForcedFinishBand = finishBandForCoachTarget(coachForcedTargetPlayer, coachForcedTargetRole);
+      const coachPanicRelease = !!coachCommand && coachCommandAge >= 5.2 && closePressure >= 2;
+      const coachRunnerWaitCount = Number((coachCommand as any)?._runnerWaitCount ?? 0);
+      const telemetryCoachOwnsFinalAction = telemetryCoachExperiment && !!coachCommand?.telemetryCoachPlanId;
+      const coachAggression = getCoachAggression01();
+      const telemetryRunnerWaitAgeCap = THREE.MathUtils.lerp(1.6, 0.65, coachAggression);
+      const telemetryFinalActionHardCap = THREE.MathUtils.lerp(2.8, 1.55, coachAggression);
+      const coachHardFinalActionCapHit =
+        telemetryCoachOwnsFinalAction
+        && !!coachCommand
+        && coachCommandAge >= telemetryFinalActionHardCap;
+      const coachRunnerWaitCapHit =
+        !!coachCommand
+        && (coachHardFinalActionCapHit || coachRunnerWaitCount >= (telemetryCoachOwnsFinalAction ? 1 : 2) || coachCommandAge >= (telemetryCoachOwnsFinalAction ? telemetryRunnerWaitAgeCap : 2.45));
+      const coachReceiverAlmostReady =
+        coachCutbackDist <= 8.5
+        || coachSecondWaveDist <= 8.5
+        || coachNearPostDist <= 7.5;
+      const coachNeedsRunnerWait =
+        !!coachCommand
+        && coachReceiverAlmostReady
+        && !coachForcedFinishBand.ok
+        && !coachPanicRelease
+        && !coachHardFinalActionCapHit
+        && !coachRunnerWaitCapHit
+        && coachCommandAge < 3.1;
+      const coachPhysicalRunnerShortage =
+        telemetryCoachOwnsFinalAction
+        && plannedCoachBoxAttackers >= 2
+        && physicalBoxAttackers < 2
+        && !coachForcedFinishBand.ok
+        && !coachHardFinalActionCapHit
+        && coachCommandAge < 4.8;
+      const coachCanForceFinalAction = coachHardFinalActionCapHit || !coachPhysicalRunnerShortage || coachForcedFinishBand.ok;
       const coachForceDelivery =
         !!coachCommand
-        && !!coachCutbackTarget
+        && !!coachForcedTargetPlayer
+        && !!coachForcedTargetPoint
         && coachReadyForDelivery
+        && (coachForcedFinishBand.ok || coachPanicRelease)
         && cpuCarrier.pos.x * attackSign > FIELD_W * 0.04
         && Math.abs(cpuCarrier.pos.z) > FIELD_D * 0.20;
+      const coachWaitReason =
+        !coachCommand ? ''
+        : coachReadyForDelivery && !coachForcedFinishBand.ok && !coachPanicRelease ? 'finish_zone_not_ready'
+        : coachPhysicalRunnerShortage ? 'physical_runners_not_arrived'
+        : !coachCutbackReady && !coachCutbackNearReady ? 'cutback_not_ready'
+        : coachFallbackSecondWave ? 'second_wave_fallback_ready'
+        : !coachNearPostReady && !coachNearPostNearReady ? 'near_post_not_ready'
+        : !coachFarPostReady && !coachFarPostNearReady ? 'far_post_not_ready'
+        : !coachSecondWaveReady && !coachSecondWaveNearReady ? 'second_wave_not_ready'
+        : 'runner_not_ready';
+      if (
+        coachCommand
+        && coachCommandAge >= 2.7
+        && !coachReceiverAlmostReady
+        && !coachForcedFinishBand.ok
+        && !coachPhysicalRunnerShortage
+      ) {
+        const fallbackEntry = structuredTargets
+          .filter((entry) =>
+            ['SECOND_WAVE', 'CUTBACK', 'NEAR_POST'].includes(entry.role)
+            && entry.laneAcceptable
+            && !entry.laneBlocked
+            && entry.passDist <= entry.maxPassDist + 3.0
+            && entry.oppSpace >= 1.0
+          )
+          .sort((a, b) => {
+            const roleScore = (entry: any) =>
+              (entry.role === 'SECOND_WAVE' ? 2.4 : entry.role === 'CUTBACK' ? 2.0 : 1.2)
+              + (entry.finishLane ? 1.4 : 0)
+              - Math.max(0, entry.passDist - 14) * 0.12;
+            return roleScore(b) - roleScore(a);
+          })[0] || null;
+        if (fallbackEntry && (gameState as any)[cooldownKey] <= 0) {
+          const style: 'SHORT' | 'BACK' | 'DRIVEN' =
+            fallbackEntry.passDist <= 9.5 ? 'SHORT'
+            : fallbackEntry.forwardProg < -1.5 ? 'BACK'
+            : 'DRIVEN';
+          const launched = executeAIGroundPass(cpuCarrier, fallbackEntry.player, elapsed, {
+            style,
+            receiverWindow: 2.15,
+          });
+          if (launched) {
+            armStructuredFinishIntent(fallbackEntry.player, team, fallbackEntry.role, elapsed, {
+              style: fallbackEntry.role === 'CUTBACK' ? 'PLACED' : 'LACES_DRIVE',
+              until: elapsed + 2.35,
+              target: fallbackEntry.player.name || 'Unknown',
+              coachCommandId: coachCommand.id,
+              source: 'coach_layoff_recycle',
+            });
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_ALTERNATIVE', team, 'TEAM', {
+              id: coachCommand.id,
+              play: coachCommand.play,
+              action: 'layoff_recycle',
+              reason: 'no_viable_designed_receiver',
+              target: fallbackEntry.player.name || 'Unknown',
+              targetRole: fallbackEntry.role,
+              passDist: +fallbackEntry.passDist.toFixed(1),
+              forwardProg: +fallbackEntry.forwardProg.toFixed(1),
+              oppSpace: +fallbackEntry.oppSpace.toFixed(1),
+              style,
+            });
+            endCoachCommand('abandoned_layoff_recycle', elapsed);
+            (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+            return;
+          }
+        }
+        endCoachCommand('abandoned_to_normal_attack', elapsed);
+      }
+      const coachStillActive = !!coachCommand && gameState.activeCoachCommand?.id === coachCommand.id;
+      const telemetryBoxRunnerWaitCapHit =
+        telemetryCoachExperiment
+        && directorHold.hold
+        && directorHold.reason === 'waiting_for_box_runners'
+        && secondsSinceIntentStart >= THREE.MathUtils.lerp(1.15, 0.45, coachAggression);
+      const teamTelemetryCoachPlan = getTelemetryCoachPlanForTeam(team);
+      const telemetryOpponentPlanForAttack = telemetryCoachOwnsFinalAction && coachStillActive
+        ? getTelemetryOpponentCoachAdjustment(team === 'A' ? 'B' : 'A')
+        : null;
+      const telemetryCounterActionRole = telemetryCoachOwnsFinalAction && coachStillActive && coachCanForceFinalAction && (coachRunnerWaitCapHit || telemetryBoxRunnerWaitCapHit)
+        ? chooseTelemetryCoachCounterActionRole({
+          deliveryPriority: teamTelemetryCoachPlan.deliveryPriority,
+          availableRoles: structuredTargets
+            .filter((entry) =>
+              teamTelemetryCoachPlan.deliveryPriority.includes(entry.role as any)
+              && entry.laneAcceptable
+              && entry.passDist <= entry.maxPassDist + 5.0
+              && entry.oppSpace >= 0.75
+              && (entry.role === 'CUTBACK' || entry.role === 'SECOND_WAVE' || entry.finishLane || entry.passDist <= entry.maxPassDist + 2.0)
+            )
+            .map((entry) => entry.role as any),
+          opponentAdjustment: telemetryOpponentPlanForAttack,
+        })
+        : null;
+      const telemetryCoachFinalActionEntry = telemetryCoachOwnsFinalAction && coachStillActive && coachCanForceFinalAction && (coachRunnerWaitCapHit || telemetryBoxRunnerWaitCapHit)
+        ? structuredTargets
+          .filter((entry) =>
+            teamTelemetryCoachPlan.deliveryPriority.includes(entry.role as any)
+            && entry.laneAcceptable
+            && entry.passDist <= entry.maxPassDist + (coachHardFinalActionCapHit ? 8.0 : 5.0)
+            && entry.oppSpace >= (coachHardFinalActionCapHit ? 0.35 : 0.75)
+            && (entry.role === 'CUTBACK' || entry.role === 'SECOND_WAVE' || entry.finishLane || entry.passDist <= entry.maxPassDist + (coachHardFinalActionCapHit ? 5.0 : 2.0))
+          )
+          .sort((a, b) => {
+            const planPriority = (role: string) => {
+              const index = teamTelemetryCoachPlan.deliveryPriority.indexOf(role as any);
+              return index < 0 ? 99 : index;
+            };
+            const counterBonus = (entry: typeof structuredTargets[number]) => {
+              if (!telemetryCounterActionRole) return 0;
+              if (entry.role === telemetryCounterActionRole) return 14;
+              if (telemetryOpponentPlanForAttack?.overCoverRoles.includes(entry.role as any)) return -6;
+              return 0;
+            };
+            const score = (entry: typeof structuredTargets[number]) =>
+              -planPriority(entry.role) * 8
+              + counterBonus(entry)
+              + (entry.finishLane ? 4.0 : 0)
+              + (entry.role === 'CUTBACK' ? 2.0 : entry.role === 'SECOND_WAVE' ? 1.7 : entry.role === 'NEAR_POST' ? 1.1 : 0.5)
+              + THREE.MathUtils.clamp((entry.oppSpace - 0.8) / 2.8, -0.8, 1.6)
+              - Math.max(0, entry.passDist - entry.maxPassDist) * 0.35
+              - (entry.laneBlocked ? 4.0 : 0);
+            return score(b) - score(a);
+          })[0] || null
+        : null;
+      if (telemetryCoachFinalActionEntry) {
+        const coachAny = coachCommand as any;
+        if (elapsed - Number(coachAny._lastTelemetryFinalActionAt ?? -999) >= 0.85) {
+          coachAny._lastTelemetryFinalActionAt = elapsed;
+          rememberTelemetryOpponentCoachThreat(team === 'A' ? 'B' : 'A', telemetryCoachFinalActionEntry.role, elapsed);
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_FINAL_ACTION_FORCED', team, 'TEAM', {
+            id: coachCommand.id,
+            play: coachCommand.play,
+            reason: telemetryBoxRunnerWaitCapHit
+              ? 'box_runner_wait_cap'
+              : coachHardFinalActionCapHit ? 'final_action_hard_cap'
+              : telemetryOpponentPlanForAttack && telemetryOpponentPlanForAttack.primaryThreat !== 'BALANCED' ? 'counter_opponent_overcover' : 'wait_budget_exhausted',
+            target: telemetryCoachFinalActionEntry.player.name || 'Unknown',
+            targetRole: telemetryCoachFinalActionEntry.role,
+            counterRole: telemetryCounterActionRole,
+            opponentPrimaryThreat: telemetryOpponentPlanForAttack?.primaryThreat || null,
+            opponentConfidence: telemetryOpponentPlanForAttack ? +telemetryOpponentPlanForAttack.confidence.toFixed(2) : null,
+            opponentOverCoverRoles: telemetryOpponentPlanForAttack ? [...telemetryOpponentPlanForAttack.overCoverRoles] : [],
+            age: +coachCommandAge.toFixed(2),
+            waitCount: coachRunnerWaitCount,
+            boxAttackers,
+            secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
+            hardCap: +telemetryFinalActionHardCap.toFixed(2),
+            hardCapHit: coachHardFinalActionCapHit,
+            passDist: +telemetryCoachFinalActionEntry.passDist.toFixed(1),
+            oppSpace: +telemetryCoachFinalActionEntry.oppSpace.toFixed(1),
+            finishLane: telemetryCoachFinalActionEntry.finishLane,
+          });
+          if (telemetryOpponentPlanForAttack && telemetryOpponentPlanForAttack.primaryThreat !== 'BALANCED') {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_COUNTER_ADJUSTMENT', team, 'TEAM', {
+              id: coachCommand.id,
+              selectedRole: telemetryCoachFinalActionEntry.role,
+              counterRole: telemetryCounterActionRole,
+              opponentPrimaryThreat: telemetryOpponentPlanForAttack.primaryThreat,
+              opponentConfidence: +telemetryOpponentPlanForAttack.confidence.toFixed(2),
+              opponentOverCoverRoles: [...telemetryOpponentPlanForAttack.overCoverRoles],
+            });
+          }
+        }
+      }
+      const tempoReleaseDecision = chooseTempoReleaseTarget(
+        structuredTargets as TempoReleaseTarget[],
+        {
+          secondsSinceIntentStart,
+          structuredTouchCount,
+          coachWaitCapHit: coachStillActive && coachRunnerWaitCapHit,
+          carrierWideEnough: Math.abs(cpuCarrier.pos.z) > FIELD_D * 0.24,
+          carrierAdvancedEnough: cpuCarrier.pos.x * attackSign > FIELD_W * 0.10,
+        },
+      );
+      const tempoReleaseTargetEntry = tempoReleaseDecision.target as typeof structuredTargets[number] | null;
+      const tempoReleaseDelivery = !!tempoReleaseTargetEntry;
       const forceDirectorDelivery =
-        (directorTargetsReady >= 2 || coachForceDelivery)
+        (directorTargetsReady >= 2 || (coachStillActive && coachForceDelivery) || tempoReleaseDelivery || !!telemetryCoachFinalActionEntry)
         && secondsSinceIntentStart >= 0.35
         && cpuCarrier.pos.x * attackSign > FIELD_W * 0.10
         && Math.abs(cpuCarrier.pos.z) > FIELD_D * 0.24;
@@ -13671,6 +16160,9 @@ export function initGame(container: HTMLElement) {
           type: structuredAttack.type,
           readyTargets: directorTargetsReady,
           boxAttackers,
+          boxAttackersWithPlan,
+          physicalBoxAttackers,
+          plannedCoachBoxAttackers,
           secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
           carrierX: +cpuCarrier.pos.x.toFixed(2),
           carrierZ: +cpuCarrier.pos.z.toFixed(2),
@@ -13703,8 +16195,42 @@ export function initGame(container: HTMLElement) {
         && secondsSinceIntentStart < 3.4
         && !!structuredSetupTarget
         && !insidePenaltyArea;
-      const directorHold = shouldHoldWideDeliveryForDirector({ boxAttackers, secondsSinceIntentStart });
-      if (!forceDirectorDelivery && (coachNeedsRunnerWait || directorHold.hold || structuredNeedsSetupTouch)) {
+      const setupTouchHoldCapHit = structuredNeedsSetupTouch
+        && (secondsSinceIntentStart >= (telemetryCoachExperiment ? THREE.MathUtils.lerp(0.95, 0.35, coachAggression) : 1.2) || structuredTouchCount >= 2);
+      const shouldHoldForSetupTouch = structuredNeedsSetupTouch && !setupTouchHoldCapHit;
+      if (telemetryCoachOwnsFinalAction && coachStillActive && !coachPhysicalRunnerShortage && (coachRunnerWaitCapHit || telemetryBoxRunnerWaitCapHit) && !telemetryCoachFinalActionEntry && structuredSetupTarget && (gameState as any)[cooldownKey] <= 0) {
+        const recycleDist = cpuCarrier.pos.distanceTo(structuredSetupTarget.pos);
+        const recycleForwardProg = (structuredSetupTarget.pos.x - cpuCarrier.pos.x) * attackSign;
+        const recycleRole = getStructuredAttackRole(structuredAttack, structuredSetupTarget);
+        const recycleStyle: 'SHORT' | 'DRIVEN' | 'DIAGONAL' = Math.abs(structuredSetupTarget.pos.z - cpuCarrier.pos.z) > 7 && recycleForwardProg > 0
+          ? 'DIAGONAL'
+          : recycleDist > 11 ? 'DRIVEN' : 'SHORT';
+        const launched = executeAIGroundPass(cpuCarrier, structuredSetupTarget, elapsed, { style: recycleStyle });
+        if (launched) {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_RECYCLE_FORCED', team, 'TEAM', {
+            id: coachCommand.id,
+            play: coachCommand.play,
+            reason: telemetryBoxRunnerWaitCapHit ? 'box_runner_wait_cap_no_viable_final_action' : 'no_viable_final_action_after_wait_cap',
+            passer: cpuCarrier.name || 'Unknown',
+            target: structuredSetupTarget.name || 'Unknown',
+            targetRole: recycleRole,
+            age: +coachCommandAge.toFixed(2),
+            waitCount: coachRunnerWaitCount,
+            boxAttackers,
+            boxAttackersWithPlan,
+            physicalBoxAttackers,
+            plannedCoachBoxAttackers,
+            secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
+            passDist: +recycleDist.toFixed(1),
+            forwardProg: +recycleForwardProg.toFixed(1),
+            style: recycleStyle,
+          });
+          endCoachCommand('telemetry_forced_recycle', elapsed);
+          (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+          return;
+        }
+      }
+      if (!forceDirectorDelivery && ((coachStillActive && (coachNeedsRunnerWait || coachPhysicalRunnerShortage)) || (directorHold.hold && !telemetryBoxRunnerWaitCapHit) || shouldHoldForSetupTouch)) {
         const structuredCarryTarget = computeStructuredCarrierTarget({
           carrier: cpuCarrier,
           state: structuredAttack,
@@ -13718,9 +16244,9 @@ export function initGame(container: HTMLElement) {
           phase: directorPhaseForCarrier(cpuCarrier, attackSign),
           currentBoxAttackers: boxAttackers,
           action: 'carry',
-          reason: coachNeedsRunnerWait ? 'coach_waiting_for_runner' : structuredNeedsSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
+          reason: coachStillActive && (coachNeedsRunnerWait || coachPhysicalRunnerShortage) ? 'coach_waiting_for_runner' : shouldHoldForSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
         });
-        if (!coachNeedsRunnerWait && structuredNeedsSetupTouch && structuredSetupTarget && (gameState as any)[cooldownKey] <= 0) {
+        if (!(coachStillActive && coachNeedsRunnerWait) && shouldHoldForSetupTouch && structuredSetupTarget && (gameState as any)[cooldownKey] <= 0) {
           const setupDist = cpuCarrier.pos.distanceTo(structuredSetupTarget.pos);
           const setupForwardProg = (structuredSetupTarget.pos.x - cpuCarrier.pos.x) * attackSign;
           const setupStyle: 'SHORT' | 'DRIVEN' | 'DIAGONAL' = Math.abs(structuredSetupTarget.pos.z - cpuCarrier.pos.z) > 7 && setupForwardProg > 0
@@ -13742,29 +16268,58 @@ export function initGame(container: HTMLElement) {
             return;
           }
         }
-        if (coachNeedsRunnerWait && coachCommand) {
+        if (coachStillActive && (coachNeedsRunnerWait || coachPhysicalRunnerShortage) && coachCommand) {
           const lastWaitAt = Number((coachCommand as any)._lastWaitEventAt ?? -999);
           if (elapsed - lastWaitAt >= 0.75) {
             (coachCommand as any)._lastWaitEventAt = elapsed;
+            (coachCommand as any)._runnerWaitCount = coachRunnerWaitCount + 1;
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_WAIT', team, 'TEAM', {
               id: coachCommand.id,
               play: coachCommand.play,
+              reason: coachWaitReason,
+              action: 'short_hold_near_receiver',
               age: +coachCommandAge.toFixed(2),
               cutbackReady: coachCutbackReady,
               nearPostReady: coachNearPostReady,
               farPostReady: coachFarPostReady,
+              secondWaveReady: coachSecondWaveReady,
+              cutbackDist: +coachCutbackDist.toFixed(2),
+              nearPostDist: +coachNearPostDist.toFixed(2),
+              farPostDist: +coachFarPostDist.toFixed(2),
+              secondWaveDist: +coachSecondWaveDist.toFixed(2),
+              cutbackNearReady: coachCutbackNearReady,
+              nearPostNearReady: coachNearPostNearReady,
+              farPostNearReady: coachFarPostNearReady,
+              secondWaveNearReady: coachSecondWaveNearReady,
+              receiverAlmostReady: coachReceiverAlmostReady,
+              waitCount: coachRunnerWaitCount + 1,
+              waitCapHit: coachRunnerWaitCapHit,
+              physicalRunnerShortage: coachPhysicalRunnerShortage,
+              physicalBoxAttackers,
+              plannedCoachBoxAttackers,
+              finishZoneReady: coachForcedFinishBand.ok,
+              forcedTargetRole: coachForcedTargetRole,
+              forcedTargetDistToGoal: +coachForcedFinishBand.distToGoal.toFixed(1),
+              forcedTargetAbsZ: +coachForcedFinishBand.absZ.toFixed(1),
               carrierX: +cpuCarrier.pos.x.toFixed(1),
               carrierZ: +cpuCarrier.pos.z.toFixed(1),
             });
           }
+          if (coachCommandAge >= 4.6 && !coachAnyRunnerReady) {
+            endCoachCommand('runner_not_ready', elapsed);
+          }
         }
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'DIRECTOR_HOLD_DELIVERY', team, 'TEAM', {
           intent: 'WING_OVERLOAD',
-          reason: coachNeedsRunnerWait ? 'coach_waiting_for_runner' : structuredNeedsSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
+          reason: coachNeedsRunnerWait ? 'coach_waiting_for_runner' : shouldHoldForSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
           boxAttackers,
+          boxAttackersWithPlan,
+          physicalBoxAttackers,
+          plannedCoachBoxAttackers,
           structuredTouches: structuredTouchCount,
           secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
           minBoxAttackers: gameState.possessionDirector.minBoxAttackersBeforeCross,
+          setupTouchCapHit: setupTouchHoldCapHit,
         });
         maybeEmitCarrierTrace({
           carrier: cpuCarrier,
@@ -13776,7 +16331,7 @@ export function initGame(container: HTMLElement) {
           detail: {
             structuredAttackType: structuredAttack.type,
             structuredRole: structuredCarrierRole,
-            directorReason: coachNeedsRunnerWait ? 'coach_waiting_for_runner' : structuredNeedsSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
+            directorReason: coachStillActive && (coachNeedsRunnerWait || coachPhysicalRunnerShortage) ? 'coach_waiting_for_runner' : shouldHoldForSetupTouch ? 'waiting_for_setup_touch' : directorHold.reason,
             boxAttackers,
             structuredTouches: structuredTouchCount,
             secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
@@ -13789,7 +16344,9 @@ export function initGame(container: HTMLElement) {
         }
         return;
       }
-      const structuredTarget = (coachForceDelivery ? coachCutbackTarget?.player : null)
+      const structuredTarget = (coachForceDelivery ? coachForcedTargetPlayer : null)
+        || (telemetryCoachFinalActionEntry ? telemetryCoachFinalActionEntry.player : null)
+        || (tempoReleaseDelivery ? tempoReleaseTargetEntry?.player : null)
         || (forceDirectorDelivery ? directorReadyTargets[0]?.player : null)
         || structuredTargets.find((entry) =>
           entry.finishLane
@@ -13798,20 +16355,48 @@ export function initGame(container: HTMLElement) {
           && entry.passDist <= entry.maxPassDist + 2
           && entry.score >= 2.4
         )?.player
-        || findCrossTarget(cpuCarrier, team, attackSign);
+        || (telemetryCoachExperiment ? null : findCrossTarget(cpuCarrier, team, attackSign));
       if (structuredTarget) {
+        const coachDeliveryPoint = coachForceDelivery && coachForcedTargetPoint ? coachForcedTargetPoint.clone() : null;
         gameState.possessionDirector = makeDirectorSnapshot({
           team,
           intent: 'WING_OVERLOAD',
           phase: directorPhaseForCarrier(cpuCarrier, attackSign),
           currentBoxAttackers: boxAttackers,
           action: 'deliver',
-          reason: coachForceDelivery ? 'coach_wing_cutback_01' : forceDirectorDelivery ? 'targets_ready_forced_delivery' : directorHold.reason,
+          reason: coachForceDelivery
+            ? (coachFallbackSecondWave ? 'coach_second_wave_fallback' : 'coach_wing_cutback_01')
+            : telemetryCoachFinalActionEntry ? 'telemetry_coach_final_action'
+            : tempoReleaseDelivery ? 'tempo_release_final_action'
+            : forceDirectorDelivery ? 'targets_ready_forced_delivery' : directorHold.reason,
         });
-        const crossDist = cpuCarrier.pos.distanceTo(structuredTarget.pos);
-        const structuredTargetRole = getStructuredAttackRole(structuredAttack, structuredTarget);
+        const deliveryPoint = coachDeliveryPoint || structuredTarget.pos;
+        const crossDist = cpuCarrier.pos.distanceTo(deliveryPoint);
+        const structuredTargetRole = coachForceDelivery && coachForcedTargetRole
+          ? coachForcedTargetRole
+          : getStructuredAttackRole(structuredAttack, structuredTarget);
+        if (telemetryCoachExperiment && structuredTargetRole === 'NONE') {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_DELIVERY_SUPPRESSED', team, 'TEAM', {
+            reason: 'undefined_target_role',
+            passer: cpuCarrier.name || 'Unknown',
+            target: structuredTarget.name || 'Unknown',
+            crossDist: +crossDist.toFixed(1),
+          });
+          const structuredCarryTarget = computeStructuredCarrierTarget({
+            carrier: cpuCarrier,
+            state: structuredAttack,
+            fieldWidth: FIELD_W,
+            fieldDepth: FIELD_D,
+            penaltyDepth,
+          });
+          setPlayerAIState(cpuCarrier, 'CARRY');
+          steerSimpleAttackPlayer(cpuCarrier, structuredCarryTarget, dt, getUniformPlayerRunSpeed() * 1.05, 2.5, 0.06);
+          (gameState as any)[cooldownKey] = 0.10;
+          return;
+        }
         const style: 'LONG_LOFTED' | 'DRIVEN' =
-          coachCommand && structuredTargetRole === 'CUTBACK' ? 'DRIVEN'
+          telemetryCoachExperiment && ['CUTBACK', 'SECOND_WAVE', 'NEAR_POST'].includes(structuredTargetRole) ? 'DRIVEN'
+          : coachCommand && structuredTargetRole === 'CUTBACK' ? 'DRIVEN'
           : structuredTargetRole === 'CUTBACK' && crossDist < 14 ? 'DRIVEN'
           : structuredTargetRole === 'NEAR_POST' && crossDist < 12 ? 'DRIVEN'
           : structuredTargetRole === 'SECOND_WAVE' && crossDist < 18 ? 'DRIVEN'
@@ -13822,7 +16407,11 @@ export function initGame(container: HTMLElement) {
         if (style === 'LONG_LOFTED') {
           launched = executeAILoftedPass(cpuCarrier, structuredTarget, elapsed, 'LONG_LOFTED');
         } else {
-          launched = executeAIGroundPass(cpuCarrier, structuredTarget, elapsed, { style: 'DRIVEN' });
+          launched = executeAIGroundPass(cpuCarrier, structuredTarget, elapsed, {
+            style: 'DRIVEN',
+            receiverWindow: coachDeliveryPoint ? 2.25 : undefined,
+            targetPoint: coachDeliveryPoint || undefined,
+          });
         }
         if (launched) {
           const finishAssistUntil = elapsed + 2.8;
@@ -13843,6 +16432,8 @@ export function initGame(container: HTMLElement) {
             targetShirtNumber: Number(structuredTarget.shirtNumber || 0),
             targetX: structuredTarget.pos.x,
             targetZ: structuredTarget.pos.z,
+            intendedPointX: deliveryPoint.x,
+            intendedPointZ: deliveryPoint.z,
             style,
             realCross: false,
             directorForced: forceDirectorDelivery,
@@ -13853,7 +16444,7 @@ export function initGame(container: HTMLElement) {
           };
           const realCross = isActualCrossDelivery({
             passer: cpuCarrier.pos,
-            target: structuredTarget.pos,
+            target: deliveryPoint,
             attackSign: attackSign as 1 | -1,
             fieldWidth: FIELD_W,
             penaltyDepth,
@@ -13870,9 +16461,16 @@ export function initGame(container: HTMLElement) {
             style,
             realCross,
             directorForced: forceDirectorDelivery,
+            tempoRelease: tempoReleaseDelivery,
             coachCommandId: coachCommand?.id || null,
             coachPlay: coachCommand?.play || null,
+            coachFallback: coachFallbackSecondWave ? 'SECOND_WAVE' : null,
             readyTargets: directorTargetsReady,
+            intendedPointX: +deliveryPoint.x.toFixed(1),
+            intendedPointZ: +deliveryPoint.z.toFixed(1),
+            receiverX: +structuredTarget.pos.x.toFixed(1),
+            receiverZ: +structuredTarget.pos.z.toFixed(1),
+            receiverDistFromIntendedPoint: +structuredTarget.pos.distanceTo(deliveryPoint).toFixed(2),
           };
           pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
           if (realCross) {
@@ -13887,13 +16485,30 @@ export function initGame(container: HTMLElement) {
             style,
             realCross,
             directorForced: forceDirectorDelivery,
+            tempoRelease: tempoReleaseDelivery,
             coachCommandId: coachCommand?.id || null,
             coachPlay: coachCommand?.play || null,
             readyTargets: directorTargetsReady,
           });
+          if (tempoReleaseDelivery) {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'DIRECTOR_TEMPO_RELEASE', team, 'TEAM', {
+              intent: 'WING_OVERLOAD',
+              type: structuredAttack.type,
+              passer: cpuCarrier.name || 'Unknown',
+              target: structuredTarget.name || 'Unknown',
+              targetRole: structuredTargetRole,
+              readyTargets: directorTargetsReady,
+              boxAttackers,
+              structuredTouches: structuredTouchCount,
+              secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
+              passDist: +crossDist.toFixed(1),
+              realCross,
+              reason: tempoReleaseDecision.reason,
+            });
+          }
           if (coachCommand) {
             coachCommand.delivered = true;
-            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_DELIVERY', team, 'TEAM', {
+            const coachDeliveryDetail = {
               id: coachCommand.id,
               play: coachCommand.play,
               passer: cpuCarrier.name || 'Unknown',
@@ -13903,7 +16518,22 @@ export function initGame(container: HTMLElement) {
               realCross,
               crossDist: +crossDist.toFixed(1),
               secondsSinceIntentStart: +secondsSinceIntentStart.toFixed(2),
-            });
+              fallback: coachFallbackSecondWave ? 'SECOND_WAVE' : null,
+              finishZoneReady: coachForcedFinishBand.ok,
+              forcedTargetDistToGoal: +coachForcedFinishBand.distToGoal.toFixed(1),
+              forcedTargetAbsZ: +coachForcedFinishBand.absZ.toFixed(1),
+              intendedPointX: +deliveryPoint.x.toFixed(1),
+              intendedPointZ: +deliveryPoint.z.toFixed(1),
+              receiverX: +structuredTarget.pos.x.toFixed(1),
+              receiverZ: +structuredTarget.pos.z.toFixed(1),
+              receiverDistFromIntendedPoint: +structuredTarget.pos.distanceTo(deliveryPoint).toFixed(2),
+              boxAttackers,
+              physicalBoxAttackers,
+              plannedCoachBoxAttackers,
+            };
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_DELIVERY', team, 'TEAM', coachDeliveryDetail);
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_COMMAND_DELIVERED', team, 'TEAM', coachDeliveryDetail);
+            endCoachCommand('delivered', elapsed);
           }
           if (forceDirectorDelivery) {
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'DIRECTOR_DELIVERY_FORCED', team, 'TEAM', {
@@ -14096,6 +16726,27 @@ export function initGame(container: HTMLElement) {
                 penaltyHalfZ,
                 goalMouthWidth,
               });
+              const structuredFinishRole =
+                targetRole === 'CUTBACK_RECEIVER' ? 'CUTBACK'
+                : targetRole === 'NEAR_POST_RUNNER' ? 'NEAR_POST'
+                : targetRole === 'FAR_POST_RUNNER' ? 'FAR_POST'
+                : '';
+              if (structuredFinishRole) {
+                const finishAssistUntil = elapsed + 2.8;
+                (gameState as any).directorDeliveryAssistTeam = team;
+                (gameState as any).directorDeliveryAssistUntil = finishAssistUntil;
+                (crossTargetPlayer as any)._directorDeliveryFinishUntil = finishAssistUntil;
+                (crossTargetPlayer as any)._directorDeliveryFinishRole = structuredFinishRole;
+                (crossTargetPlayer as any)._directorDeliveryFinishForced = false;
+                if (structuredFinishRole === 'CUTBACK') {
+                  armStructuredFinishIntent(crossTargetPlayer, team, structuredFinishRole, elapsed, {
+                    style: 'PLACED',
+                    until: finishAssistUntil,
+                    target: crossTargetPlayer.name || 'Unknown',
+                    source: 'pattern_cutback_delivery',
+                  });
+                }
+              }
               const deliveryDetail = {
                 patternType: _p25_teamPattern.type,
                 passer: cpuCarrier.name,
@@ -15210,6 +17861,168 @@ export function initGame(container: HTMLElement) {
         }
       } catch {}
       if ((simpleShouldShoot || resolveShotNow) && (!shouldPass || distToGoal < 10 || preferCarryOverBackpass || resolveShotNow)) {
+        const simpleStrikerEscapeCooldownUntil = Number((cpuCarrier as any)._simpleStrikerEscapeCooldownUntil) || 0;
+        const simpleStrikerEscapeCooldownActive = simpleStrikerEscapeCooldownUntil > elapsed;
+        const simpleStrikerShotLaneProfile = carrierRole === 'ST' && distToGoal > 5.8 && distToGoal <= 19.5 && !simpleStrikerEscapeCooldownActive
+          ? getSimpleLaneBlockerProfile(cpuCarrier.pos, new THREE.Vector3(goalX, cpuCarrier.pos.y, 0), team, 1.65)
+          : null;
+        const simpleStrikerBlockedShotLane =
+          !!simpleStrikerShotLaneProfile
+          && !instantCloseKeeperShotForce
+          && !faceToFaceWithKeeper
+          && !keeperProximityShotForce
+          && simpleStrikerShotLaneProfile.frontBlockerLateral < (distToGoal < 8 ? 0.76 : distToGoal < 13 ? 0.92 : 1.05)
+          && simpleStrikerShotLaneProfile.frontBlockerT > 0.08
+          && simpleStrikerShotLaneProfile.frontBlockerT < 0.72;
+        const telemetryCoachSuppressStrikerShot = telemetryCoachExperiment && shouldTelemetryCoachSuppressStrikerShot({
+          role: carrierRole,
+          distToGoal,
+          inTapInZone: distToGoal < 6.5 && Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 1.1,
+          faceToFaceWithKeeper,
+          keeperProximityShotForce,
+          shotLaneBlocked: simpleStrikerBlockedShotLane || distToGoal >= 18.0,
+          closePressure,
+          plan: getTelemetryCoachPlanForTeam(team),
+        });
+        const simpleStrikerEscapeTarget = (simpleStrikerBlockedShotLane || telemetryCoachSuppressStrikerShot)
+          ? findStrikerBlockedShotEscapeTarget(cpuCarrier, teammates, opponents, team, attackSign as 1 | -1, passTarget)
+          : null;
+        if (simpleStrikerEscapeTarget) {
+          const escapeDist = cpuCarrier.pos.distanceTo(simpleStrikerEscapeTarget.pos);
+          const escapeForwardProg = (simpleStrikerEscapeTarget.pos.x - cpuCarrier.pos.x) * attackSign;
+          const escapeStyle: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+            escapeForwardProg < -1.2 ? 'BACK'
+            : Math.abs(simpleStrikerEscapeTarget.pos.z - cpuCarrier.pos.z) > 7.0 ? 'DIAGONAL'
+            : escapeDist > 11 ? 'DRIVEN'
+            : 'SHORT';
+          const launched = executeAIGroundPass(cpuCarrier, simpleStrikerEscapeTarget, elapsed, { style: escapeStyle });
+          if (launched) {
+            emitSimplePassDecision({
+              target: simpleStrikerEscapeTarget.name || simpleStrikerEscapeTarget.displayRole || simpleStrikerEscapeTarget.role || 'Unknown',
+              targetRole: (simpleStrikerEscapeTarget.displayRole || simpleStrikerEscapeTarget.role || '').toString(),
+              passStyle: escapeStyle,
+              passDist: +escapeDist.toFixed(1),
+              forwardProg: +escapeForwardProg.toFixed(1),
+              passNearestOppDist: +opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(simpleStrikerEscapeTarget.pos)), 99).toFixed(2),
+              hasForwardPassOption: escapeForwardProg > 1.0,
+              shouldPass: true,
+              forceRecycle: escapeForwardProg < -1.2,
+              holdReason: 'striker_blocked_shot_escape',
+              telemetryCoachSuppressedShot: telemetryCoachSuppressStrikerShot,
+              strikerHesitationShotForce,
+            });
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRIKER_BLOCKED_SHOT_ESCAPE', team, getRoleKey(cpuCarrier), {
+              model: 'AI_SIMPLE',
+              striker: cpuCarrier.name || 'Unknown',
+              target: simpleStrikerEscapeTarget.name || 'Unknown',
+              targetRole: getRoleKey(simpleStrikerEscapeTarget),
+              action: escapeForwardProg < -1.2 ? 'layoff' : 'side_release',
+              passDist: +escapeDist.toFixed(1),
+              forwardProg: +escapeForwardProg.toFixed(1),
+              frontBlockerLateral: simpleStrikerShotLaneProfile ? +simpleStrikerShotLaneProfile.frontBlockerLateral.toFixed(2) : null,
+              frontBlockerT: simpleStrikerShotLaneProfile ? +simpleStrikerShotLaneProfile.frontBlockerT.toFixed(2) : null,
+              distToGoal: +distToGoal.toFixed(1),
+              closePressure,
+              style: escapeStyle,
+              telemetryCoachSuppressedShot: telemetryCoachSuppressStrikerShot,
+            });
+            (cpuCarrier as any)._simpleStrikerEscapeCooldownUntil = elapsed + 1.35;
+            resetStrikerHesitationState();
+            resetBoxDecisionLoopState();
+            resetMissedShotWindowState();
+            (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+            return;
+          }
+        }
+        const simpleStrikerSideStepBlockerClose =
+          !!simpleStrikerShotLaneProfile
+          && simpleStrikerShotLaneProfile.frontBlockerLateral < 0.74
+          && simpleStrikerShotLaneProfile.frontBlockerT > 0.14
+          && simpleStrikerShotLaneProfile.frontBlockerT < 0.58
+          && distToGoal <= 16.5;
+        if ((simpleStrikerBlockedShotLane || telemetryCoachSuppressStrikerShot) && simpleStrikerSideStepBlockerClose && !instantCloseKeeperShotForce && !faceToFaceWithKeeper && !keeperProximityShotForce) {
+          const sideSign = Math.sign(cpuCarrier.pos.z || cpuCarrier.homePos?.z || (Math.random() < 0.5 ? -1 : 1)) || 1;
+          const sideStepTarget = cpuCarrier.pos.clone();
+          sideStepTarget.x += attackSign * 1.8;
+          sideStepTarget.z = THREE.MathUtils.clamp(
+            cpuCarrier.pos.z + sideSign * 4.2,
+            -FIELD_D / 2 + 2.0,
+            FIELD_D / 2 - 2.0,
+          );
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRIKER_BLOCKED_SHOT_ESCAPE', team, getRoleKey(cpuCarrier), {
+            model: 'AI_SIMPLE',
+            striker: cpuCarrier.name || 'Unknown',
+            target: null,
+            targetRole: null,
+            action: 'side_step',
+            passDist: null,
+            forwardProg: null,
+            frontBlockerLateral: +simpleStrikerShotLaneProfile.frontBlockerLateral.toFixed(2),
+            frontBlockerT: +simpleStrikerShotLaneProfile.frontBlockerT.toFixed(2),
+            distToGoal: +distToGoal.toFixed(1),
+            closePressure,
+            telemetryCoachSuppressedShot: telemetryCoachSuppressStrikerShot,
+          });
+          (cpuCarrier as any)._simpleStrikerEscapeCooldownUntil = elapsed + 0.9;
+          resetStrikerHesitationState();
+          resetBoxDecisionLoopState();
+          resetMissedShotWindowState();
+          setPlayerAIState(cpuCarrier, 'CARRY');
+          steerSimpleAttackPlayer(cpuCarrier, sideStepTarget, dt, getUniformPlayerRunSpeed() * 0.86, 1.2, 0.08);
+          (gameState as any)[cooldownKey] = 0.18;
+          return;
+        }
+        if (telemetryCoachSuppressStrikerShot) {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_SHOT_SUPPRESSED', team, getRoleKey(cpuCarrier), {
+            shooter: cpuCarrier.name || 'Unknown',
+            role: carrierRole,
+            distToGoal: +distToGoal.toFixed(1),
+            closePressure,
+            reason: 'long_central_striker_shot',
+            passTarget: passTarget ? (passTarget.name || 'Unknown') : null,
+          });
+          if (passTarget && (gameState as any)[cooldownKey] <= 0) {
+            const suppressAltDist = cpuCarrier.pos.distanceTo(passTarget.pos);
+            const suppressAltForwardProg = (passTarget.pos.x - cpuCarrier.pos.x) * attackSign;
+            const suppressAltStyle: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+              suppressAltForwardProg < -1.2 ? 'BACK'
+              : Math.abs(passTarget.pos.z - cpuCarrier.pos.z) > 7.0 ? 'DIAGONAL'
+              : suppressAltDist > 11 ? 'DRIVEN'
+              : 'SHORT';
+            const launched = executeAIGroundPass(cpuCarrier, passTarget, elapsed, {
+              style: suppressAltStyle,
+              receiverWindow: 2.05,
+            });
+            if (launched) {
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_SUPPRESSION_ALTERNATIVE', team, getRoleKey(cpuCarrier), {
+                model: 'AI_SIMPLE',
+                action: 'immediate_pass',
+                shooter: cpuCarrier.name || 'Unknown',
+                target: passTarget.name || 'Unknown',
+                targetRole: getRoleKey(passTarget),
+                distToGoal: +distToGoal.toFixed(1),
+                passDist: +suppressAltDist.toFixed(1),
+                forwardProg: +suppressAltForwardProg.toFixed(1),
+                style: suppressAltStyle,
+              });
+              resetStrikerHesitationState();
+              resetBoxDecisionLoopState();
+              resetMissedShotWindowState();
+              (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+              return;
+            }
+          }
+          const holdTarget = getTelemetryCoachFullControlTarget(cpuCarrier, cpuCarrier, elapsed)
+            || new THREE.Vector3(
+              cpuCarrier.pos.x + attackSign * 1.8,
+              0.15,
+              THREE.MathUtils.clamp(cpuCarrier.pos.z + (Math.sign(cpuCarrier.pos.z || 1) || 1) * 2.6, -FIELD_D / 2 + 2.0, FIELD_D / 2 - 2.0),
+            );
+          setPlayerAIState(cpuCarrier, 'CARRY');
+          steerSimpleAttackPlayer(cpuCarrier, holdTarget, dt, getUniformPlayerRunSpeed() * 0.88, 1.4, 0.08);
+          (gameState as any)[cooldownKey] = 0.16;
+          return;
+        }
         gameState.pendingShotDecision = {
           timestamp: Date.now(),
           team: cpuCarrier.team,
@@ -15836,7 +18649,8 @@ export function initGame(container: HTMLElement) {
     const carrier = directCarrier || (lastCarrierValid ? ballState.lastHeldBy : null);
     const roleLabel = (player.displayRole || player.role || '').toString().toUpperCase();
     const carrierRole = carrier ? (carrier.displayRole || carrier.role || '').toString().toUpperCase() : '';
-    const coachSupportTarget = getCoachSupportTarget(player, getCoachElapsedSeconds());
+    const coachSupportTarget = getCoachSupportTarget(player, getCoachElapsedSeconds())
+      || getTelemetryCoachFullControlTarget(player, carrier, getCoachElapsedSeconds());
     if (coachSupportTarget && player !== carrier && roleLabel !== 'GK') {
       _suppFT.copy(coachSupportTarget);
       return _suppFT;
@@ -17335,12 +20149,249 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
   scene.add(ballShadowMesh);
 
   function updateBallShadowVisual() {
+    if (gameState.realDataReplayMode && !ballGroup.visible) {
+      ballShadowMesh.visible = false;
+      return;
+    }
+    ballShadowMesh.visible = true;
     const height = Math.max(0, ballState.pos.y - BALL_GROUND_Y);
     const scale = THREE.MathUtils.clamp(1 - height * 0.2, 0.36, 1.05);
     const alpha = THREE.MathUtils.clamp(0.36 - height * 0.05, 0.1, 0.38);
     ballShadowMesh.position.set(ballState.pos.x, 0.02, ballState.pos.z);
     ballShadowMesh.scale.set(scale, scale, 1);
     ballShadowMaterial.opacity = alpha;
+  }
+
+  const realDataReplay = {
+    asset: null as RealDataReplayAsset | null,
+    loading: null as Promise<RealDataReplayAsset> | null,
+    startedAt: 0,
+    frameIndex: 0,
+  };
+
+  async function loadRealDataReplayAsset(): Promise<RealDataReplayAsset> {
+    if (realDataReplay.asset) return realDataReplay.asset;
+    if (!realDataReplay.loading) {
+      realDataReplay.loading = fetch('/data/metrica-sample-game-1-replay.json', { cache: 'no-store' })
+        .then((response) => {
+          if (!response.ok) throw new Error(`replay asset HTTP ${response.status}`);
+          return response.json() as Promise<RealDataReplayAsset>;
+        })
+        .then((asset) => {
+          realDataReplay.asset = asset;
+          return asset;
+        });
+    }
+    return realDataReplay.loading;
+  }
+
+  function orderedReplayPlayers(team: 'A' | 'B') {
+    return players
+      .filter((p: any) => p.team === team)
+      .sort((a: any, b: any) => {
+        const aGk = isGoalkeeper(a) ? -1 : 0;
+        const bGk = isGoalkeeper(b) ? -1 : 0;
+        if (aGk !== bGk) return aGk - bGk;
+        return Number(a.shirtNumber || 0) - Number(b.shirtNumber || 0);
+      });
+  }
+
+  function updateRealDataReplayPlayerSprite(player: any, dt: number) {
+    const facing = deriveReplayFacingFromVelocity(
+      player.vel?.x ?? 0,
+      player.vel?.z ?? 0,
+      {
+        mode: player.facingMode || 'side',
+        dir: (player.dir || 1) >= 0 ? 1 : -1,
+      },
+    );
+    const facingChanged = player.facingMode !== facing.mode || player.dir !== facing.dir;
+    player.facingMode = facing.mode;
+    player.dir = facing.dir;
+    player.state = facing.moving ? 'RUN' : 'IDLE';
+    player.animTimer = Number(player.animTimer || 0) + dt;
+    const animThreshold = player.state === 'IDLE' ? 0.6 : 0.12;
+    if (facingChanged || player.animTimer > animThreshold) {
+      player.animTimer = 0;
+      player.runFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.idleFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.frontRunFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.frontIdleFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.backRunFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.backIdleFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.diveLeftFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.diveRightFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.diveUpFrames?.forEach?.((f: any) => { f.visible = false; });
+      player.diveDownFrames?.forEach?.((f: any) => { f.visible = false; });
+      const frames = player.facingMode === 'front'
+        ? (player.state === 'RUN' ? player.frontRunFrames : player.frontIdleFrames)
+        : player.facingMode === 'back'
+          ? (player.state === 'RUN' ? player.backRunFrames : player.backIdleFrames)
+          : (player.state === 'RUN' ? player.runFrames : player.idleFrames);
+      if (frames?.length) {
+        player.frame = ((Number(player.frame || 0) + (player.state === 'RUN' ? 1 : 0)) % frames.length);
+        frames.forEach((f: any, i: number) => { f.visible = i === player.frame; });
+      }
+    }
+    const dirScale = player.facingMode === 'side' ? player.dir : 1;
+    player.spriteGroup?.rotation?.set?.(0, 0, 0);
+    player.spriteGroup?.position?.set?.(0, PLAYER_SPRITE_CENTER_Y, 0);
+    player.spriteGroup?.scale?.set?.(dirScale, 1, 1);
+  }
+
+  function applyRealDataReplayFrame(nowSec: number, dt: number) {
+    const asset = realDataReplay.asset;
+    if (!asset || asset.frames.length === 0) return;
+    const elapsed = Math.max(0, nowSec - realDataReplay.startedAt);
+    const sampleEvery = Math.max(0.001, asset.sampleEverySeconds);
+    const samplePosition = elapsed / sampleEvery;
+    const estimatedIndex = Math.floor(samplePosition);
+    const frameIndex = estimatedIndex % asset.frames.length;
+    const nextFrameIndex = (frameIndex + 1) % asset.frames.length;
+    const alpha = samplePosition - Math.floor(samplePosition);
+    realDataReplay.frameIndex = frameIndex;
+    const frame = interpolateReplayFrame(asset.frames[frameIndex], asset.frames[nextFrameIndex], alpha);
+    const teamA = orderedReplayPlayers('A');
+    const teamB = orderedReplayPlayers('B');
+    let focusX = 0;
+    let focusZ = 0;
+    let focusCount = 0;
+
+    const applyTeam = (teamPlayers: any[], points: any[], team: 'A' | 'B') => {
+      for (let i = 0; i < teamPlayers.length; i += 1) {
+        const player = teamPlayers[i];
+        const point = normalizedMetricaPointToWorld(
+          points[i] || null,
+          FIELD_W,
+          FIELD_D,
+          asset.pitch,
+          LOCAL_PITCH_METERS,
+        );
+        if (!point) {
+          player.mesh.visible = false;
+          continue;
+        }
+        player.mesh.visible = true;
+        const prevX = player.pos.x;
+        const prevZ = player.pos.z;
+        player.pos.set(point.x, 0.15, point.z);
+        player.homePos.copy(player.pos);
+        player.targetPos.copy(player.pos);
+        player.vel.set((point.x - prevX) / Math.max(0.001, dt), 0, (point.z - prevZ) / Math.max(0.001, dt));
+        player.aiState = 'REAL_DATA_REPLAY';
+        updateRealDataReplayPlayerSprite(player, dt);
+        player.mesh.position.copy(player.pos);
+        player.controlMarker.visible = false;
+        if (player.positionLabel) player.positionLabel.visible = showPositionLabels;
+        focusX += point.x;
+        focusZ += point.z;
+        focusCount += 1;
+        const replayId = asset.playerIds[team]?.[i];
+        if (replayId && !player._realDataReplayLabelSet) {
+          player._realDataReplayLabelSet = true;
+          player.name = `${team === 'A' ? 'Home' : 'Away'} ${replayId}`;
+        }
+      }
+    };
+
+    applyTeam(teamA, frame.A, 'A');
+    applyTeam(teamB, frame.B, 'B');
+    const replayBall = normalizedMetricaPointToWorld(
+      frame.ball ?? null,
+      FIELD_W,
+      FIELD_D,
+      asset.pitch,
+      LOCAL_PITCH_METERS,
+    );
+    if (replayBall) {
+      ballState.pos.set(replayBall.x, BALL_GROUND_Y, replayBall.z);
+      ballGroup.visible = true;
+      ballShadowMesh.visible = true;
+      ballGroup.position.copy(ballState.pos);
+      updateBallShadowVisual();
+    } else {
+      ballGroup.visible = false;
+      ballShadowMesh.visible = false;
+      if (focusCount > 0) {
+        ballState.pos.set(focusX / focusCount, BALL_GROUND_Y, focusZ / focusCount);
+      }
+    }
+    ballState.heldBy = null;
+    ballState.lastHeldBy = null;
+    ballState.vel.set(0, 0, 0);
+    ballState.isFlying = false;
+    ballState.isRolling = false;
+    gameState.message = `REAL DATA REPLAY ${frame.period === 1 ? 'H1' : 'H2'} ${frame.t.toFixed(1)}s`;
+    matchClock.phase = frame.period === 1 ? 'FIRST_HALF' : 'SECOND_HALF';
+    matchClock.half = frame.period === 1 ? 1 : 2;
+    matchClock.elapsedInHalf = frame.t;
+  }
+
+  function renderRealDataReplayFrame(dt: number) {
+    const targetFov = 30;
+    if (Math.abs(camera.fov - targetFov) > 0.01) {
+      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, THREE.MathUtils.clamp(dt * 2.4, 0.08, 0.22));
+      camera.updateProjectionMatrix();
+    }
+    if (!cameraFocusInitialized) {
+      cameraFocusSmoothed.copy(ballState.pos);
+      cameraFocusInitialized = true;
+    } else {
+      cameraFocusSmoothed.lerp(ballState.pos, THREE.MathUtils.clamp(dt * 4.0, 0.08, 0.25));
+    }
+    cameraLerpPosition.set(
+      THREE.MathUtils.clamp(cameraFocusSmoothed.x * 0.7, -FIELD_W * 0.30, FIELD_W * 0.30),
+      broadcastCameraHome.y,
+      broadcastCameraHome.z + THREE.MathUtils.clamp(cameraFocusSmoothed.z * 0.18, -8, 8),
+    );
+    camera.position.lerp(cameraLerpPosition, THREE.MathUtils.clamp(dt * 4.0, 0.08, 0.28));
+    broadcastCameraTarget.set(
+      THREE.MathUtils.clamp(cameraFocusSmoothed.x * 0.85, -FIELD_W * 0.32, FIELD_W * 0.32),
+      0.8,
+      THREE.MathUtils.clamp(cameraFocusSmoothed.z * 0.35, -10, 10),
+    );
+    camera.lookAt(broadcastCameraTarget);
+    updateHUD();
+    drawMiniMapOverlay();
+    renderMainCamera();
+  }
+
+  async function setRealDataReplayMode(enabled: boolean) {
+    gameState.realDataReplayMode = !!enabled;
+    if (!enabled) {
+      applyReplayVisualPitch(null);
+      ballGroup.visible = true;
+      ballShadowMesh.visible = true;
+      gameState.cpuVsCpu = false;
+      gameState.isLive = false;
+      gameState.message = 'READY';
+      return;
+    }
+    gameState.cpuVsCpu = false;
+    gameState.hotSeatMode = false;
+    gameState.testingMode = false;
+    gameState.practiceModeEnabled = false;
+    gameState.menuVisible = false;
+    gameState.isLive = true;
+    gameState.isKickoff = false;
+    gameState.kickoffState = 'NONE';
+    gameState.scoreA = 0;
+    gameState.scoreB = 0;
+    gameState.shotsA = 0;
+    gameState.shotsB = 0;
+    gameState.shotsOnTargetA = 0;
+    gameState.shotsOnTargetB = 0;
+    sounds.crowdStop();
+    clearKickoffLawState();
+    kickoffPresentation.active = false;
+    delayedRestartState.active = false;
+    delayedRestartState.goalAwardTeam = null;
+    ballGroup.visible = false;
+    ballShadowMesh.visible = false;
+    realDataReplay.startedAt = performance.now() / 1000;
+    const asset = await loadRealDataReplayAsset();
+    applyReplayVisualPitch(asset);
+    applyRealDataReplayFrame(performance.now() / 1000, 1 / 60);
   }
 
   const MAX_TRAIL_POINTS = 30;
@@ -18240,6 +21291,12 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
     const saveSlowmoActive = elapsed < gameState.saveSlowmoUntil;
     const dt = rawDt * (saveSlowmoActive ? SAVE_SLOWMO_SCALE : 1.0);
     updateWeatherEffects(dt, elapsed);
+    if (gameState.realDataReplayMode) {
+      applyRealDataReplayFrame(now / 1000, dt);
+      renderRealDataReplayFrame(dt);
+      return;
+    }
+    beginLiveMovementAuthorityFrame();
 
     // ── Ball velocity magnitude cap: prevent extreme velocities from causing teleports ──
     const MAX_BALL_SPEED = 28.0; // units/s — fastest realistic shot is ~24 * 0.7 = 16.8
@@ -19510,6 +22567,282 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           _carrierStartZ = ballState.heldBy.pos.z;
         }
       }
+      if (
+        gameState.isLive
+        && gameState.cpuVsCpu
+        && ballState.heldBy
+        && !isGoalkeeper(ballState.heldBy)
+        && !freeKickPresentation.active
+        && !throwInPresentation.active
+        && !cornerPresentation.active
+        && !penaltyPresentation.active
+      ) {
+        const carrier = ballState.heldBy as any;
+        const carrierAny = carrier as any;
+        const team = carrier.team as 'A' | 'B';
+        const attackSign = teamAttacksRight(team) ? 1 : -1;
+        const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+        const distToGoal = Math.abs(goalX - carrier.pos.x);
+        const shotAngle = Math.abs(Math.atan2(Math.abs(carrier.pos.z), Math.max(0.5, distToGoal)));
+        const attackResolutionZone = distToGoal <= 36;
+        const finalThirdResolutionAge = getFinalThirdResolutionAge(team, attackResolutionZone, elapsed);
+        const lastShotKey = team === 'A' ? '_lastShotTimeA' : '_lastShotTimeB';
+        const timeSinceTeamShot = elapsed - ((gameState as any)[lastShotKey] ?? -99);
+        const directorPattern = team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+        const directorPatternType = directorPattern?.type || 'NONE';
+        const directorPatternActive =
+          directorPatternType === 'CENTRAL_COMBO'
+          || directorPatternType === 'WING_ATTACK_LEFT'
+          || directorPatternType === 'WING_ATTACK_RIGHT';
+        const directorPatternAge = directorPattern
+          ? Math.max(0, elapsed - Number(directorPattern.startedAt ?? elapsed))
+          : 99;
+        const patternTimeToExpiry = directorPattern
+          ? Number(directorPattern.expiresAt ?? elapsed) - elapsed
+          : 99;
+        const patternResolutionDue =
+          directorPatternActive
+          && attackResolutionZone
+          && directorPatternAge >= 1.5
+          && (patternTimeToExpiry <= 2.0 || directorPatternAge >= 2.6);
+        const authorityLastActionKey = team === 'A' ? '_coachAuthorityLastActionAtA' : '_coachAuthorityLastActionAtB';
+        const authorityCoolingDown = elapsed - Number((gameState as any)[authorityLastActionKey] ?? -999) < 1.15;
+
+        const teammates = players.filter((p: any) => p.team === team && p !== carrier && !isGoalkeeper(p));
+        const opponents = players.filter((p: any) => p.team !== team && !isGoalkeeper(p));
+        const passCandidates = teammates
+          .map((tm: any) => {
+            const role = getRoleKey(tm).toUpperCase();
+            const forwardProg = (tm.pos.x - carrier.pos.x) * attackSign;
+            const lateralGap = Math.abs(tm.pos.z - carrier.pos.z);
+            const dist = carrier.pos.distanceTo(tm.pos);
+            const nearestOppDist = opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(tm.pos)), 99);
+            const wideRole = ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(role);
+            const finishRole = ['ST', 'CF', 'CAM'].includes(role);
+            const supportRole = ['CM', 'DM'].includes(role);
+            const isCentralBackpass = forwardProg < -1.0 && Math.abs(tm.pos.z) < Math.abs(carrier.pos.z) + 2.0;
+            const canBreakLine = forwardProg > 1.0 || lateralGap > 6.5;
+            return {
+              player: tm,
+              dist,
+              forwardProg,
+              score: THREE.MathUtils.clamp(forwardProg / 5, -2.2, 3.2)
+                + (finishRole ? 2.5 : 0)
+                + (wideRole ? 1.8 : 0)
+                + (supportRole ? 1.1 : 0)
+                + (canBreakLine ? 1.2 : -0.7)
+                + THREE.MathUtils.clamp(lateralGap / 8, 0, 1.4)
+                + THREE.MathUtils.clamp(nearestOppDist / 6, 0, 1.5)
+                - Math.max(0, dist - 20) * 0.10
+                - (isCentralBackpass ? 3.5 : 0),
+            };
+          })
+          .filter((entry) => entry.dist <= 30 && entry.forwardProg > -5)
+          .sort((a, b) => b.score - a.score);
+        const target = passCandidates[0]?.player || null;
+        const carrierRole = getRoleKey(carrier).toUpperCase();
+        const deepCarrier = ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM'].includes(carrierRole);
+        const canShoot =
+          distToGoal <= 27
+          && shotAngle <= 0.90
+          && (!deepCarrier || distToGoal <= penaltyDepth + 1.5);
+        const decision = selectCoachAuthorityAction({
+          inAttackResolutionZone: attackResolutionZone,
+          holdSeconds: _carrierHoldTime,
+          finalThirdAge: finalThirdResolutionAge,
+          timeSinceTeamShot,
+          patternResolutionDue,
+          hasPassTarget: !!target,
+          canShoot,
+          shotAngle,
+          distToGoal,
+          maxCarrySeconds: MAX_CARRY_SECONDS,
+        });
+
+        if (decision && !authorityCoolingDown && elapsed - Number(carrierAny._coachWatchdogForceDecisionAt ?? -999) >= 0.72) {
+          carrierAny._coachWatchdogForceDecisionAt = elapsed;
+          (gameState as any)[authorityLastActionKey] = elapsed;
+          const emitAuthority = (action: string, extra: Record<string, unknown> = {}) => {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_AUTHORITY_WATCHDOG', team, getRoleKey(carrier), {
+              action,
+              reason: decision.reason,
+              carrier: carrier.name || 'Unknown',
+              carrierRole,
+              holdSeconds: +_carrierHoldTime.toFixed(2),
+              distToGoal: +distToGoal.toFixed(1),
+              shotAngle: +shotAngle.toFixed(2),
+              finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+              timeSinceTeamShot: +timeSinceTeamShot.toFixed(2),
+              patternType: directorPatternType,
+              patternAge: +directorPatternAge.toFixed(2),
+              patternTimeToExpiry: +patternTimeToExpiry.toFixed(2),
+              passCandidates: passCandidates.length,
+              ...extra,
+            });
+          };
+          const emitForce = (action: 'shot' | 'pass', extra: Record<string, unknown> = {}) => {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(carrier), {
+              action,
+              reason: decision.reason,
+              carrier: carrier.name || 'Unknown',
+              holdSeconds: +_carrierHoldTime.toFixed(2),
+              distToGoal: +distToGoal.toFixed(1),
+              finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+              patternType: directorPatternType,
+              patternAge: +directorPatternAge.toFixed(2),
+              patternTimeToExpiry: +patternTimeToExpiry.toFixed(2),
+              ...extra,
+            });
+          };
+
+          let resolved = false;
+          if (decision.action === 'shot') {
+            gameState.pendingShotDecision = {
+              timestamp: Date.now(),
+              team,
+              shooter: carrier.name || 'Unknown',
+              role: carrierRole,
+              style: 'AUTO',
+              skillDriven: true,
+              distToGoal,
+              distToGoalYards: +(distToGoal / X_PER_YARD).toFixed(1),
+              shooterX: +carrier.pos.x.toFixed(2),
+              shooterZ: +carrier.pos.z.toFixed(2),
+              closePressure: opponents.filter((opp: any) => opp.pos.distanceTo(carrier.pos) < 5.8).length,
+              inShootingLane: Math.abs(carrier.pos.z) < goalMouthWidth * 0.78,
+              inTapInZone: distToGoal < 9.5 && Math.abs(carrier.pos.z) < goalMouthWidth * 1.1,
+              insidePenaltyArea: distToGoal < penaltyDepth,
+              half: matchClock.half,
+              phase: matchClock.phase,
+              elapsedInHalf: matchClock.elapsedInHalf,
+              forceShotNow: true,
+              shotSelectionType: 'forced_shot',
+              finalThirdResolutionAge,
+              patternResolutionDue,
+              decisionType: 'COACH_AUTHORITY',
+            };
+            emitForce('shot');
+            takeShot(carrier, true, 1.0, 'AUTO');
+            resolved = ballState.heldBy !== carrier && ballState.isShot;
+            if (resolved) {
+              (gameState as any)[lastShotKey] = elapsed;
+              _carrierHoldTime = 0;
+              emitAuthority('forced_shot_launched');
+            }
+          }
+
+          if (!resolved && target) {
+            for (const candidate of passCandidates.slice(0, 4)) {
+              const selectedTarget = candidate.player;
+              const dist = carrier.pos.distanceTo(selectedTarget.pos);
+              const forwardProg = (selectedTarget.pos.x - carrier.pos.x) * attackSign;
+              const style: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+                forwardProg < -1.0 ? 'BACK'
+                : Math.abs(selectedTarget.pos.z - carrier.pos.z) > 7.5 ? 'DIAGONAL'
+                : dist > 12 ? 'DRIVEN'
+                : 'SHORT';
+              emitForce('pass', {
+                target: selectedTarget.name || 'Unknown',
+                targetRole: getRoleKey(selectedTarget),
+                style,
+                passDist: +dist.toFixed(1),
+                forwardProg: +forwardProg.toFixed(1),
+              });
+              const launched = executeAIGroundPass(carrier, selectedTarget, elapsed, { style, receiverWindow: 2.1 });
+              if (launched) {
+                _carrierHoldTime = 0;
+                resolved = true;
+                emitAuthority('forced_pass_launched', {
+                  target: selectedTarget.name || 'Unknown',
+                  targetRole: getRoleKey(selectedTarget),
+                  style,
+                  passDist: +dist.toFixed(1),
+                  forwardProg: +forwardProg.toFixed(1),
+                });
+                break;
+              }
+            }
+          }
+
+          if (!resolved) {
+            emitAuthority('unresolved', {
+              attemptedAction: decision.action,
+              target: target ? (target.name || 'Unknown') : null,
+              targetRole: target ? getRoleKey(target) : null,
+            });
+          }
+        }
+      }
+
+      if (
+        gameState.isLive
+        && gameState.cpuVsCpu
+        && ballState.heldBy
+        && !isGoalkeeper(ballState.heldBy)
+        && !freeKickPresentation.active
+        && !throwInPresentation.active
+        && !cornerPresentation.active
+        && !penaltyPresentation.active
+        && _carrierHoldTime >= MAX_CARRY_SECONDS
+      ) {
+        const carrier = ballState.heldBy as any;
+        const carrierAny = carrier as any;
+        if (elapsed - Number(carrierAny._coachWatchdogForceDecisionAt ?? -999) >= 1.25) {
+          carrierAny._coachWatchdogForceDecisionAt = elapsed;
+          const attackSign = teamAttacksRight(carrier.team as 'A' | 'B') ? 1 : -1;
+          const teammates = players.filter((p: any) => p.team === carrier.team && p !== carrier && !isGoalkeeper(p));
+          const target = teammates
+            .map((tm: any) => {
+              const role = getRoleKey(tm).toUpperCase();
+              const forwardProg = (tm.pos.x - carrier.pos.x) * attackSign;
+              const lateralGap = Math.abs(tm.pos.z - carrier.pos.z);
+              const dist = carrier.pos.distanceTo(tm.pos);
+              const wideRole = ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(role);
+              const isCentralBackpass = forwardProg < -1.0 && Math.abs(tm.pos.z) < Math.abs(carrier.pos.z) + 2.0;
+              const canBreakLine = forwardProg > 1.0 || lateralGap > 6.5;
+              return {
+                player: tm,
+                dist,
+                forwardProg,
+                score: THREE.MathUtils.clamp(forwardProg / 5, -2.2, 3.2)
+                  + (wideRole ? 1.8 : 0)
+                  + (canBreakLine ? 1.2 : -0.7)
+                  + THREE.MathUtils.clamp(lateralGap / 8, 0, 1.4)
+                  - Math.max(0, dist - 18) * 0.10
+                  - (isCentralBackpass ? 3.5 : 0),
+              };
+            })
+            .filter((entry) => entry.dist <= 28 && entry.forwardProg > -4)
+            .sort((a, b) => b.score - a.score)[0]?.player || null;
+          if (target) {
+            const dist = carrier.pos.distanceTo(target.pos);
+            const forwardProg = (target.pos.x - carrier.pos.x) * attackSign;
+            const style: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+              forwardProg < -1.0 ? 'BACK'
+              : Math.abs(target.pos.z - carrier.pos.z) > 7.5 ? 'DIAGONAL'
+              : dist > 12 ? 'DRIVEN'
+              : 'SHORT';
+            const launched = executeAIGroundPass(carrier, target, elapsed, { style });
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_STALL_WATCHDOG', carrier.team, getRoleKey(carrier), {
+              action: launched ? 'forced_pass' : 'pass_failed',
+              carrier: carrier.name || 'Unknown',
+              target: target.name || 'Unknown',
+              targetRole: getRoleKey(target),
+              holdSeconds: +_carrierHoldTime.toFixed(2),
+              passDist: +dist.toFixed(1),
+              forwardProg: +forwardProg.toFixed(1),
+              style,
+            });
+            if (launched) _carrierHoldTime = 0;
+          } else {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_STALL_WATCHDOG', carrier.team, getRoleKey(carrier), {
+              action: 'no_pass_target',
+              carrier: carrier.name || 'Unknown',
+              holdSeconds: +_carrierHoldTime.toFixed(2),
+            });
+          }
+        }
+      }
 
       // ── Team shape sampling (every SHAPE_SAMPLE_INTERVAL seconds) ──
       const sampleClock = practiceModeEnabled ? performance.now() / 1000 : matchClock.elapsedInHalf;
@@ -19594,6 +22927,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           }
         }
       }
+      emitPositionalDriftReport(elapsed);
 
       // ── Periodic diagnostic logging (every 30 match-seconds) ──
       if (gameState.cpuVsCpu && (matchClock.phase === 'FIRST_HALF' || matchClock.phase === 'SECOND_HALF')
@@ -20382,6 +23716,19 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             }
           }
 
+          const telemetryCoachCarrierHandled =
+            !isGoalkeeper(cpuCarrier)
+            && runTelemetryCoachCarrierControl(
+              cpuCarrier,
+              team,
+              attackSign > 0 ? 1 : -1,
+              teammates,
+              opponents,
+              elapsed,
+              dt,
+              cooldownKey,
+            );
+
           if (isGoalkeeper(cpuCarrier)) {
             const keeperHoldElapsed = gameState.keeperHoldPlayer === cpuCarrier
               ? Math.max(0, elapsed - gameState.keeperHoldStartedAt)
@@ -20690,9 +24037,9 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             // Keeper should distribute, not dribble/shoot.
           }
 
-          if (!isGoalkeeper(cpuCarrier) && !useLegacyAttackMovementModel) {
+          if (!isGoalkeeper(cpuCarrier) && !telemetryCoachCarrierHandled && !useLegacyAttackMovementModel) {
             executeSimpleCarrierDecision(cpuCarrier, teammates, opponents, team, attackSign, elapsed, dt, cooldownKey, aiStyle);
-          } else if (!isGoalkeeper(cpuCarrier)) {
+          } else if (!isGoalkeeper(cpuCarrier) && !telemetryCoachCarrierHandled) {
             // Corner kick: override all other decisions — force a cross delivery.
             if (gameState.cornerKickInProgress) {
               setPlayerAIState(cpuCarrier, 'HOLD');
@@ -21204,7 +24551,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               const tmDist = tm.pos.distanceTo(cpuCarrier.pos);
               return tmProg > 1.5 || tmDist < goalBoxSupportDistance;
             });
-              const passTarget = patternTargetOverride || bestPassTarget;
+              let passTarget = patternTargetOverride || bestPassTarget;
               const shotModel = evaluateShotDecision({
               carrier: cpuCarrier,
               distToGoal,
@@ -21278,6 +24625,58 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               && !atGoalLineForce
               && !forceShotNow
               && distToGoal > 9.5;
+            const attackResolutionZone = inFinalThird || distToGoal < 36;
+            const finalThirdResolutionAge = getFinalThirdResolutionAge(team, attackResolutionZone, elapsed);
+            const patternTimeToExpiry = directorDecisionPattern
+              ? Number(directorDecisionPattern.expiresAt ?? elapsed) - elapsed
+              : 99;
+            const finalThirdResolutionDue =
+              attackResolutionZone
+              && finalThirdResolutionAge >= 2.5
+              && timeSinceTeamShot >= 1.0;
+            const patternResolutionDue =
+              directorPatternActive
+              && attackResolutionZone
+              && directorPatternAge >= 1.6
+              && timeSinceTeamShot >= 0.9
+              && (patternTimeToExpiry <= 2.0 || directorPatternAge >= 2.6);
+            const attackResolutionDue = finalThirdResolutionDue || patternResolutionDue;
+            if (attackResolutionDue && !passTarget) {
+              passTarget = visibleTeammates
+                .filter((tm: any) => !isGoalkeeper(tm))
+                .map((tm: any) => {
+                  const role = (tm.displayRole || tm.role || '').toString().toUpperCase();
+                  const forwardProg = (tm.pos.x - cpuCarrier.pos.x) * attackSign;
+                  const lateralGap = Math.abs(tm.pos.z - cpuCarrier.pos.z);
+                  const dist = cpuCarrier.pos.distanceTo(tm.pos);
+                  const roleBonus =
+                    ['ST', 'CF', 'CAM'].includes(role) ? 2.4
+                    : ['LM', 'RM', 'LW', 'RW'].includes(role) ? 2.1
+                    : ['CM', 'DM'].includes(role) ? 1.4
+                    : 0;
+                  return {
+                    player: tm,
+                    score: roleBonus
+                      + THREE.MathUtils.clamp(forwardProg / 5, -1.2, 2.8)
+                      + THREE.MathUtils.clamp(lateralGap / 8, 0, 1.5)
+                      - Math.max(0, dist - 20) * 0.10,
+                  };
+                })
+                .filter((entry) => entry.player.pos.distanceTo(cpuCarrier.pos) <= 30)
+                .filter((entry) => (entry.player.pos.x - cpuCarrier.pos.x) * attackSign > -5 || Math.abs(entry.player.pos.z - cpuCarrier.pos.z) > 5)
+                .sort((a, b) => b.score - a.score)[0]?.player || null;
+            }
+            const forceResolutionShot =
+              attackResolutionDue
+              && !supportPassOverride
+              && distToGoal <= 24
+              && (
+                insidePenaltyArea
+                || inShootingLane
+                || angleToGoal <= 0.75
+                || !passTarget
+                || finalThirdResolutionAge >= 3.2
+              );
             const structuredFinishShotBonus =
               structuredFinishIntentActive
                 ? (structuredFinishIntentRole === 'CUTBACK' ? 0.52 : 0.44)
@@ -21294,7 +24693,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               && !!passTarget
               && distToGoal > 8
               && closePressure < 5;
-            const hardShotVetoPre = !patternShotOverride && !forceShotNow && !atGoalLineForce && (
+            const hardShotVetoPre = !forceResolutionShot && !patternShotOverride && !forceShotNow && !atGoalLineForce && (
               belowThreshold
               || (lowEvShot && !lowEvShootAllowed)
               || isolatedStrikerArrivalVeto
@@ -21323,6 +24722,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               && (forceShotNow || atGoalLineForce || Math.random() < shotThreshold + (hasForwardPassOption ? shootRandomBonusWithForwardPass : 0));
             const shouldShootBase = !supportPassOverride && !hardShotVetoPre && (
               patternShotOverride
+              || forceResolutionShot
               || structuredFinishIntentActive
               || forceShotOnEmptyGoalFront
               || forceShotNow
@@ -21358,13 +24758,57 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const passPriorityBoost = strikerPassTarget ? 0.16 : 0;
             const passIsBackwardChoice = !!passTarget && bestTargetForwardProg < 0;
             const forbidBackwardBoxPass = insidePenaltyArea && passIsBackwardChoice;
+            const forceResolutionPass =
+              attackResolutionDue
+              && !forceResolutionShot
+              && !!passTarget
+              && !structuredFinishNoPassActive
+              && !forbidBackwardBoxPass
+              && (
+                bestTargetForwardProg > -4.0
+                || Math.abs(passTarget.pos.z - cpuCarrier.pos.z) > 4.0
+                || bestPassTargetIsStriker
+              );
             const directorPatternPassOverride = (directorPatternSettleShotVeto || directorPatternLongShotVeto) && !!passTarget && bestTargetForwardProg > -10;
             const directorPatternPassBoost = directorPatternActive && !!passTarget ? 0.42 : 0;
             const shouldPass = !forbidBackwardBoxPass && (
-              (supportPassOverride && !!passTarget)
+              forceResolutionPass
+              || (supportPassOverride && !!passTarget)
               || (directorPatternPassOverride && !structuredFinishIntentActive)
               || (!structuredFinishNoPassActive && !shouldShoot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < passChance + forwardPassGateBonus + passPriorityBoost + directorPatternPassBoost - backwardPassGatePenalty - structuredFinishPassPenalty))
             );
+            const strikerShotLaneProfile = isStriker && !inTapInZone
+              ? getSimpleLaneBlockerProfile(cpuCarrier.pos, new THREE.Vector3(goalX, cpuCarrier.pos.y, 0), team, 1.65)
+              : null;
+            const strikerShotEscapeCandidate =
+              shouldShoot
+              || structuredFinishIntentActive
+              || forceShotNow
+              || modelCanTriggerShot
+              || probabilisticShotAllowed
+              || desperationShot
+              || shotThreshold > -0.08;
+            const strikerBlockedShotLane =
+              !!strikerShotLaneProfile
+              && strikerShotEscapeCandidate
+              && distToGoal > 5.8
+              && distToGoal <= 19.5
+              && strikerShotLaneProfile.frontBlockerLateral < (distToGoal < 8 ? 1.0 : distToGoal < 13 ? 1.18 : 1.35)
+              && strikerShotLaneProfile.frontBlockerT > 0.08
+              && strikerShotLaneProfile.frontBlockerT < 0.84;
+            const telemetryCoachSuppressStrikerShot = telemetryCoachExperiment && shouldTelemetryCoachSuppressStrikerShot({
+              role: carrierRoleLabel,
+              distToGoal,
+              inTapInZone,
+              faceToFaceWithKeeper: false,
+              keeperProximityShotForce: false,
+              shotLaneBlocked: strikerBlockedShotLane || distToGoal >= 18.0,
+              closePressure,
+              plan: getTelemetryCoachPlanForTeam(team),
+            });
+            const strikerBlockedShotEscapeTarget = (strikerBlockedShotLane || telemetryCoachSuppressStrikerShot)
+              ? findStrikerBlockedShotEscapeTarget(cpuCarrier, visibleTeammates, opponents, team, attackSign as 1 | -1, passTarget)
+              : null;
             // Max-carry timer: if held too long, force a decision
             const carryTimerExpired = _carrierHoldTime >= MAX_CARRY_SECONDS && !isGoalkeeper(cpuCarrier);
             let shouldHoldDribble = (!carryTimerExpired && !shouldShoot && !shouldPass && Math.random() < holdDribbleChanceAdjusted);
@@ -21405,6 +24849,105 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             // Through-ball disabled: only direct passes allowed
             const throughBallData = null;
 
+            if ((shouldShoot || goalLineShot || desperationShot || telemetryCoachSuppressStrikerShot) && strikerBlockedShotEscapeTarget && !goalLineShot && !atGoalLineForce) {
+              const escapeDist = cpuCarrier.pos.distanceTo(strikerBlockedShotEscapeTarget.pos);
+              const escapeForwardProg = (strikerBlockedShotEscapeTarget.pos.x - cpuCarrier.pos.x) * attackSign;
+              const escapeStyle: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+                escapeForwardProg < -1.2 ? 'BACK'
+                : Math.abs(strikerBlockedShotEscapeTarget.pos.z - cpuCarrier.pos.z) > 7.0 ? 'DIAGONAL'
+                : escapeDist > 11 ? 'DRIVEN'
+                : 'SHORT';
+              const launched = executeAIGroundPass(cpuCarrier, strikerBlockedShotEscapeTarget, elapsed, { style: escapeStyle });
+              if (launched) {
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRIKER_BLOCKED_SHOT_ESCAPE', team, getRoleKey(cpuCarrier), {
+                  striker: cpuCarrier.name || 'Unknown',
+                  target: strikerBlockedShotEscapeTarget.name || 'Unknown',
+                  targetRole: getRoleKey(strikerBlockedShotEscapeTarget),
+                  action: escapeForwardProg < -1.2 ? 'layoff' : 'side_release',
+                  passDist: +escapeDist.toFixed(1),
+                  forwardProg: +escapeForwardProg.toFixed(1),
+                  frontBlockerLateral: strikerShotLaneProfile ? +strikerShotLaneProfile.frontBlockerLateral.toFixed(2) : null,
+                  frontBlockerT: strikerShotLaneProfile ? +strikerShotLaneProfile.frontBlockerT.toFixed(2) : null,
+                  closePressure,
+                  style: escapeStyle,
+                  telemetryCoachSuppressedShot: telemetryCoachSuppressStrikerShot,
+                });
+                (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+                return;
+              }
+            }
+            if ((shouldShoot || desperationShot || telemetryCoachSuppressStrikerShot) && (strikerBlockedShotLane || telemetryCoachSuppressStrikerShot) && !strikerBlockedShotEscapeTarget && !goalLineShot && !atGoalLineForce) {
+              const sideSign = Math.sign(cpuCarrier.pos.z || cpuCarrier.homePos?.z || (Math.random() < 0.5 ? -1 : 1)) || 1;
+              const sideStepTarget = cpuCarrier.pos.clone();
+              sideStepTarget.x += attackSign * 1.8;
+              sideStepTarget.z = THREE.MathUtils.clamp(
+                cpuCarrier.pos.z + sideSign * 4.2,
+                -FIELD_D / 2 + 2.0,
+                FIELD_D / 2 - 2.0,
+              );
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRIKER_BLOCKED_SHOT_ESCAPE', team, getRoleKey(cpuCarrier), {
+                striker: cpuCarrier.name || 'Unknown',
+                target: null,
+                targetRole: null,
+                action: 'side_step',
+                passDist: null,
+                forwardProg: null,
+                frontBlockerLateral: strikerShotLaneProfile ? +strikerShotLaneProfile.frontBlockerLateral.toFixed(2) : null,
+                frontBlockerT: strikerShotLaneProfile ? +strikerShotLaneProfile.frontBlockerT.toFixed(2) : null,
+                closePressure,
+                telemetryCoachSuppressedShot: telemetryCoachSuppressStrikerShot,
+              });
+              setPlayerAIState(cpuCarrier, 'CARRY');
+              steerSimpleAttackPlayer(cpuCarrier, sideStepTarget, dt, getUniformPlayerRunSpeed() * 0.86, 1.2, 0.08);
+              (gameState as any)[cooldownKey] = 0.18;
+              return;
+            }
+            if (telemetryCoachSuppressStrikerShot && !goalLineShot && !atGoalLineForce) {
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_SHOT_SUPPRESSED', team, getRoleKey(cpuCarrier), {
+                shooter: cpuCarrier.name || 'Unknown',
+                role: carrierRoleLabel,
+                distToGoal: +distToGoal.toFixed(1),
+                closePressure,
+                reason: 'long_central_striker_shot',
+                passTarget: passTarget ? (passTarget.name || 'Unknown') : null,
+              });
+              if (passTarget && (gameState as any)[cooldownKey] <= 0) {
+                const suppressAltDist = cpuCarrier.pos.distanceTo(passTarget.pos);
+                const suppressAltForwardProg = (passTarget.pos.x - cpuCarrier.pos.x) * attackSign;
+                const suppressAltStyle: 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' =
+                  suppressAltForwardProg < -1.2 ? 'BACK'
+                  : Math.abs(passTarget.pos.z - cpuCarrier.pos.z) > 7.0 ? 'DIAGONAL'
+                  : suppressAltDist > 11 ? 'DRIVEN'
+                  : 'SHORT';
+                const launched = executeAIGroundPass(cpuCarrier, passTarget, elapsed, {
+                  style: suppressAltStyle,
+                  receiverWindow: 2.05,
+                });
+                if (launched) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TELEMETRY_COACH_SUPPRESSION_ALTERNATIVE', team, getRoleKey(cpuCarrier), {
+                    action: 'immediate_pass',
+                    shooter: cpuCarrier.name || 'Unknown',
+                    target: passTarget.name || 'Unknown',
+                    targetRole: getRoleKey(passTarget),
+                    distToGoal: +distToGoal.toFixed(1),
+                    passDist: +suppressAltDist.toFixed(1),
+                    forwardProg: +suppressAltForwardProg.toFixed(1),
+                    style: suppressAltStyle,
+                  });
+                  (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+                  return;
+                }
+              }
+              setPlayerAIState(cpuCarrier, 'CARRY');
+              steerSimpleAttackPlayer(cpuCarrier, new THREE.Vector3(
+                cpuCarrier.pos.x + attackSign * 1.6,
+                0.15,
+                THREE.MathUtils.clamp(cpuCarrier.pos.z + (Math.sign(cpuCarrier.pos.z || 1) || 1) * 2.8, -FIELD_D / 2 + 2.0, FIELD_D / 2 - 2.0),
+              ), dt, getUniformPlayerRunSpeed() * 0.88, 1.3, 0.08);
+              (gameState as any)[cooldownKey] = 0.16;
+              return;
+            }
+
             if (shouldShoot || goalLineShot || desperationShot) {
               gameState.pendingShotDecision = {
                 timestamp: Date.now(),
@@ -21430,6 +24973,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 forceShotNow,
                 structuredFinishIntentActive,
                 structuredFinishIntentRole,
+                finalThirdResolutionAge,
+                finalThirdResolutionDue,
+                patternResolutionDue,
+                forceResolutionShot,
                 atGoalLineForce,
                 desperationShot,
                 hardShotVeto,
@@ -21460,6 +25007,18 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 tightAnglePenalty,
                 reboundSuppression,
               };
+              if (forceResolutionShot) {
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(cpuCarrier), {
+                  action: 'shot',
+                  carrier: cpuCarrier.name || 'Unknown',
+                  distToGoal: +distToGoal.toFixed(1),
+                  finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+                  patternType: directorDecisionPatternType,
+                  patternAge: +directorPatternAge.toFixed(2),
+                  patternTimeToExpiry: +patternTimeToExpiry.toFixed(2),
+                  reason: patternResolutionDue ? 'pattern_contract' : 'final_third_clock',
+                });
+              }
               if (structuredFinishIntentActive) {
                 pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'STRUCTURED_FINISH_INTENT_SHOT', team, getRoleKey(cpuCarrier), {
                   role: structuredFinishIntentRole,
@@ -21598,6 +25157,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                   supportPassOverride,
                   patternPassOverride,
                   patternShotOverride,
+                  finalThirdResolutionAge,
+                  finalThirdResolutionDue,
+                  patternResolutionDue,
+                  forceResolutionPass,
                   shouldPass: true,
                   decisionType: 'AI',
                 };
@@ -21661,12 +25224,72 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 shouldHoldDribble = true;
               } else if (isBackPass) {
                 // Backward passes allowed if they passed the certainty gate (tiered check)
+                if (forceResolutionPass) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(cpuCarrier), {
+                    action: 'pass',
+                    carrier: cpuCarrier.name || 'Unknown',
+                    target: selectedPassTarget.name || 'Unknown',
+                    targetRole: getRoleKey(selectedPassTarget),
+                    style: 'BACK',
+                    passDist: +passDist.toFixed(1),
+                    forwardProg: +forwardProg.toFixed(1),
+                    finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+                    patternType: directorDecisionPatternType,
+                    patternAge: +directorPatternAge.toFixed(2),
+                    reason: patternResolutionDue ? 'pattern_contract' : 'final_third_clock',
+                  });
+                }
                 executeAIGroundPass(cpuCarrier, selectedPassTarget, elapsed, { style: 'BACK' });
               } else if (isDiagonalPass) {
+                if (forceResolutionPass) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(cpuCarrier), {
+                    action: 'pass',
+                    carrier: cpuCarrier.name || 'Unknown',
+                    target: selectedPassTarget.name || 'Unknown',
+                    targetRole: getRoleKey(selectedPassTarget),
+                    style: 'DIAGONAL',
+                    passDist: +passDist.toFixed(1),
+                    forwardProg: +forwardProg.toFixed(1),
+                    finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+                    patternType: directorDecisionPatternType,
+                    patternAge: +directorPatternAge.toFixed(2),
+                    reason: patternResolutionDue ? 'pattern_contract' : 'final_third_clock',
+                  });
+                }
                 executeAIGroundPass(cpuCarrier, selectedPassTarget, elapsed, { style: 'DIAGONAL' });
               } else if (drivenPass) {
+                if (forceResolutionPass) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(cpuCarrier), {
+                    action: 'pass',
+                    carrier: cpuCarrier.name || 'Unknown',
+                    target: selectedPassTarget.name || 'Unknown',
+                    targetRole: getRoleKey(selectedPassTarget),
+                    style: 'DRIVEN',
+                    passDist: +passDist.toFixed(1),
+                    forwardProg: +forwardProg.toFixed(1),
+                    finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+                    patternType: directorDecisionPatternType,
+                    patternAge: +directorPatternAge.toFixed(2),
+                    reason: patternResolutionDue ? 'pattern_contract' : 'final_third_clock',
+                  });
+                }
                 executeAIGroundPass(cpuCarrier, selectedPassTarget, elapsed, { style: 'DRIVEN' });
               } else {
+                if (forceResolutionPass) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_ATTACK_RESOLUTION_FORCE', team, getRoleKey(cpuCarrier), {
+                    action: 'pass',
+                    carrier: cpuCarrier.name || 'Unknown',
+                    target: selectedPassTarget.name || 'Unknown',
+                    targetRole: getRoleKey(selectedPassTarget),
+                    style: 'SHORT',
+                    passDist: +passDist.toFixed(1),
+                    forwardProg: +forwardProg.toFixed(1),
+                    finalThirdAge: +finalThirdResolutionAge.toFixed(2),
+                    patternType: directorDecisionPatternType,
+                    patternAge: +directorPatternAge.toFixed(2),
+                    reason: patternResolutionDue ? 'pattern_contract' : 'final_third_clock',
+                  });
+                }
                 executeAIGroundPass(cpuCarrier, selectedPassTarget, elapsed, { style: 'SHORT' });
               }
               (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
@@ -21793,6 +25416,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           gameState.clearancePushUpTeam = '';
         }
 
+        beginCoachAuthorityFrame();
+
         // ── FSM pre-pass (Phase A2 sensible-soccer mode) ──────────────────
         // When fsmPositioningEnabled is on, hard-override almost every player's
         // movement here and skip the legacy support / defense / chase logic
@@ -21823,11 +25448,20 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           for (const p of players) {
             (p as any)._fsmStepped = false;
             if (!p) continue;
+            if (freezeNoOppositionPlayer(p, dt, elapsed)) {
+              (p as any)._fsmStepped = true;
+              continue;
+            }
             if (isGoalkeeper(p)) continue;                       // keeper: legacy
             if (p === fsmCarrier) continue;                       // carrier: legacy
             if (p === fsmBestA || p === fsmBestB) continue;       // sole presser per team: legacy
             if (controlA && p === controlledPlayer) continue;     // human-controlled
             if (controlB && p === controlledPlayerB) continue;
+            const activeCoachForPlayer = getActiveCoachCommand(p.team as 'A' | 'B', elapsed);
+            if (
+              activeCoachForPlayer?.team === p.team
+              && (getCoachAttackRole(activeCoachForPlayer, p) || activeCoachForPlayer.fullTeamAttackTargets?.[playerCoachKey(p)])
+            ) continue;
             const teamPattern = p.team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
             const attackPhase = p.team === 'A' ? gameState.attackPhaseA : gameState.attackPhaseB;
             const attackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
@@ -21933,6 +25567,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 : fsmTarget.owner === 'BOX_COVER' ? 36.0
                 : ownsWideLane ? 22.0 : (supportArrivalOwner ? 11.5 : 6);
               const speed = getUniformPlayerRunSpeed() * Math.max(wideLaneBoost, supportArrivalBoost, defensiveMarkBoost);
+              recordCoachAuthorityMoveCommand(p, target, `fsm:${fsmTarget.owner}`, speed);
               p.vel.lerp(_loopDir.normalize().multiplyScalar(speed), dt * steerGain);
               p.pos.addScaledVector(p.vel, dt);
             } else {
@@ -21972,6 +25607,20 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             patternA: gameState.teamPatternA?.type || 'NONE',
             patternB: gameState.teamPatternB?.type || 'NONE',
           });
+        }
+
+        if (isSoloCpuMode()) {
+          for (const p of players) {
+            if (isRemovedSoloOpponent(p)) applyRemovedOpponentVisualState(p);
+          }
+          if (ballState.heldBy && isRemovedSoloOpponent(ballState.heldBy)) {
+            ballState.heldBy = null;
+            ballState.lastHeldBy = null;
+            ballState.intendedTeam = getSoloCpuTeam();
+            ballState.pos.set(0, 0.15, 0);
+            ballState.vel.set(0, 0, 0);
+            startSoccerRestart('KICK_OFF', getSoloCpuTeam(), 0, 0, 'KICK-OFF');
+          }
         }
 
         // Off-ball support runs
@@ -22222,7 +25871,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         // Dynamic pressure from the non-possession side.
         const liveCarrier = ballState.heldBy;
         // Goalkeepers holding the ball cannot be challenged (soccer law: keeper in hands, 6-second rule)
-        if (liveCarrier && !isGoalkeeper(liveCarrier) && elapsed >= ballState.possessionLockUntil) {
+        if (liveCarrier && !isGoalkeeper(liveCarrier) && !gameState.noOppositionDebug && !isCoachSupremeAuthorityActive() && elapsed >= ballState.possessionLockUntil) {
           const aiStyle = getActiveAIStyle();
           const carrierInCornerTrap = Math.abs(liveCarrier.pos.z) > FIELD_D * 0.42 && Math.abs(liveCarrier.pos.x) > FIELD_W * 0.3;
           const maxPressers = carrierInCornerTrap ? Math.min(2, aiStyle.pressureCount) : aiStyle.pressureCount;
@@ -22270,6 +25919,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const carrierTouchQuality = getCarrierTouchQuality(liveCarrier);
             const heavyTouch = carrierTouchQuality > 0.46;
             const jockeyDistance = idx === 0 ? 1.35 : 1.55;
+            if (holdTackleRecovery(p, elapsed, dt)) return;
 
             if (distToCarrier <= 2.5) {
               // Jockey: stay side-on, contain space, and guide away from goal-side lanes.
@@ -22308,7 +25958,11 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 ballState.heldBy = p;
                 ballState.lastHeldBy = p;
                 ballState.possessionLockUntil = elapsed + 0.55;
-                p.tackleCooldown = 1.2;
+                setTackleCommitment(p, elapsed, true, {
+                  vs: liveCarrier.name || '?',
+                  distToCarrier: +distToCarrier.toFixed(2),
+                  touchQuality: +carrierTouchQuality.toFixed(2),
+                });
                 _tackleTimes2c.push(elapsed);
                 if (p.team === 'A') gameState.tacklesWonA++; else gameState.tacklesWonB++;
                 { const tRole = getRoleKey(p); ensureRole(p.team, tRole).tackles++;
@@ -22326,7 +25980,11 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 soccerRestart.lastTouchTeam = p.team;
                 sounds.tackle();
               } else {
-                p.tackleCooldown = Math.max(p.tackleCooldown, 0.65);
+                setTackleCommitment(p, elapsed, false, {
+                  vs: liveCarrier.name || '?',
+                  distToCarrier: +distToCarrier.toFixed(2),
+                  touchQuality: +carrierTouchQuality.toFixed(2),
+                });
               }
             }
           });
@@ -22352,7 +26010,65 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           if (!p) return;
           if (controlB && p === controlledPlayerB && !isGoalkeeper(p)) return;
           if (controlA && p === controlledPlayer && !isGoalkeeper(p)) return;
+          if (freezeNoOppositionPlayer(p, dt, elapsed)) return;
           if ((p as any)._fsmStepped) return; // FSM pre-pass handled this player
+          if (isCoachSupremeAuthorityActive() && !isGoalkeeper(p) && p !== ballState.heldBy) {
+            const activeCarrier = ballState.heldBy || null;
+            let authorityTarget: THREE.Vector3 | null = null;
+            let authorityOwner = 'coach:hold_shape';
+            let authoritySpeed = getUniformPlayerRunSpeed() * 1.05;
+            if (!activeCarrier && (ballState.isFlying || ballState.isRolling)) {
+              const teamChasers = players
+                .filter((tm: any) => tm.team === p.team && !isGoalkeeper(tm))
+                .sort((a: any, b: any) => a.pos.distanceTo(ballState.pos) - b.pos.distanceTo(ballState.pos));
+              const chaseIndex = teamChasers.indexOf(p);
+              if (chaseIndex === 0) {
+                authorityTarget = ballState.pos.clone();
+                authorityOwner = 'coach:loose_ball_primary';
+                authoritySpeed = getUniformPlayerRunSpeed() * 1.2;
+              } else if (chaseIndex === 1) {
+                const supportSide = Math.sign(p.homePos?.z || p.pos.z || 1) || 1;
+                authorityTarget = ballState.pos.clone().add(new THREE.Vector3(0, 0, supportSide * 2.2));
+                authorityOwner = 'coach:loose_ball_support';
+                authoritySpeed = getUniformPlayerRunSpeed() * 1.08;
+              } else {
+                authorityTarget = getDefensiveShapeTarget(assignment, ballState.lastHeldBy || p);
+              }
+            } else if (activeCarrier && activeCarrier.team === p.team) {
+              authorityTarget = getCoachSupportTarget(p, elapsed) || getTelemetryCoachFullControlTarget(p, activeCarrier, elapsed);
+              authorityOwner = 'coach:attack_support';
+              authoritySpeed = getUniformPlayerRunSpeed() * 1.18;
+            } else if (activeCarrier && activeCarrier.team !== p.team) {
+              const coachDefenseTarget = getCoachDefensiveTarget(p, activeCarrier, elapsed);
+              authorityTarget = coachDefenseTarget || getDefensiveShapeTarget(assignment, activeCarrier);
+              authorityOwner = 'coach:defense_shape';
+              authoritySpeed = getUniformPlayerRunSpeed() * (coachDefenseTarget ? 1.16 : 1.0);
+            } else {
+              authorityTarget = p.homePos?.clone ? p.homePos.clone() : new THREE.Vector3(p.pos.x, 0.15, p.pos.z);
+            }
+            if (authorityTarget) {
+              authorityTarget.x = THREE.MathUtils.clamp(authorityTarget.x, -FIELD_W / 2 + 1.2, FIELD_W / 2 - 1.2);
+              authorityTarget.z = THREE.MathUtils.clamp(authorityTarget.z, -FIELD_D / 2 + 1.2, FIELD_D / 2 - 1.2);
+              setPlayerAIState(p, authorityOwner.includes('attack') ? 'COACH_ATTACK' : authorityOwner.includes('loose') ? 'COACH_LOOSE_BALL' : 'COACH_DEFENSE');
+              recordCoachAuthorityMoveCommand(p, authorityTarget, authorityOwner, authoritySpeed);
+              steerSimpleAttackPlayer(p, authorityTarget, dt, authoritySpeed, authorityOwner.includes('loose') ? 2.8 : 4.2, 0.05);
+              return;
+            }
+          }
+          const highPriorityCoachTarget = !isGoalkeeper(p)
+            && p !== ballState.heldBy
+            && (
+              (ballState.heldBy && ballState.heldBy.team === p.team)
+              || (!ballState.heldBy && ballState.lastHeldBy?.team === p.team && p !== ballState.intendedReceiver)
+            )
+            ? (getCoachSupportTarget(p, elapsed) || getTelemetryCoachFullControlTarget(p, ballState.heldBy || ballState.lastHeldBy, elapsed))
+            : null;
+          if (highPriorityCoachTarget) {
+            maybeEmitAttackerZoneTrace(p, teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1, highPriorityCoachTarget, 'COACH');
+            setPlayerAIState(p, 'COACH_ATTACK');
+            steerSimpleAttackPlayer(p, highPriorityCoachTarget, dt, getUniformPlayerRunSpeed() * 1.9, 6.2, 0.022);
+            return;
+          }
           // Don't override players already assigned to chase a loose ball
           if (p.aiState === 'CHASE_LOOSE_BALL' || p.aiState === 'SUPPORT_LOOSE_BALL') return;
 
@@ -22446,6 +26162,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             if (dist > 0.05) {
               _loopDir.normalize();
               const keeperSpeed = getUniformPlayerRunSpeed();
+              recordCoachAuthorityMoveCommand(p, target, 'coach:keeper_position', keeperSpeed);
               p.vel.lerp(_loopDir.multiplyScalar(keeperSpeed), dt * 7.0);
               p.pos.addScaledVector(p.vel, dt);
               p.pos.x = THREE.MathUtils.clamp(p.pos.x, keeperMinX, keeperMaxX);
@@ -22473,6 +26190,19 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
 
           const ballCarrier = ballState.heldBy;
           const attackAnchor = ballCarrier || offenseTeam[0];
+          if (freezeNoOppositionPlayer(p, dt, elapsed)) return;
+          const travelCoachTarget = !ballCarrier
+            && p.team === ballState.lastHeldBy?.team
+            && p !== ballState.intendedReceiver
+            && !isGoalkeeper(p)
+            ? (getCoachSupportTarget(p, elapsed) || getTelemetryCoachFullControlTarget(p, ballState.lastHeldBy, elapsed))
+            : null;
+          if (travelCoachTarget) {
+            maybeEmitAttackerZoneTrace(p, teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1, travelCoachTarget, 'COACH');
+            setPlayerAIState(p, 'COACH_ATTACK');
+            steerSimpleAttackPlayer(p, travelCoachTarget, dt, getUniformPlayerRunSpeed() * 1.75, 5.4, 0.025);
+            return;
+          }
           
           // 1. Ball in Air: Reaction logic (Interception/Breakup)
           if (ballState.isFlying) {
@@ -22569,9 +26299,17 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const coachDefensiveTarget = getCoachDefensiveTarget(p, ballCarrier, elapsed);
             if (coachDefensiveTarget) {
               const coachDist = p.pos.distanceTo(coachDefensiveTarget);
+              const defenseAggression = getDefenseAggression01();
               setPlayerAIState(p, 'COACH_DEFENSE');
               if (coachDist > 0.85) {
-                steerSimpleAttackPlayer(p, coachDefensiveTarget, dt, getUniformPlayerRunSpeed() * 1.32, 3.5, 0.045);
+                steerSimpleAttackPlayer(
+                  p,
+                  coachDefensiveTarget,
+                  dt,
+                  getUniformPlayerRunSpeed() * THREE.MathUtils.lerp(1.15, 1.65, defenseAggression),
+                  THREE.MathUtils.lerp(3.0, 4.4, defenseAggression),
+                  THREE.MathUtils.lerp(0.055, 0.035, defenseAggression),
+                );
               } else {
                 p.vel.multiplyScalar(Math.max(0, 1 - dt * 5.5));
               }
@@ -22606,7 +26344,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const rawBreak = pressTrigger || distToCarrier < assignment.pressRadius + 2.25 + breakRadiusBonus || (assignment.pressStrength > 0.82 && distToShape < 6.2);
             const shouldBreak = rawBreak && breakPermission && (shapeGap < (inBoxDefense ? 4.8 : 5.2) || distToCarrier < 1.9 + boxBreakPenalty);
             
-            if (shouldBreak && elapsed >= ballState.possessionLockUntil) {
+          if (shouldBreak && elapsed >= ballState.possessionLockUntil) {
+              if (holdTackleRecovery(p, elapsed, dt)) return;
               // Dynamic Pursuit: Aim for intercept point
               const dist = p.pos.distanceTo(ballCarrier.pos);
               const interceptTime = dist / 6.0;
@@ -22643,14 +26382,24 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                   ballState.heldBy = p;
                   ballState.possessionLockUntil = elapsed + 0.55;
                   ballState.lastHeldBy = p;
-                  p.tackleCooldown = 1.2;
+                  setTackleCommitment(p, elapsed, true, {
+                    vs: ballCarrier.name || '?',
+                    distToCarrier: +distToCarrier.toFixed(2),
+                    touchQuality: +touchQuality.toFixed(2),
+                    assignmentStrength: +assignment.pressStrength.toFixed(2),
+                  });
                   _tackleTimes2e.push(elapsed);
                   if (p.team === 'A') gameState.tacklesWonA++; else gameState.tacklesWonB++;
                   pushTelemEvent(p.team, 'TACKLE', `${p.name || 'Unknown'} wins ball from ${ballCarrier.name || 'Unknown'}`);
                   soccerRestart.lastTouchTeam = p.team;
                   sounds.tackle();
                 } else {
-                  p.tackleCooldown = Math.max(p.tackleCooldown, 0.65);
+                  setTackleCommitment(p, elapsed, false, {
+                    vs: ballCarrier.name || '?',
+                    distToCarrier: +distToCarrier.toFixed(2),
+                    touchQuality: +touchQuality.toFixed(2),
+                    assignmentStrength: +assignment.pressStrength.toFixed(2),
+                  });
                 }
               }
               return;
@@ -22673,7 +26422,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 supportSlot,
                 ...getSupportRunProfile(p, 0),
               };
-              const coachSupportTarget = getCoachSupportTarget(p, elapsed);
+              const coachSupportTarget = getCoachSupportTarget(p, elapsed) || getTelemetryCoachFullControlTarget(p, ballCarrier, elapsed);
               const supportTarget = coachSupportTarget || (!useLegacyAttackMovementModel
                 ? computeSimpleAttackMovementTarget(route)
                 : new THREE.Vector3(
@@ -22688,7 +26437,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               if (coachSupportTarget) {
                 maybeEmitAttackerZoneTrace(p, teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1, supportTarget, 'COACH');
                 setPlayerAIState(p, 'COACH_ATTACK');
-                steerSimpleAttackPlayer(p, supportTarget, dt, getUniformPlayerRunSpeed() * 1.45, 4.4, 0.04);
+                steerSimpleAttackPlayer(p, supportTarget, dt, getUniformPlayerRunSpeed() * 1.85, 5.8, 0.025);
               } else if (!useLegacyAttackMovementModel) {
                 maybeEmitAttackerZoneTrace(p, teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1, supportTarget, 'SIMPLE');
                 steerSimpleAttackPlayer(p, supportTarget, dt, speed, 4.6, 0.07);
@@ -22788,6 +26537,29 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           if (dist > 0.05) {
             const teamAttackSign = teamAttacksRight(p.team as 'A' | 'B') ? 1 : -1;
             const ownGoalX = teamAttackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
+            const ownGoalCrowd = players.filter((tm: any) =>
+              tm !== p
+              && tm.team === p.team
+              && !isGoalkeeper(tm)
+              && Math.abs(tm.pos.x - ownGoalX) < 9.0
+              && Math.abs(tm.pos.z) < goalMouthWidth * 2.4
+            );
+            if (ownGoalCrowd.length >= 4 && Math.abs(desiredTarget.x - ownGoalX) < 8.0 && Math.abs(desiredTarget.z) < goalMouthWidth * 2.2) {
+              const side = Math.sign(p.homePos?.z || p.pos.z || (p.shirtNumber % 2 ? 1 : -1)) || 1;
+              desiredTarget.x = ownGoalX + (teamAttackSign > 0 ? 1 : -1) * 8.5;
+              desiredTarget.z = THREE.MathUtils.clamp(side * (goalMouthWidth * 2.4 + (ownGoalCrowd.length - 3) * 0.75), -penaltyHalfZ, penaltyHalfZ);
+              const lastAt = Number((p as any)._coachGoalMouthSpacingAt ?? -999);
+              if (elapsed - lastAt >= 1.5) {
+                (p as any)._coachGoalMouthSpacingAt = elapsed;
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_GOALMOUTH_BUNCH_SPACING', p.team, getRoleKey(p), {
+                  crowd: ownGoalCrowd.length + 1,
+                  targetX: +desiredTarget.x.toFixed(1),
+                  targetZ: +desiredTarget.z.toFixed(1),
+                  playerX: +p.pos.x.toFixed(1),
+                  playerZ: +p.pos.z.toFixed(1),
+                });
+              }
+            }
             const targetCloserToGoal = Math.abs(desiredTarget.x - ownGoalX) + 0.35 < Math.abs(p.pos.x - ownGoalX);
             const ballThreatDepth = Math.abs(ballState.pos.x - ownGoalX);
             const transitionRecoveryBoost = recoveryRole && targetCloserToGoal && ballThreatDepth < FIELD_W * 0.44
@@ -22802,6 +26574,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             p.vel.multiplyScalar(Math.max(0, 1 - dt * 8));
           }
         });
+
+        enforceCoachAuthorityFrame(dt);
 
         players.forEach(p => {
           if (isGoalDeadBallActive() || isBallInsideScoringGoal(ballState.pos)) {
@@ -23280,6 +27054,21 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               
               // Shoulder challenge (no American-football tackle stops)
               if (ballState.heldBy === p2 && p1.team !== p2.team) {
+                if (gameState.noOppositionDebug || shouldDisableOppositionForPlayer(p1, p2)) return;
+                if (isCoachSupremeAuthorityActive()) {
+                  const command = (p1 as any)._coachAuthorityMoveCommand as CoachAuthorityMoveCommand | null;
+                  if (!command || !String(command.owner || '').startsWith('coach:')) {
+                    pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'COACH_AUTHORITY_VIOLATION', p1.team, getRoleKey(p1), {
+                      player: p1.name || playerCoachKey(p1),
+                      violations: ['unauthorized_action'],
+                      action: 'shoulder_challenge',
+                      owner: command?.owner || 'NONE',
+                      carrier: p2.name || playerCoachKey(p2),
+                      aiState: String(p1.aiState || ''),
+                    });
+                    return;
+                  }
+                }
                 if (isKeeperHandlingInBox(p2)) return;
                 if (p1.tackleCooldown > 0) return;
                 if (maybeCallSoccerFoul(p1, p2, dt, elapsed)) return;
@@ -23318,7 +27107,13 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           });
         });
 
+        enforceCoachAuthorityFrame(dt);
+
         players.forEach((p: any) => {
+          if (isRemovedSoloOpponent(p)) {
+            applyRemovedOpponentVisualState(p);
+            return;
+          }
           p.pos.y = 0.15;
           p.vel.y = 0;
           p.mesh.position.copy(p.pos);
@@ -23550,6 +27345,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           }
           if (elapsed >= ballState.receiveLockUntil && !isGoalDeadBallActive() && !isBallInsideScoringGoal(ballState.pos)) {
             for (const p of players) {
+              if (isRemovedSoloOpponent(p)) continue;
               if (collector === ballState.intendedReceiver && p !== collector) continue;
               if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) continue;
               if (ballState.parryShooter === p && elapsed < ballState.parryLockUntil) continue;
@@ -23673,6 +27469,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           let bestDist = Infinity;
           if (elapsed >= ballState.receiveLockUntil && !isGoalDeadBallActive() && !isBallInsideScoringGoal(ballState.pos)) {
             for (const p of players) {
+              if (isRemovedSoloOpponent(p)) continue;
               // Prevent the last holder from re-collecting a stationary ball (expires after LAST_HELD_BY_EXPIRY)
               if (p === ballState.lastHeldBy && (elapsed - ballState.lastHeldByAt) < LAST_HELD_BY_EXPIRY) continue;
               if (ballState.parryShooter === p && elapsed < ballState.parryLockUntil) continue;
@@ -24081,6 +27878,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         }
         ballGroup.position.copy(ballState.pos);
       }
+
+      enforceLiveMovementAuthorityFrame(dt);
 
       // ── Goal-plane monitor + delayed restart + out-of-play: must run even when !isLive ──
       // NOTE: handleSoccerOutOfPlay reads goalPlaneMonitor.prevX (previous frame's
@@ -25071,6 +28870,14 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       aimErrorRad: cpuShotAimErrorRad,
       pressureError: cpuShotPressureError,
     }),
+    setCoachAggression: (value: number) => {
+      gameState.coachAggression = THREE.MathUtils.clamp(Number(value), 0, 100);
+    },
+    getCoachAggression: () => gameState.coachAggression,
+    setDefenseAggression: (value: number) => {
+      gameState.defenseAggression = THREE.MathUtils.clamp(Number(value), 0, 100);
+    },
+    getDefenseAggression: () => gameState.defenseAggression,
     setMenuVisible: (visible: boolean) => {
       gameState.menuVisible = visible;
       scoreBug.style.display = (visible || splashSceneMode) ? 'none' : 'flex';
@@ -25157,6 +28964,16 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
     startKickoffPresentation: (autoKick: boolean = true) => {
       startKickoffPresentationSequence(autoKick);
     },
+    setRealDataReplayMode: (enabled: boolean) => {
+      void setRealDataReplayMode(enabled);
+    },
+    getRealDataReplayStatus: () => ({
+      active: gameState.realDataReplayMode,
+      loaded: !!realDataReplay.asset,
+      source: realDataReplay.asset?.source || null,
+      frameIndex: realDataReplay.frameIndex,
+      frames: realDataReplay.asset?.frames.length || 0,
+    }),
     resetMatch: () => {
       delayedRestartState.active = false;
       delayedRestartState.goalAwardTeam = null;
@@ -25205,6 +29022,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       shapeSamplesA.length = 0;
       shapeSamplesB.length = 0;
       playerPositioningSamples.length = 0;
+      positionalDriftReports.length = 0;
+      _lastPositionalDriftSampleSecond = -1;
       _lastShapeSampleAt = 0;
       _lastDiagnosticLogAt = 0;
       _lastTuningEventAt = 0;
@@ -25453,6 +29272,14 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
     },
     setCpuVsCpu: (enabled: boolean) => {
       gameState.cpuVsCpu = enabled;
+      if (enabled && isSoloCpuMode()) {
+        kickoffSchedule.firstHalfTeam = getSoloCpuTeam();
+        kickoffSchedule.secondHalfTeam = getSoloCpuTeam();
+        soccerRestart.team = getSoloCpuTeam();
+        players.forEach((p: any) => {
+          if (isRemovedSoloOpponent(p)) applyRemovedOpponentVisualState(p);
+        });
+      }
       testingClockMode = enabled;
       updateTimerDisplay();
     },
@@ -25954,6 +29781,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
     },
     /** Spatial/phase telemetry: team shape samples */
     getShapeSamples: (team: 'A' | 'B') => (team === 'A' ? shapeSamplesA : shapeSamplesB).map(s => ({ ...s })),
+    getPositionalDriftReport: () => positionalDriftReports.map((report) => ({ ...report, worst: report.worst.map((row) => ({ ...row })) })),
     /** Transition log */
     getTransitions: () => transitionLog.map(t => ({ ...t })),
     /** Full tuning telemetry bundle (all channels in one call) */
@@ -26001,6 +29829,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         shapeA: shapeSamplesA.map(s => ({ ...s })),
         shapeB: shapeSamplesB.map(s => ({ ...s })),
         playerPositioning: playerPositioningSamples.map(s => ({ ...s })),
+        positionalDrift: positionalDriftReports.map((report) => ({ ...report, worst: report.worst.map((row) => ({ ...row })) })),
         transitions: transitionLog.map(t => ({ ...t })),
         goalLog: goalLog.map(g => ({ ...g })),
         shotDecisions: gameState.shotDecisionLog.map(d => ({ ...d })),

@@ -119,6 +119,31 @@ test('FSM box crash keeps wide attackers wide enough for outlets', () => {
   assert.ok(midTarget.z < -constants.fieldDepth * 0.10, 'second-wave midfielder should occupy opposite half-space');
 });
 
+test('FSM box crash rotates striker out of crowded central shot lane', () => {
+  const carrier = makePlayer('Central Carrier', 'A', 24, 0.7, 'CAM');
+  const striker = makePlayer('Striker', 'A', 18, 0, 'ST');
+  const centralMid = makePlayer('Central Mid', 'A', 23, -0.8, 'CM');
+  const attackingMid = makePlayer('Attacking Mid', 'A', 25, 1.1, 'CAM');
+
+  const target = computeFsmOffBallTargetWithOwner({
+    player: striker,
+    carrier,
+    teamPattern: null,
+    attackSign: 1,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+    attackPhase: 'FINAL_THIRD',
+    allPlayers: [carrier, striker, centralMid, attackingMid],
+    ballPos: carrier.pos,
+  });
+
+  assert.equal(target.owner, 'BOX_CRASH');
+  assert.ok(Math.abs(target.target.z) > constants.fieldDepth * 0.22, 'crowded striker should rotate into a half-space instead of the central lane');
+  assert.ok(target.target.x > constants.fieldWidth * 0.28, 'crowded striker should remain in an advanced receiving pocket');
+});
+
 test('FSM danger marking assigns a goal-side defender to off-ball box runners', () => {
   const carrier = makePlayer('Wide Carrier', 'A', 20, 10, 'RM');
   const striker = makePlayer('Box Runner', 'A', 25, 0.8, 'ST');

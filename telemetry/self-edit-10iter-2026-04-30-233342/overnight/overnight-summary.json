@@ -1,0 +1,823 @@
+{
+  "generatedAt": "2026-05-01T03:33:43.152Z",
+  "resumedAt": null,
+  "options": {
+    "cycles": 10,
+    "gamesPerCycle": 1,
+    "mode": "tuning",
+    "speed": 1,
+    "halfSeconds": 150,
+    "speedExplicit": true,
+    "homeTeam": "",
+    "awayTeam": "",
+    "formationA": "",
+    "formationB": "",
+    "outDir": "telemetry\\self-edit-10iter-2026-04-30-233342\\overnight",
+    "url": "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+    "dryRun": false,
+    "resume": false,
+    "maxCycleAttempts": 2,
+    "continueOnCycleFailure": true
+  },
+  "outDir": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight",
+  "simTimeoutMs": 1440000,
+  "totalGames": 10,
+  "fixturePlan": [
+    {
+      "gameNumber": 1,
+      "homeTeam": "Houston Dynamo",
+      "awayTeam": "Colorado Rapids"
+    },
+    {
+      "gameNumber": 2,
+      "homeTeam": "Toronto FC",
+      "awayTeam": "Minnesota United"
+    },
+    {
+      "gameNumber": 3,
+      "homeTeam": "Atlanta United",
+      "awayTeam": "Columbus Crew"
+    },
+    {
+      "gameNumber": 4,
+      "homeTeam": "Houston Dynamo",
+      "awayTeam": "New York City FC"
+    },
+    {
+      "gameNumber": 5,
+      "homeTeam": "Vancouver Whitecaps",
+      "awayTeam": "LA Galaxy"
+    },
+    {
+      "gameNumber": 6,
+      "homeTeam": "New England Revolution",
+      "awayTeam": "St. Louis City SC"
+    },
+    {
+      "gameNumber": 7,
+      "homeTeam": "Columbus Crew",
+      "awayTeam": "Austin FC"
+    },
+    {
+      "gameNumber": 8,
+      "homeTeam": "Toronto FC",
+      "awayTeam": "LAFC"
+    },
+    {
+      "gameNumber": 9,
+      "homeTeam": "DC United",
+      "awayTeam": "New England Revolution"
+    },
+    {
+      "gameNumber": 10,
+      "homeTeam": "Columbus Crew",
+      "awayTeam": "Toronto FC"
+    }
+  ],
+  "dryRun": false,
+  "commandPlans": [
+    {
+      "cycle": 1,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 1,
+          "homeTeam": "Houston Dynamo",
+          "awayTeam": "Colorado Rapids"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 2,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 2,
+          "homeTeam": "Toronto FC",
+          "awayTeam": "Minnesota United"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 3,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 3,
+          "homeTeam": "Atlanta United",
+          "awayTeam": "Columbus Crew"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 4,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 4,
+          "homeTeam": "Houston Dynamo",
+          "awayTeam": "New York City FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 5,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 5,
+          "homeTeam": "Vancouver Whitecaps",
+          "awayTeam": "LA Galaxy"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 6,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 6,
+          "homeTeam": "New England Revolution",
+          "awayTeam": "St. Louis City SC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 7,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 7,
+          "homeTeam": "Columbus Crew",
+          "awayTeam": "Austin FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 8,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 8,
+          "homeTeam": "Toronto FC",
+          "awayTeam": "LAFC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 9,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 9,
+          "homeTeam": "DC United",
+          "awayTeam": "New England Revolution"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-analysis.json"
+        ]
+      }
+    },
+    {
+      "cycle": 10,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 10,
+          "homeTeam": "Columbus Crew",
+          "awayTeam": "Toronto FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-analysis.json",
+      "sim": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "scripts/headless-sim.mjs",
+          "--mode",
+          "tuning",
+          "--games",
+          "1",
+          "--speed",
+          "1",
+          "--half-seconds",
+          "150",
+          "--gpu-headless",
+          "--timeout-ms",
+          "1440000",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-sim.json",
+          "--url",
+          "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+          "--fixtures-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-fixtures.json"
+        ]
+      },
+      "analyze": {
+        "command": "C:\\Program Files\\nodejs\\node.exe",
+        "args": [
+          "--import",
+          "tsx",
+          "scripts/telemetry-analyze-latest.mjs",
+          "--latest",
+          "--report-json",
+          "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-analysis.json"
+        ]
+      }
+    }
+  ],
+  "cycles": [
+    {
+      "cycle": 1,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 1,
+          "homeTeam": "Houston Dynamo",
+          "awayTeam": "Colorado Rapids"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-01-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-01-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 2,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 2,
+          "homeTeam": "Toronto FC",
+          "awayTeam": "Minnesota United"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-02-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-1",
+      "sessionId": "headless-report:cycle-02-sim.json:0",
+      "score": "0-1",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 3,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 3,
+          "homeTeam": "Atlanta United",
+          "awayTeam": "Columbus Crew"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-03-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-1",
+      "sessionId": "headless-report:cycle-03-sim.json:0",
+      "score": "0-1",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.",
+        "Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes."
+      ]
+    },
+    {
+      "cycle": 4,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 4,
+          "homeTeam": "Houston Dynamo",
+          "awayTeam": "New York City FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-04-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-04-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.",
+        "Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes."
+      ]
+    },
+    {
+      "cycle": 5,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 5,
+          "homeTeam": "Vancouver Whitecaps",
+          "awayTeam": "LA Galaxy"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-05-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-05-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 6,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 6,
+          "homeTeam": "New England Revolution",
+          "awayTeam": "St. Louis City SC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-06-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-06-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 7,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 7,
+          "homeTeam": "Columbus Crew",
+          "awayTeam": "Austin FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-07-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-07-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 8,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 8,
+          "homeTeam": "Toronto FC",
+          "awayTeam": "LAFC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-08-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-08-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 9,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 9,
+          "homeTeam": "DC United",
+          "awayTeam": "New England Revolution"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-09-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-1",
+      "sessionId": "headless-report:cycle-09-sim.json:0",
+      "score": "0-1",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+      ]
+    },
+    {
+      "cycle": 10,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 10,
+          "homeTeam": "Columbus Crew",
+          "awayTeam": "Toronto FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\cycle-10-analysis.json",
+      "analyzed": true,
+      "analysisSkippedReason": null,
+      "simSessionId": null,
+      "simScore": "0-0",
+      "sessionId": "headless-report:cycle-10-sim.json:0",
+      "score": "0-0",
+      "recommendations": [
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+        "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.",
+        "Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes."
+      ]
+    }
+  ],
+  "failedCycles": [],
+  "findingsReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\overnight-findings.json",
+  "findingsMarkdown": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\overnight-findings.md"
+}

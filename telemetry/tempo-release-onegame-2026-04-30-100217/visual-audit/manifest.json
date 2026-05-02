@@ -1,0 +1,3340 @@
+{
+  "generatedAt": "2026-04-30T14:07:51.238Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\tempo-release-onegame-2026-04-30-100217\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00309_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 30.94,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00313_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 31.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.81,
+          "nearestDefenderDist": 5.09
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00309_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 30.94,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00313_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 31.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.81,
+          "nearestDefenderDist": 5.09
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00309_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 30.94,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00313_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 31.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.81,
+          "nearestDefenderDist": 5.09
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00360_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 35.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00370_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": "Tai Baribo",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.38,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00370_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.86,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00360_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 35.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00360_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 35.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00370_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": "Tai Baribo",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.38,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00370_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.86,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00370_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mikael Uhre",
+          "target": "Tai Baribo",
+          "collector": "Tai Baribo",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.38,
+          "nearestDefenderDist": 1.25
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00370_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 36.97,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.86,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00561_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 56.09,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00576_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.77,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.4,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00561_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 56.09,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00561_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 56.09,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00576_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.77,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.4,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00576_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.77,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Dániel Gazdag",
+          "collector": "Dániel Gazdag",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 6.48
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00576_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 57.63,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "SECOND_WAVE",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.4,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00661_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 66.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00665_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.37,
+          "nearestDefenderDist": 1.57
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00661_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 66.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00665_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.37,
+          "nearestDefenderDist": 1.57
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00661_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 66.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00665_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.37,
+          "nearestDefenderDist": 1.57
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00863_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 86.31,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00870_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 86.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.4,
+          "nearestDefenderDist": 7.87
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00863_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 86.31,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00870_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 86.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.4,
+          "nearestDefenderDist": 7.87
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00863_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 86.31,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00870_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 86.97,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Olivier Mbaizo",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.4,
+          "nearestDefenderDist": 7.87
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00978_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 97.84,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00993_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 99.34,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.87,
+          "nearestDefenderDist": 0.63
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00978_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 97.84,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00978_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 97.84,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00993_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 99.34,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.87,
+          "nearestDefenderDist": 0.63
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00993_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 99.34,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Rossi",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.87,
+          "nearestDefenderDist": 0.63
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01046_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 104.59,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01047_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 104.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.68,
+          "nearestDefenderDist": 6.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01046_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 104.59,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01047_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 104.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.68,
+          "nearestDefenderDist": 6.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01046_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 104.59,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01047_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 104.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dániel Gazdag",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.68,
+          "nearestDefenderDist": 6.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01182_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 118.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01187_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 118.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.98,
+          "nearestDefenderDist": 3.98
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01182_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 118.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01187_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 118.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.98,
+          "nearestDefenderDist": 3.98
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01182_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 118.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01187_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 118.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Kai Wagner",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.98,
+          "nearestDefenderDist": 3.98
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01277_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 127.69,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01282_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.63,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01277_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 127.69,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01282_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.63,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01277_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 127.69,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01282_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Hugo Picard",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.63,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 0.68
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01282_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 128.22,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.9,
+          "closePressure": 3,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01441_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 144.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01448_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 144.84,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.98,
+          "nearestDefenderDist": 1.23
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01441_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 144.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01448_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 144.84,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.98,
+          "nearestDefenderDist": 1.23
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01441_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 144.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01448_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 144.84,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Wessam Abou Ali",
+          "collector": "Wessam Abou Ali",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.98,
+          "nearestDefenderDist": 1.23
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00032_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 3.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00045_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 4.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.45,
+          "nearestDefenderDist": 4.76
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00032_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 3.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00032_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 3.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00045_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 4.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.45,
+          "nearestDefenderDist": 4.76
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00045_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 4.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Mohamed Farsi",
+          "target": "Dylan Chambost",
+          "collector": "Dylan Chambost",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.45,
+          "nearestDefenderDist": 4.76
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00088_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 8.75,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00097_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.24,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 35.3,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00088_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 8.75,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00088_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 8.75,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00097_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.24,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 35.3,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00097_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Tai Baribo",
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.24,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Danley Jean Jacques",
+          "collector": "Danley Jean Jacques",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 3.77
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00097_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 9.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "B",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 35.3,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00138_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 13.78,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00148_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 14.81,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.11,
+          "nearestDefenderDist": 1.28
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00138_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 13.78,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00148_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 14.81,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.11,
+          "nearestDefenderDist": 1.28
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00138_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 13.78,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00148_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 14.81,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NEAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Alejandro Bedoya",
+          "target": "Mikael Uhre",
+          "collector": "Mikael Uhre",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.11,
+          "nearestDefenderDist": 1.28
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00237_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 23.72,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00243_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.23,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00243_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00237_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 23.72,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00243_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.23,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00243_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00237_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 23.72,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00243_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Dylan Chambost",
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.23,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00243_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 24.28,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Darlington Nagbe",
+          "collector": "Darlington Nagbe",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 2.36
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00396_GOAL_p00.jpg",
+      "event": {
+        "t": 39.62,
+        "half": 2,
+        "minute": 43,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00396_GOAL_p12.jpg",
+      "event": {
+        "t": 39.62,
+        "half": 2,
+        "minute": 43,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00396_GOAL_p24.jpg",
+      "event": {
+        "t": 39.62,
+        "half": 2,
+        "minute": 43,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    }
+  ]
+}

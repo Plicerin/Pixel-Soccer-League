@@ -1,0 +1,820 @@
+{
+  "generatedAt": "2026-04-30T04:24:41.927Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-adaptive-limited-onegame-2026-04-30-001903\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00243_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 24.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00262_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 26.19,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": "Gabriel Fortes Chaves",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.82,
+          "nearestDefenderDist": 2.42
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00243_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 24.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00243_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 24.34,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00262_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 26.19,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": "Gabriel Fortes Chaves",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.82,
+          "nearestDefenderDist": 2.42
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00262_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 26.19,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Joseph Paintsil",
+          "target": "Gabriel Fortes Chaves",
+          "collector": "Gabriel Fortes Chaves",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.82,
+          "nearestDefenderDist": 2.42
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00417_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 41.66,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 14.24,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00417_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 41.66,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 14.24,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00417_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 41.66,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 14.24,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00690_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 69.03,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.27,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00690_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 69.03,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.27,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00690_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 69.03,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.27,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00093_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 9.25,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00093_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 9.25,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00093_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 9.25,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00272_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 27.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00285_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 28.5,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": "Diego Fagúndez",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 10.93,
+          "nearestDefenderDist": 3.13
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00272_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 27.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00272_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 27.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00285_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 28.5,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": "Diego Fagúndez",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 10.93,
+          "nearestDefenderDist": 3.13
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00285_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 28.5,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Petar Musa",
+          "target": "Anderson Julio",
+          "collector": "Diego Fagúndez",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 10.93,
+          "nearestDefenderDist": 3.13
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01437_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 143.69,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01457_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": "Sebastien Ibeagha",
+          "collectorRole": "RB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.31,
+          "nearestDefenderDist": 6.75
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01437_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 143.69,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01437_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 143.69,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01457_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": "Sebastien Ibeagha",
+          "collectorRole": "RB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.31,
+          "nearestDefenderDist": 6.75
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01457_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Anderson Julio",
+          "target": "Sebastien Ibeagha",
+          "collector": "Sebastien Ibeagha",
+          "collectorRole": "RB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.31,
+          "nearestDefenderDist": 6.75
+        }
+      }
+    }
+  ]
+}

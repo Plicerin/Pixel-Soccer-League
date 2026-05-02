@@ -1,164 +1,311 @@
 {
-  "generatedAt": "2026-04-29T00:31:32.455Z",
+  "generatedAt": "2026-05-01T17:38:11.695Z",
   "match": {
-    "sessionId": "ft-1777421875027",
-    "matchId": "M-BAMTV",
-    "timestamp": 1777421875027,
-    "teamA": "FC Dallas",
-    "teamB": "Atlanta United",
-    "score": "0-0",
-    "shotsA": 26,
-    "shotsB": 25,
+    "sessionId": "ft-1777651030793",
+    "matchId": "M-X2S4A",
+    "timestamp": 1777651030793,
+    "teamA": "DC United",
+    "teamB": "San Jose Earthquakes",
+    "score": "2-0",
+    "shotsA": 13,
+    "shotsB": 10,
     "shotsOnTargetA": 2,
     "shotsOnTargetB": 1
   },
   "counts": {
-    "events": 18076,
-    "passLog": 208,
-    "midfieldSupport": 483,
-    "carrierTraces": 938,
-    "attackerZoneTraces": 1038,
-    "positionOwnerSamples": 10860,
-    "kickoffPasses": 2,
-    "kickoffReceives": 2,
-    "goalScorerEvents": 0,
-    "shotSnapshots": 51,
+    "events": 9259,
+    "passLog": 131,
+    "midfieldSupport": 1509,
+    "carrierTraces": 452,
+    "attackerZoneTraces": 443,
+    "positionOwnerSamples": 4933,
+    "kickoffPasses": 4,
+    "kickoffReceives": 4,
+    "goalScorerEvents": 2,
+    "shotSnapshots": 23,
     "shotOnTargetSnapshots": 3,
-    "shotDecisions": 51,
-    "passDecisions": 189,
-    "turnovers": 14,
-    "interceptions": 17,
-    "fouls": 7,
-    "tackles": 6
+    "shotDecisions": 23,
+    "passDecisions": 116,
+    "turnovers": 2,
+    "interceptions": 5,
+    "fouls": 4,
+    "tackles": 1
   },
   "passProfile": {
     "A": {
-      "team": "FC Dallas",
-      "total": 109,
-      "avgProgress": 7.81,
-      "backwardPct": 14.7,
-      "forwardPct": 79.8,
-      "lateralPct": 5.5,
+      "team": "DC United",
+      "total": 55,
+      "avgProgress": 3.14,
+      "backwardPct": 32.7,
+      "forwardPct": 49.1,
+      "lateralPct": 18.2,
       "topRoles": {
-        "CM": {
-          "total": 34,
-          "backward": 3,
-          "forward": 28,
-          "lateral": 3
+        "ST": {
+          "total": 19,
+          "backward": 9,
+          "forward": 6,
+          "lateral": 4
         },
         "CB": {
-          "total": 22,
+          "total": 8,
+          "backward": 1,
+          "forward": 5,
+          "lateral": 2
+        },
+        "LB": {
+          "total": 7,
           "backward": 4,
-          "forward": 18,
+          "forward": 3,
           "lateral": 0
         },
-        "RM": {
-          "total": 20,
-          "backward": 2,
-          "forward": 17,
-          "lateral": 1
+        "CM": {
+          "total": 7,
+          "backward": 1,
+          "forward": 4,
+          "lateral": 2
         },
         "LM": {
-          "total": 20,
-          "backward": 1,
-          "forward": 19,
-          "lateral": 0
-        },
-        "ST": {
-          "total": 10,
-          "backward": 6,
+          "total": 6,
+          "backward": 2,
           "forward": 3,
           "lateral": 1
         },
+        "RM": {
+          "total": 6,
+          "backward": 1,
+          "forward": 5,
+          "lateral": 0
+        },
         "GK": {
-          "total": 3,
+          "total": 2,
           "backward": 0,
-          "forward": 2,
+          "forward": 1,
           "lateral": 1
         }
       }
     },
     "B": {
-      "team": "Atlanta United",
-      "total": 99,
-      "avgProgress": 8.25,
-      "backwardPct": 14.1,
-      "forwardPct": 77.8,
-      "lateralPct": 8.1,
+      "team": "San Jose Earthquakes",
+      "total": 76,
+      "avgProgress": 2.91,
+      "backwardPct": 31.6,
+      "forwardPct": 57.9,
+      "lateralPct": 10.5,
       "topRoles": {
-        "CB": {
-          "total": 32,
-          "backward": 7,
-          "forward": 22,
+        "RM": {
+          "total": 20,
+          "backward": 6,
+          "forward": 11,
           "lateral": 3
         },
-        "CM": {
-          "total": 20,
-          "backward": 1,
-          "forward": 18,
-          "lateral": 1
-        },
         "LM": {
-          "total": 19,
-          "backward": 0,
-          "forward": 19,
-          "lateral": 0
-        },
-        "RM": {
-          "total": 16,
+          "total": 18,
           "backward": 3,
-          "forward": 12,
+          "forward": 14,
           "lateral": 1
         },
         "ST": {
-          "total": 8,
-          "backward": 3,
+          "total": 16,
+          "backward": 12,
           "forward": 4,
+          "lateral": 0
+        },
+        "CM": {
+          "total": 12,
+          "backward": 2,
+          "forward": 7,
+          "lateral": 3
+        },
+        "CB": {
+          "total": 9,
+          "backward": 1,
+          "forward": 7,
           "lateral": 1
         },
         "GK": {
-          "total": 4,
+          "total": 1,
           "backward": 0,
-          "forward": 2,
-          "lateral": 2
+          "forward": 1,
+          "lateral": 0
         }
       }
     }
   },
   "passDecisionSummary": {
-    "total": 189,
-    "attackerBackpassesInFinalThird": 2,
+    "total": 116,
+    "attackerBackpassesInFinalThird": 12,
     "attackerBackpassesInBox": 0,
     "directBlockerPassDecisions": 0,
     "topHoldReasons": {
-      "none": 120,
-      "carry_preferred": 44,
+      "none": 54,
+      "carry_preferred": 28,
       "reject_advanced_no_recycle": 17,
-      "reject_backpass_carry": 4,
-      "selected_shot": 4
+      "reject_backpass_carry": 6,
+      "selected_shot": 4,
+      "reject_backpass_loop": 3,
+      "reject_final_third_recycle": 3,
+      "striker_blocked_shot_escape": 1
     },
     "recentAttackerBackpasses": [
       {
-        "timestamp": 1777421606693,
+        "timestamp": 1777650727638,
         "team": "A",
-        "passer": "Petar Musa",
+        "passer": "Christian Benteke",
         "passerRole": "ST",
         "decisionBranch": "SIMPLE",
         "closePressure": 0,
         "inFinalThird": true,
         "insidePenaltyArea": false,
         "inShootingLane": true,
-        "carrierZone": "BUILDUP_CENTRAL",
-        "carrierX": -10.73,
-        "carrierZ": 0.45,
-        "passSkill": 0.6835389158907117,
-        "dribbleSkill": 0.8629642065153026,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 16.89,
+        "carrierZ": -1.11,
+        "passSkill": 0.6675437807407407,
+        "dribbleSkill": 0.821585888888889,
         "passLaneTraffic": 0,
-        "passFrontBlockerLateral": 4.87,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 2,
+        "nearestMidfieldSupportDist": 12.34,
+        "keeperDistToCarrier": 12.18,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0.12,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 4,
+        "boxDecisionLoopCount": 4,
+        "boxDecisionLoopSeconds": 0.09,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0.19,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.38,
+        "strikerHesitationLoops": 12,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Jared Stroud",
+        "targetRole": "RM",
+        "passStyle": "BACK",
+        "passDist": 12.3,
+        "forwardProg": -3.2,
+        "passNearestOppDist": 9.39,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": false,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777650784045,
+        "team": "B",
+        "passer": "Josef Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -11.76,
+        "carrierZ": 2.02,
+        "passSkill": 0.6769399247708725,
+        "dribbleSkill": 0.830592361053506,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": 2.87,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.31,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Ian Harkes",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 6,
+        "forwardProg": -5.7,
+        "passNearestOppDist": 1.23,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "selected_shot",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650817045,
+        "team": "A",
+        "passer": "Caden Clark",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 11.12,
+        "carrierZ": 3.1,
+        "passSkill": 0.6300290074074073,
+        "dribbleSkill": 0.84438172,
+        "passLaneTraffic": 0.55,
+        "passFrontBlockerLateral": 1.57,
         "passDirectBlocker": false,
         "midfieldSupportCount": 1,
-        "nearestMidfieldSupportDist": 4.99,
-        "keeperDistToCarrier": 18.25,
+        "nearestMidfieldSupportDist": 5.53,
+        "keeperDistToCarrier": 18.08,
         "preferredShotWindowOpen": false,
         "supportedShotWindowOpen": false,
         "earlyCentralShotWindow": false,
@@ -184,6 +331,7 @@
         "activePatternTouchFloor": 2,
         "patternTouchFloorPassRequired": false,
         "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
         "wideCarrierCutbackWindow": false,
         "deadPocketCarrier": false,
         "deadPocketNoHold": false,
@@ -193,40 +341,40 @@
         "missedShotWindowOpen": false,
         "decisionType": "AI_SIMPLE",
         "simpleModel": true,
-        "target": "Christian Cappis",
+        "target": "Gabriel Pirani",
         "targetRole": "CM",
         "passStyle": "BACK",
-        "passDist": 5,
-        "forwardProg": -4.1,
-        "passNearestOppDist": 5.28,
+        "passDist": 5.5,
+        "forwardProg": -1.7,
+        "passNearestOppDist": 2.6,
         "hasForwardPassOption": false,
         "shouldPass": false,
         "forceRecycle": false,
-        "holdReason": "carry_preferred",
+        "holdReason": "reject_backpass_carry",
         "strikerHesitationShotForce": false,
         "missedShotWindowSeconds": 0
       },
       {
-        "timestamp": 1777421703256,
+        "timestamp": 1777650817295,
         "team": "A",
-        "passer": "Petar Musa",
+        "passer": "Caden Clark",
         "passerRole": "ST",
         "decisionBranch": "SIMPLE",
         "closePressure": 0,
         "inFinalThird": true,
         "insidePenaltyArea": false,
         "inShootingLane": true,
-        "carrierZone": "BUILDUP_CENTRAL",
-        "carrierX": -10.75,
-        "carrierZ": 0.01,
-        "passSkill": 0.6835389158907117,
-        "dribbleSkill": 0.8629642065153026,
-        "passLaneTraffic": 0,
-        "passFrontBlockerLateral": null,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 13.06,
+        "carrierZ": 2.92,
+        "passSkill": 0.6300290074074073,
+        "dribbleSkill": 0.84438172,
+        "passLaneTraffic": 1,
+        "passFrontBlockerLateral": 2.64,
         "passDirectBlocker": false,
         "midfieldSupportCount": 1,
-        "nearestMidfieldSupportDist": 2.86,
-        "keeperDistToCarrier": 18.23,
+        "nearestMidfieldSupportDist": 6.3,
+        "keeperDistToCarrier": 16.13,
         "preferredShotWindowOpen": false,
         "supportedShotWindowOpen": false,
         "earlyCentralShotWindow": false,
@@ -248,10 +396,11 @@
         "strikerHesitationSeconds": 0,
         "strikerHesitationLoops": 0,
         "strikerHesitationZone": false,
-        "activePatternTouchCount": 4,
+        "activePatternTouchCount": 3,
         "activePatternTouchFloor": 2,
         "patternTouchFloorPassRequired": false,
         "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
         "wideCarrierCutbackWindow": false,
         "deadPocketCarrier": false,
         "deadPocketNoHold": false,
@@ -261,220 +410,822 @@
         "missedShotWindowOpen": false,
         "decisionType": "AI_SIMPLE",
         "simpleModel": true,
-        "target": "Christian Cappis",
+        "target": "Gabriel Pirani",
         "targetRole": "CM",
         "passStyle": "BACK",
-        "passDist": 2.9,
-        "forwardProg": -2.7,
-        "passNearestOppDist": 3.68,
+        "passDist": 6.3,
+        "forwardProg": -3.2,
+        "passNearestOppDist": 1.1,
         "hasForwardPassOption": false,
         "shouldPass": false,
         "forceRecycle": false,
-        "holdReason": "carry_preferred",
+        "holdReason": "reject_backpass_loop",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650817545,
+        "team": "A",
+        "passer": "Caden Clark",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 14.84,
+        "carrierZ": 2.99,
+        "passSkill": 0.6300290074074073,
+        "dribbleSkill": 0.84438172,
+        "passLaneTraffic": 1.55,
+        "passFrontBlockerLateral": 2.05,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 14.38,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.22,
+        "strikerHesitationLoops": 7,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Gabriel Pirani",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 8.2,
+        "forwardProg": -5.5,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "reject_backpass_loop",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650817795,
+        "team": "A",
+        "passer": "Caden Clark",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 16.62,
+        "carrierZ": 3.05,
+        "passSkill": 0.6300290074074073,
+        "dribbleSkill": 0.84438172,
+        "passLaneTraffic": 1.55,
+        "passFrontBlockerLateral": 1.67,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 12.64,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0.12,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 4,
+        "boxDecisionLoopCount": 4,
+        "boxDecisionLoopSeconds": 0.09,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.47,
+        "strikerHesitationLoops": 15,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Gabriel Pirani",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 10.3,
+        "forwardProg": -7.9,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "reject_backpass_loop",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650831733,
+        "team": "A",
+        "passer": "Caden Clark",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 12.13,
+        "carrierZ": -0.17,
+        "passSkill": 0.6300290074074073,
+        "dribbleSkill": 0.84438172,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": 5.24,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 16.85,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Christian Benteke",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 7,
+        "forwardProg": -4.9,
+        "passNearestOppDist": 6.71,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "reject_final_third_recycle",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650858734,
+        "team": "A",
+        "passer": "Christian Benteke",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": false,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 10.96,
+        "carrierZ": -3.76,
+        "passSkill": 0.6675437807407407,
+        "dribbleSkill": 0.821585888888889,
+        "passLaneTraffic": 1,
+        "passFrontBlockerLateral": 6.12,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 18.34,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Caden Clark",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 10.1,
+        "forwardProg": -3.1,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "reject_final_third_recycle",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650895078,
+        "team": "B",
+        "passer": "Josef Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 11.87,
+        "carrierZ": 3.56,
+        "passSkill": 0.6769399247708725,
+        "dribbleSkill": 0.830592361053506,
+        "passLaneTraffic": 1,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 2,
+        "nearestMidfieldSupportDist": 7.28,
+        "keeperDistToCarrier": 17.41,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Cristian Espinoza",
+        "targetRole": "RM",
+        "passStyle": "BACK",
+        "passDist": 7.3,
+        "forwardProg": 0.5,
+        "passNearestOppDist": 1.12,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "selected_shot",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650907641,
+        "team": "B",
+        "passer": "Josef Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 11.67,
+        "carrierZ": 0.28,
+        "passSkill": 0.6769399247708725,
+        "dribbleSkill": 0.830592361053506,
+        "passLaneTraffic": 0.55,
+        "passFrontBlockerLateral": 1.83,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 3,
+        "nearestMidfieldSupportDist": 4.55,
+        "keeperDistToCarrier": 17.3,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Noel Buck",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 5.8,
+        "forwardProg": -3.9,
+        "passNearestOppDist": 3.27,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "selected_shot",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650988173,
+        "team": "A",
+        "passer": "Christian Benteke",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "BUILDUP_CENTRAL",
+        "carrierX": -10.62,
+        "carrierZ": 1.94,
+        "passSkill": 0.6675437807407407,
+        "dribbleSkill": 0.821585888888889,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": 10.71,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 1,
+        "nearestMidfieldSupportDist": 2.17,
+        "keeperDistToCarrier": 18.44,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 3,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Randall Leal",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 2.2,
+        "forwardProg": -0.4,
+        "passNearestOppDist": 2.11,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "reject_final_third_recycle",
+        "strikerHesitationShotForce": false,
+        "missedShotWindowSeconds": 0
+      },
+      {
+        "timestamp": 1777650998798,
+        "team": "B",
+        "passer": "Josef Martínez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 13.71,
+        "carrierZ": 1.84,
+        "passSkill": 0.6769399247708725,
+        "dribbleSkill": 0.830592361053506,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": 10.1,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 1,
+        "nearestMidfieldSupportDist": 13.13,
+        "keeperDistToCarrier": 15.35,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.06,
+        "strikerHesitationLoops": 2,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Noel Buck",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 13.1,
+        "forwardProg": -0.7,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": false,
+        "forceRecycle": false,
+        "holdReason": "selected_shot",
         "strikerHesitationShotForce": false,
         "missedShotWindowSeconds": 0
       }
     ]
   },
   "shotDecisionSummary": {
-    "total": 51,
-    "forcedShots": 2,
-    "selectedShots": 40,
+    "total": 23,
+    "forcedShots": 14,
+    "selectedShots": 7,
     "desperationShots": 0,
-    "goalLineForces": 2,
-    "longRangeDecisions": 38,
-    "pressuredLongRangeDecisions": 3,
-    "aiSimpleDecisions": 51,
+    "goalLineForces": 0,
+    "longRangeDecisions": 19,
+    "pressuredLongRangeDecisions": 5,
+    "aiSimpleDecisions": 9,
     "aiSimpleBrokenRows": 0,
     "forcedAiSimpleBrokenRows": 0,
     "aiSimpleBrokenPct": 0,
     "recentForcedShots": [
       {
-        "minute": 141.4,
+        "minute": 90.5,
         "team": "A",
-        "shooter": "Petar Musa",
+        "shooter": "Christian Benteke",
         "role": "ST",
-        "distYards": 5.6,
-        "pressure": 0,
-        "style": "TOE_POKE"
+        "distYards": 49,
+        "pressure": 1,
+        "style": "LACES_DRIVE"
       },
       {
-        "minute": 279.9,
-        "team": "A",
-        "shooter": "Petar Musa",
+        "minute": 97.5,
+        "team": "B",
+        "shooter": "Josef Martínez",
         "role": "ST",
-        "distYards": 7.8,
-        "pressure": 0,
-        "style": "VOLLEY"
+        "distYards": 49.2,
+        "pressure": 1,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 102.6,
+        "team": "A",
+        "shooter": "Caden Clark",
+        "role": "ST",
+        "distYards": 22.9,
+        "pressure": 1,
+        "style": "CURLED"
+      },
+      {
+        "minute": 138.9,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "role": "ST",
+        "distYards": 31.6,
+        "pressure": 1,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 54.2,
+        "team": "A",
+        "shooter": "Christian Benteke",
+        "role": "ST",
+        "distYards": 46.7,
+        "pressure": 2,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 88.9,
+        "team": "A",
+        "shooter": "Christian Benteke",
+        "role": "ST",
+        "distYards": 45,
+        "pressure": 2,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 92.8,
+        "team": "A",
+        "shooter": "Christian Benteke",
+        "role": "ST",
+        "distYards": 27.5,
+        "pressure": 2,
+        "style": "CURLED"
+      },
+      {
+        "minute": 115.3,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "role": "ST",
+        "distYards": 35.8,
+        "pressure": 1,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 120.6,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "role": "ST",
+        "distYards": 33.7,
+        "pressure": 1,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 134.3,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "role": "ST",
+        "distYards": 48.7,
+        "pressure": 3,
+        "style": "CURLED"
       }
     ]
   },
   "movement": {
-    "carrierTraceCount": 938,
-    "attackerZoneTraceCount": 1038,
-    "carriersTracked": 18,
-    "totalForwardCarrySamples": 457,
-    "totalLateralFlips": 197,
-    "totalSwitchRequests": 125,
-    "totalBlockedSwitches": 125,
-    "totalCarryLockSamples": 561,
-    "avgForwardProgressPerFlip": 1.97,
-    "facingMovementMismatchPct": 19.1,
-    "desiredSteerMismatchPct": 13.2,
+    "carrierTraceCount": 452,
+    "attackerZoneTraceCount": 443,
+    "carriersTracked": 19,
+    "totalForwardCarrySamples": 190,
+    "totalLateralFlips": 97,
+    "totalSwitchRequests": 43,
+    "totalBlockedSwitches": 43,
+    "totalCarryLockSamples": 246,
+    "avgForwardProgressPerFlip": 2.56,
+    "facingMovementMismatchPct": 25.8,
+    "desiredSteerMismatchPct": 10,
     "topZigzagOffenders": [
       {
-        "carrier": "Emmanuel Latte Lath",
+        "carrier": "Noel Buck",
         "team": "B",
-        "role": "ST",
-        "traces": 143,
-        "forwardCarrySamples": 60,
-        "lateralFlips": 34,
-        "lateralFlipRate": 0.58,
-        "switchRequests": 34,
-        "blockedSwitches": 34,
-        "carryLockSamples": 125,
-        "avgForwardProgressPerFlip": 2.41,
-        "facingMovementMismatchPct": 21.2,
-        "desiredSteerMismatchPct": 16.1
-      },
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "role": "ST",
-        "traces": 170,
-        "forwardCarrySamples": 71,
-        "lateralFlips": 33,
-        "lateralFlipRate": 0.47,
-        "switchRequests": 30,
-        "blockedSwitches": 30,
-        "carryLockSamples": 130,
-        "avgForwardProgressPerFlip": 1.31,
-        "facingMovementMismatchPct": 22.4,
-        "desiredSteerMismatchPct": 14.3
-      },
-      {
-        "carrier": "Anderson Julio",
-        "team": "A",
         "role": "LM",
-        "traces": 69,
-        "forwardCarrySamples": 41,
-        "lateralFlips": 20,
-        "lateralFlipRate": 0.5,
-        "switchRequests": 8,
-        "blockedSwitches": 8,
-        "carryLockSamples": 15,
-        "avgForwardProgressPerFlip": 2.02,
-        "facingMovementMismatchPct": 17.9,
-        "desiredSteerMismatchPct": 15.4
+        "traces": 36,
+        "forwardCarrySamples": 23,
+        "lateralFlips": 16,
+        "lateralFlipRate": 0.73,
+        "switchRequests": 1,
+        "blockedSwitches": 1,
+        "carryLockSamples": 13,
+        "avgForwardProgressPerFlip": 1.4,
+        "facingMovementMismatchPct": 19.4,
+        "desiredSteerMismatchPct": 12.9
       },
       {
-        "carrier": "Paxton Pomykal",
+        "carrier": "Christian Benteke",
         "team": "A",
-        "role": "RM",
-        "traces": 60,
-        "forwardCarrySamples": 32,
-        "lateralFlips": 18,
-        "lateralFlipRate": 0.58,
-        "switchRequests": 2,
-        "blockedSwitches": 2,
-        "carryLockSamples": 23,
-        "avgForwardProgressPerFlip": 3.26,
-        "facingMovementMismatchPct": 17.5,
-        "desiredSteerMismatchPct": 0
+        "role": "ST",
+        "traces": 73,
+        "forwardCarrySamples": 24,
+        "lateralFlips": 14,
+        "lateralFlipRate": 0.61,
+        "switchRequests": 10,
+        "blockedSwitches": 10,
+        "carryLockSamples": 54,
+        "avgForwardProgressPerFlip": 2.44,
+        "facingMovementMismatchPct": 20.5,
+        "desiredSteerMismatchPct": 8.7
       },
       {
-        "carrier": "Brooks Lennon",
+        "carrier": "Cristian Espinoza",
         "team": "B",
         "role": "RM",
-        "traces": 51,
-        "forwardCarrySamples": 33,
-        "lateralFlips": 15,
-        "lateralFlipRate": 0.47,
-        "switchRequests": 3,
-        "blockedSwitches": 3,
-        "carryLockSamples": 17,
-        "avgForwardProgressPerFlip": 0.8,
-        "facingMovementMismatchPct": 6,
-        "desiredSteerMismatchPct": 13
-      },
-      {
-        "carrier": "Patrickson Delgado",
-        "team": "A",
-        "role": "LM",
-        "traces": 39,
-        "forwardCarrySamples": 22,
-        "lateralFlips": 13,
-        "lateralFlipRate": 0.62,
+        "traces": 44,
+        "forwardCarrySamples": 24,
+        "lateralFlips": 14,
+        "lateralFlipRate": 0.61,
         "switchRequests": 2,
         "blockedSwitches": 2,
-        "carryLockSamples": 17,
-        "avgForwardProgressPerFlip": 0.88,
-        "facingMovementMismatchPct": 10.8,
-        "desiredSteerMismatchPct": 13.5
+        "carryLockSamples": 5,
+        "avgForwardProgressPerFlip": 2.69,
+        "facingMovementMismatchPct": 34.1,
+        "desiredSteerMismatchPct": 7.3
       },
       {
-        "carrier": "Christian Cappis",
-        "team": "A",
-        "role": "CM",
-        "traces": 51,
+        "carrier": "Josef Martínez",
+        "team": "B",
+        "role": "ST",
+        "traces": 73,
         "forwardCarrySamples": 24,
         "lateralFlips": 12,
         "lateralFlipRate": 0.52,
-        "switchRequests": 6,
-        "blockedSwitches": 6,
-        "carryLockSamples": 51,
-        "avgForwardProgressPerFlip": 2.87,
-        "facingMovementMismatchPct": 27.5,
-        "desiredSteerMismatchPct": 23.4
+        "switchRequests": 14,
+        "blockedSwitches": 14,
+        "carryLockSamples": 64,
+        "avgForwardProgressPerFlip": 1.61,
+        "facingMovementMismatchPct": 31.9,
+        "desiredSteerMismatchPct": 10
       },
       {
-        "carrier": "Pedro Miguel Santos Amador",
+        "carrier": "Cristian Arango",
         "team": "B",
         "role": "LM",
-        "traces": 39,
-        "forwardCarrySamples": 27,
+        "traces": 38,
+        "forwardCarrySamples": 20,
         "lateralFlips": 10,
-        "lateralFlipRate": 0.38,
-        "switchRequests": 3,
-        "blockedSwitches": 3,
-        "carryLockSamples": 24,
-        "avgForwardProgressPerFlip": 1.25,
-        "facingMovementMismatchPct": 18.4,
-        "desiredSteerMismatchPct": 11.4
+        "lateralFlipRate": 0.53,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 1.16,
+        "facingMovementMismatchPct": 39.4,
+        "desiredSteerMismatchPct": 2.7
+      },
+      {
+        "carrier": "Nick Lima",
+        "team": "B",
+        "role": "RM",
+        "traces": 27,
+        "forwardCarrySamples": 18,
+        "lateralFlips": 10,
+        "lateralFlipRate": 0.59,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 3,
+        "avgForwardProgressPerFlip": 3.48,
+        "facingMovementMismatchPct": 19.2,
+        "desiredSteerMismatchPct": 4.5
+      },
+      {
+        "carrier": "Caden Clark",
+        "team": "A",
+        "role": "ST",
+        "traces": 33,
+        "forwardCarrySamples": 10,
+        "lateralFlips": 4,
+        "lateralFlipRate": 0.44,
+        "switchRequests": 4,
+        "blockedSwitches": 4,
+        "carryLockSamples": 30,
+        "avgForwardProgressPerFlip": 1.52,
+        "facingMovementMismatchPct": 30.3,
+        "desiredSteerMismatchPct": 18.8
+      },
+      {
+        "carrier": "Kye Rowles",
+        "team": "A",
+        "role": "LB",
+        "traces": 22,
+        "forwardCarrySamples": 9,
+        "lateralFlips": 4,
+        "lateralFlipRate": 0.5,
+        "switchRequests": 2,
+        "blockedSwitches": 2,
+        "carryLockSamples": 11,
+        "avgForwardProgressPerFlip": 7.52,
+        "facingMovementMismatchPct": 35.3,
+        "desiredSteerMismatchPct": 13.6
       }
     ]
   },
   "boxBehavior": {
-    "totalBoxTraces": 89,
-    "playersTracked": 8,
+    "totalBoxTraces": 20,
+    "playersTracked": 2,
     "topBoxLoiterers": [
       {
-        "player": "Petar Musa",
-        "team": "A",
-        "role": "ST",
-        "traces": 21,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Emmanuel Latte Lath",
-        "team": "B",
-        "role": "ST",
-        "traces": 16,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Anderson Julio",
+        "player": "Randall Leal",
         "team": "A",
         "role": "LM",
-        "traces": 14,
+        "traces": 13,
         "maxBoxDwellSeconds": 0,
         "maxBoxIdleSeconds": 0,
         "maxBoxCampSeconds": 0,
@@ -482,54 +1233,10 @@
         "crowdedPct": 0
       },
       {
-        "player": "Paxton Pomykal",
+        "player": "Jared Stroud",
         "team": "A",
         "role": "RM",
-        "traces": 11,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Patrickson Delgado",
-        "team": "A",
-        "role": "LM",
-        "traces": 9,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Aleksey Miranchuk",
-        "team": "B",
-        "role": "LM",
-        "traces": 9,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Pedro Miguel Santos Amador",
-        "team": "B",
-        "role": "LM",
         "traces": 7,
-        "maxBoxDwellSeconds": 0,
-        "maxBoxIdleSeconds": 0,
-        "maxBoxCampSeconds": 0,
-        "crowdedSamples": 0,
-        "crowdedPct": 0
-      },
-      {
-        "player": "Don Deedson Louicius",
-        "team": "A",
-        "role": "RM",
-        "traces": 2,
         "maxBoxDwellSeconds": 0,
         "maxBoxIdleSeconds": 0,
         "maxBoxCampSeconds": 0,
@@ -542,685 +1249,466 @@
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 0,
-      "shooter": "Emmanuel Latte Lath",
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 9.3,
-      "secondMid": 11.6
+      "nearestMid": 23,
+      "secondMid": 30.7
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 0,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 5.2,
-      "secondMid": 6.3
+      "shooter": "Matti Peltola",
+      "shooterRole": "CM",
+      "nearestMid": 4.5,
+      "secondMid": 4.6
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Matti Peltola",
+      "shooterRole": "CM",
+      "nearestMid": 4,
+      "secondMid": 4.1
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 0,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 4.6,
-      "secondMid": 6.4
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 0,
-      "shooter": "Emmanuel Latte Lath",
+      "shooter": "Josef Martínez",
       "shooterRole": "ST",
       "nearestMid": 8.3,
-      "secondMid": 14.9
+      "secondMid": 8.6
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 1,
-      "shooter": "Petar Musa",
+      "shooter": "Josef Martínez",
       "shooterRole": "ST",
-      "nearestMid": 12.5,
-      "secondMid": 19.8
+      "nearestMid": 7.1,
+      "secondMid": 14
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 1,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 14.6,
-      "secondMid": 20.5
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 1,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 5.2,
-      "secondMid": 13.8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 1,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 8.9,
-      "secondMid": 20
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Sebastian Lletget",
-      "shooterRole": "CM",
-      "nearestMid": 8.2,
-      "secondMid": 11.1
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 4.4,
-      "secondMid": 8.2
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 2.4,
-      "secondMid": 7.9
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Petar Musa",
+      "shooter": "Josef Martínez",
       "shooterRole": "ST",
       "nearestMid": 1.5,
-      "secondMid": 7.7
+      "secondMid": 4.1
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 1,
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 10.5,
-      "secondMid": 13
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 2,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 5,
-      "secondMid": 8.4
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 7.6,
-      "secondMid": 14.2
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 8.9,
-      "secondMid": 14.7
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 9.7,
-      "secondMid": 12.6
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 11.9,
-      "secondMid": 17.4
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 2.6,
-      "secondMid": 11.8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 8.2,
+      "nearestMid": 12.9,
       "secondMid": 14.5
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 1,
+      "shooter": "Josef Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 12.7,
+      "secondMid": 13.4
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Caden Clark",
+      "shooterRole": "ST",
+      "nearestMid": 14,
+      "secondMid": 19.7
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Caden Clark",
+      "shooterRole": "ST",
+      "nearestMid": 9.8,
+      "secondMid": 17.4
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Caden Clark",
+      "shooterRole": "ST",
+      "nearestMid": 14.6,
+      "secondMid": 23.2
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 2,
+      "shooter": "Caden Clark",
       "shooterRole": "ST",
       "nearestMid": 20,
-      "secondMid": 26.9
+      "secondMid": 25.6
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 1.1,
-      "secondMid": 6.4
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 3,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 2.5,
-      "secondMid": 7.2
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 6.4,
-      "secondMid": 12.7
-    },
-    {
-      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 6.6,
-      "secondMid": 12.8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 16.2,
-      "secondMid": 17.3
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 14.2,
-      "secondMid": 16.5
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 6.9,
-      "secondMid": 8.7
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 5,
-      "secondMid": 10.6
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 2,
+      "shooter": "Josef Martínez",
       "shooterRole": "ST",
       "nearestMid": 5.9,
-      "secondMid": 21.7
+      "secondMid": 11.5
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 2,
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 7.7,
-      "secondMid": 29.3
+      "nearestMid": 21.8,
+      "secondMid": 23.3
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 42,
+      "shooter": "Caden Clark",
       "shooterRole": "ST",
-      "nearestMid": 7,
-      "secondMid": 29.6
+      "nearestMid": 5.9,
+      "secondMid": 13.2
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Emmanuel Latte Lath",
+      "minute": 42,
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 6.7,
-      "secondMid": 29.5
+      "nearestMid": 22.3,
+      "secondMid": 23.6
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 4,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 8.5,
-      "secondMid": 8.5
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 40,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 7.4,
+      "minute": 43,
+      "shooter": "Nick Lima",
+      "shooterRole": "RM",
+      "nearestMid": 13.2,
       "secondMid": 13.6
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 40,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 5.5,
-      "secondMid": 6.7
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 40,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 3,
-      "secondMid": 10.9
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 41,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 7.6,
-      "secondMid": 11.2
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 42,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 2.6,
-      "secondMid": 11.1
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 42,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 4.7,
-      "secondMid": 8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 42,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 1.7,
-      "secondMid": 11.8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 43,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 8.2,
-      "secondMid": 17.8
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 43,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 7.4,
-      "secondMid": 13.7
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 43,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 7.5,
-      "secondMid": 12.3
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 43,
-      "shooter": "Bartosz Slisz",
-      "shooterRole": "CM",
-      "nearestMid": 6.9,
-      "secondMid": 7.4
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 43,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 11.3,
-      "secondMid": 20.5
     },
     {
       "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
       "minute": 43,
-      "shooter": "Petar Musa",
-      "shooterRole": "ST",
-      "nearestMid": 12.2,
-      "secondMid": 26.6
+      "shooter": "Nick Lima",
+      "shooterRole": "RM",
+      "nearestMid": 15,
+      "secondMid": 16.3
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 43,
-      "shooter": "Emmanuel Latte Lath",
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 5.9,
-      "secondMid": 11.7
+      "nearestMid": 19.4,
+      "secondMid": 20.7
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 44,
-      "shooter": "Petar Musa",
+      "minute": 43,
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 16.9,
-      "secondMid": 18.7
+      "nearestMid": 9.2,
+      "secondMid": 9.7
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 44,
-      "shooter": "Bartosz Slisz",
-      "shooterRole": "CM",
-      "nearestMid": 10.3,
-      "secondMid": 13.6
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 44,
-      "shooter": "Petar Musa",
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 15.2,
-      "secondMid": 16.8
+      "nearestMid": 17.1,
+      "secondMid": 18.5
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 44,
-      "shooter": "Emmanuel Latte Lath",
+      "shooter": "Josef Martínez",
       "shooterRole": "ST",
       "nearestMid": 4.5,
-      "secondMid": 16.4
-    },
-    {
-      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
-      "minute": 44,
-      "shooter": "Emmanuel Latte Lath",
-      "shooterRole": "ST",
-      "nearestMid": 6.1,
-      "secondMid": 17.5
+      "secondMid": 15.1
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 44,
-      "shooter": "Petar Musa",
+      "shooter": "Christian Benteke",
       "shooterRole": "ST",
-      "nearestMid": 15.1,
-      "secondMid": 17.7
+      "nearestMid": 3.4,
+      "secondMid": 22.9
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Josef Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 9.7,
+      "secondMid": 16.2
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Josef Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 8.4,
+      "secondMid": 11.6
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Josef Martínez",
+      "shooterRole": "ST",
+      "nearestMid": 6.5,
+      "secondMid": 9.4
     }
   ],
   "shape": {
     "A": {
-      "team": "FC Dallas",
-      "snapshots": 118,
-      "avgWidth": 18.06,
-      "minWidth": 4.6,
-      "maxWidth": 35.1,
-      "avgDepth": 27.58,
-      "avgCompactness": 9.64,
-      "avgAbsAvgZ": 1.76,
-      "centerLockedPct": 87.3,
-      "narrowPct": 54.2,
-      "centerAndNarrowPct": 51.7
+      "team": "DC United",
+      "snapshots": 58,
+      "avgWidth": 16.37,
+      "minWidth": 3.6,
+      "maxWidth": 40.1,
+      "avgDepth": 24.83,
+      "avgCompactness": 8.75,
+      "avgAbsAvgZ": 1.26,
+      "centerLockedPct": 94.8,
+      "narrowPct": 67.2,
+      "centerAndNarrowPct": 65.5
     },
     "B": {
-      "team": "Atlanta United",
-      "snapshots": 118,
-      "avgWidth": 17.2,
-      "minWidth": 3.5,
-      "maxWidth": 35.4,
-      "avgDepth": 25.92,
-      "avgCompactness": 9.06,
-      "avgAbsAvgZ": 1.67,
-      "centerLockedPct": 81.4,
-      "narrowPct": 57.6,
-      "centerAndNarrowPct": 51.7
+      "team": "San Jose Earthquakes",
+      "snapshots": 58,
+      "avgWidth": 15.94,
+      "minWidth": 6.3,
+      "maxWidth": 35.1,
+      "avgDepth": 23.31,
+      "avgCompactness": 8.72,
+      "avgAbsAvgZ": 1.38,
+      "centerLockedPct": 96.6,
+      "narrowPct": 69,
+      "centerAndNarrowPct": 65.5
     }
   },
   "roleCentrality": {
     "A": {
-      "wideTouches": 36,
-      "centralTouches": 64,
-      "wideTouchShareVsCentral": 0.56,
+      "wideTouches": 12,
+      "centralTouches": 36,
+      "wideTouchShareVsCentral": 0.33,
       "wideShots": 0,
-      "centralShots": 26,
+      "centralShots": 13,
       "wideShotShareVsCentral": 0
     },
     "B": {
-      "wideTouches": 26,
-      "centralTouches": 51,
-      "wideTouchShareVsCentral": 0.51,
-      "wideShots": 0,
-      "centralShots": 25,
-      "wideShotShareVsCentral": 0
+      "wideTouches": 39,
+      "centralTouches": 30,
+      "wideTouchShareVsCentral": 1.3,
+      "wideShots": 1,
+      "centralShots": 9,
+      "wideShotShareVsCentral": 0.11
     }
   },
   "positionOwners": {
-    "samples": 10860,
+    "samples": 4933,
     "byTeam": {
       "A": {
-        "PHASE_HOME": 2892,
-        "WIDE_HOME": 181,
-        "PATTERN_ROLE": 573,
-        "STRUCTURED_ATTACK": 806,
-        "BOX_CRASH": 185,
-        "BOX_COVER": 544,
-        "DANGER_MARK": 243,
+        "PHASE_HOME": 1443,
+        "BOX_COVER": 457,
+        "STRUCTURED_ATTACK": 158,
+        "WIDE_HOME": 44,
+        "PATTERN_ROLE": 331,
+        "BOX_CRASH": 35,
+        "DANGER_MARK": 58,
         "COLLAPSE_DEFEND": 1
       },
       "B": {
-        "PHASE_HOME": 2860,
-        "BOX_COVER": 711,
-        "DANGER_MARK": 364,
-        "PATTERN_ROLE": 526,
-        "WIDE_HOME": 214,
-        "STRUCTURED_ATTACK": 640,
-        "BOX_CRASH": 118,
-        "COLLAPSE_DEFEND": 2
+        "PHASE_HOME": 1363,
+        "WIDE_HOME": 87,
+        "STRUCTURED_ATTACK": 279,
+        "PATTERN_ROLE": 283,
+        "BOX_COVER": 279,
+        "DANGER_MARK": 84,
+        "BOX_CRASH": 31
       }
     },
     "wide": {
       "A": {
-        "samples": 2164,
-        "avgAbsZ": 5.6,
-        "avgTargetAbsZ": 9.93,
+        "samples": 1053,
+        "avgAbsZ": 5.06,
+        "avgTargetAbsZ": 8.63,
         "byOwner": {
-          "WIDE_HOME": 181,
-          "PHASE_HOME": 1129,
-          "PATTERN_ROLE": 191,
-          "STRUCTURED_ATTACK": 187,
-          "BOX_CRASH": 172,
-          "BOX_COVER": 219,
-          "DANGER_MARK": 85
+          "PHASE_HOME": 577,
+          "BOX_COVER": 187,
+          "WIDE_HOME": 44,
+          "STRUCTURED_ATTACK": 52,
+          "PATTERN_ROLE": 138,
+          "DANGER_MARK": 31,
+          "BOX_CRASH": 23,
+          "COLLAPSE_DEFEND": 1
         }
       },
       "B": {
-        "samples": 2205,
-        "avgAbsZ": 5.25,
-        "avgTargetAbsZ": 9.32,
+        "samples": 954,
+        "avgAbsZ": 5.13,
+        "avgTargetAbsZ": 10.28,
         "byOwner": {
-          "PHASE_HOME": 1136,
-          "BOX_COVER": 301,
-          "DANGER_MARK": 124,
-          "WIDE_HOME": 214,
-          "PATTERN_ROLE": 174,
-          "STRUCTURED_ATTACK": 152,
-          "BOX_CRASH": 104
+          "WIDE_HOME": 87,
+          "STRUCTURED_ATTACK": 73,
+          "PATTERN_ROLE": 101,
+          "BOX_COVER": 79,
+          "PHASE_HOME": 561,
+          "DANGER_MARK": 22,
+          "BOX_CRASH": 31
         }
       }
     }
   },
   "eventStream": {
-    "totalShots": 51,
+    "totalShots": 23,
     "onTargetShots": 3,
-    "goals": 0,
-    "longRangeOnTargetCount": 1,
+    "goals": 2,
+    "longRangeOnTargetCount": 0,
     "closeRangeBadAngleCount": 0,
     "toePokesOnTargetCount": 0,
-    "attackerResetPassCount": 14,
-    "longRangeOnTarget": [
-      {
-        "minute": 43,
-        "team": "A",
-        "role": "ST",
-        "style": "LACES_DRIVE",
-        "distYards": 37,
-        "pressure": 2,
-        "angle": 0.12,
-        "goal": false
-      }
-    ],
+    "attackerResetPassCount": 24,
+    "longRangeOnTarget": [],
     "closeRangeBadAngles": [],
     "toePokesOnTarget": [],
     "attackerResetPasses": [
       {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -3.2,
+        "distToGoal": 15.9
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -2.7,
+        "distToGoal": 30.6
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -1.5,
+        "distToGoal": 27.6
+      },
+      {
+        "minute": 0,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -3.1,
+        "distToGoal": 25.6
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "LM",
+        "style": "BACK",
+        "progress": -4.6,
+        "distToGoal": 31.1
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "RM",
+        "style": "BACK",
+        "progress": -1.2,
+        "distToGoal": 33.4
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "LM",
+        "style": "WALL",
+        "progress": -15,
+        "distToGoal": 21.1
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -2.5,
+        "distToGoal": 23.8
+      },
+      {
         "minute": 2,
         "team": "B",
         "role": "ST",
         "style": "BACK",
-        "progress": 0.7,
-        "distToGoal": 40.8
+        "progress": -1.8,
+        "distToGoal": 20.6
       },
       {
         "minute": 2,
         "team": "B",
-        "role": "RM",
-        "style": "WALL",
-        "progress": -14.2,
-        "distToGoal": 36.6
-      },
-      {
-        "minute": 3,
-        "team": "A",
         "role": "ST",
-        "style": "WALL",
-        "progress": -2.1,
-        "distToGoal": 15
-      },
-      {
-        "minute": 3,
-        "team": "A",
-        "role": "ST",
-        "style": "WALL",
-        "progress": -3.5,
-        "distToGoal": 8.7
-      },
-      {
-        "minute": 4,
-        "team": "B",
-        "role": "RM",
-        "style": "WALL",
-        "progress": -19,
-        "distToGoal": 37.3
-      },
-      {
-        "minute": 4,
-        "team": "A",
-        "role": "ST",
-        "style": "WALL",
-        "progress": -6.8,
-        "distToGoal": 10.8
-      },
-      {
-        "minute": 40,
-        "team": "A",
-        "role": "RM",
-        "style": "WALL",
-        "progress": -7,
-        "distToGoal": 31
-      },
-      {
-        "minute": 40,
-        "team": "A",
-        "role": "ST",
-        "style": "WALL",
-        "progress": -3.7,
-        "distToGoal": 27.4
-      },
-      {
-        "minute": 41,
-        "team": "A",
-        "role": "ST",
-        "style": "WALL",
-        "progress": -2.4,
-        "distToGoal": 23
-      },
-      {
-        "minute": 43,
-        "team": "A",
-        "role": "LM",
-        "style": "WALL",
-        "progress": -5.3,
-        "distToGoal": 54.3
-      },
-      {
-        "minute": 43,
-        "team": "A",
-        "role": "ST",
-        "style": "BACK",
-        "progress": 1.1,
-        "distToGoal": 41
-      },
-      {
-        "minute": 44,
-        "team": "A",
-        "role": "RM",
-        "style": "BACK",
-        "progress": -0.2,
-        "distToGoal": 42
-      },
-      {
-        "minute": 44,
-        "team": "B",
-        "role": "ST",
-        "style": "WALL",
-        "progress": -1.4,
-        "distToGoal": 11.7
-      },
-      {
-        "minute": 44,
-        "team": "A",
-        "role": "LM",
         "style": "BACK",
         "progress": 1.9,
-        "distToGoal": 42.3
+        "distToGoal": 26.2
+      },
+      {
+        "minute": 2,
+        "team": "B",
+        "role": "LM",
+        "style": "BACK",
+        "progress": -4.5,
+        "distToGoal": 28.7
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -3.2,
+        "distToGoal": 35.8
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -4.9,
+        "distToGoal": 32.2
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -4.5,
+        "distToGoal": 26.7
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -1.8,
+        "distToGoal": 24.4
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -2.7,
+        "distToGoal": 19.4
       }
     ]
   },
   "baselines": {
     "global": {
       "totalGoals": {
-        "simulated": 0,
+        "simulated": 2,
         "baseline": 2.78,
-        "drift": -2.78
+        "drift": -0.78
       },
       "totalShots": {
-        "simulated": 51,
+        "simulated": 23,
         "baseline": 26.2,
-        "drift": 24.8
+        "drift": -3.2
       },
       "totalShotsOnTarget": {
         "simulated": 3,
@@ -1228,82 +1716,80 @@
         "drift": -6.4
       },
       "totalCorners": {
-        "simulated": 6,
+        "simulated": 4,
         "baseline": 8,
-        "drift": -2
+        "drift": -4
       }
     },
     "teamComparison": [
       {
-        "team": "FC Dallas",
+        "team": "DC United",
         "simulated": {
-          "goals": 0,
-          "shots": 26,
+          "goals": 2,
+          "shots": 13,
           "shotsOnTarget": 2,
-          "passCompletionPct": 92.7,
-          "possessionPct": 53,
-          "corners": 3
+          "passCompletionPct": 94.5,
+          "possessionPct": 45,
+          "corners": 4
         },
         "baseline": {
-          "goals": 1.82,
-          "shots": 12.5,
-          "shotsOnTarget": 4.3,
-          "passCompletionPct": 74,
-          "possessionPct": 48,
-          "corners": 3.8
+          "goals": 1.58,
+          "shots": 12.1,
+          "shotsOnTarget": 3.8,
+          "passCompletionPct": 73,
+          "possessionPct": 44,
+          "corners": 3.4
         }
       },
       {
-        "team": "Atlanta United",
+        "team": "San Jose Earthquakes",
         "simulated": {
           "goals": 0,
-          "shots": 25,
+          "shots": 10,
           "shotsOnTarget": 1,
-          "passCompletionPct": 90.9,
-          "possessionPct": 47,
-          "corners": 3
+          "passCompletionPct": 96.1,
+          "possessionPct": 55,
+          "corners": 0
         },
         "baseline": {
-          "goals": 1.82,
-          "shots": 13.2,
-          "shotsOnTarget": 4.8,
-          "passCompletionPct": 78,
-          "possessionPct": 52,
-          "corners": 4.1
+          "goals": 1.48,
+          "shots": 11.2,
+          "shotsOnTarget": 3.5,
+          "passCompletionPct": 71,
+          "possessionPct": 42,
+          "corners": 2.9
         }
       }
     ]
   },
   "phaseTime": {
     "A": {
-      "samples": 509,
-      "buildupPct": 10.6,
-      "progressionPct": 59.1,
-      "chanceCreationPct": 20.8,
-      "finishPct": 9.4
+      "samples": 181,
+      "buildupPct": 15.5,
+      "progressionPct": 72.4,
+      "chanceCreationPct": 11,
+      "finishPct": 1.1
     },
     "B": {
-      "samples": 429,
-      "buildupPct": 14,
-      "progressionPct": 67.8,
-      "chanceCreationPct": 16.8,
-      "finishPct": 1.4
+      "samples": 271,
+      "buildupPct": 8.1,
+      "progressionPct": 81.2,
+      "chanceCreationPct": 10.7,
+      "finishPct": 0
     }
   },
   "passByZone": {
     "evaluated": {
-      "BUILDUP_HALFSPACE": 65,
-      "BUILDUP_CENTRAL": 99,
-      "FINAL_THIRD_HALFSPACE": 12,
-      "FINAL_THIRD_CENTRAL": 11,
-      "BOX_HALFSPACE": 1,
-      "BOX_CENTRAL": 1
+      "BUILDUP_CENTRAL": 79,
+      "FINAL_THIRD_CENTRAL": 9,
+      "BUILDUP_HALFSPACE": 25,
+      "BOX_CENTRAL": 1,
+      "FINAL_THIRD_HALFSPACE": 2
     },
     "executed": {
-      "BUILDUP_HALFSPACE": 37,
-      "BUILDUP_CENTRAL": 78,
-      "FINAL_THIRD_HALFSPACE": 2,
-      "FINAL_THIRD_CENTRAL": 2,
+      "BUILDUP_CENTRAL": 40,
+      "FINAL_THIRD_CENTRAL": 1,
+      "BUILDUP_HALFSPACE": 13,
       "BOX_CENTRAL": 1
     }
   },
@@ -1311,454 +1797,384 @@
     "A": [
       {
         "role": "LM",
-        "samples": 159,
-        "avgX": 6.84,
-        "avgAbsZ": 11.06,
-        "avgDistToGoal": 21.37,
-        "oppHalfSamples": 110,
-        "avgForwardXInOppHalf": 14.79,
-        "finalThirdSamples": 72,
-        "avgAbsZInFinalThird": 12.61
+        "samples": 36,
+        "avgX": -1.71,
+        "avgAbsZ": 9.44,
+        "avgDistToGoal": 21.89,
+        "oppHalfSamples": 13,
+        "avgForwardXInOppHalf": 18.64,
+        "finalThirdSamples": 17,
+        "avgAbsZInFinalThird": 5.34
       },
       {
         "role": "RM",
-        "samples": 184,
-        "avgX": 9.19,
-        "avgAbsZ": 10.71,
-        "avgDistToGoal": 22.57,
-        "oppHalfSamples": 150,
-        "avgForwardXInOppHalf": 14.57,
-        "finalThirdSamples": 100,
-        "avgAbsZInFinalThird": 11.21
+        "samples": 38,
+        "avgX": -1.16,
+        "avgAbsZ": 10.88,
+        "avgDistToGoal": 25.11,
+        "oppHalfSamples": 16,
+        "avgForwardXInOppHalf": 14.27,
+        "finalThirdSamples": 17,
+        "avgAbsZInFinalThird": 7.83
       },
       {
         "role": "ST",
-        "samples": 227,
-        "avgX": 7.12,
-        "avgAbsZ": 4.35,
-        "avgDistToGoal": 17.78,
-        "oppHalfSamples": 152,
-        "avgForwardXInOppHalf": 16.53,
-        "finalThirdSamples": 144,
-        "avgAbsZInFinalThird": 5.13
+        "samples": 116,
+        "avgX": 1.97,
+        "avgAbsZ": 4.05,
+        "avgDistToGoal": 22.27,
+        "oppHalfSamples": 74,
+        "avgForwardXInOppHalf": 9.8,
+        "finalThirdSamples": 49,
+        "avgAbsZInFinalThird": 4.77
       }
     ],
     "B": [
       {
         "role": "LM",
-        "samples": 137,
-        "avgX": 8.68,
-        "avgAbsZ": 8.86,
-        "avgDistToGoal": 24.42,
-        "oppHalfSamples": 28,
-        "avgForwardXInOppHalf": 11.88,
-        "finalThirdSamples": 55,
-        "avgAbsZInFinalThird": 8.06
+        "samples": 79,
+        "avgX": -1.51,
+        "avgAbsZ": 8.73,
+        "avgDistToGoal": 30.43,
+        "oppHalfSamples": 46,
+        "avgForwardXInOppHalf": 9,
+        "finalThirdSamples": 12,
+        "avgAbsZInFinalThird": 7.27
       },
       {
         "role": "RM",
-        "samples": 167,
-        "avgX": 7.66,
-        "avgAbsZ": 11.97,
-        "avgDistToGoal": 28.77,
-        "oppHalfSamples": 34,
-        "avgForwardXInOppHalf": 10.93,
-        "finalThirdSamples": 50,
-        "avgAbsZInFinalThird": 12.37
+        "samples": 85,
+        "avgX": 5.06,
+        "avgAbsZ": 10.19,
+        "avgDistToGoal": 24.72,
+        "oppHalfSamples": 26,
+        "avgForwardXInOppHalf": 5.11,
+        "finalThirdSamples": 16,
+        "avgAbsZInFinalThird": 8.23
       },
       {
         "role": "ST",
-        "samples": 164,
-        "avgX": 9.57,
-        "avgAbsZ": 4.48,
-        "avgDistToGoal": 19.93,
-        "oppHalfSamples": 35,
-        "avgForwardXInOppHalf": 7.74,
-        "finalThirdSamples": 91,
-        "avgAbsZInFinalThird": 3.69
+        "samples": 89,
+        "avgX": -0.45,
+        "avgAbsZ": 3.12,
+        "avgDistToGoal": 24.19,
+        "oppHalfSamples": 50,
+        "avgForwardXInOppHalf": 8.06,
+        "finalThirdSamples": 19,
+        "avgAbsZInFinalThird": 2.17
       }
     ]
   },
   "patterns": {
-    "totalStarts": 180,
-    "totalEnds": 178,
+    "totalStarts": 72,
+    "totalEnds": 70,
     "typesPerTeam": {
       "A": {
-        "COUNTER_ATTACK": 36,
-        "WING_ATTACK_RIGHT": 19,
-        "CENTRAL_COMBO": 14,
-        "PATIENT_BUILDUP": 13,
-        "WING_ATTACK_LEFT": 10
+        "COUNTER_ATTACK": 17,
+        "PATIENT_BUILDUP": 5,
+        "WING_ATTACK_LEFT": 6,
+        "WING_ATTACK_RIGHT": 3,
+        "CENTRAL_COMBO": 3
       },
       "B": {
-        "COUNTER_ATTACK": 47,
-        "WING_ATTACK_LEFT": 8,
-        "WING_ATTACK_RIGHT": 12,
-        "CENTRAL_COMBO": 7,
-        "PATIENT_BUILDUP": 14
+        "COUNTER_ATTACK": 14,
+        "PATIENT_BUILDUP": 4,
+        "WING_ATTACK_RIGHT": 10,
+        "CENTRAL_COMBO": 6,
+        "WING_ATTACK_LEFT": 4
       }
     },
     "distinctTypesA": 5,
     "distinctTypesB": 5,
     "avgDurationByType": {
-      "COUNTER_ATTACK": 3.44,
-      "WING_ATTACK_RIGHT": 4.03,
-      "WING_ATTACK_LEFT": 2.61,
-      "CENTRAL_COMBO": 3.19,
-      "PATIENT_BUILDUP": 1.87
+      "COUNTER_ATTACK": 4.62,
+      "PATIENT_BUILDUP": 2.84,
+      "WING_ATTACK_LEFT": 2.5,
+      "WING_ATTACK_RIGHT": 5.18,
+      "CENTRAL_COMBO": 4.21
     },
     "endReasonCounts": {
-      "invalidated": 67,
-      "possession_lost": 111
+      "possession_lost": 47,
+      "invalidated": 23
     },
     "shotsByActivePattern": {
-      "WING_ATTACK_RIGHT": 11,
-      "CENTRAL_COMBO": 12,
-      "COUNTER_ATTACK": 22,
-      "NONE": 4,
-      "WING_ATTACK_LEFT": 2
+      "COUNTER_ATTACK": 6,
+      "WING_ATTACK_LEFT": 5,
+      "WING_ATTACK_RIGHT": 4,
+      "CENTRAL_COMBO": 3,
+      "PATIENT_BUILDUP": 4,
+      "NONE": 1
     },
-    "goalsByActivePattern": {},
-    "patternsPerTeamA": 92,
-    "patternsPerTeamB": 88
+    "goalsByActivePattern": {
+      "WING_ATTACK_LEFT": 1,
+      "COUNTER_ATTACK": 1
+    },
+    "patternsPerTeamA": 34,
+    "patternsPerTeamB": 38
   },
   "patternRoleAlignment": {
     "RUNNER": {
-      "samples": 345,
-      "avgForwardX": -0.08,
-      "avgAbsZ": 6.54,
-      "avgDistToGoal": 22.1
+      "samples": 188,
+      "avgForwardX": 0.74,
+      "avgAbsZ": 6.62,
+      "avgDistToGoal": 24.15
     },
     "SUPPORT": {
-      "samples": 17,
-      "avgForwardX": 1.78,
-      "avgAbsZ": 5.73,
-      "avgDistToGoal": 22.82
-    },
-    "CARRIER": {
-      "samples": 78,
-      "avgForwardX": -5.41,
-      "avgAbsZ": 9.12,
-      "avgDistToGoal": 17.77
+      "samples": 5,
+      "avgForwardX": 1.04,
+      "avgAbsZ": 6.05,
+      "avgDistToGoal": 26.78
     },
     "FAR_POST_RUNNER": {
-      "samples": 55,
-      "avgForwardX": 1.79,
-      "avgAbsZ": 11.06,
-      "avgDistToGoal": 19.39
+      "samples": 34,
+      "avgForwardX": 2.91,
+      "avgAbsZ": 7.44,
+      "avgDistToGoal": 26.07
     },
     "NEAR_POST_RUNNER": {
-      "samples": 125,
-      "avgForwardX": -1.88,
-      "avgAbsZ": 5.73,
-      "avgDistToGoal": 15.23
+      "samples": 65,
+      "avgForwardX": 0.18,
+      "avgAbsZ": 3.25,
+      "avgDistToGoal": 22.79
+    },
+    "CARRIER": {
+      "samples": 41,
+      "avgForwardX": -3.35,
+      "avgAbsZ": 6.64,
+      "avgDistToGoal": 20.15
     },
     "WALL": {
-      "samples": 44,
-      "avgForwardX": 13.34,
-      "avgAbsZ": 2.41,
-      "avgDistToGoal": 14.82
+      "samples": 22,
+      "avgForwardX": 2.74,
+      "avgAbsZ": 2.32,
+      "avgDistToGoal": 24.44
     }
   },
   "carrierTrajectories": {
-    "totalSegments": 78,
-    "avgBLineRatio": 0.7,
-    "straightRunsOver15Units": 7,
-    "byLineRunSegments": [
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "duration": 2.64,
-        "directDist": 19.1,
-        "pathLength": 20.1,
-        "bLineRatio": 0.95
-      },
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "duration": 2.22,
-        "directDist": 18.7,
-        "pathLength": 18.8,
-        "bLineRatio": 1
-      },
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "duration": 2.69,
-        "directDist": 18.5,
-        "pathLength": 19.1,
-        "bLineRatio": 0.97
-      },
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "duration": 4.05,
-        "directDist": 18.1,
-        "pathLength": 20.1,
-        "bLineRatio": 0.9
-      },
-      {
-        "carrier": "Emmanuel Latte Lath",
-        "team": "B",
-        "duration": 1.84,
-        "directDist": 17,
-        "pathLength": 17,
-        "bLineRatio": 1
-      },
-      {
-        "carrier": "Petar Musa",
-        "team": "A",
-        "duration": 13.83,
-        "directDist": 16.5,
-        "pathLength": 19.3,
-        "bLineRatio": 0.86
-      },
-      {
-        "carrier": "Emmanuel Latte Lath",
-        "team": "B",
-        "duration": 2.22,
-        "directDist": 16.5,
-        "pathLength": 16.7,
-        "bLineRatio": 0.99
-      }
-    ],
-    "curlingSegments": 4,
-    "totalFlips": 37,
+    "totalSegments": 31,
+    "avgBLineRatio": 0.53,
+    "straightRunsOver15Units": 0,
+    "byLineRunSegments": [],
+    "curlingSegments": 1,
+    "totalFlips": 16,
     "totalFlippyCarriers": 1,
     "flipsByTeam": {
-      "A": 16,
-      "B": 21
+      "A": 7,
+      "B": 9
     },
     "flipsByTeamHalf": {
-      "A1": 5,
-      "A2": 11,
-      "B1": 3,
-      "B2": 18
+      "A1": 2,
+      "A2": 5,
+      "B1": 1,
+      "B2": 8
     },
     "flipsByDirection": {
-      "L2R": 25,
-      "R2L": 12
+      "L2R": 10,
+      "R2L": 6
     },
     "segmentsByTeam": {
-      "A": 33,
-      "B": 45
+      "A": 15,
+      "B": 16
     },
     "segmentsByDirection": {
-      "L2R": 39,
-      "R2L": 33
+      "L2R": 12,
+      "R2L": 12
     },
     "segmentsByTeamHalf": {
-      "A1": 10,
-      "A2": 23,
-      "B1": 9,
-      "B2": 36
+      "A1": 7,
+      "A2": 8,
+      "B1": 11,
+      "B2": 5
     }
   },
   "multiTouchOppHalf": {
-    "totalSequences": 116,
-    "multiTouchOppHalfCount": 55,
-    "totalOppHalfTouches": 227,
-    "avgDistinctPlayersPerSequence": 1.56,
+    "totalSequences": 49,
+    "multiTouchOppHalfCount": 30,
+    "totalOppHalfTouches": 164,
+    "avgDistinctPlayersPerSequence": 2.22,
     "exampleSequences": [
       {
         "team": "A",
         "players": [
-          "Paxton Pomykal",
-          "Petar Musa",
-          "Ramiro Moschen Benetti"
+          "Christian Benteke",
+          "Aarón Herrera",
+          "Randall Leal",
+          "Caden Clark",
+          "Jared Stroud",
+          "Kye Rowles"
         ],
-        "touchCount": 4,
-        "firstTouchAt": 2.221
+        "touchCount": 11,
+        "firstTouchAt": 6.59
       },
       {
         "team": "B",
         "players": [
-          "Brooks Lennon",
-          "Emmanuel Latte Lath",
-          "ST"
+          "Josef Martínez",
+          "Noel Buck",
+          "Cristian Espinoza",
+          "Cristian Arango"
         ],
-        "touchCount": 4,
-        "firstTouchAt": 18.051000000000002
+        "touchCount": 17,
+        "firstTouchAt": 20.31
       },
       {
         "team": "A",
         "players": [
-          "Anderson Julio",
-          "Petar Musa"
+          "Caden Clark",
+          "Christian Benteke",
+          "ST",
+          "Kye Rowles",
+          "Lucas Bartlett",
+          "Aarón Herrera",
+          "Matti Peltola",
+          "CM"
         ],
-        "touchCount": 3,
-        "firstTouchAt": 23.401
+        "touchCount": 10,
+        "firstTouchAt": 34.690999999999995
       },
       {
-        "team": "A",
+        "team": "B",
         "players": [
-          "Ramiro Moschen Benetti",
-          "Sebastian Lletget",
-          "Petar Musa",
+          "Ian Harkes",
+          "Cristian Arango",
+          "Josef Martínez",
           "ST"
         ],
         "touchCount": 5,
-        "firstTouchAt": 28.35
-      },
-      {
-        "team": "B",
-        "players": [
-          "Aleksey Miranchuk",
-          "Bartosz Slisz",
-          "Emmanuel Latte Lath",
-          "ST"
-        ],
-        "touchCount": 6,
-        "firstTouchAt": 35.591
+        "firstTouchAt": 53.47
       },
       {
         "team": "A",
         "players": [
-          "Paxton Pomykal",
-          "Petar Musa"
+          "Christian Benteke",
+          "Caden Clark"
         ],
-        "touchCount": 2,
-        "firstTouchAt": 47.49
+        "touchCount": 3,
+        "firstTouchAt": 56.561
+      },
+      {
+        "team": "B",
+        "players": [
+          "Cristian Arango",
+          "Ian Harkes",
+          "Josef Martínez",
+          "ST"
+        ],
+        "touchCount": 5,
+        "firstTouchAt": 60.091
       }
     ]
   },
   "finalThirdOverloads": {
     "A": {
-      "totalBuckets": 119,
-      "bucketsWithOverload": 33,
-      "maxAttackersInBucket": 5
+      "totalBuckets": 30,
+      "bucketsWithOverload": 14,
+      "maxAttackersInBucket": 4
     },
     "B": {
-      "totalBuckets": 84,
-      "bucketsWithOverload": 21,
-      "maxAttackersInBucket": 5
+      "totalBuckets": 27,
+      "bucketsWithOverload": 3,
+      "maxAttackersInBucket": 3
     }
   },
   "dangerMarking": {
-    "samples": 334,
+    "samples": 69,
     "byTeam": {
       "A": {
-        "samples": 210,
-        "marked": 163,
-        "unmarked": 47,
-        "markedPct": 77.6,
-        "avgNearestDefenderDist": 2.4,
+        "samples": 59,
+        "marked": 35,
+        "unmarked": 24,
+        "markedPct": 59.3,
+        "avgNearestDefenderDist": 2.7,
         "worstSamples": [
           {
-            "t": 240.3,
-            "player": "Don Deedson Louicius",
-            "role": "RM",
-            "zone": "BYLINE",
-            "distToGoal": 1.5,
-            "nearestDefenderDist": 11.54,
-            "patternRole": "CARRIER"
-          },
-          {
-            "t": 135.2,
-            "player": "Patrickson Delgado",
-            "role": "LM",
-            "zone": "BYLINE",
-            "distToGoal": 6.5,
-            "nearestDefenderDist": 10.98,
-            "patternRole": "NONE"
-          },
-          {
-            "t": 239.7,
-            "player": "Don Deedson Louicius",
-            "role": "RM",
-            "zone": "BYLINE",
-            "distToGoal": 4.7,
-            "nearestDefenderDist": 9.49,
+            "t": 209.2,
+            "player": "Christian Benteke",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.1,
             "patternRole": "RUNNER"
           },
           {
-            "t": 12.4,
-            "player": "Don Deedson Louicius",
+            "t": 41.8,
+            "player": "Christian Benteke",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.9,
+            "nearestDefenderDist": 6.38,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 44.3,
+            "player": "Christian Benteke",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.9,
+            "nearestDefenderDist": 6.38,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 211.7,
+            "player": "Christian Benteke",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.9,
+            "nearestDefenderDist": 6.38,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 215.4,
+            "player": "Jared Stroud",
             "role": "RM",
             "zone": "FINAL_THIRD_HALFSPACE",
-            "distToGoal": 17.6,
-            "nearestDefenderDist": 9.05,
-            "patternRole": "NONE"
+            "distToGoal": 10.8,
+            "nearestDefenderDist": 6.13,
+            "patternRole": "FAR_POST_RUNNER"
           },
           {
-            "t": 98.5,
-            "player": "Petar Musa",
-            "role": "ST",
-            "zone": "BYLINE",
-            "distToGoal": 2.4,
-            "nearestDefenderDist": 8.7,
-            "patternRole": "NEAR_POST_RUNNER"
-          },
-          {
-            "t": 10.9,
-            "player": "Patrickson Delgado",
-            "role": "LM",
+            "t": 42.6,
+            "player": "Jared Stroud",
+            "role": "RM",
             "zone": "BOX_HALFSPACE",
-            "distToGoal": 8.1,
-            "nearestDefenderDist": 8.69,
+            "distToGoal": 8.8,
+            "nearestDefenderDist": 6,
             "patternRole": "NONE"
           }
         ]
       },
       "B": {
-        "samples": 124,
-        "marked": 92,
-        "unmarked": 32,
-        "markedPct": 74.2,
-        "avgNearestDefenderDist": 2.62,
+        "samples": 10,
+        "marked": 7,
+        "unmarked": 3,
+        "markedPct": 70,
+        "avgNearestDefenderDist": 2.25,
         "worstSamples": [
           {
-            "t": 214.5,
-            "player": "Aleksey Miranchuk",
-            "role": "LM",
-            "zone": "FINAL_THIRD_HALFSPACE",
-            "distToGoal": 14.9,
-            "nearestDefenderDist": 10.36,
-            "patternRole": "RUNNER"
-          },
-          {
-            "t": 325.3,
-            "player": "Brooks Lennon",
-            "role": "RM",
-            "zone": "FINAL_THIRD_HALFSPACE",
-            "distToGoal": 17.9,
-            "nearestDefenderDist": 10.08,
-            "patternRole": "NONE"
-          },
-          {
-            "t": 387.3,
-            "player": "Brooks Lennon",
-            "role": "RM",
-            "zone": "FINAL_THIRD_HALFSPACE",
-            "distToGoal": 17.8,
-            "nearestDefenderDist": 9.21,
-            "patternRole": "NONE"
-          },
-          {
-            "t": 222.1,
-            "player": "Brooks Lennon",
-            "role": "RM",
-            "zone": "FINAL_THIRD_HALFSPACE",
-            "distToGoal": 17.6,
-            "nearestDefenderDist": 8.85,
-            "patternRole": "NONE"
-          },
-          {
-            "t": 220.7,
-            "player": "Pedro Miguel Santos Amador",
-            "role": "LM",
-            "zone": "BOX_HALFSPACE",
-            "distToGoal": 8.2,
-            "nearestDefenderDist": 8.56,
-            "patternRole": "NONE"
-          },
-          {
-            "t": 214.6,
-            "player": "Emmanuel Latte Lath",
+            "t": 268.1,
+            "player": "Josef Martínez",
             "role": "ST",
-            "zone": "BYLINE",
-            "distToGoal": 7.2,
-            "nearestDefenderDist": 8.49,
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 4.42,
+            "patternRole": "NEAR_POST_RUNNER"
+          },
+          {
+            "t": 227.4,
+            "player": "Josef Martínez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_CENTRAL",
+            "distToGoal": 18.2,
+            "nearestDefenderDist": 3.65,
+            "patternRole": "NEAR_POST_RUNNER"
+          },
+          {
+            "t": 226.1,
+            "player": "Josef Martínez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_CENTRAL",
+            "distToGoal": 18.6,
+            "nearestDefenderDist": 3.21,
             "patternRole": "NEAR_POST_RUNNER"
           }
         ]
@@ -1766,142 +2182,179 @@
     }
   },
   "defendersInBoxAtGoal": {
-    "goalCount": 0,
-    "avgDefendersInBox": 0,
-    "avgAttackersInBox": 0,
-    "distribution": {},
-    "samples": []
-  },
-  "shotBoxDefense": {
-    "shots": 51,
-    "avgDefendersInBox": 3.47,
-    "avgDefendersInCorridor": 4.33,
-    "emptyBoxShots": 6,
-    "emptyCorridorShots": 1,
+    "goalCount": 2,
+    "avgDefendersInBox": 5,
+    "avgAttackersInBox": 1,
+    "distribution": {
+      "4": 1,
+      "6": 1
+    },
     "samples": [
       {
-        "t": 21.7,
-        "team": "B",
-        "shooter": "Emmanuel Latte Lath",
+        "team": "A",
+        "scorer": "Matti Peltola",
+        "shirt": 8,
+        "minute": 16,
+        "defendersInBox": 4,
+        "attackersInBox": 2,
+        "outfieldBoxCrowd": 6,
+        "playPattern": "OPEN_PLAY",
+        "isBreakaway": false
+      },
+      {
+        "team": "A",
+        "scorer": "Caden Clark",
+        "shirt": 11,
+        "minute": 32,
+        "defendersInBox": 6,
+        "attackersInBox": 0,
+        "outfieldBoxCrowd": 6,
+        "playPattern": "OPEN_PLAY",
+        "isBreakaway": false
+      }
+    ]
+  },
+  "shotBoxDefense": {
+    "shots": 23,
+    "avgDefendersInBox": 4.74,
+    "avgDefendersInCorridor": 5.3,
+    "emptyBoxShots": 2,
+    "emptyCorridorShots": 0,
+    "samples": [
+      {
+        "t": 38.7,
+        "team": "A",
+        "shooter": "Christian Benteke",
         "shooterRole": "ST",
-        "ballX": -12.2,
-        "ballZ": 2.3,
-        "defendersInBox": 5,
+        "ballX": 22.4,
+        "ballZ": -3.7,
+        "defendersInBox": 4,
+        "defendersInCorridor": 6
+      },
+      {
+        "t": 49,
+        "team": "A",
+        "shooter": "Matti Peltola",
+        "shooterRole": "CM",
+        "ballX": 24.1,
+        "ballZ": -0.1,
+        "defendersInBox": 4,
         "defendersInCorridor": 5
       },
       {
-        "t": 30.6,
-        "team": "A",
-        "shooter": "Petar Musa",
+        "t": 55.8,
+        "team": "B",
+        "shooter": "Josef Martínez",
         "shooterRole": "ST",
-        "ballX": 15.4,
-        "ballZ": 2.1,
+        "ballX": -10.6,
+        "ballZ": 2.3,
         "defendersInBox": 6,
         "defendersInCorridor": 6
       },
       {
-        "t": 41.5,
+        "t": 70.5,
         "team": "B",
-        "shooter": "Emmanuel Latte Lath",
+        "shooter": "Josef Martínez",
         "shooterRole": "ST",
-        "ballX": -13.9,
+        "ballX": -13.3,
+        "ballZ": 1.7,
+        "defendersInBox": 6,
+        "defendersInCorridor": 8
+      },
+      {
+        "t": 74.6,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "shooterRole": "ST",
+        "ballX": -14.1,
         "ballZ": -0.3,
-        "defendersInBox": 4,
-        "defendersInCorridor": 4
-      },
-      {
-        "t": 52.1,
-        "team": "B",
-        "shooter": "Emmanuel Latte Lath",
-        "shooterRole": "ST",
-        "ballX": -11.7,
-        "ballZ": -1,
-        "defendersInBox": 2,
-        "defendersInCorridor": 3
-      },
-      {
-        "t": 69.3,
-        "team": "A",
-        "shooter": "Petar Musa",
-        "shooterRole": "ST",
-        "ballX": 20.2,
-        "ballZ": -1,
         "defendersInBox": 5,
         "defendersInCorridor": 5
       },
       {
-        "t": 74,
-        "team": "B",
-        "shooter": "Emmanuel Latte Lath",
+        "t": 90.5,
+        "team": "A",
+        "shooter": "Christian Benteke",
         "shooterRole": "ST",
-        "ballX": -12.3,
-        "ballZ": -0.3,
-        "defendersInBox": 5,
+        "ballX": 6.5,
+        "ballZ": 2,
+        "defendersInBox": 0,
+        "defendersInCorridor": 1
+      },
+      {
+        "t": 97.5,
+        "team": "B",
+        "shooter": "Josef Martínez",
+        "shooterRole": "ST",
+        "ballX": -6.3,
+        "ballZ": 1,
+        "defendersInBox": 4,
         "defendersInCorridor": 6
       },
       {
-        "t": 83.2,
-        "team": "B",
-        "shooter": "Emmanuel Latte Lath",
-        "shooterRole": "ST",
-        "ballX": -11.7,
-        "ballZ": -0.6,
-        "defendersInBox": 3,
-        "defendersInCorridor": 5
-      },
-      {
-        "t": 89.4,
+        "t": 102.6,
         "team": "A",
-        "shooter": "Petar Musa",
+        "shooter": "Caden Clark",
         "shooterRole": "ST",
-        "ballX": 13.3,
-        "ballZ": 2.7,
-        "defendersInBox": 4,
-        "defendersInCorridor": 5
+        "ballX": 20.7,
+        "ballZ": 3.1,
+        "defendersInBox": 6,
+        "defendersInCorridor": 6
       }
     ]
   },
   "kickoffGoalCorrelation": {
-    "kickoffPasses": 2,
-    "kickoffReceives": 2,
-    "goalScorerEvents": 0,
+    "kickoffPasses": 4,
+    "kickoffReceives": 4,
+    "goalScorerEvents": 2,
     "byTeam": {
       "A": {
-        "passes": 2,
-        "receives": 2,
+        "passes": 0,
+        "receives": 0,
+        "goals": 2,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [],
+        "scorers": [
+          {
+            "player": "Matti Peltola",
+            "role": "CM",
+            "goals": 1
+          },
+          {
+            "player": "Caden Clark",
+            "role": "ST",
+            "goals": 1
+          }
+        ],
+        "samples": []
+      },
+      "B": {
+        "passes": 4,
+        "receives": 4,
         "goals": 0,
         "sameAsLatestKickoffReceiverGoals": 0,
         "sameAsLatestKickoffReceiverPct": 0,
         "receivers": [
           {
-            "player": "Don Deedson Louicius",
+            "player": "Nick Lima",
             "role": "RM",
             "intendedTargets": 2,
-            "actualReceives": 1,
-            "matchedExpectedReceives": 1,
+            "actualReceives": 2,
+            "matchedExpectedReceives": 2,
             "goalsAfterLatestKickoffReceive": 0,
             "avgSecondsFromReceiveToGoal": 0
           },
           {
-            "player": "Christian Cappis",
+            "player": "Ian Harkes",
             "role": "CM",
-            "intendedTargets": 0,
-            "actualReceives": 1,
-            "matchedExpectedReceives": 0,
+            "intendedTargets": 2,
+            "actualReceives": 2,
+            "matchedExpectedReceives": 2,
             "goalsAfterLatestKickoffReceive": 0,
             "avgSecondsFromReceiveToGoal": 0
           }
         ],
-        "scorers": [],
-        "samples": []
-      },
-      "B": {
-        "passes": 0,
-        "receives": 0,
-        "goals": 0,
-        "sameAsLatestKickoffReceiverGoals": 0,
-        "sameAsLatestKickoffReceiverPct": 0,
-        "receivers": [],
         "scorers": [],
         "samples": []
       }
@@ -1909,11 +2362,11 @@
   },
   "patternTempo": {
     "COUNTER_ATTACK": {
-      "count": 83,
-      "multiTouchCount": 40,
-      "avgTouches": 1.65,
-      "avgDuration": 2.7,
-      "avgPace": 3.07,
+      "count": 31,
+      "multiTouchCount": 13,
+      "avgTouches": 1.9,
+      "avgDuration": 4.68,
+      "avgPace": 3.06,
       "expectedTouches": [
         2,
         4
@@ -1926,12 +2379,30 @@
       "touchFit": "TOO_FEW",
       "paceFit": "TOO_SLOW"
     },
-    "WING_ATTACK_RIGHT": {
-      "count": 31,
-      "multiTouchCount": 11,
-      "avgTouches": 1.39,
-      "avgDuration": 2.55,
-      "avgPace": -1.76,
+    "PATIENT_BUILDUP": {
+      "count": 9,
+      "multiTouchCount": 5,
+      "avgTouches": 1.78,
+      "avgDuration": 5.04,
+      "avgPace": -3.83,
+      "expectedTouches": [
+        3,
+        7
+      ],
+      "expectedPace": [
+        1,
+        4
+      ],
+      "expectedLabel": "deliberate",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_LEFT": {
+      "count": 10,
+      "multiTouchCount": 7,
+      "avgTouches": 2,
+      "avgDuration": 2.56,
+      "avgPace": 1.27,
       "expectedTouches": [
         2,
         4
@@ -1941,15 +2412,33 @@
         8
       ],
       "expectedLabel": "quick deliver",
-      "touchFit": "TOO_FEW",
+      "touchFit": "OK",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_RIGHT": {
+      "count": 13,
+      "multiTouchCount": 8,
+      "avgTouches": 3,
+      "avgDuration": 5.01,
+      "avgPace": 0.47,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "OK",
       "paceFit": "TOO_SLOW"
     },
     "CENTRAL_COMBO": {
-      "count": 21,
-      "multiTouchCount": 11,
-      "avgTouches": 1.81,
-      "avgDuration": 2.85,
-      "avgPace": -0.78,
+      "count": 9,
+      "multiTouchCount": 5,
+      "avgTouches": 1.78,
+      "avgDuration": 3.45,
+      "avgPace": -2.24,
       "expectedTouches": [
         2,
         4
@@ -1961,86 +2450,37 @@
       "expectedLabel": "short sharp",
       "touchFit": "TOO_FEW",
       "paceFit": "TOO_SLOW"
-    },
-    "PATIENT_BUILDUP": {
-      "count": 27,
-      "multiTouchCount": 6,
-      "avgTouches": 0.78,
-      "avgDuration": 3.55,
-      "avgPace": 2.67,
-      "expectedTouches": [
-        3,
-        7
-      ],
-      "expectedPace": [
-        1,
-        4
-      ],
-      "expectedLabel": "deliberate",
-      "touchFit": "TOO_FEW",
-      "paceFit": "OK"
-    },
-    "WING_ATTACK_LEFT": {
-      "count": 18,
-      "multiTouchCount": 1,
-      "avgTouches": 0.67,
-      "avgDuration": 5.66,
-      "avgPace": 3.14,
-      "expectedTouches": [
-        2,
-        4
-      ],
-      "expectedPace": [
-        3,
-        8
-      ],
-      "expectedLabel": "quick deliver",
-      "touchFit": "TOO_FEW",
-      "paceFit": "OK"
     }
   },
   "neoPlays": {
     "outcomeWindowSeconds": 8,
-    "totalStarts": 180,
-    "totalDeliveries": 95,
-    "totalShotCreatingDeliveries": 56,
+    "totalStarts": 72,
+    "totalDeliveries": 11,
+    "totalShotCreatingDeliveries": 5,
     "totalGoalCreatingDeliveries": 0,
-    "effectivenessPct": 58.9,
+    "effectivenessPct": 45.5,
     "goalRatePct": 0,
     "byPlay": {
       "COUNTER_ATTACK": {
         "playName": "COUNTER_ATTACK",
         "patternTypes": {
-          "COUNTER_ATTACK": 84
+          "COUNTER_ATTACK": 31
         },
-        "starts": 83,
-        "deliveries": 1,
+        "starts": 31,
+        "deliveries": 0,
         "crosses": 0,
         "shotCreatingDeliveries": 0,
         "goalCreatingDeliveries": 0,
         "effectivenessPct": 0,
         "goalRatePct": 0,
-        "samples": [
-          {
-            "team": "A",
-            "t": 249.1,
-            "patternType": "COUNTER_ATTACK",
-            "passer": "Sebastian Lletget",
-            "passerRole": null,
-            "target": "Petar Musa",
-            "targetRole": "RUNNER",
-            "style": "LONG_LOFTED",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          }
-        ]
+        "samples": []
       },
-      "WING_ATTACK_RIGHT": {
-        "playName": "WING_ATTACK_RIGHT",
+      "PATIENT_BUILDUP": {
+        "playName": "PATIENT_BUILDUP",
         "patternTypes": {
-          "WING_ATTACK_RIGHT": 31
+          "PATIENT_BUILDUP": 9
         },
-        "starts": 31,
+        "starts": 9,
         "deliveries": 0,
         "crosses": 0,
         "shotCreatingDeliveries": 0,
@@ -2052,9 +2492,9 @@
       "WING_ATTACK_LEFT": {
         "playName": "WING_ATTACK_LEFT",
         "patternTypes": {
-          "WING_ATTACK_LEFT": 19
+          "WING_ATTACK_LEFT": 11
         },
-        "starts": 18,
+        "starts": 10,
         "deliveries": 1,
         "crosses": 0,
         "shotCreatingDeliveries": 0,
@@ -2063,100 +2503,25 @@
         "goalRatePct": 0,
         "samples": [
           {
-            "team": "B",
-            "t": 391.8,
+            "team": "A",
+            "t": 14.8,
             "patternType": "WING_ATTACK_LEFT",
-            "passer": "Stian Gregersen",
+            "passer": "Caden Clark",
             "passerRole": null,
-            "target": "Miguel Almirón",
-            "targetRole": "CUTBACK_RECEIVER",
+            "target": "Christian Benteke",
+            "targetRole": "NEAR_POST_RUNNER",
             "style": "LONG_LOFTED",
             "shotWithinSeconds": null,
             "goalWithinSeconds": null
           }
         ]
       },
-      "GIVE_AND_GO": {
-        "playName": "GIVE_AND_GO",
+      "WING_ATTACK_RIGHT": {
+        "playName": "WING_ATTACK_RIGHT",
         "patternTypes": {
-          "CENTRAL_COMBO": 33
+          "WING_ATTACK_RIGHT": 13
         },
-        "starts": 21,
-        "deliveries": 12,
-        "crosses": 0,
-        "shotCreatingDeliveries": 9,
-        "goalCreatingDeliveries": 0,
-        "effectivenessPct": 75,
-        "goalRatePct": 0,
-        "samples": [
-          {
-            "team": "A",
-            "t": 29.8,
-            "patternType": "CENTRAL_COMBO",
-            "passer": "Sebastian Lletget",
-            "passerRole": "CARRIER",
-            "target": "Petar Musa",
-            "targetRole": "WALL",
-            "style": "WALL",
-            "shotWithinSeconds": 0.8,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "B",
-            "t": 40.5,
-            "patternType": "CENTRAL_COMBO",
-            "passer": "Bartosz Slisz",
-            "passerRole": "CARRIER",
-            "target": "Emmanuel Latte Lath",
-            "targetRole": "WALL",
-            "style": "WALL",
-            "shotWithinSeconds": 1.1,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 143.2,
-            "patternType": "CENTRAL_COMBO",
-            "passer": "Sebastian Lletget",
-            "passerRole": "CARRIER",
-            "target": "Petar Musa",
-            "targetRole": "WALL",
-            "style": "WALL",
-            "shotWithinSeconds": 0.3,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 176.7,
-            "patternType": "CENTRAL_COMBO",
-            "passer": "Petar Musa",
-            "passerRole": "CARRIER",
-            "target": "Christian Cappis",
-            "targetRole": "WALL",
-            "style": "WALL",
-            "shotWithinSeconds": 8,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 177.8,
-            "patternType": "CENTRAL_COMBO",
-            "passer": "Christian Cappis",
-            "passerRole": "WALL",
-            "target": "Anderson Julio",
-            "targetRole": "RUNNER",
-            "style": "WALL",
-            "shotWithinSeconds": 6.9,
-            "goalWithinSeconds": null
-          }
-        ]
-      },
-      "PATIENT_BUILDUP": {
-        "playName": "PATIENT_BUILDUP",
-        "patternTypes": {
-          "PATIENT_BUILDUP": 27
-        },
-        "starts": 27,
+        "starts": 13,
         "deliveries": 0,
         "crosses": 0,
         "shotCreatingDeliveries": 0,
@@ -2165,77 +2530,116 @@
         "goalRatePct": 0,
         "samples": []
       },
-      "STRUCTURED_WING_ATTACK": {
-        "playName": "STRUCTURED_WING_ATTACK",
+      "GIVE_AND_GO": {
+        "playName": "GIVE_AND_GO",
         "patternTypes": {
-          "STRUCTURED_WING_ATTACK": 81
+          "CENTRAL_COMBO": 17
         },
-        "starts": 0,
-        "deliveries": 81,
-        "crosses": 54,
-        "shotCreatingDeliveries": 47,
+        "starts": 9,
+        "deliveries": 8,
+        "crosses": 0,
+        "shotCreatingDeliveries": 5,
         "goalCreatingDeliveries": 0,
-        "effectivenessPct": 58,
+        "effectivenessPct": 62.5,
         "goalRatePct": 0,
         "samples": [
           {
-            "team": "A",
-            "t": 10,
-            "patternType": "STRUCTURED_WING_ATTACK",
-            "passer": "Paxton Pomykal",
-            "passerRole": null,
-            "target": "Petar Musa",
-            "targetRole": "NEAR_POST",
-            "style": "LONG_LOFTED",
+            "team": "B",
+            "t": 73.5,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Ian Harkes",
+            "passerRole": "CARRIER",
+            "target": "Josef Martínez",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": 1,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 78.9,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Mark-Anthony Kaye",
+            "passerRole": "SUPPORT",
+            "target": "Cristian Arango",
+            "targetRole": "RUNNER",
+            "style": "DIAGONAL",
             "shotWithinSeconds": null,
             "goalWithinSeconds": null
           },
           {
             "team": "A",
-            "t": 10,
+            "t": 152.2,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Gabriel Pirani",
+            "passerRole": "CARRIER",
+            "target": "Christian Benteke",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 155.3,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Gabriel Pirani",
+            "passerRole": "CARRIER",
+            "target": "Christian Benteke",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": 6.8,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 156.5,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Christian Benteke",
+            "passerRole": "WALL",
+            "target": "Caden Clark",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": 5.5,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "STRUCTURED_WING_ATTACK": {
+        "playName": "STRUCTURED_WING_ATTACK",
+        "patternTypes": {
+          "STRUCTURED_WING_ATTACK": 2
+        },
+        "starts": 0,
+        "deliveries": 2,
+        "crosses": 2,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 200.2,
             "patternType": "STRUCTURED_WING_ATTACK",
-            "passer": "Paxton Pomykal",
+            "passer": "DeJuan Jones",
             "passerRole": null,
-            "target": "Petar Musa",
-            "targetRole": "NEAR_POST",
+            "target": "Nick Lima",
+            "targetRole": "NONE",
             "style": "LONG_LOFTED",
             "shotWithinSeconds": null,
             "goalWithinSeconds": null
           },
           {
             "team": "B",
-            "t": 20.1,
+            "t": 200.2,
             "patternType": "STRUCTURED_WING_ATTACK",
-            "passer": "Brooks Lennon",
+            "passer": "DeJuan Jones",
             "passerRole": null,
-            "target": "Emmanuel Latte Lath",
-            "targetRole": "NEAR_POST",
-            "style": "DRIVEN",
-            "shotWithinSeconds": 1.6,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 26.3,
-            "patternType": "STRUCTURED_WING_ATTACK",
-            "passer": "Anderson Julio",
-            "passerRole": null,
-            "target": "Petar Musa",
-            "targetRole": "NEAR_POST",
+            "target": "Nick Lima",
+            "targetRole": "NONE",
             "style": "LONG_LOFTED",
-            "shotWithinSeconds": 4.2,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "B",
-            "t": 38.5,
-            "patternType": "STRUCTURED_WING_ATTACK",
-            "passer": "Aleksey Miranchuk",
-            "passerRole": null,
-            "target": "Bartosz Slisz",
-            "targetRole": "SECOND_WAVE",
-            "style": "LONG_LOFTED",
-            "shotWithinSeconds": 3,
+            "shotWithinSeconds": null,
             "goalWithinSeconds": null
           }
         ]
@@ -2243,109 +2647,71 @@
     }
   },
   "patternCrosses": {
-    "total": 27,
-    "deliveries": 95,
-    "longLofted": 22,
-    "driven": 5,
+    "total": 1,
+    "deliveries": 11,
+    "longLofted": 1,
+    "driven": 0,
     "samples": [
       {
-        "team": "A",
-        "passer": "Paxton Pomykal",
-        "target": "Petar Musa",
-        "targetRole": "NEAR_POST",
+        "team": "B",
+        "passer": "DeJuan Jones",
+        "target": "Nick Lima",
+        "targetRole": "NONE",
         "style": "LONG_LOFTED",
-        "crossDist": 11.9
-      },
-      {
-        "team": "A",
-        "passer": "Patrickson Delgado",
-        "target": "Petar Musa",
-        "targetRole": "NEAR_POST",
-        "style": "LONG_LOFTED",
-        "crossDist": 15
-      },
-      {
-        "team": "A",
-        "passer": "Christian Cappis",
-        "target": "Sebastian Lletget",
-        "targetRole": "CUTBACK",
-        "style": "LONG_LOFTED",
-        "crossDist": 16.1
-      },
-      {
-        "team": "A",
-        "passer": "Sebastian Lletget",
-        "target": "Petar Musa",
-        "targetRole": "NEAR_POST",
-        "style": "LONG_LOFTED",
-        "crossDist": 13.5
-      },
-      {
-        "team": "A",
-        "passer": "Sebastian Lletget",
-        "target": "Petar Musa",
-        "targetRole": "NEAR_POST",
-        "style": "DRIVEN",
-        "crossDist": 9.2
-      },
-      {
-        "team": "A",
-        "passer": "Patrickson Delgado",
-        "target": "Petar Musa",
-        "targetRole": "NEAR_POST",
-        "style": "LONG_LOFTED",
-        "crossDist": 15.4
+        "crossDist": 12.4
       }
     ]
   },
   "kpis": {
     "baselineFit": {
-      "score": 22.7,
+      "score": 50,
       "inputs": {
-        "goals": 0,
-        "shots": 51,
+        "goals": 2,
+        "shots": 23,
         "shotsOnTarget": 3,
-        "longRangeSot": 1,
-        "corners": 6
+        "longRangeSot": 0,
+        "corners": 4
       },
       "target": "one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3",
       "grade": "red"
     },
     "soccerStructure": {
-      "score": 75.4,
+      "score": 69.1,
       "inputs": {
-        "widthA": 18.06,
-        "widthB": 17.2,
-        "centerAndNarrowWorst": 51.7,
-        "finalThirdOverloadShare": 26.4,
-        "dangerMarkedPct": 76.3,
-        "shotCorridorDefenders": 4.33,
-        "emptyBoxShotPct": 11.8,
-        "avgPatternTouches": 1.26,
-        "realCrosses": 27
+        "widthA": 16.37,
+        "widthB": 15.94,
+        "centerAndNarrowWorst": 65.5,
+        "finalThirdOverloadShare": 28.9,
+        "dangerMarkedPct": 60.9,
+        "shotCorridorDefenders": 5.3,
+        "emptyBoxShotPct": 8.7,
+        "avgPatternTouches": 2.09,
+        "realCrosses": 1
       },
       "target": "soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5",
-      "grade": "watch"
+      "grade": "red"
     },
     "tuningEfficiency": {
-      "score": 77.6,
+      "score": 41,
       "inputs": {
-        "forcedShotSharePct": 3.9,
-        "attackerBackpasses": 2,
-        "zigzagFlips": 197,
+        "forcedShotSharePct": 60.9,
+        "attackerBackpasses": 12,
+        "zigzagFlips": 97,
         "directBlockerPasses": 0,
         "brokenShotRowsPct": 0
       },
       "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
-      "grade": "watch"
+      "grade": "red"
     },
     "overall": {
-      "score": 58.6,
+      "score": 53.4,
       "grade": "red"
     }
   },
   "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
     "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
     "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
     "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
     "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."

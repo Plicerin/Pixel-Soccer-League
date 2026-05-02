@@ -1,0 +1,2920 @@
+{
+  "generatedAt": "2026-04-30T12:30:22.071Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\striker-escape-cap-onegame-2026-04-30-082448\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00247_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 24.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00260_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 26,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 12.32,
+          "nearestDefenderDist": 12.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00247_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 24.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00260_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 26,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 12.32,
+          "nearestDefenderDist": 12.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00247_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 24.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00260_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 26,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Braian Ojeda",
+          "target": "Justen Glad",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 12.32,
+          "nearestDefenderDist": 12.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00297_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 29.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00297_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 29.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00319_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 31.91,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": "Justen Glad",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.78,
+          "nearestDefenderDist": 4.45
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00297_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 29.66,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00319_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 31.91,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": "Justen Glad",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.78,
+          "nearestDefenderDist": 4.45
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00319_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 31.91,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Diego Luna",
+          "target": "Justen Glad",
+          "collector": "Justen Glad",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.78,
+          "nearestDefenderDist": 4.45
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00405_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 40.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00415_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 41.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.55,
+          "nearestDefenderDist": 1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00405_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 40.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00415_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 41.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.55,
+          "nearestDefenderDist": 1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00405_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 40.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00415_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 41.47,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Maxime Dominguez",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.55,
+          "nearestDefenderDist": 1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00637_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 63.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00651_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.39,
+          "nearestDefenderDist": 0.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00651_DIRECTOR_FINISH_BOOST_p00.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.9,
+          "closePressure": 4,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00637_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 63.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00637_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 63.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00651_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.39,
+          "nearestDefenderDist": 0.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00651_DIRECTOR_FINISH_BOOST_p12.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.9,
+          "closePressure": 4,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00651_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.39,
+          "nearestDefenderDist": 0.43
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00651_DIRECTOR_FINISH_BOOST_p24.jpg",
+      "event": {
+        "t": 65.12,
+        "half": 1,
+        "minute": 1,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.9,
+          "closePressure": 4,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00731_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 73.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00738_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 73.75,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": "Kevin Long",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.64,
+          "nearestDefenderDist": 4.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00731_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 73.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00738_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 73.75,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": "Kevin Long",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.64,
+          "nearestDefenderDist": 4.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00731_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 73.09,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00738_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 73.75,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LB",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Jonathan Osorio",
+          "target": "Kevin Long",
+          "collector": "Kevin Long",
+          "collectorRole": "LB",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 1.64,
+          "nearestDefenderDist": 4.1
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00802_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 80.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00807_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 80.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.28,
+          "nearestDefenderDist": 2.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00802_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 80.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00807_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 80.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.28,
+          "nearestDefenderDist": 2.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00802_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 80.19,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00807_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 80.69,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Sigurd Rosted",
+          "target": "Jonathan Osorio",
+          "collector": "Jonathan Osorio",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.28,
+          "nearestDefenderDist": 2.29
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00878_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 87.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00878_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 87.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00878_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 87.81,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00974_GOAL_p00.jpg",
+      "event": {
+        "t": 97.41,
+        "half": 1,
+        "minute": 1,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00969_SHOT_p00.jpg",
+      "event": {
+        "t": 96.94,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.7,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00974_GOAL_p12.jpg",
+      "event": {
+        "t": 97.41,
+        "half": 1,
+        "minute": 1,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00969_SHOT_p12.jpg",
+      "event": {
+        "t": 96.94,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.7,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00974_GOAL_p24.jpg",
+      "event": {
+        "t": 97.41,
+        "half": 1,
+        "minute": 1,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00969_SHOT_p24.jpg",
+      "event": {
+        "t": 96.94,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT",
+        "team": "A",
+        "role": "RB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.7,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01090_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 109,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01090_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 109,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01114_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 111.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.22,
+          "nearestDefenderDist": 4.34
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01090_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 109,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01114_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 111.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.22,
+          "nearestDefenderDist": 4.34
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01114_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 111.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 5.22,
+          "nearestDefenderDist": 4.34
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01174_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 117.38,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01177_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.46,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01174_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 117.38,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01177_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.46,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01174_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 117.38,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01177_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Derrick Etienne Jr.",
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.46,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "José Cifuentes",
+          "collector": "José Cifuentes",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.38
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01177_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 117.72,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.5,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01248_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 124.78,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01267_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 126.66,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.42,
+          "nearestDefenderDist": 2.49
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01248_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 124.78,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01248_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 124.78,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01267_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 126.66,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.42,
+          "nearestDefenderDist": 2.49
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01267_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 126.66,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "José Cifuentes",
+          "target": "Theo Corbeanu",
+          "collector": "Theo Corbeanu",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.42,
+          "nearestDefenderDist": 2.49
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01316_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 131.63,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01331_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": "Derrick Etienne Jr.",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 8.42,
+          "nearestDefenderDist": 3.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01316_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 131.63,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01334_GOAL_p00.jpg",
+      "event": {
+        "t": 133.44,
+        "half": 1,
+        "minute": 2,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01331_SHOT_p00.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "SHOT",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.3,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01316_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 131.63,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01331_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": "Derrick Etienne Jr.",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 8.42,
+          "nearestDefenderDist": 3.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01334_GOAL_p12.jpg",
+      "event": {
+        "t": 133.44,
+        "half": 1,
+        "minute": 2,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01331_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": false,
+          "passer": "Theo Corbeanu",
+          "target": "Maxime Dominguez",
+          "collector": "Derrick Etienne Jr.",
+          "collectorRole": "ST",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 8.42,
+          "nearestDefenderDist": 3.99
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01331_SHOT_p12.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "SHOT",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.3,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01334_GOAL_p24.jpg",
+      "event": {
+        "t": 133.44,
+        "half": 1,
+        "minute": 2,
+        "type": "GOAL",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01331_SHOT_p24.jpg",
+      "event": {
+        "t": 133.09,
+        "half": 1,
+        "minute": 2,
+        "type": "SHOT",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 6.3,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00085_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 8.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00101_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 10.12,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.52,
+          "nearestDefenderDist": 2.94
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00085_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 8.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00085_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 8.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00101_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 10.12,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.52,
+          "nearestDefenderDist": 2.94
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00101_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 10.12,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Victor Olatunji",
+          "target": "Diego Luna",
+          "collector": "Diego Luna",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.52,
+          "nearestDefenderDist": 2.94
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00126_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 12.62,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00126_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 12.62,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00126_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 12.62,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00218_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 21.84,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00218_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 21.84,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00218_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 21.84,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01492_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 149.16,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Diego Luna",
+          "target": "Johnny Russell",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    }
+  ]
+}

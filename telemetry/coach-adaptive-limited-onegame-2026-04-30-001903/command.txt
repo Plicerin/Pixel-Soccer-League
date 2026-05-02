@@ -1,0 +1,1 @@
+﻿node scripts\headless-sim.mjs --games 1 --speed 1 --timeout-ms 2400000 --report-json "C:\Users\vrock\Documents\Pixel Soccer League\telemetry\coach-adaptive-limited-onegame-2026-04-30-001903\sim.json" --gpu-headless --visual-audit --visual-audit-dir "C:\Users\vrock\Documents\Pixel Soccer League\telemetry\coach-adaptive-limited-onegame-2026-04-30-001903\visual-audit"

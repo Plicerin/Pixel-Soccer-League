@@ -108,9 +108,9 @@ export function selectStructuredAttack(inputs: StructuredAttackInputs): Structur
   const carrierAbsZ = Math.abs(carrier.pos.z);
   const carrierRole = roleOf(carrier);
   const isWideCarrier =
-    carrierAbsZ > fieldDepth * 0.15
+    carrierAbsZ > fieldDepth * 0.12
     || ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(carrierRole);
-  if (!isWideCarrier || carrierAttackX < -fieldWidth * 0.10) return null;
+  if (!isWideCarrier || carrierAttackX < -fieldWidth * 0.12) return null;
 
   const carrierSide = (Math.sign(carrier.pos.z || carrier.homePos?.z || 1) || 1) as 1 | -1;
   const outfield = teammates.filter((tm) => tm !== carrier && !isGoalkeeper(tm));

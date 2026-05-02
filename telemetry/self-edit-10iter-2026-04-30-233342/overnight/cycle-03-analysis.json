@@ -1,0 +1,1720 @@
+{
+  "generatedAt": "2026-05-01T03:50:11.940Z",
+  "match": {
+    "sessionId": "headless-report:cycle-03-sim.json:0",
+    "matchId": "headless-cycle-03-sim.json-0",
+    "timestamp": 1777607405191,
+    "teamA": "Atlanta United",
+    "teamB": "Columbus Crew",
+    "score": "0-1",
+    "shotsA": 2,
+    "shotsB": 3,
+    "shotsOnTargetA": 0,
+    "shotsOnTargetB": 2
+  },
+  "counts": {
+    "events": 9796,
+    "passLog": 78,
+    "midfieldSupport": 2340,
+    "carrierTraces": 520,
+    "attackerZoneTraces": 493,
+    "positionOwnerSamples": 4491,
+    "kickoffPasses": 3,
+    "kickoffReceives": 3,
+    "goalScorerEvents": 1,
+    "shotSnapshots": 5,
+    "shotOnTargetSnapshots": 2,
+    "shotDecisions": 5,
+    "passDecisions": 88,
+    "turnovers": 9,
+    "interceptions": 7,
+    "fouls": 2,
+    "tackles": 2
+  },
+  "passProfile": {
+    "A": {
+      "team": "Atlanta United",
+      "total": 34,
+      "avgProgress": 3.34,
+      "backwardPct": 20.6,
+      "forwardPct": 61.8,
+      "lateralPct": 17.6,
+      "topRoles": {
+        "ST": {
+          "total": 7,
+          "backward": 1,
+          "forward": 5,
+          "lateral": 1
+        },
+        "RM": {
+          "total": 6,
+          "backward": 2,
+          "forward": 3,
+          "lateral": 1
+        },
+        "CB": {
+          "total": 4,
+          "backward": 1,
+          "forward": 3,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 4,
+          "backward": 1,
+          "forward": 3,
+          "lateral": 0
+        },
+        "DM": {
+          "total": 4,
+          "backward": 0,
+          "forward": 4,
+          "lateral": 0
+        },
+        "CM": {
+          "total": 4,
+          "backward": 0,
+          "forward": 3,
+          "lateral": 1
+        },
+        "GK": {
+          "total": 3,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 3
+        },
+        "LB": {
+          "total": 2,
+          "backward": 2,
+          "forward": 0,
+          "lateral": 0
+        }
+      }
+    },
+    "B": {
+      "team": "Columbus Crew",
+      "total": 44,
+      "avgProgress": 1.34,
+      "backwardPct": 36.4,
+      "forwardPct": 61.4,
+      "lateralPct": 2.3,
+      "topRoles": {
+        "CM": {
+          "total": 13,
+          "backward": 5,
+          "forward": 7,
+          "lateral": 1
+        },
+        "CB": {
+          "total": 10,
+          "backward": 3,
+          "forward": 7,
+          "lateral": 0
+        },
+        "RM": {
+          "total": 9,
+          "backward": 5,
+          "forward": 4,
+          "lateral": 0
+        },
+        "ST": {
+          "total": 8,
+          "backward": 2,
+          "forward": 6,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 4,
+          "backward": 1,
+          "forward": 3,
+          "lateral": 0
+        }
+      }
+    }
+  },
+  "passDecisionSummary": {
+    "total": 88,
+    "attackerBackpassesInFinalThird": 1,
+    "attackerBackpassesInBox": 0,
+    "directBlockerPassDecisions": 0,
+    "topHoldReasons": {
+      "none": 42,
+      "carry_preferred": 28,
+      "reject_advanced_no_recycle": 17,
+      "striker_blocked_shot_escape": 1
+    },
+    "recentAttackerBackpasses": [
+      {
+        "timestamp": 1777607224298,
+        "team": "A",
+        "passer": "Emmanuel Latte Lath",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 14.62,
+        "carrierZ": -0.89,
+        "passSkill": 0.7101107908790798,
+        "dribbleSkill": 0.8639162823651267,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 14.37,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.28,
+        "strikerHesitationLoops": 9,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Saba Lobjanidze",
+        "targetRole": "RM",
+        "passStyle": "BACK",
+        "passDist": 15.1,
+        "forwardProg": -5.4,
+        "passNearestOppDist": 12.79,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      }
+    ]
+  },
+  "shotDecisionSummary": {
+    "total": 5,
+    "forcedShots": 1,
+    "selectedShots": 0,
+    "desperationShots": 0,
+    "goalLineForces": 1,
+    "longRangeDecisions": 3,
+    "pressuredLongRangeDecisions": 2,
+    "aiSimpleDecisions": 2,
+    "aiSimpleBrokenRows": 0,
+    "forcedAiSimpleBrokenRows": 0,
+    "aiSimpleBrokenPct": 0,
+    "recentForcedShots": [
+      {
+        "minute": 16.8,
+        "team": "B",
+        "shooter": "Dániel Gazdag",
+        "role": "CM",
+        "distYards": 7.9,
+        "pressure": 0,
+        "style": "TOE_POKE"
+      }
+    ]
+  },
+  "movement": {
+    "carrierTraceCount": 520,
+    "attackerZoneTraceCount": 493,
+    "carriersTracked": 20,
+    "totalForwardCarrySamples": 245,
+    "totalLateralFlips": 68,
+    "totalSwitchRequests": 74,
+    "totalBlockedSwitches": 74,
+    "totalCarryLockSamples": 283,
+    "avgForwardProgressPerFlip": 1.77,
+    "facingMovementMismatchPct": 19.4,
+    "desiredSteerMismatchPct": 8.5,
+    "topZigzagOffenders": [
+      {
+        "carrier": "Wessam Abou Ali",
+        "team": "B",
+        "role": "ST",
+        "traces": 78,
+        "forwardCarrySamples": 40,
+        "lateralFlips": 16,
+        "lateralFlipRate": 0.41,
+        "switchRequests": 19,
+        "blockedSwitches": 19,
+        "carryLockSamples": 51,
+        "avgForwardProgressPerFlip": 1.35,
+        "facingMovementMismatchPct": 22.5,
+        "desiredSteerMismatchPct": 15.8
+      },
+      {
+        "carrier": "Dylan Chambost",
+        "team": "B",
+        "role": "RM",
+        "traces": 69,
+        "forwardCarrySamples": 37,
+        "lateralFlips": 10,
+        "lateralFlipRate": 0.28,
+        "switchRequests": 5,
+        "blockedSwitches": 5,
+        "carryLockSamples": 60,
+        "avgForwardProgressPerFlip": 2.59,
+        "facingMovementMismatchPct": 12.3,
+        "desiredSteerMismatchPct": 7.2
+      },
+      {
+        "carrier": "Darlington Nagbe",
+        "team": "B",
+        "role": "CM",
+        "traces": 52,
+        "forwardCarrySamples": 22,
+        "lateralFlips": 7,
+        "lateralFlipRate": 0.33,
+        "switchRequests": 14,
+        "blockedSwitches": 14,
+        "carryLockSamples": 29,
+        "avgForwardProgressPerFlip": 1.32,
+        "facingMovementMismatchPct": 17.6,
+        "desiredSteerMismatchPct": 11.5
+      },
+      {
+        "carrier": "Emmanuel Latte Lath",
+        "team": "A",
+        "role": "ST",
+        "traces": 53,
+        "forwardCarrySamples": 27,
+        "lateralFlips": 7,
+        "lateralFlipRate": 0.27,
+        "switchRequests": 12,
+        "blockedSwitches": 12,
+        "carryLockSamples": 33,
+        "avgForwardProgressPerFlip": 2.15,
+        "facingMovementMismatchPct": 20,
+        "desiredSteerMismatchPct": 14
+      },
+      {
+        "carrier": "Hugo Picard",
+        "team": "B",
+        "role": "LM",
+        "traces": 46,
+        "forwardCarrySamples": 20,
+        "lateralFlips": 6,
+        "lateralFlipRate": 0.32,
+        "switchRequests": 2,
+        "blockedSwitches": 2,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.31,
+        "facingMovementMismatchPct": 14.8,
+        "desiredSteerMismatchPct": 2.2
+      },
+      {
+        "carrier": "Steven Moreira",
+        "team": "B",
+        "role": "CB",
+        "traces": 17,
+        "forwardCarrySamples": 9,
+        "lateralFlips": 5,
+        "lateralFlipRate": 0.63,
+        "switchRequests": 7,
+        "blockedSwitches": 7,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.67,
+        "facingMovementMismatchPct": 5.9,
+        "desiredSteerMismatchPct": 5.9
+      },
+      {
+        "carrier": "Saba Lobjanidze",
+        "team": "A",
+        "role": "RM",
+        "traces": 50,
+        "forwardCarrySamples": 23,
+        "lateralFlips": 4,
+        "lateralFlipRate": 0.18,
+        "switchRequests": 4,
+        "blockedSwitches": 4,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.24,
+        "facingMovementMismatchPct": 19.6,
+        "desiredSteerMismatchPct": 4.2
+      },
+      {
+        "carrier": "Diego Rossi",
+        "team": "B",
+        "role": "LM",
+        "traces": 30,
+        "forwardCarrySamples": 19,
+        "lateralFlips": 3,
+        "lateralFlipRate": 0.17,
+        "switchRequests": 4,
+        "blockedSwitches": 4,
+        "carryLockSamples": 14,
+        "avgForwardProgressPerFlip": 0.58,
+        "facingMovementMismatchPct": 7.4,
+        "desiredSteerMismatchPct": 10.3
+      }
+    ]
+  },
+  "boxBehavior": {
+    "totalBoxTraces": 20,
+    "playersTracked": 4,
+    "topBoxLoiterers": [
+      {
+        "player": "Dylan Chambost",
+        "team": "B",
+        "role": "RM",
+        "traces": 9,
+        "maxBoxDwellSeconds": 3.34,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Diego Rossi",
+        "team": "B",
+        "role": "LM",
+        "traces": 7,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Hugo Picard",
+        "team": "B",
+        "role": "LM",
+        "traces": 2,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Miguel Almirón",
+        "team": "A",
+        "role": "LM",
+        "traces": 2,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      }
+    ]
+  },
+  "shotSupport": [
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Dániel Gazdag",
+      "shooterRole": "CM",
+      "nearestMid": 9,
+      "secondMid": 37.3
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Diego Rossi",
+      "shooterRole": "LM",
+      "nearestMid": 6.3,
+      "secondMid": 6.7
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Diego Rossi",
+      "shooterRole": "LM",
+      "nearestMid": 3,
+      "secondMid": 4.2
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Miguel Almirón",
+      "shooterRole": "LM",
+      "nearestMid": 9.5,
+      "secondMid": 18.6
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 42,
+      "shooter": "Aleksey Miranchuk",
+      "shooterRole": "DM",
+      "nearestMid": 2,
+      "secondMid": 12.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Dániel Gazdag",
+      "shooterRole": "CM",
+      "nearestMid": 5.2,
+      "secondMid": 9.3
+    },
+    {
+      "type": "SHOT_ON_TARGET_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Dániel Gazdag",
+      "shooterRole": "CM",
+      "nearestMid": 7.3,
+      "secondMid": 8.7
+    }
+  ],
+  "shape": {
+    "A": {
+      "team": "Atlanta United",
+      "snapshots": 58,
+      "avgWidth": 21.82,
+      "minWidth": 4.9,
+      "maxWidth": 36.1,
+      "avgDepth": 26.84,
+      "avgCompactness": 10.17,
+      "avgAbsAvgZ": 1.42,
+      "centerLockedPct": 89.7,
+      "narrowPct": 25.9,
+      "centerAndNarrowPct": 22.4
+    },
+    "B": {
+      "team": "Columbus Crew",
+      "snapshots": 58,
+      "avgWidth": 20.88,
+      "minWidth": 5.2,
+      "maxWidth": 40.7,
+      "avgDepth": 27.35,
+      "avgCompactness": 10.1,
+      "avgAbsAvgZ": 1.39,
+      "centerLockedPct": 94.8,
+      "narrowPct": 39.7,
+      "centerAndNarrowPct": 39.7
+    }
+  },
+  "roleCentrality": {
+    "A": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    },
+    "B": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    }
+  },
+  "positionOwners": {
+    "samples": 4491,
+    "byTeam": {
+      "A": {
+        "STRUCTURED_ATTACK": 174,
+        "WIDE_HOME": 15,
+        "PHASE_HOME": 1110,
+        "BOX_COVER": 551,
+        "DANGER_MARK": 185,
+        "PATTERN_ROLE": 255,
+        "BOX_CRASH": 6,
+        "COLLAPSE_DEFEND": 5
+      },
+      "B": {
+        "PHASE_HOME": 1186,
+        "BOX_COVER": 325,
+        "BOX_CRASH": 99,
+        "STRUCTURED_ATTACK": 294,
+        "DANGER_MARK": 57,
+        "PATTERN_ROLE": 166,
+        "WIDE_HOME": 54,
+        "COLLAPSE_DEFEND": 9
+      }
+    },
+    "wide": {
+      "A": {
+        "samples": 932,
+        "avgAbsZ": 6.36,
+        "avgTargetAbsZ": 7.34,
+        "byOwner": {
+          "STRUCTURED_ATTACK": 47,
+          "WIDE_HOME": 15,
+          "PHASE_HOME": 482,
+          "DANGER_MARK": 78,
+          "BOX_COVER": 177,
+          "PATTERN_ROLE": 123,
+          "BOX_CRASH": 6,
+          "COLLAPSE_DEFEND": 4
+        }
+      },
+      "B": {
+        "samples": 892,
+        "avgAbsZ": 6,
+        "avgTargetAbsZ": 9.51,
+        "byOwner": {
+          "PHASE_HOME": 460,
+          "BOX_COVER": 144,
+          "BOX_CRASH": 84,
+          "STRUCTURED_ATTACK": 77,
+          "PATTERN_ROLE": 56,
+          "WIDE_HOME": 54,
+          "DANGER_MARK": 17
+        }
+      }
+    }
+  },
+  "eventStream": {
+    "totalShots": 5,
+    "onTargetShots": 2,
+    "goals": 1,
+    "longRangeOnTargetCount": 1,
+    "closeRangeBadAngleCount": 0,
+    "toePokesOnTargetCount": 0,
+    "attackerResetPassCount": 6,
+    "longRangeOnTarget": [
+      {
+        "minute": 44,
+        "team": "B",
+        "role": "CM",
+        "style": "LACES_DRIVE",
+        "distYards": 24.3,
+        "pressure": 1,
+        "angle": 0.7,
+        "goal": false
+      }
+    ],
+    "closeRangeBadAngles": [],
+    "toePokesOnTarget": [],
+    "attackerResetPasses": [
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "RM",
+        "style": "BACK",
+        "progress": -0.6,
+        "distToGoal": 44.5
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "ST",
+        "style": "WALL",
+        "progress": 2.6,
+        "distToGoal": 22.2
+      },
+      {
+        "minute": 2,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -5.4,
+        "distToGoal": 18.2
+      },
+      {
+        "minute": 43,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -0.3,
+        "distToGoal": 30.6
+      },
+      {
+        "minute": 44,
+        "team": "B",
+        "role": "LM",
+        "style": "BACK",
+        "progress": 1.4,
+        "distToGoal": 43.9
+      },
+      {
+        "minute": 44,
+        "team": "B",
+        "role": "RM",
+        "style": "WALL",
+        "progress": -25.1,
+        "distToGoal": 15.2
+      }
+    ]
+  },
+  "baselines": {
+    "global": {
+      "totalGoals": {
+        "simulated": 1,
+        "baseline": 2.78,
+        "drift": -1.78
+      },
+      "totalShots": {
+        "simulated": 5,
+        "baseline": 26.2,
+        "drift": -21.2
+      },
+      "totalShotsOnTarget": {
+        "simulated": 2,
+        "baseline": 9.4,
+        "drift": -7.4
+      },
+      "totalCorners": {
+        "simulated": 3,
+        "baseline": 8,
+        "drift": -5
+      }
+    },
+    "teamComparison": [
+      {
+        "team": "Atlanta United",
+        "simulated": {
+          "goals": 0,
+          "shots": 2,
+          "shotsOnTarget": 0,
+          "passCompletionPct": 0,
+          "possessionPct": 41,
+          "corners": 1
+        },
+        "baseline": {
+          "goals": 1.82,
+          "shots": 13.2,
+          "shotsOnTarget": 4.8,
+          "passCompletionPct": 78,
+          "possessionPct": 52,
+          "corners": 4.1
+        }
+      },
+      {
+        "team": "Columbus Crew",
+        "simulated": {
+          "goals": 1,
+          "shots": 3,
+          "shotsOnTarget": 2,
+          "passCompletionPct": 0,
+          "possessionPct": 59,
+          "corners": 2
+        },
+        "baseline": null
+      }
+    ]
+  },
+  "phaseTime": {
+    "A": {
+      "samples": 205,
+      "buildupPct": 6.8,
+      "progressionPct": 74.1,
+      "chanceCreationPct": 18.5,
+      "finishPct": 0.5
+    },
+    "B": {
+      "samples": 315,
+      "buildupPct": 3.5,
+      "progressionPct": 57.1,
+      "chanceCreationPct": 35.2,
+      "finishPct": 4.1
+    }
+  },
+  "passByZone": {
+    "evaluated": {
+      "BUILDUP_CENTRAL": 54,
+      "BUILDUP_HALFSPACE": 23,
+      "FINAL_THIRD_CENTRAL": 9,
+      "BUILDUP_WIDE": 2
+    },
+    "executed": {
+      "BUILDUP_CENTRAL": 23,
+      "BUILDUP_HALFSPACE": 14,
+      "FINAL_THIRD_CENTRAL": 4,
+      "BUILDUP_WIDE": 2
+    }
+  },
+  "rolePositions": {
+    "A": [
+      {
+        "role": "LM",
+        "samples": 34,
+        "avgX": -0.52,
+        "avgAbsZ": 8,
+        "avgDistToGoal": 22.5,
+        "oppHalfSamples": 21,
+        "avgForwardXInOppHalf": 10.57,
+        "finalThirdSamples": 17,
+        "avgAbsZInFinalThird": 7.66
+      },
+      {
+        "role": "RM",
+        "samples": 49,
+        "avgX": 1.16,
+        "avgAbsZ": 8.85,
+        "avgDistToGoal": 22.73,
+        "oppHalfSamples": 25,
+        "avgForwardXInOppHalf": 11,
+        "finalThirdSamples": 18,
+        "avgAbsZInFinalThird": 8.51
+      },
+      {
+        "role": "ST",
+        "samples": 62,
+        "avgX": 3.89,
+        "avgAbsZ": 5.33,
+        "avgDistToGoal": 24.45,
+        "oppHalfSamples": 45,
+        "avgForwardXInOppHalf": 8.84,
+        "finalThirdSamples": 14,
+        "avgAbsZInFinalThird": 3.97
+      }
+    ],
+    "B": [
+      {
+        "role": "LM",
+        "samples": 129,
+        "avgX": -5.28,
+        "avgAbsZ": 10.63,
+        "avgDistToGoal": 26.57,
+        "oppHalfSamples": 80,
+        "avgForwardXInOppHalf": 13.34,
+        "finalThirdSamples": 45,
+        "avgAbsZInFinalThird": 7.31
+      },
+      {
+        "role": "RM",
+        "samples": 138,
+        "avgX": 1.5,
+        "avgAbsZ": 9.41,
+        "avgDistToGoal": 20.57,
+        "oppHalfSamples": 74,
+        "avgForwardXInOppHalf": 11.57,
+        "finalThirdSamples": 78,
+        "avgAbsZInFinalThird": 9.99
+      },
+      {
+        "role": "ST",
+        "samples": 81,
+        "avgX": -0.38,
+        "avgAbsZ": 7,
+        "avgDistToGoal": 21.58,
+        "oppHalfSamples": 43,
+        "avgForwardXInOppHalf": 10.93,
+        "finalThirdSamples": 41,
+        "avgAbsZInFinalThird": 7.43
+      }
+    ]
+  },
+  "patterns": {
+    "totalStarts": 66,
+    "totalEnds": 64,
+    "typesPerTeam": {
+      "A": {
+        "COUNTER_ATTACK": 13,
+        "PATIENT_BUILDUP": 7,
+        "WING_ATTACK_RIGHT": 8,
+        "CENTRAL_COMBO": 2,
+        "WING_ATTACK_LEFT": 3
+      },
+      "B": {
+        "COUNTER_ATTACK": 15,
+        "WING_ATTACK_RIGHT": 7,
+        "CENTRAL_COMBO": 6,
+        "WING_ATTACK_LEFT": 4,
+        "PATIENT_BUILDUP": 1
+      }
+    },
+    "distinctTypesA": 5,
+    "distinctTypesB": 5,
+    "avgDurationByType": {
+      "COUNTER_ATTACK": 3.32,
+      "PATIENT_BUILDUP": 2.33,
+      "WING_ATTACK_RIGHT": 4.77,
+      "CENTRAL_COMBO": 7.62,
+      "WING_ATTACK_LEFT": 4.48
+    },
+    "endReasonCounts": {
+      "invalidated": 18,
+      "possession_lost": 46
+    },
+    "shotsByActivePattern": {
+      "NONE": 1,
+      "WING_ATTACK_RIGHT": 1,
+      "COUNTER_ATTACK": 1,
+      "PATIENT_BUILDUP": 1,
+      "CENTRAL_COMBO": 1
+    },
+    "goalsByActivePattern": {
+      "WING_ATTACK_RIGHT": 1
+    },
+    "patternsPerTeamA": 33,
+    "patternsPerTeamB": 33
+  },
+  "patternRoleAlignment": {
+    "RUNNER": {
+      "samples": 172,
+      "avgForwardX": 1.08,
+      "avgAbsZ": 7.62,
+      "avgDistToGoal": 20.35
+    },
+    "SUPPORT": {
+      "samples": 4,
+      "avgForwardX": 12.56,
+      "avgAbsZ": 4.93,
+      "avgDistToGoal": 20.24
+    },
+    "CARRIER": {
+      "samples": 53,
+      "avgForwardX": -1.43,
+      "avgAbsZ": 8.62,
+      "avgDistToGoal": 23.26
+    },
+    "NEAR_POST_RUNNER": {
+      "samples": 61,
+      "avgForwardX": 0.43,
+      "avgAbsZ": 7.25,
+      "avgDistToGoal": 22.97
+    },
+    "FAR_POST_RUNNER": {
+      "samples": 40,
+      "avgForwardX": -5.2,
+      "avgAbsZ": 7.92,
+      "avgDistToGoal": 20.44
+    },
+    "WALL": {
+      "samples": 13,
+      "avgForwardX": 4.51,
+      "avgAbsZ": 6.86,
+      "avgDistToGoal": 24.53
+    }
+  },
+  "carrierTrajectories": {
+    "totalSegments": 40,
+    "avgBLineRatio": 0.77,
+    "straightRunsOver15Units": 5,
+    "byLineRunSegments": [
+      {
+        "carrier": "Saba Lobjanidze",
+        "team": "A",
+        "duration": 7.13,
+        "directDist": 26.1,
+        "pathLength": 30.2,
+        "bLineRatio": 0.86
+      },
+      {
+        "carrier": "Miguel Almirón",
+        "team": "A",
+        "duration": 4.5,
+        "directDist": 23.5,
+        "pathLength": 26.1,
+        "bLineRatio": 0.9
+      },
+      {
+        "carrier": "Emmanuel Latte Lath",
+        "team": "A",
+        "duration": 2.63,
+        "directDist": 17.7,
+        "pathLength": 18,
+        "bLineRatio": 0.98
+      },
+      {
+        "carrier": "Diego Rossi",
+        "team": "B",
+        "duration": 5.66,
+        "directDist": 17.5,
+        "pathLength": 19.1,
+        "bLineRatio": 0.91
+      },
+      {
+        "carrier": "Dylan Chambost",
+        "team": "B",
+        "duration": 7.13,
+        "directDist": 16.1,
+        "pathLength": 18.9,
+        "bLineRatio": 0.85
+      }
+    ],
+    "curlingSegments": 3,
+    "totalFlips": 35,
+    "totalFlippyCarriers": 0,
+    "flipsByTeam": {
+      "A": 10,
+      "B": 25
+    },
+    "flipsByTeamHalf": {
+      "A1": 5,
+      "A2": 5,
+      "B1": 11,
+      "B2": 14
+    },
+    "flipsByDirection": {
+      "L2R": 19,
+      "R2L": 14
+    },
+    "segmentsByTeam": {
+      "A": 16,
+      "B": 24
+    },
+    "segmentsByDirection": {
+      "L2R": 24,
+      "R2L": 14
+    },
+    "segmentsByTeamHalf": {
+      "A1": 11,
+      "A2": 5,
+      "B1": 10,
+      "B2": 14
+    }
+  },
+  "multiTouchOppHalf": {
+    "totalSequences": 43,
+    "multiTouchOppHalfCount": 19,
+    "totalOppHalfTouches": 80,
+    "avgDistinctPlayersPerSequence": 1.51,
+    "exampleSequences": [
+      {
+        "team": "B",
+        "players": [
+          "Steven Moreira",
+          "Diego Rossi"
+        ],
+        "touchCount": 2,
+        "firstTouchAt": 23
+      },
+      {
+        "team": "B",
+        "players": [
+          "Andrés Herrera",
+          "Dániel Gazdag"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 25.44
+      },
+      {
+        "team": "B",
+        "players": [
+          "Andrés Herrera",
+          "Dylan Chambost"
+        ],
+        "touchCount": 2,
+        "firstTouchAt": 30.62
+      },
+      {
+        "team": "B",
+        "players": [
+          "Steven Moreira",
+          "Wessam Abou Ali",
+          "Darlington Nagbe",
+          "Diego Rossi",
+          "LM"
+        ],
+        "touchCount": 7,
+        "firstTouchAt": 37.591
+      },
+      {
+        "team": "A",
+        "players": [
+          "Emmanuel Latte Lath",
+          "Saba Lobjanidze"
+        ],
+        "touchCount": 4,
+        "firstTouchAt": 76.59100000000001
+      },
+      {
+        "team": "A",
+        "players": [
+          "Emmanuel Latte Lath",
+          "Miguel Almirón",
+          "LM"
+        ],
+        "touchCount": 4,
+        "firstTouchAt": 91.661
+      }
+    ]
+  },
+  "finalThirdOverloads": {
+    "A": {
+      "totalBuckets": 28,
+      "bucketsWithOverload": 5,
+      "maxAttackersInBucket": 3
+    },
+    "B": {
+      "totalBuckets": 74,
+      "bucketsWithOverload": 13,
+      "maxAttackersInBucket": 5
+    }
+  },
+  "dangerMarking": {
+    "samples": 129,
+    "byTeam": {
+      "A": {
+        "samples": 27,
+        "marked": 22,
+        "unmarked": 5,
+        "markedPct": 81.5,
+        "avgNearestDefenderDist": 2.03,
+        "worstSamples": [
+          {
+            "t": 164,
+            "player": "Saba Lobjanidze",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.31,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 164.7,
+            "player": "Saba Lobjanidze",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 14.6,
+            "nearestDefenderDist": 6,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 169.2,
+            "player": "Saba Lobjanidze",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 15.6,
+            "nearestDefenderDist": 4.56,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 169.2,
+            "player": "Emmanuel Latte Lath",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.3,
+            "nearestDefenderDist": 4.18,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 80.4,
+            "player": "Saba Lobjanidze",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 11,
+            "nearestDefenderDist": 3.72,
+            "patternRole": "RUNNER"
+          }
+        ]
+      },
+      "B": {
+        "samples": 102,
+        "marked": 74,
+        "unmarked": 28,
+        "markedPct": 72.5,
+        "avgNearestDefenderDist": 2.54,
+        "worstSamples": [
+          {
+            "t": 277.3,
+            "player": "Dylan Chambost",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 16.3,
+            "nearestDefenderDist": 10.85,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 279.4,
+            "player": "Dylan Chambost",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.9,
+            "nearestDefenderDist": 9.82,
+            "patternRole": "CARRIER"
+          },
+          {
+            "t": 235.1,
+            "player": "Dylan Chambost",
+            "role": "RM",
+            "zone": "BYLINE",
+            "distToGoal": 6.8,
+            "nearestDefenderDist": 7.76,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 228.6,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "FINAL_THIRD_CENTRAL",
+            "distToGoal": 13.2,
+            "nearestDefenderDist": 7.61,
+            "patternRole": "NEAR_POST_RUNNER"
+          },
+          {
+            "t": 21.4,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.1,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 56.3,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.09,
+            "patternRole": "NEAR_POST_RUNNER"
+          }
+        ]
+      }
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goalCount": 1,
+    "avgDefendersInBox": 4,
+    "avgAttackersInBox": 4,
+    "distribution": {
+      "4": 1
+    },
+    "samples": [
+      {
+        "team": "B",
+        "scorer": "Diego Rossi",
+        "shirt": 5,
+        "minute": 19,
+        "defendersInBox": 4,
+        "attackersInBox": 4,
+        "outfieldBoxCrowd": 8,
+        "playPattern": "OPEN_PLAY",
+        "isBreakaway": false
+      }
+    ]
+  },
+  "shotBoxDefense": {
+    "shots": 5,
+    "avgDefendersInBox": 3.8,
+    "avgDefendersInCorridor": 5,
+    "emptyBoxShots": 0,
+    "emptyCorridorShots": 0,
+    "samples": [
+      {
+        "t": 16.8,
+        "team": "B",
+        "shooter": "Dániel Gazdag",
+        "shooterRole": "CM",
+        "ballX": -28.9,
+        "ballZ": 1.4,
+        "defendersInBox": 5,
+        "defendersInCorridor": 6
+      },
+      {
+        "t": 60.3,
+        "team": "B",
+        "shooter": "Diego Rossi",
+        "shooterRole": "LM",
+        "ballX": -23.4,
+        "ballZ": -2.1,
+        "defendersInBox": 3,
+        "defendersInCorridor": 5
+      },
+      {
+        "t": 95.9,
+        "team": "A",
+        "shooter": "Miguel Almirón",
+        "shooterRole": "LM",
+        "ballX": 19.5,
+        "ballZ": 6.1,
+        "defendersInBox": 3,
+        "defendersInCorridor": 4
+      },
+      {
+        "t": 161.7,
+        "team": "A",
+        "shooter": "Aleksey Miranchuk",
+        "shooterRole": "DM",
+        "ballX": -16.3,
+        "ballZ": -3.9,
+        "defendersInBox": 4,
+        "defendersInCorridor": 5
+      },
+      {
+        "t": 293.9,
+        "team": "B",
+        "shooter": "Dániel Gazdag",
+        "shooterRole": "CM",
+        "ballX": 19.9,
+        "ballZ": -10.8,
+        "defendersInBox": 4,
+        "defendersInCorridor": 5
+      }
+    ]
+  },
+  "kickoffGoalCorrelation": {
+    "kickoffPasses": 3,
+    "kickoffReceives": 3,
+    "goalScorerEvents": 1,
+    "byTeam": {
+      "A": {
+        "passes": 2,
+        "receives": 2,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Emmanuel Latte Lath",
+            "role": "ST",
+            "intendedTargets": 2,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          },
+          {
+            "player": "Stian Gregersen",
+            "role": "CB",
+            "intendedTargets": 0,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 0,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      },
+      "B": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 1,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Mohamed Farsi",
+            "role": "RM",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [
+          {
+            "player": "Diego Rossi",
+            "role": "LM",
+            "goals": 1
+          }
+        ],
+        "samples": []
+      }
+    }
+  },
+  "patternTempo": {
+    "COUNTER_ATTACK": {
+      "count": 28,
+      "multiTouchCount": 8,
+      "avgTouches": 1.14,
+      "avgDuration": 3.4,
+      "avgPace": 3.26,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        4,
+        12
+      ],
+      "expectedLabel": "fast direct",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "PATIENT_BUILDUP": {
+      "count": 8,
+      "multiTouchCount": 3,
+      "avgTouches": 1.38,
+      "avgDuration": 3.91,
+      "avgPace": -3.21,
+      "expectedTouches": [
+        3,
+        7
+      ],
+      "expectedPace": [
+        1,
+        4
+      ],
+      "expectedLabel": "deliberate",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_RIGHT": {
+      "count": 15,
+      "multiTouchCount": 4,
+      "avgTouches": 1,
+      "avgDuration": 4.02,
+      "avgPace": 0.93,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "CENTRAL_COMBO": {
+      "count": 8,
+      "multiTouchCount": 3,
+      "avgTouches": 1.63,
+      "avgDuration": 5.92,
+      "avgPace": 0.3,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        2.5,
+        6
+      ],
+      "expectedLabel": "short sharp",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_LEFT": {
+      "count": 7,
+      "multiTouchCount": 1,
+      "avgTouches": 1,
+      "avgDuration": 2.28,
+      "avgPace": 4.25,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "OK"
+    }
+  },
+  "neoPlays": {
+    "outcomeWindowSeconds": 8,
+    "totalStarts": 66,
+    "totalDeliveries": 12,
+    "totalShotCreatingDeliveries": 5,
+    "totalGoalCreatingDeliveries": 0,
+    "effectivenessPct": 41.7,
+    "goalRatePct": 0,
+    "byPlay": {
+      "COUNTER_ATTACK": {
+        "playName": "COUNTER_ATTACK",
+        "patternTypes": {
+          "COUNTER_ATTACK": 31
+        },
+        "starts": 28,
+        "deliveries": 3,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 26.3,
+            "patternType": "COUNTER_ATTACK",
+            "passer": "Dániel Gazdag",
+            "passerRole": null,
+            "target": "Andrés Herrera",
+            "targetRole": "ANCHOR",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 169.4,
+            "patternType": "COUNTER_ATTACK",
+            "passer": "Aleksey Miranchuk",
+            "passerRole": null,
+            "target": "Bartosz Slisz",
+            "targetRole": "SUPPORT",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 171.3,
+            "patternType": "COUNTER_ATTACK",
+            "passer": "Aleksey Miranchuk",
+            "passerRole": null,
+            "target": "Miguel Almirón",
+            "targetRole": "RUNNER",
+            "style": "LONG_LOFTED",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "PATIENT_BUILDUP": {
+        "playName": "PATIENT_BUILDUP",
+        "patternTypes": {
+          "PATIENT_BUILDUP": 8
+        },
+        "starts": 8,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "WING_ATTACK_RIGHT": {
+        "playName": "WING_ATTACK_RIGHT",
+        "patternTypes": {
+          "WING_ATTACK_RIGHT": 15
+        },
+        "starts": 15,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "GIVE_AND_GO": {
+        "playName": "GIVE_AND_GO",
+        "patternTypes": {
+          "CENTRAL_COMBO": 11
+        },
+        "starts": 8,
+        "deliveries": 3,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 117.3,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Wessam Abou Ali",
+            "passerRole": "CARRIER",
+            "target": "Darlington Nagbe",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 118.3,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Darlington Nagbe",
+            "passerRole": "WALL",
+            "target": "Diego Rossi",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 253.8,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Darlington Nagbe",
+            "passerRole": "CARRIER",
+            "target": "Wessam Abou Ali",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "WING_ATTACK_LEFT": {
+        "playName": "WING_ATTACK_LEFT",
+        "patternTypes": {
+          "WING_ATTACK_LEFT": 7
+        },
+        "starts": 7,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "STRUCTURED_WING_ATTACK": {
+        "playName": "STRUCTURED_WING_ATTACK",
+        "patternTypes": {
+          "STRUCTURED_WING_ATTACK": 6
+        },
+        "starts": 0,
+        "deliveries": 6,
+        "crosses": 4,
+        "shotCreatingDeliveries": 5,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 83.3,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "A",
+            "t": 94.7,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Emmanuel Latte Lath",
+            "passerRole": null,
+            "target": "Miguel Almirón",
+            "targetRole": "FAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 1.2,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 94.7,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Emmanuel Latte Lath",
+            "passerRole": null,
+            "target": "Miguel Almirón",
+            "targetRole": "FAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 1.2,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 159.8,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Emmanuel Latte Lath",
+            "passerRole": null,
+            "target": "Steven Alzate",
+            "targetRole": "CUTBACK",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 1.9,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 159.8,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Emmanuel Latte Lath",
+            "passerRole": null,
+            "target": "Steven Alzate",
+            "targetRole": "CUTBACK",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 1.9,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 256.2,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Wessam Abou Ali",
+            "passerRole": null,
+            "target": "Dániel Gazdag",
+            "targetRole": "SECOND_WAVE",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      }
+    }
+  },
+  "patternCrosses": {
+    "total": 2,
+    "deliveries": 12,
+    "longLofted": 0,
+    "driven": 2,
+    "samples": [
+      {
+        "team": "A",
+        "passer": "Emmanuel Latte Lath",
+        "target": "Miguel Almirón",
+        "targetRole": "FAR_POST",
+        "style": "DRIVEN",
+        "crossDist": 17.3
+      },
+      {
+        "team": "A",
+        "passer": "Emmanuel Latte Lath",
+        "target": "Steven Alzate",
+        "targetRole": "CUTBACK",
+        "style": "DRIVEN",
+        "crossDist": 12
+      }
+    ]
+  },
+  "kpis": {
+    "baselineFit": {
+      "score": 18.7,
+      "inputs": {
+        "goals": 1,
+        "shots": 5,
+        "shotsOnTarget": 2,
+        "longRangeSot": 1,
+        "corners": 3
+      },
+      "target": "one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3",
+      "grade": "red"
+    },
+    "soccerStructure": {
+      "score": 69.6,
+      "inputs": {
+        "widthA": 21.82,
+        "widthB": 20.88,
+        "centerAndNarrowWorst": 39.7,
+        "finalThirdOverloadShare": 17.7,
+        "dangerMarkedPct": 74.4,
+        "shotCorridorDefenders": 5,
+        "emptyBoxShotPct": 0,
+        "avgPatternTouches": 1.23,
+        "realCrosses": 2
+      },
+      "target": "soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5",
+      "grade": "red"
+    },
+    "tuningEfficiency": {
+      "score": 76,
+      "inputs": {
+        "forcedShotSharePct": 20,
+        "attackerBackpasses": 1,
+        "zigzagFlips": 68,
+        "directBlockerPasses": 0,
+        "brokenShotRowsPct": 0
+      },
+      "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
+      "grade": "watch"
+    },
+    "overall": {
+      "score": 54.8,
+      "grade": "red"
+    }
+  },
+  "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+    "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+    "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading.",
+    "Attackers are still lingering in the opponent box. Force dynamic box roles so extra attackers vacate, rotate, or resolve instead of standing in occupied central lanes."
+  ]
+}

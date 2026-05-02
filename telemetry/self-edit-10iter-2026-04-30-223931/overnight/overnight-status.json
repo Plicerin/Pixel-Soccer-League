@@ -1,0 +1,237 @@
+{
+  "generatedAt": "2026-05-01T02:39:31.567Z",
+  "updatedAt": "2026-05-01T02:55:06.478Z",
+  "state": "completed",
+  "outDir": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight",
+  "simTimeoutMs": 1440000,
+  "completedCycles": 0,
+  "totalCycles": 10,
+  "completedGames": 0,
+  "totalGames": 10,
+  "fixturePlan": [
+    {
+      "gameNumber": 1,
+      "homeTeam": "Portland Timbers",
+      "awayTeam": "Columbus Crew"
+    },
+    {
+      "gameNumber": 2,
+      "homeTeam": "Nashville SC",
+      "awayTeam": "Inter Miami"
+    },
+    {
+      "gameNumber": 3,
+      "homeTeam": "St. Louis City SC",
+      "awayTeam": "San Jose Earthquakes"
+    },
+    {
+      "gameNumber": 4,
+      "homeTeam": "Minnesota United",
+      "awayTeam": "San Jose Earthquakes"
+    },
+    {
+      "gameNumber": 5,
+      "homeTeam": "Charlotte FC",
+      "awayTeam": "Real Salt Lake"
+    },
+    {
+      "gameNumber": 6,
+      "homeTeam": "San Jose Earthquakes",
+      "awayTeam": "Austin FC"
+    },
+    {
+      "gameNumber": 7,
+      "homeTeam": "Chicago Fire",
+      "awayTeam": "Toronto FC"
+    },
+    {
+      "gameNumber": 8,
+      "homeTeam": "New York City FC",
+      "awayTeam": "LA Galaxy"
+    },
+    {
+      "gameNumber": 9,
+      "homeTeam": "Portland Timbers",
+      "awayTeam": "Austin FC"
+    },
+    {
+      "gameNumber": 10,
+      "homeTeam": "Houston Dynamo",
+      "awayTeam": "San Diego FC"
+    }
+  ],
+  "currentCycle": 10,
+  "currentPhase": null,
+  "currentFixtures": [],
+  "currentSimReport": null,
+  "currentAnalysisReport": null,
+  "commandPlansPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\overnight-command-plan.json",
+  "runnerLogPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\runner.out.log",
+  "lastCompletedCycle": null,
+  "lastCompletedSessionId": null,
+  "lastCompletedScore": null,
+  "failedCycles": [
+    {
+      "cycle": 1,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 1,
+          "homeTeam": "Portland Timbers",
+          "awayTeam": "Columbus Crew"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-01:sim failed with exit code 1"
+    },
+    {
+      "cycle": 2,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 2,
+          "homeTeam": "Nashville SC",
+          "awayTeam": "Inter Miami"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-02:sim failed with exit code 1"
+    },
+    {
+      "cycle": 3,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 3,
+          "homeTeam": "St. Louis City SC",
+          "awayTeam": "San Jose Earthquakes"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-03:sim failed with exit code 1"
+    },
+    {
+      "cycle": 4,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 4,
+          "homeTeam": "Minnesota United",
+          "awayTeam": "San Jose Earthquakes"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-04:sim failed with exit code 1"
+    },
+    {
+      "cycle": 5,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 5,
+          "homeTeam": "Charlotte FC",
+          "awayTeam": "Real Salt Lake"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-05:sim failed with exit code 1"
+    },
+    {
+      "cycle": 6,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 6,
+          "homeTeam": "San Jose Earthquakes",
+          "awayTeam": "Austin FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-06:sim failed with exit code 1"
+    },
+    {
+      "cycle": 7,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 7,
+          "homeTeam": "Chicago Fire",
+          "awayTeam": "Toronto FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-07:sim failed with exit code 1"
+    },
+    {
+      "cycle": 8,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 8,
+          "homeTeam": "New York City FC",
+          "awayTeam": "LA Galaxy"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-08:sim failed with exit code 1"
+    },
+    {
+      "cycle": 9,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 9,
+          "homeTeam": "Portland Timbers",
+          "awayTeam": "Austin FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-09:sim failed with exit code 1"
+    },
+    {
+      "cycle": 10,
+      "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-fixtures.json",
+      "fixtures": [
+        {
+          "gameNumber": 10,
+          "homeTeam": "Houston Dynamo",
+          "awayTeam": "San Diego FC"
+        }
+      ],
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-analysis.json",
+      "failed": true,
+      "attempts": 2,
+      "error": "cycle-10:sim failed with exit code 1"
+    }
+  ],
+  "error": "cycle-10:sim failed with exit code 1",
+  "currentAttempt": null
+}

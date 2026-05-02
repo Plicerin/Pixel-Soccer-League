@@ -532,7 +532,7 @@ function createShutdownController() {
 async function waitForGameReady(page, timeoutMs = 30000) {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
-    const ready = await page.evaluate(() => {
+    const ready = await evaluateWithPageRetry(page, () => {
       const game = window.__gameRef?.setTeamNames ? window.__gameRef : window.pslGame
       if (game?.setTeamNames) window.__gameRef = game
       return !!(
@@ -551,13 +551,20 @@ async function waitForGameReady(page, timeoutMs = 30000) {
 }
 
 async function startMatch(page, teamA, teamB, formA, formB, speed, mode, halfSeconds) {
-  const startedViaSmokeApi = await page.evaluate(({ teamA, teamB, formA, formB, speed, halfSeconds }) => {
+  const startedViaSmokeApi = await evaluateWithPageRetry(page, ({ teamA, teamB, formA, formB, speed, halfSeconds }) => {
     window.focus?.()
     document.body?.focus?.()
+    window.__gameRef?.setSplashSceneMode?.(false)
+    window.__gameRef?.setMenuVisible?.(false)
     const smoke = window.pslSmokeTest
     if (!smoke?.runFixture) return false
-    if (window.__headlessFixturePromise?.finally) return true
-    window.__headlessFixturePromise = smoke.runFixture({
+    const existingStartedAt = Number(window.__headlessFixtureStartedAt || 0)
+    if (window.__headlessFixturePromise?.finally && Date.now() - existingStartedAt < 15000) return true
+    window.__headlessFixturePromise = null
+    window.__headlessFixtureError = null
+    window.__headlessFixtureResult = null
+    window.__headlessFixtureStartedAt = Date.now()
+    window.__headlessFixturePromise = Promise.resolve(smoke.runFixture({
       homeTeam: teamA,
       awayTeam: teamB,
       formationA: formA,
@@ -566,20 +573,75 @@ async function startMatch(page, teamA, teamB, formA, formB, speed, mode, halfSec
       halfSeconds,
       timeoutMs: 1_440_000,
       randomizeTeams: false,
-    })
+    }))
     window.__headlessFixturePromise
       .then((result) => { window.__headlessFixtureResult = result })
       .catch((error) => { window.__headlessFixtureError = String(error?.stack || error?.message || error) })
-      .finally(() => { window.__headlessFixturePromise = null })
+      .finally(() => {
+        window.__headlessFixturePromise = null
+        window.__headlessFixtureStartedAt = 0
+      })
     return true
   }, { teamA, teamB, formA, formB, speed, halfSeconds })
 
   if (startedViaSmokeApi) {
-    await delay(500)
+    await waitForMatchStart(page, 20000)
     return
   }
 
   throw new Error('Browser smoke-test fixture API is not available')
+}
+
+async function readMatchStartState(page) {
+  return evaluateWithPageRetry(page, () => {
+    const game = window.__gameRef
+    const snap = game?.getMatchSnapshot?.()
+    const result = window.__headlessFixtureResult || null
+    return {
+      hasGame: !!game,
+      hasSmoke: typeof window.pslSmokeTest?.runFixture === 'function',
+      hasPromise: !!window.__headlessFixturePromise,
+      fixtureError: window.__headlessFixtureError || null,
+      fixtureResult: result ? {
+        phase: result.phase || null,
+        half: result.half || 0,
+        elapsedInHalf: Number.isFinite(result.elapsedInHalf) ? result.elapsedInHalf : null,
+        timedOut: !!result.timedOut,
+      } : null,
+      matchId: snap?.matchId || null,
+      phase: snap?.phase || null,
+      half: snap?.half || 0,
+      elapsedInHalf: Number.isFinite(snap?.elapsedInHalf) ? snap.elapsedInHalf : null,
+      isLive: !!snap?.isLive,
+      message: snap?.message || '',
+      teamAName: snap?.teamAName || null,
+      teamBName: snap?.teamBName || null,
+    }
+  }, undefined, { label: 'match start state', retries: 4, retryDelayMs: 500 })
+}
+
+async function waitForMatchStart(page, timeoutMs = 20000) {
+  const start = Date.now()
+  let lastState = null
+  while (Date.now() - start < timeoutMs) {
+    const state = await readMatchStartState(page)
+    lastState = state
+    if (state.fixtureError) {
+      throw new Error(`Browser fixture failed before match start: ${state.fixtureError}`)
+    }
+    if (
+      (state.phase === 'FIRST_HALF' || state.phase === 'SECOND_HALF')
+      && Number.isFinite(state.elapsedInHalf)
+      && state.elapsedInHalf > 0.2
+    ) {
+      return state
+    }
+    await delay(500)
+  }
+  throw new Error(
+    'Match did not start after fixture request: ' +
+    JSON.stringify(lastState || {}, null, 0)
+  )
 }
 
 async function waitForFullTime(page, timeoutMs = 600000, visualAuditRecorder = null, gameIndex = 0) {
@@ -590,10 +652,10 @@ async function waitForFullTime(page, timeoutMs = 600000, visualAuditRecorder = n
   let lastHalf = 0
   let lastElapsed = -1
   while (Date.now() - start < timeoutMs) {
-    const snap = await page.evaluate(() => {
+    const snap = await evaluateWithPageRetry(page, () => {
       const s = window.__gameRef?.getMatchSnapshot?.()
       return s ? { phase: s.phase, half: s.half, elapsedInHalf: s.elapsedInHalf } : null
-    })
+    }, undefined, { label: 'match snapshot poll', retries: 4, retryDelayMs: 750 })
     if (snap?.phase === 'FULL_TIME') return true
     await pollVisualAudit(page, visualAuditRecorder, gameIndex)
     const phase = snap?.phase || ''
@@ -822,7 +884,7 @@ ${cards}
 }
 
 async function captureMatchResult(page) {
-  return page.evaluate(() => {
+  return evaluateWithPageRetry(page, () => {
     const snap = window.__gameRef?.getMatchSnapshot?.()
     if (!snap) return null
     const bundle = window.__gameRef?.getTuningBundle?.() || {}
@@ -883,6 +945,41 @@ async function captureMatchResult(page) {
   })
 }
 
+function isTransientPageEvaluationError(error) {
+  const message = String(error?.message || error || '').toLowerCase()
+  return (
+    message.includes('execution context was destroyed') ||
+    message.includes('most likely because of a navigation') ||
+    message.includes('navigation') ||
+    message.includes('target closed') ||
+    message.includes('page closed') ||
+    message.includes('context closed')
+  )
+}
+
+async function evaluateWithPageRetry(page, fn, arg, options = {}) {
+  const {
+    label = 'page evaluation',
+    retries = 3,
+    retryDelayMs = 500,
+  } = options
+  let lastError = null
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return arguments.length >= 3 && arg !== undefined
+        ? await page.evaluate(fn, arg)
+        : await page.evaluate(fn)
+    } catch (error) {
+      lastError = error
+      if (!isTransientPageEvaluationError(error) || attempt >= retries) break
+      console.warn(`[runner] transient ${label} failure; retrying (${attempt + 1}/${retries}): ${error.message || error}`)
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {})
+      await delay(retryDelayMs)
+    }
+  }
+  throw lastError
+}
+
 function printGameSummary(index, result) {
   const winner = result.scoreA > result.scoreB
     ? `${result.teamA} WIN`
@@ -930,6 +1027,32 @@ function printAggregate(results) {
   console.log(`${'-'.repeat(60)}`)
 }
 
+function createReportPayload(options, results, runMeta = {}) {
+  return {
+    generatedAt: new Date().toISOString(),
+    status: runMeta.status || 'partial',
+    gamesCompleted: results.length,
+    options: {
+      ...options,
+      homeTeam: runMeta.homeTeam || null,
+      awayTeam: runMeta.awayTeam || null,
+      formationA: runMeta.formationA || null,
+      formationB: runMeta.formationB || null,
+    },
+    results,
+  }
+}
+
+function writeHeadlessReport(repoRoot, options, results, runMeta = {}) {
+  if (!options.reportJson) return null
+  const outPath = path.resolve(repoRoot, options.reportJson)
+  const tempPath = `${outPath}.tmp`
+  fs.mkdirSync(path.dirname(outPath), { recursive: true })
+  fs.writeFileSync(tempPath, JSON.stringify(createReportPayload(options, results, runMeta), null, 2))
+  fs.renameSync(tempPath, outPath)
+  return outPath
+}
+
 async function run() {
   const options = parseArgs(process.argv.slice(2))
   if (options.help) {
@@ -957,6 +1080,7 @@ async function run() {
   let timeoutWatchdog = null
   const visualAuditRecorder = createVisualAuditRecorder(repoRoot, options)
   const shutdown = createShutdownController()
+  const results = []
 
   const cleanupResources = async () => {
     await withCleanupTimeout(async () => {
@@ -1047,7 +1171,6 @@ async function run() {
     const gameReady = await waitForGameReady(page, Math.min(30000, requireRemainingRunTimeMs(runStartedAt, options.timeoutMs, 'game initialization')))
     if (!gameReady) throw new Error('Game engine did not initialize within timeout')
 
-    const results = []
     const nextMatchup = createMatchupPicker(MLS_TEAMS)
 
     for (let i = 0; i < options.games; i++) {
@@ -1094,6 +1217,16 @@ async function run() {
         }
         results.push(result)
         printGameSummary(results.length, result)
+        const partialPath = writeHeadlessReport(repoRoot, options, results, {
+          status: results.length === options.games ? 'complete' : 'partial',
+          homeTeam: fixedHome || null,
+          awayTeam: fixedAway || null,
+          formationA: fixedFormationA || null,
+          formationB: fixedFormationB || null,
+        })
+        if (partialPath) {
+          console.log(`Saved partial headless sim report: ${partialPath}`)
+        }
       }
     }
 
@@ -1118,19 +1251,13 @@ async function run() {
     }
 
     if (options.reportJson) {
-      const outPath = path.resolve(repoRoot, options.reportJson)
-      fs.mkdirSync(path.dirname(outPath), { recursive: true })
-      fs.writeFileSync(outPath, JSON.stringify({
-        generatedAt: new Date().toISOString(),
-        options: {
-          ...options,
-          homeTeam: fixedHome || null,
-          awayTeam: fixedAway || null,
-          formationA: fixedFormationA || null,
-          formationB: fixedFormationB || null,
-        },
-        results,
-      }, null, 2))
+      const outPath = writeHeadlessReport(repoRoot, options, results, {
+        status: 'complete',
+        homeTeam: fixedHome || null,
+        awayTeam: fixedAway || null,
+        formationA: fixedFormationA || null,
+        formationB: fixedFormationB || null,
+      })
       console.log(`Saved headless sim report: ${outPath}`)
     }
   } finally {

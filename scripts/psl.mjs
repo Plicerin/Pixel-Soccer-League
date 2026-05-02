@@ -265,7 +265,12 @@ async function kpi(args, asJson) {
     }
   }
   const source = path.join(ROOT, 'telemetry', 'tuning-scoreboard', 'latest-scoreboard.json');
-  const scoreboard = readJson(source);
+  const scoreboard = readJsonOrNull(source) || {
+    generatedAt: null,
+    recipe: null,
+    rows: {},
+    nextRecipes: [],
+  };
   const rows = Object.values(scoreboard.rows || {});
   print({
     ok: true,

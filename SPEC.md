@@ -53,6 +53,16 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 - V16. DB match history: `/__db/matches` must not return rows whose stored bundle has `sessionActive=false`.
 - V17. Goals: awarded goals must be shot-backed. Non-shot goal crossings are blocked until explicit own-goal classification exists.
 - V18. Cross telemetry: `PATTERN_CROSS_EXECUTED` means wide-channel passer to central/box target. Other launched pattern passes use `PATTERN_DELIVERY_EXECUTED`.
+- V19. Kickoff: first touch must have an intended teammate staged in a short forward/lateral lane; no blind back-pass rolling to keeper.
+- V20. Defense: coach cover targets must preserve goalmouth spacing; ≥4 outfield defenders may not collapse within 8m of own goal center lane.
+- V21. Coach authority: in live CPU-vs-CPU, player movement and defensive challenges must be coach-commanded; uncommanded movement, off-route movement, out-of-bounds positions, speed above coach cap, or unauthorized challenges are corrected/blocked and logged as `COACH_AUTHORITY_VIOLATION`.
+- V22. Match start: every UI path that calls `startKickoffPresentation` must clear splash scene mode first; splash hard-block must not swallow a user-initiated start.
+- V23. Real-data replay: replay mode is tracking-only from Metrica data; coach, AI, ball physics, shots, passes, tackles, and possession are disabled while players and the tracked ball mimic recorded coordinates.
+- V24. Real-data replay pitch mapping: normalized source tracking coordinates must be scaled by the recorded pitch dimensions, then centered in the local field; replay must not stretch a 105x68m source pitch to a 120x80yd local pitch.
+- V25. Real-data replay facing: replay mode must derive player side/front/back facing from frame-to-frame movement and preserve last facing only when movement is below idle threshold.
+- V26. Real-data replay ball/smoothing: replay mode must render tracked ball coordinates from the source data and interpolate player/ball positions between sampled frames instead of snapping at sample boundaries.
+- V27. Real-data replay visual pitch: when source pitch dimensions differ from the local field, replay mode must scale visible field markings, flags, and goals to the recorded pitch so corners and touchlines align with replay coordinates.
+- V28. Live movement authority: during live CPU-vs-CPU halves, every player and ball position update must pass a frame-level max-speed gate; untagged teleports are capped and logged, only explicit restart/dead-ball/reset states may bypass.
 
 ---
 
@@ -107,3 +117,12 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | B13 | 2026-04-26 | `/__db/matches` returned historical splash/demo rows with `bundle.sessionActive=false`, so ghost Inter Miami-LA Galaxy matches appeared in dashboard history | V16 |
 | B14 | 2026-04-26 | Legal goal-crossing path allowed non-shot goals, producing zero-shot scorelines from loose/restart drift | V17 |
 | B15 | 2026-04-26 | Pattern delivery telemetry counted every launched structured delivery as `PATTERN_CROSS_EXECUTED`, inflating cross totals with cutbacks/recycles | V18 |
+| B16 | 2026-05-01 | Coach real-data feed was advisory only; kickoff and coach-defense cover still used legacy targets, causing blind kickoff back-passes and goalmouth defender bunching | V19,V20 |
+| B17 | 2026-05-01 | Coach authority was advisory; legacy loose-ball, pressure, shape, velocity, and direct position paths could still move players after coach targets, causing impossible defender speed/teleport drift | V21 |
+| B18 | 2026-05-01 | UI kickoff path could call `startKickoffPresentation` while engine `splashSceneMode` was still true, so the splash hard-block rejected the user start | V22 |
+| B19 | 2026-05-01 | Real-data replay stored Metrica pitch dimensions but ignored them in coordinate conversion, stretching 105x68m tracking onto the full 120x80yd local field and misaligning players with penalty markings | V24 |
+| B20 | 2026-05-01 | Real-data replay bypassed the normal sprite-facing pass and only updated `dir` from x velocity, so position-only replay players appeared to face one direction | V25 |
+| B21 | 2026-05-01 | Replay generator dropped the tracked ball and replay render hid the ball, even though Metrica tracking contains ball x/y coordinates | V26 |
+| B22 | 2026-05-01 | Replay sampled at 0.2s but rendered with frame snapping, producing visible 5 FPS positional jumps instead of smooth motion | V26 |
+| B23 | 2026-05-01 | Replay coordinates were correctly centered to the 105x68m source pitch, but field flags/markings remained at the larger 120x80yd local field, so corner takers appeared several feet from the flag | V27 |
+| B24 | 2026-05-02 | Live movement authority began after early movement paths and only guarded command-driven players, so legacy steering/collisions/ball attachment could create untagged player and ball teleports | V28 |

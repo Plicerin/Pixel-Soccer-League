@@ -22,6 +22,33 @@ import {
 import { installSmokeTestApi } from '../smokeTest';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
 
+const AGGRESSION_SCALE: Record<AggressivenessKey, number> = {
+  POSSESSION: 35,
+  BALANCED: 55,
+  AGGRESSIVE: 85,
+};
+
+function applyGameAggressionSettings(
+  game: any,
+  attackAggressiveness: AggressivenessKey,
+  defenseAggressiveness: AggressivenessKey = attackAggressiveness,
+) {
+  const params = new URLSearchParams(window.location.search);
+  if (
+    params.has('coachAggression')
+    || params.has('attackAggression')
+    || params.has('aggression')
+    || params.has('defenseAggression')
+    || params.has('defAggression')
+  ) {
+    return;
+  }
+  const attackValue = Math.round((AGGRESSION_SCALE[attackAggressiveness] + AGGRESSION_SCALE[defenseAggressiveness]) / 2);
+  const defenseValue = Math.max(AGGRESSION_SCALE[attackAggressiveness], AGGRESSION_SCALE[defenseAggressiveness]);
+  game?.setCoachAggression?.(attackValue);
+  game?.setDefenseAggression?.(defenseValue);
+}
+
 // Helper: reset positions, draw routes, activate play — called on every play/formation change
 function applyPracticePlay(
   gameRef: React.MutableRefObject<any>,
@@ -36,6 +63,7 @@ function applyPracticePlay(
   // 3. Tune CPU shot accuracy
   const agg = PRACTICE_AGGRESSIVENESS[aggressivenessKey];
   gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
+  applyGameAggressionSettings(gameRef.current, aggressivenessKey);
   // 4. Compute routes from fresh player positions
   const allPlayers = gameRef.current?.getPlayers?.() ?? [];
   const attackSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
@@ -616,7 +644,7 @@ const RetroFootball: React.FC = () => {
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
   const [hotSeatMode, setHotSeatMode] = useState(false);
   const [testingMode, setTestingMode] = useState(false);
-  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | 'practice' | null>(null);
+  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | 'practice' | 'replay' | null>(null);
   const [hasActiveMatchSession, setHasActiveMatchSession] = useState(false);
   // Practice mode setup state
   const [showPracticeSetup, setShowPracticeSetup] = useState(false);
@@ -654,13 +682,14 @@ const RetroFootball: React.FC = () => {
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
   const menuGpStickCooldown = useRef(0);
   const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => void>(() => {});
+  const handleRealDataReplayStartRef = useRef<() => void>(() => {});
   const setSeasonModeActiveRef = useRef(setSeasonModeActive);
 
   // Keep ref in sync with state for use in gamepad polling
   useEffect(() => { menuFocusRef.current = menuFocusIndex; }, [menuFocusIndex]);
 
   const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
-  const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season, 6=Practice
+  const MENU_ITEM_COUNT = 8; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Replay, 6=Season, 7=Practice
 
   useEffect(() => {
     try {
@@ -789,8 +818,9 @@ const RetroFootball: React.FC = () => {
               const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
               handleKickOffRef.current('cpu', { a: shuffled[0], b: shuffled[1] });
             }
-            else if (fi === 5) setSeasonModeActiveRef.current(true);
-            else if (fi === 6) setShowPracticeSetup(true);
+            else if (fi === 5) handleRealDataReplayStartRef.current();
+            else if (fi === 6) setSeasonModeActiveRef.current(true);
+            else if (fi === 7) setShowPracticeSetup(true);
             return fi;
           });
         }
@@ -1153,6 +1183,7 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setWeather?.(weather);
       gameRef.current?.setAIStyle?.(aiStyle);
       gameRef.current?.setCPUShotTuning?.(cpuShotAimErrorRad, cpuShotPressureError);
+      applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
       gameRef.current?.setCameraMode?.(cameraMode);
       gameRef.current?.setStadiumCamTiltShift?.(stadiumCamTiltShiftEnabled);
       gameRef.current?.setMenuVisible?.(gameMode === null);
@@ -1194,6 +1225,9 @@ const RetroFootball: React.FC = () => {
           splashAdvancedRef.current = true;
           setAllowMainMenu(false);
           setHasActiveMatchSession(true);
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(false);
+          gameRef.current?.setScoreBugVisible?.(true);
           telemetryRecorderRef.current?.stop();
         } else if (!telemetryRecorderRef.current?.isRecording()) {
           const rec = new TelemetryRecorder();
@@ -1403,6 +1437,7 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setHotSeatMode?.(true);
     }
     gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setSplashSceneMode?.(false);
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
     setIsFullTime(false);
@@ -1416,9 +1451,29 @@ const RetroFootball: React.FC = () => {
     const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
     const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     // Start the match with CPU vs CPU mode
     handleKickOff('cpu', { a: teamAName, b: teamBName });
+  };
+
+  const handleRealDataReplayStart = () => {
+    setGameMode('replay');
+    setHasActiveMatchSession(true);
+    setAllowMainMenu(false);
+    setSessionMenuLock(true);
+    setHotSeatMode(false);
+    setTestingMode(false);
+    gameRef.current?.setHotSeatMode?.(false);
+    gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setCpuVsCpu?.(false);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setSplashSceneMode?.(false);
+    gameRef.current?.setMenuVisible?.(false);
+    gameRef.current?.setRealDataReplayMode?.(true);
+    setIsFullTime(false);
+    setFullTimeScore(null);
   };
 
   const handleRunWatchedFixture = async () => {
@@ -1436,6 +1491,7 @@ const RetroFootball: React.FC = () => {
     const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
     const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     setGameMode('cpu');
     setHasActiveMatchSession(true);
@@ -1494,6 +1550,7 @@ const RetroFootball: React.FC = () => {
 
   // Keep gamepad menu refs in sync
   handleKickOffRef.current = handleKickOff;
+  handleRealDataReplayStartRef.current = handleRealDataReplayStart;
   setSeasonModeActiveRef.current = setSeasonModeActive;
 
   useEffect(() => {
@@ -2050,11 +2107,19 @@ const RetroFootball: React.FC = () => {
               >
                 CPU vs CPU
               </button>
+              <button
+                onClick={handleRealDataReplayStart}
+                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
+                  menuFocusIndex === 5 ? 'bg-cyan-400/80 text-black border-cyan-300' : 'border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/15 hover:text-cyan-100'
+                }`}
+              >
+                Real Data Replay
+              </button>
               <div className="border-t border-white/10 pt-3 flex flex-col gap-3">
                 <button
                   onClick={() => setSeasonModeActive(true)}
                   className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 5 ? 'bg-amber-500/40 text-amber-200 border-amber-400' : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
+                    menuFocusIndex === 6 ? 'bg-amber-500/40 text-amber-200 border-amber-400' : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
                   }`}
                 >
                   Season Mode
@@ -2062,7 +2127,7 @@ const RetroFootball: React.FC = () => {
                 <button
                   onClick={() => setShowPracticeSetup(true)}
                   className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 6 ? 'bg-emerald-500/40 text-emerald-200 border-emerald-400' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
+                    menuFocusIndex === 7 ? 'bg-emerald-500/40 text-emerald-200 border-emerald-400' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
                   }`}
                 >
                   Practice
@@ -2100,6 +2165,7 @@ const RetroFootball: React.FC = () => {
               gameRef.current?.setTestingMode?.(false);
               gameRef.current?.setCpuVsCpu?.(false);
               gameRef.current?.splashMusicStop?.();
+              gameRef.current?.setSplashSceneMode?.(false);
               gameRef.current?.setMenuVisible?.(false);
               gameRef.current?.startKickoffPresentation?.(true);
               setIsFullTime(false);

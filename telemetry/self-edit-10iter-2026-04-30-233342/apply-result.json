@@ -1,0 +1,8 @@
+{
+  "applied": false,
+  "error": "src/ai/fsmPositioning.ts: expected exactly one match for replacement, found 0",
+  "restoredFiles": [
+    "src/ai/fsmPositioning.ts"
+  ],
+  "changes": []
+}

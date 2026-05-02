@@ -33,7 +33,8 @@
     "hours:status": "node scripts/project-hours.mjs status",
     "self-edit:loop": "node scripts/self-edit-loop.mjs",
     "tuning:scoreboard": "node scripts/tuning-scoreboard.mjs",
-    "eval:cycle": "node scripts/eval-cycle.mjs"
+    "eval:cycle": "node scripts/eval-cycle.mjs",
+    "eval:guard": "node scripts/eval-cycle.mjs --guard coach-authority"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

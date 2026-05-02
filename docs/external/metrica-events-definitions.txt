@@ -1,0 +1,50 @@
+
+
+--- PAGE 1 ---
+
+	
+ 
+ Metrica Sports event definitions  Document conventions  Text in this document written with CAPITAL letters refers to an event type or subtype, an example of an event type being SHOT, while GOAL and SAVED are examples of event subtypes. Text in Italics refers to a group of subtypes; GOAL and SAVED in this example are part of the Shot result subtype group.  Terminology  Possession: a player is regarded as being in possession as soon as they touch the ball or make a conscious decision to hold off on collecting the ball when they have the chance to, with the intention of taking control of the ball in a different position.  The player continues to be in possession until one of the following takes place:  - Another player takes over possession - A shot is deflected off the goal’s woodwork or another player - The ball is significantly deflected by the referee - The ball goes out of play  Possession is not considered lost when an opposing player’s interference does not have a significant impact, i.e. when the opponent manages to get a touch in, but the attempted play still reaches its intended target or the player originally in possession retains control of the ball.  Out of bounds: the ball has crossed the outer lines of the field.  Out of play: the ball went out of bounds or the referee has stopped play.  Duel: two players engage in a challenge for possession and have a roughly equal chance to win it at the moment the challenge is initiated.  Deflection: any change to the direction of the ball following another player’s attempt.              
+
+
+--- PAGE 2 ---
+
+	
+ 
+  Field division:   
+  Lanes: the field is horizontally divided into 5 lanes for referential purposes.  Offensive/defensive area: the field is vertically divided into 3 areas for referential purposes, the outer areas being each team’s offensive and defensive areas.   Event types  All EVENT TYPES are listed below, each of them followed by the possible Subtype groups from which a subtype can be added. ‘The player’ usually refers to the player to which the event is assigned.  SET PIECE | Set piece, FK attempt, Retaken The player brings the ball back into play via a Set piece.  RECOVERY | Interference 1/2 The player significantly interferes with the opponent’s possession, or brings the ball back into play via a dead-ball situation that is not a SET PIECE.  PASS | Body part, Attempt, Deflection, Offside Possession of the ball changes between two players of the same team.     
+
+
+--- PAGE 3 ---
+
+	
+ 
+  BALL LOST | Body part, Attempt, Interference 1/Intervention, Deflection, Offside The player loses possession of the ball to an opponent or through interference from the referee.  BALL OUT | Body part, Attempt, Intervention, Deflection, Offside, Own goal The player is the last one to touch the ball before it goes out of bounds.  SHOT | Body part, Deflection, Shot direction, Shot result, Offside The player attempts a shot towards the goal.  FAULT RECEIVED A fault is committed on the player in possession and the referee immediately awards a free kick.  CHALLENGE | Challenge, Fault, Challenge result Two or more players engage in a challenge for ball possession or with the intent to disrupt one another.  When receiving the ball, the players involved have to make an active attempt to gain possession.  When a player in possession is taken on, the opposing player has to make a clear attempt to play the ball or to perform a body check.  CARD | Card The player is awarded a card by the referee or the referee dismisses someone from the technical area personnel.  Event subtypes  Each event may be specified further through the addition of one or more event subtypes; these subtypes are listed below per group. Subtypes in the same group are mutually exclusive.  Set piece  FREE KICK CORNER KICK THROW IN PENALTY KICK OFF  FK attempt  DIRECT A SHOT is attempted from a FREE KICK  INDIRECT A SHOT is not attempted from a FREE KICK 
+
+
+--- PAGE 4 ---
+
+	
+ 
+ Retaken  RETAKEN The SET PIECE has to be retaken.  Interference 1  The following definitions are to be interpreted as subtypes for RECOVERY events. For each of these definitions the opposite applies to BALL LOST events.  INTERCEPTION The player intercepts a ball that would otherwise reach an opponent, intentionally blocks an attempted pass in close proximity to the opposing player attempting the pass, or recovers the ball via a won CHALLENGE when the opposing player attempts to receive it.  THEFT The player steals the ball directly from an opponent in possession. The subsequent event is irrelevant (i.e. the ball may go out of bounds).  Interference 2  BLOCKED The player is not the last player in line to defend the goal and deflects a SHOT significantly; they may continue to keep possession.  SAVED The goalkeeper or last player in line to defend the goal averts a SHOT that is ON TARGET.  Offside  OFFSIDE The receiving player is flagged for offside or a free kick is awarded for offside while the pass is still underway, even if the pass was clearly lost.  Intervention  VOLUNTARY The player voluntarily gives up possession of the ball, i.e. to allow a player to receive medical attention.  FORCED Play is halted by the referee. This also includes any situation where the referee lets play continue after a fault has been committed (but decides to award a free kick at a later point), or if the referee awards a free kick when a player other than the one in possession commits a fault.  END HALF The referee signals the end of the half. 
+
+
+--- PAGE 5 ---
+
+	
+ 
+ Attempt  CLEARANCE The player has ample time to decide what to do with the ball and clears it out of a dangerous position without having a clear target. Other instances include clearing an opponent’s pass that would otherwise result in a dangerous situation or interrupting an opposing player’s possession in such a way that the ball goes out.  CROSS The player attempts a pass through the air and into the box to set up a scoring opportunity; the pass cannot be blocked in close proximity to the player attempting the pass. The attempt has to be made from any lane but the center lane and in the opponent’s defensive area. The same applies to ground passes, however the area from which the pass can be attempted is limited to the outer lanes of the field.  THROUGH BALL The player attempts a ground pass through the opposing defenders to set up another player behind the defensive line; the ball itself must at least pass the defenders directly involved.  DEEP BALL The player attempts a pass to set up another player behind the defensive line; the ball itself must at least pass the defenders directly involved.  GOAL KICK The goalkeeper brings the ball back into play after it had gone out of bounds.  Body part  HEAD  Deflection  WOODWORK The SHOT connects with the goal’s posts or crossbar.  REFEREE HIT The ball hits the referee.  HANDBALL The ball appears to make contact with the player’s arm (from the shoulder down).      
+
+
+--- PAGE 6 ---
+
+	
+ 
+ Shot direction  ON TARGET The SHOT challenges the goalkeeper or last player in line to defend the goal and either results in a goal or would have been a goal if it hadn’t been for their interference.  OFF TARGET The SHOT would not have resulted in a goal (even if uninterrupted) and goes out of bounds, is picked up or is deflected.  Shot result  GOAL The shot results in a goal.  OUT The shot goes wide of the goal and out of bounds.  BLOCKED The shot heads roughly towards the goal and is deflected significantly by a player that is not the last in line to defend the goal.  SAVED The goalkeeper or last player in line to defend the goal averts a shot ON TARGET.  Own goal  GOAL The player strikes or deflects the ball into their own team's goal.  Challenge  TACKLE A player of either team attempts a THEFT on the player in possession.  DRIBBLE A player of either team that is in possession attempts to take on a player located between themselves and the goal and either succeeds in overtaking them or loses possession in the process.  GROUND Two or more players engage in a duel when receiving the ball lower than shoulder height, or a CHALLENGE is initiated on the player in possession by any other means than a TACKLE.  AERIAL Two or more players engage in a duel when receiving the ball at shoulder height or higher.  
+
+
+--- PAGE 7 ---
+
+	
+ 
+ Fault  FAULT The referee awards a free kick as a result of a Challenge.  ADVANTAGE The referee awards advantage to the team in possession following a CHALLENGE.  Challenge result  WON The player is clearly the one to get the touch in or otherwise has the CHALLENGE result in possession for their team.  LOST The opposing player is clearly the one to get the touch in or otherwise has the CHALLENGE result in possession for their team.  Card  YELLOW RED  DISMISSAL Technical area personnel is dismissed by the referee.  		
