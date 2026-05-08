@@ -204,6 +204,30 @@ export function computeStructuredAttackTarget(inputs: StructuredTargetInputs): T
   );
 }
 
+export function computeStructuredDeliveryTarget(inputs: StructuredTargetInputs): THREE.Vector3 | null {
+  const role = getStructuredAttackRole(inputs.state, inputs.player);
+  if (!['NEAR_POST', 'FAR_POST', 'CUTBACK', 'SECOND_WAVE'].includes(role)) return null;
+  const target = computeStructuredAttackTarget(inputs);
+  if (!target) return null;
+
+  // Deliveries should attack the role lane, not wait for the runner to already
+  // be standing on the exact finish spot.
+  const lead = target.clone();
+  const playerPos = inputs.player?.pos;
+  if (playerPos && playerPos instanceof THREE.Vector3) {
+    const blend =
+      role === 'NEAR_POST' ? 0.72
+      : role === 'FAR_POST' ? 0.82
+      : role === 'CUTBACK' ? 0.66
+      : 0.62;
+    lead.lerp(playerPos, 1 - blend);
+    lead.x = clamp(Math.max(lead.x * inputs.state.attackSign, playerPos.x * inputs.state.attackSign - 1.5) * inputs.state.attackSign, -inputs.fieldWidth / 2 + 1.5, inputs.fieldWidth / 2 - 1.5);
+    lead.z = clamp(lead.z, -inputs.fieldDepth / 2 + 1.5, inputs.fieldDepth / 2 - 1.5);
+    lead.y = 0.15;
+  }
+  return lead;
+}
+
 export function computeStructuredCarrierTarget(inputs: StructuredCarrierTargetInputs): THREE.Vector3 {
   const { carrier, state, fieldWidth, fieldDepth, penaltyDepth } = inputs;
   const goalX = state.attackSign > 0 ? fieldWidth / 2 : -fieldWidth / 2;

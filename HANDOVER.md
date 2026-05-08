@@ -1,566 +1,176 @@
-# PSL Handover - 2026-05-02
+# Gameplay handover and telemetry workflow
 
-## Critical Current State - May 2
+## What has been accomplished so far
 
-The most recent work proved two things at once:
+- Fixed the early newarch structural blockers:
+  - between-tick controller intent reuse now preserves the full last `PlayerIntent`
+  - kickoff-era ball sync no longer clears an already attached orchestrator ball
+  - orchestrator elapsed time now advances by `dt` instead of jumping to the legacy wall clock
+  - newarch ball position sync now updates live `gameState.ballPos`
+  - orchestrator telemetry speed sampling now uses the real sample interval
+- Hardened live authority behavior:
+  - added a frame-blend clamp so large `dt` frames cannot create impossible movement spikes
+  - widened restart/kickoff bypass windows so valid staging does not trigger false live authority violations
+- Restored reliable restart behavior:
+  - newarch kickoffs now open each half and each post-goal restart with a protected short staged pass
+  - restart/out-of-play classification now respects real last touch instead of intended-team metadata
+  - fixed a double-count corner/throw-in integration bug after `startSoccerRestart(...)`
+  - added restart regression coverage around corner/goal-kick classification (`V29`)
+- Improved attacking structure:
+  - wide carriers now prefer real deliveries from advanced wide lanes
+  - wing attack support runners now occupy near-post / cutback / far-post lanes more plausibly
+  - attacking width, pattern ownership, and delivery telemetry now appear in short newarch runs instead of collapsing to zeros
+- Restored telemetry needed for box-defense diagnosis:
+  - the newarch/orchestrator shot bridge now emits `SHOT_POSITION_SNAPSHOT`
+  - shot-on-target snapshots are restored for analyzer-visible defensive KPIs
+- Added defensive regressions and one follow-up cover pass:
+  - deep defenders now start dropping earlier for central long-shot threats
+  - regression coverage exists for earlier deep box cover
+  - this restored measurement, but the broader cover pass over-suppressed shot volume in one short run and still needs narrowing
+- Fixed the user-reported kickoff direction bug in the integrated path:
+  - orchestrator attack signs are now refreshed from the live engine instead of staying frozen from bridge creation
+  - added regression coverage for the missing left-to-right protected restart case
+- Rewrote `docs\headless-engine-extraction.md` into a soccer-specific engine/renderer split brief instead of the old baseball placeholder
 
-1. The teleport/superhuman movement bug was real.
-2. The gameplay had been relying on some of that illegal motion to create action.
+## Current state
 
-Do not restart another "small tuning" loop. The user explicitly called out the trap: +1% here, -1% there, one metric improves and another breaks. That diagnosis is correct. The next useful work must remove competing live CPU control paths or isolate one controller, not tune percentages.
+- The model is no longer hard-stalled at the original integration failures.
+- Kickoff/restart direction is stable again locally, including the left-to-right case.
+- Telemetry is materially more trustworthy than before:
+  - shot snapshots are back
+  - pattern/phase/owner telemetry is back
+  - live ball position and movement sampling are no longer obviously lying
+- Gameplay quality is still mixed:
+  - some fixtures remain sterile
+  - some saved fixtures now produce plausible shot counts and scorelines
+- The current hard gate is still **shot-time box defense**:
+  - do **not** move on to corner-generation tuning until box-defense KPIs are met in a fresh direct-bundle run
+- Important guardrail: **do not push code yet**
 
-### User Working Rules To Preserve
+## Current box-defense gate
 
-- Game sessions must run in the background. Do not run foreground/headed/headless sessions that block chat.
-- Do not open browser windows yourself. If the user wants to watch, give the address only.
-- After every game, check all telemetry, including teleport/player speed, not just score/shots.
-- Keep opposition/coach experiments explicit. Do not silently change game mode.
-- The user is frustrated because several "we already did that" loops happened. Before proposing a structural rewrite, check what was already attempted in this file and in `SPEC.md`.
+- Target `avg box defenders >= 2.0`
+- Target `avg corridor defenders >= 1.5`
+- Guardrail `empty box <= 15%`
+- Guardrail `empty corridor <= 20%`
+- Guardrail `kickoff passes >= 1` and `kickoff receives >= kickoff passes`
 
-### Latest Verified Fix: Live Movement Authority
+## How to run games
 
-Backprop added:
-
-- `SPEC.md` V28: live CPU-vs-CPU player/ball position updates must pass a frame-level max-speed gate.
-- `SPEC.md` B24: previous authority started too late and only covered command-driven players, letting legacy steering/collisions/ball attachment create untagged teleports.
-
-Code:
-
-- `src/ai/coachAuthority.ts`
-  - Added `enforceLiveMovementAuthority()`.
-  - Allows explicitly tagged restart/dead-ball/reset teleports.
-  - Caps untagged live movement above allowed speed.
-- `src/gameEngine.ts`
-  - Added `beginLiveMovementAuthorityFrame()` near the start of each simulation step.
-  - Added `enforceLiveMovementAuthorityFrame(dt)` before restart/out-of-play/goal-plane finalization.
-  - Logs `LIVE_MOVEMENT_AUTHORITY_VIOLATION` and `LIVE_BALL_AUTHORITY_VIOLATION`.
-- `tests/coachAuthority.test.ts`
-  - Added V28 tests for capped untagged teleports and allowed tagged restart teleports.
-- `scripts/teleport-audit.mjs`
-  - Added a saved-bundle audit for ball teleports and player speed spikes.
-
-Verification passed after the movement gate:
-
-```powershell
-npm run lint
-npm run test
-npm run build
-```
-
-Result:
-
-- Lint passed.
-- Tests passed: 83/83.
-- Build passed.
-
-### Latest 3-Game Background Run
-
-Run folder:
-
-```text
-telemetry\three-game-teleport-gate-2026-05-01-093508-PM
-```
-
-Report:
-
-```text
-telemetry\three-game-teleport-gate-2026-05-01-093508-PM\headless-report.json
-```
-
-Results:
-
-```text
-Game 1: Seattle Sounders 0-1 Real Salt Lake
-Game 2: Sporting Kansas City 1-0 New York City FC
-Game 3: Austin FC 0-0 Columbus Crew
-```
-
-Teleport gate counters from the report:
-
-```text
-Game 1: teleportDetected=0 restartRepositions=0 teleportLog=0 liveMove=0 liveBall=0
-Game 2: teleportDetected=0 restartRepositions=0 teleportLog=0 liveMove=0 liveBall=0
-Game 3: teleportDetected=0 restartRepositions=0 teleportLog=0 liveMove=0 liveBall=0
-```
-
-Gameplay regression:
-
-```text
-Avg goals/game: 0.7
-Avg shots/game: 6.7
-Shot accuracy: 15.0%
-Avg passes/game: 132.0
-Pass completion: 59.1%
-Avg tackles/game: 16.7
-Avg fouls/game: 1.3
-```
-
-Conclusion: the gate fixed the obvious illegal motion, but scoring and shot volume collapsed. That means previous gameplay was partly powered by movement paths that were physically invalid.
-
-### Important Audit Before The Fix
-
-Teleport audit against match `#490 Atlanta United 3-1 Orlando City`:
-
-```text
-telemetry\teleport-watch-2026-05-01-091731-PM\teleport-audit.md
-```
-
-Findings:
-
-- Ball teleport issue: yes.
-- Player teleport issue: yes.
-- Ball detected: 11.
-- Restart/dead-ball repositions: 26.
-- Player speed spikes: 390.
-- Worst player spike: 429.76 units/s over 38.68 units in 0.09s.
-
-This audit justified V28/B24.
-
-### Real-Data Replay And Tracking Work Already Done
-
-Do not repeat these as new ideas:
-
-- Real Data Replay mode exists and disables coach/AI/ball physics.
-- Metrica Sample Game 1 replay asset exists:
-  - `public\data\metrica-sample-game-1-replay.json`
-  - generated by `scripts/build-metrica-replay.mjs`
-- Replay now includes:
-  - player positions
-  - tracked ball position
-  - source pitch dimensions
-  - interpolation between sampled frames
-  - facing derived from velocity
-  - visible pitch scaling so flags/markings match the source pitch
-- User watched replay and liked the player movement.
-
-Recent real-data CPU movement experiment:
-
-- `src/ai/metricaMotionLibrary.ts`
-  - Selects Metrica tracking frames by current ball location and attack direction.
-  - Produces role-indexed ghost targets for off-ball attackers.
-- `src/gameEngine.ts`
-  - `getMetricaMotionGhostTarget()` plugs those targets into coach full-control movement.
-- `tests/metricaMotionLibrary.test.ts`
-  - Covers coordinate mapping, frame selection, and ghost targets.
-
-Verified:
+### 1. Run a single headless newarch match and save the raw bundle
 
 ```powershell
-npm run lint
-npm run test
-npm run build
+npm run sim:match -- --home "Nashville SC" --away "St. Louis CITY SC" --half-seconds 60 --query "newarch=1" --report-json "telemetry\nashville-stl-boxdef.json"
 ```
 
-But: this did not solve live gameplay by itself because legacy control paths still coexist.
+Notes:
 
-### Attempts Already Made, Do Not Re-Propose As If New
+- `--half-seconds 60` is the short truthful verification run used during this work.
+- `--query "newarch=1"` forces the new gameplay model.
+- `--report-json` writes a saved headless bundle/report that the analyzer can read directly.
+- The script auto-starts a local Vite server if one is not already available.
 
-The user is right that several "structural" ideas were already attempted:
-
-- Coach full control over attackers and defenders.
-- Coach as "supreme authority".
-- Coach directing off-ball attackers/runners, not only carrier.
-- Opponent coach made equally effective.
-- Aggression scale for offense and defense.
-- No-opposition isolation.
-- Removing one team entirely for solo CPU testing.
-- Real-data replay with no ball, then with tracked ball.
-- Feeding real-world positional/event data concepts into the coach.
-- Metrica event definitions and sample data.
-- Roboflow/sports positional data discussion.
-- Drift logging between expected real-data position and actual telemetry.
-- Striker blocked-shot escape.
-- Coach wait caps.
-- Secondary chances from blocked striker shots.
-- Tempo release function simulation.
-- Reduced block chance.
-- Movement gate after teleport audit.
-
-The correct framing is not "try one authority path"; it is "we did not actually delete/bypass the old paths, so multiple systems still fight in live CPU mode."
-
-### Current Architectural Diagnosis
-
-The live CPU frame still contains too many possible writers or influencers:
-
-- FSM pre-pass.
-- Coach command targets.
-- Metrica ghost targets.
-- Legacy route support.
-- Practice/structured pattern movement.
-- Loose-ball emergency chasers.
-- Defensive assignment steering.
-- Collision separation pushes.
-- Ball attachment/dribble positioning.
-- Restart/presentation relocation.
-
-The movement gate catches illegal output but does not decide soccer. With illegal jumps removed, the remaining controller stack produces too few shots and goals.
-
-Next work should be an isolation or deletion task, not a tuning task:
-
-1. Choose one live CPU controller for a test mode.
-2. In that mode, bypass all other movement writers.
-3. Every player gets exactly one owner and one target per frame.
-4. Ball carrier action decision also comes from that same controller.
-5. Collisions may block/resolve contact but must not push live players outside the movement gate.
-6. Run one background game and audit:
-   - teleport/player speed
-   - shots
-   - goals
-   - pass completion
-   - possession
-   - stuck carrier time
-   - controller owner distribution
-
-Do not add another layer above the existing layers.
-
-This is the current handover for Pixel Soccer League after the coach-layer work and the headless-runner failures on the original machine.
-
-## Project Context
-
-Pixel Soccer League is a browser soccer simulation with Three.js/TypeScript/Vite. Most runtime logic still lives in `src/gameEngine.ts`. The user is tuning CPU-vs-CPU gameplay toward an MLS-like baseline using match telemetry, browser observation, and headless runs.
-
-Primary goal right now: stop tiny parameter tuning and introduce a stronger tactical "coach" system that can issue explicit attacking and defensive commands, then measure whether players obey and whether those commands create real soccer actions.
-
-## User Preferences And Constraints
-
-- Do not run smoke tests, headless games, or match simulations without explicit authorization.
-- When starting a run, always announce a local timestamp, PID, and output folder.
-- Runs should be background/detached so chat remains available.
-- Headless game runs should use Chrome/Chromium GPU mode: `--gpu-headless`.
-- Do not push code unless the user explicitly asks.
-- Do not include team names in telemetry/database access approval requests.
-- Use `rg` for search and `apply_patch` for manual edits.
-- Do not revert unrelated dirty worktree changes.
-
-## Protected Ports From The Old Machine
-
-The old machine had many conflicts. If still relevant:
-
-- `5173` was Aphelion. Do not touch it.
-- `8188` was ComfyUI. Do not touch it.
-- `8765` was an internal tool. Do not touch it.
-- `9224` was protected/debug tooling. Do not touch it.
-- `3002` was later approved to kill and was killed.
-
-The move to another computer is meant to avoid these conflicts.
-
-## Recent Gameplay Direction
-
-We concluded that the visual audit was not enough. Screenshots without player IDs cannot tell individual players apart; players have no shirt-number rendering, hair color is random, and sprites are visually ambiguous.
-
-Important distinction:
-
-- Visual audit = after-the-fact screenshots for human sanity checks.
-- Coach layer = live tactical command system that tells known engine players what to do.
-
-The user wants a real coach, not an audit. Since the engine already knows player identity, role, team, position, ball state, and target assignment, the coach should use internal state rather than a vision model to identify players.
-
-## Code Changes Implemented
-
-### 1. Structured finish/cutback adjustment
-
-File: `src/gameEngine.ts`
-
-Changes made before coach layer:
-
-- Loosened structured cutback finish rules.
-- Cutback receivers can now shoot through moderate pressure and blocked lanes if central enough.
-- `STRUCTURED_FINISH_INTENT_HELD` now includes `holdReason`.
-- Cutbacks prefer `PLACED` shots out to roughly 15 yards.
-- Older pattern crossing logic favors cutbacks more, penalizes covered near-post runners, and avoids converting blocked driven cutbacks into floated lofts.
-
-Telemetry to watch:
-
-- `STRUCTURED_FINISH_INTENT_ARMED`
-- `STRUCTURED_FINISH_INTENT_HELD`
-- `STRUCTURED_FINISH_INTENT_SHOT`
-- `holdReason`
-
-### 2. Coach command layer
-
-File: `src/gameEngine.ts`
-
-Added a first real coach play: `WING_CUTBACK_01`.
-
-New types:
-
-- `CoachCommandRole`
-- `CoachDefenseRole`
-- `CoachCommandState`
-
-New `gameState` fields:
-
-- `activeCoachCommand`
-- `coachCommandSeq`
-- `coachCommandLastEndByTeam`
-
-New helper functions:
-
-- `playerCoachKey`
-- `findPlayerByCoachKey`
-- `getActiveCoachCommand`
-- `endCoachCommand`
-- `coachTargetForAttackRole`
-- `getCoachAttackRole`
-- `maybeEmitCoachPlayerReached`
-- `chooseCoachDefender`
-- `issueWingCutbackCoachCommand`
-- `getCoachSupportTarget`
-- `getCoachDefensiveTarget`
-
-Attack coach assigns:
-
-- carrier
-- near-post runner
-- far-post runner
-- cutback receiver
-- second-wave support
-
-Defense coach assigns:
-
-- pressure carrier
-- cover near-post runner
-- cover cutback lane
-- track far-post runner
-- block second-wave support
-
-First-version behavioral changes:
-
-- Off-ball attackers now obey coach support targets strongly during an active command.
-- Defenders now obey coach defensive targets during the same command.
-- Coach can force a driven cutback instead of waiting for the old director heuristics.
-- Coach command ends on shot, delivery failure, possession loss, or expiration.
-
-Follow-up authority changes made after the first telemetry pass:
-
-- Added `getCoachElapsedSeconds()` so coach commands use a single absolute match-clock basis.
-- Changed `endCoachCommand()` to default to the coach clock and clamp negative durations to zero.
-- Added `coachAttackRoleReached()` and runner-readiness gates.
-- Carrier now waits under `coach_waiting_for_runner` while a coach command is active instead of treating the coach as a soft delivery boost.
-- Added `COACH_COMMAND_WAIT` telemetry so we can see when the coach is intentionally holding the carrier for runners.
-- Coached attackers now enter `COACH_ATTACK` and run harder to assigned targets.
-- Coached defenders now enter `COACH_DEFENSE` and stay owned by the coach target instead of immediately falling back to normal defense when close.
-
-New telemetry:
-
-- `COACH_COMMAND_ISSUED`
-- `COACH_DEFENSE_ASSIGNED`
-- `COACH_PLAYER_REACHED`
-- `COACH_COMMAND_DELIVERY`
-- `COACH_DELIVERY_RESOLVED`
-- `COACH_FINISH_SHOT`
-- `COACH_COMMAND_END`
-- `COACH_COMMAND_WAIT`
-
-### 3. Headless match launcher
-
-Added file: `scripts/start-headless-match.ps1`
-
-Purpose: replace fragile ad hoc PowerShell wrappers. It starts headless runs with stable logging and output paths.
-
-Expected command:
+### 2. Run a different fixed fixture
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-headless-match.ps1 -Games 1 -Speed 1 -Prefix coach-wing-cutback-onegame
+npm run sim:match -- --home "FC Cincinnati" --away "Chicago Fire FC" --half-seconds 60 --query "newarch=1" --report-json "telemetry\cincinnati-chicago.json"
 ```
 
-It creates a run folder under `telemetry/` with:
-
-- `start-manifest.json`
-- `command.txt`
-- `launcher.log`
-- `runner.pid`
-- `runner.out.log`
-- `runner.err.log`
-- `monitor-runner.ps1`
-- `monitor.pid`
-- `exit-code.txt` after monitor succeeds
-- `sim.json` if the match completes
-- `visual-audit/` if visual audit captures frames
-
-Current status: the launcher was later fixed enough to run detached successfully. It now writes a worker script into the run folder, starts PowerShell detached, stores `worker.pid` and `runner.pid`, captures stdout/stderr, and writes `exit-code.txt`.
-
-Known remaining runner problem: if the browser page reloads/navigates while `scripts/headless-sim.mjs` is polling with `page.evaluate()`, the worker exits with code `998` and the series report may not be written. The next reliability fix should catch transient `Execution context was destroyed` errors during polling, retry after navigation, and write partial series results incrementally after every completed match.
-
-## Verification Already Passed
-
-After the coach-layer changes:
+### 3. Run a short multi-game batch
 
 ```powershell
-npm run lint
-node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
+npm run sim:headless -- --games 5 --half-seconds 60 --query "newarch=1" --report-json "telemetry\batch-5.json"
 ```
 
-Both passed.
-
-After adding `scripts/start-headless-match.ps1`:
+### 4. Manual browser run if needed
 
 ```powershell
-$tokens=$null; $errors=$null; $null=[System.Management.Automation.Language.Parser]::ParseFile('scripts\start-headless-match.ps1',[ref]$tokens,[ref]$errors); if ($errors -and $errors.Count) { $errors | Format-List *; exit 1 } else { 'parse=ok' }
-npm run lint
+npm run dev
 ```
 
-Both passed.
+Then open the app with `?newarch=1` in the URL. Browser/headless results are also visible in the in-app MATCHES dashboard telemetry.
 
-After the coach-authority changes:
+## How to analyze telemetry
+
+### 1. Analyze a saved headless bundle directly
 
 ```powershell
-npm run lint
-node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
+npm run telemetry:analyze -- --bundle-json "telemetry\nashville-stl-boxdef.json" --report-json "telemetry\nashville-stl-boxdef-report.json" --report-md "telemetry\nashville-stl-boxdef-report.md"
 ```
 
-Both passed.
+This produces:
 
-## Latest Coach Telemetry
+- a machine-readable JSON summary
+- a human-readable Markdown report
 
-First successful one-game run after the first coach implementation:
+### 2. Analyze the latest saved bundle
 
-```text
-telemetry\coach-wing-cutback-onegame-2026-04-29-185317
-Toronto FC 1 - 0 Orlando City
+```powershell
+npm run telemetry:analyze -- --latest
 ```
 
-Key coach telemetry:
+Default outputs:
 
-- total events: 8830
-- coach events: 168
-- `COACH_COMMAND_ISSUED`: 36
-- `COACH_DEFENSE_ASSIGNED`: 36
-- `COACH_PLAYER_REACHED`: 26
-- `COACH_COMMAND_DELIVERY`: 16
-- `COACH_DELIVERY_RESOLVED`: 16
-- `COACH_COMMAND_END`: 36
-- `COACH_FINISH_SHOT`: 2
-- command end reasons: `possession_lost` 20, `expired` 13, `delivery_unresolved` 1, `shot_taken` 2
-- delivery outcomes: `COMPLETED` 12, `SELF_CAUGHT` 3, `UNRESOLVED` 1
-- reached roles were only `PRESS_CARRIER`; no attacking coach roles reached
+- `telemetry\latest-report.json`
+- `telemetry\latest-report.md`
 
-Conclusion: the coach existed, issued commands, and produced deliveries, but it still lacked real authority over attacking runners. That led directly to the authority changes described above.
+### 3. Analyze a specific saved matchup from IndexedDB-backed telemetry
 
-Latest 10-match attempt after authority changes:
-
-```text
-telemetry\coach-authority-tenmatch-2026-04-29-191018
-started=2026-04-29 19:10:18
-workerPid=39256
+```powershell
+npm run telemetry:analyze -- --home "FC Cincinnati" --away "Chicago Fire FC"
 ```
 
-It completed 6 games and failed during game 7:
+### 4. Analyze one exact session
 
-```text
-workerException=page.evaluate: Execution context was destroyed, most likely because of a navigation
-finished=2026-04-29 19:43:33 exitCode=998
+```powershell
+npm run telemetry:analyze -- --session-id ft-123456
 ```
 
-This was a headless-runner/browser-context failure, not a confirmed gameplay crash. The page likely reloaded or navigated while the runner was polling `window.__gameRef.getMatchSnapshot()`. Because the runner only writes `sim.json` at the end, no clean series report was produced even though six game summaries were preserved in stdout.
+## What to check first in each telemetry report
 
-Last completed game before failure:
+1. **Kickoff health**
+   - `kickoff passes`
+   - `kickoff receives`
+2. **Shot box defense**
+   - `avg box defenders`
+   - `avg corridor defenders`
+   - `empty box`
+   - `empty corridor`
+3. **Chance creation**
+   - shots / shots on target
+   - deliveries / real crosses
+   - corners
+4. **Noise / integration regressions**
+   - `COACH_AUTHORITY_VIOLATION`
+   - `LIVE_MOVEMENT_AUTHORITY_VIOLATION`
+   - `LIVE_BALL_AUTHORITY_VIOLATION`
 
-```text
-Game 6 | New York Red Bulls 0 - 0 Colorado Rapids | DRAW
-Shots 5-6 | SOG 0-1 | Saves 1-0 | Headers 0-1
-Passes 37(36)-39(37) | Tackles 21-20 | Fouls 3-5
-Possession 49%-51% | Corners 0-1 | Clearances 1-1
-```
+## Recommended verification loop
 
-Next runner fix: make `scripts/headless-sim.mjs` resilient to page-context loss and write partial results after each completed match.
-
-## Important Recent Telemetry Before Coach Layer
-
-The last successful visual-audit run before the coach change was:
-
-```text
-telemetry\visual-audit-fixed-onegame-2026-04-29-153915
-Seattle Sounders 0 - 0 New York City FC
-```
-
-Key findings:
-
-- 33 total shots, only 3 on target.
-- 19 blocked shots.
-- 141 neo-play starts.
-- 44 structured deliveries.
-- 14 real crosses.
-- 16 shot-producing structured attacks.
-- 0 goal-producing structured attacks.
-- `STRUCTURED_FINISH_INTENT_ARMED`: 5
-- `STRUCTURED_FINISH_INTENT_HELD`: 5
-- `STRUCTURED_FINISH_INTENT_SHOT`: 0
-
-Conclusion: the system was creating situations but refusing to finish them. That directly motivated the cutback/finish changes and then the coach layer.
-
-## Why The Coach Layer Matters
-
-The previous possession director was too weak. It mostly suggested behavior through pattern selection and boosts, but the regular AI could still drift, shoot from distance, pass elsewhere, or arrive late.
-
-The new direction is stronger:
-
-- issue explicit commands to known players
-- make off-ball attackers and defenders obey for a short window
-- force a specific delivery
-- require measurable phase outcomes
-
-The first play is deliberately narrow: `WING_CUTBACK_01`. If this works, the playbook can become data-driven and expand into give-and-go, overlaps, switches, early crosses, third-man runs, etc.
-
-## Next Steps On The New Computer
-
-1. Pull/verify latest repo state.
+1. Make a small targeted change.
 2. Run:
 
 ```powershell
-npm install
 npm run lint
-node --import tsx --test tests\structuredAttack.test.ts tests\possessionDirector.test.ts
+npm run test
 ```
 
-3. Start one visible or headless check only with explicit user approval.
-4. If testing headless, prefer the detached launcher:
+3. Run one direct-bundle short match:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-headless-match.ps1 -Games 1 -Speed 1 -Prefix coach-authority-onegame -Url http://127.0.0.1:3001/
+npm run sim:match -- --home "Nashville SC" --away "St. Louis CITY SC" --half-seconds 60 --query "newarch=1" --report-json "telemetry\verify.json"
 ```
 
-5. If a longer run is needed, first fix `scripts/headless-sim.mjs` so it writes partial results and recovers from transient page navigation during polling.
-6. Run one authorized match and analyze coach telemetry:
+4. Analyze it:
 
-Watch counts and outcomes for:
+```powershell
+npm run telemetry:analyze -- --bundle-json "telemetry\verify.json" --report-json "telemetry\verify-report.json" --report-md "telemetry\verify-report.md"
+```
 
-- `COACH_COMMAND_ISSUED`
-- `COACH_PLAYER_REACHED`
-- `COACH_COMMAND_DELIVERY`
-- `COACH_DELIVERY_RESOLVED`
-- `COACH_FINISH_SHOT`
-- `COACH_COMMAND_END`
-- `COACH_COMMAND_WAIT`
-- `STRUCTURED_FINISH_INTENT_SHOT`
-- `STRUCTURED_FINISH_INTENT_HELD`
+5. Do not move to corners until the box-defense gate is actually cleared.
 
-Good first success criteria:
+## Recommended next work
 
-- At least several coach commands issued per match.
-- Cutback receiver reaches target on a meaningful fraction of commands.
-- Coach delivery occurs.
-- Some coach deliveries resolve to the intended receiver.
-- Some coach possessions create immediate shots.
-- The screen visibly shows wide carry plus cutback/runner movement.
-
-Bad signs:
-
-- Commands issue but no players reach targets.
-- Carrier never delivers.
-- Cutback deliveries are intercepted every time.
-- Receiver still holds instead of shooting.
-- Defenders over-collapse and block everything.
-
-## Files Most Likely To Touch Next
-
-- `src/gameEngine.ts`
-- `scripts/start-headless-match.ps1`
-- `scripts/headless-sim.mjs`
-- `scripts/telemetry-analyze-latest.mjs`
-
-Potential analyzer improvement: add a coach section to `telemetry-analyze-latest.mjs` that summarizes command issuance, wait rate, reach rate by role, delivery rate, resolved rate, shot rate, and goal rate.
-
-## Current Caveat
-
-The code compiles and a prior coach version completed one match. The latest authority changes have passed lint/tests, but the 10-match validation was interrupted by a headless browser context/navigation failure during game 7. The first task on the new machine should be runner reliability, then a short authorized coach-authority match to verify that attacking roles now reach their targets and that `COACH_COMMAND_WAIT` appears for intentional carrier holds.
+- Narrow the early cover trigger so it only activates for central / half-space shooting threats instead of broadly suppressing all chance creation.
+- Add richer shot-time defensive labeling if the next pass is still hard to diagnose blind.
+- Keep the new left-to-right kickoff restart regression in place as a guardrail while returning focus to box-defense KPIs.

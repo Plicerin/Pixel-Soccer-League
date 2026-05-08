@@ -90,6 +90,12 @@ function unique<T>(items: T[]) {
   return Array.from(new Set(items));
 }
 
+export function clampFrameBlend(dt: number, rate: number, min = 0, max = 1) {
+  const safeDt = Number.isFinite(dt) ? dt : 0;
+  const safeRate = Number.isFinite(rate) ? rate : 0;
+  return clampNumber(safeDt * safeRate, min, max);
+}
+
 export function enforceCoachAuthorityMovement(input: CoachAuthorityMovementInput): CoachAuthorityMovementResult {
   const violations: CoachAuthorityMovementViolation[] = [];
   const safeDt = Math.max(0.001, Number.isFinite(input.dt) ? input.dt : 0.001);

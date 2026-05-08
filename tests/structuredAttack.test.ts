@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import {
   computeStructuredCarrierTarget,
   computeStructuredAttackTarget,
+  computeStructuredDeliveryTarget,
   getStructuredAttackRole,
   selectStructuredAttack,
   shouldStructuredCarrierDeliver,
@@ -130,6 +131,50 @@ test('structured carrier delivery opens before byline', () => {
     }),
     true,
   );
+});
+
+test('structured delivery target leads runners into finish lanes before they fully arrive', () => {
+  const carrier = makePlayer('RM Carrier', 'A', 15, 11, 'RM');
+  const striker = makePlayer('Striker', 'A', 17, 1.5, 'ST');
+  const cutback = makePlayer('Ten', 'A', 12, 4.5, 'CAM');
+  const secondWave = makePlayer('Eight', 'A', 10, -3.5, 'CM');
+  const state = selectStructuredAttack({
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, cutback, secondWave],
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(state);
+  const nearPostTarget = computeStructuredDeliveryTarget({
+    player: striker,
+    carrier,
+    state,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+  const cutbackTarget = computeStructuredDeliveryTarget({
+    player: cutback,
+    carrier,
+    state,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(nearPostTarget);
+  assert.ok(cutbackTarget);
+  assert.ok(nearPostTarget.x > striker.pos.x);
+  assert.ok(Math.abs(nearPostTarget.z) < Math.abs(carrier.pos.z));
+  assert.ok(cutbackTarget.x > cutback.pos.x);
+  assert.ok(Math.abs(cutbackTarget.z) < Math.abs(carrier.pos.z));
 });
 
 test('structured carrier target preserves wide lane before delivery', () => {

@@ -63,6 +63,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 - V26. Real-data replay ball/smoothing: replay mode must render tracked ball coordinates from the source data and interpolate player/ball positions between sampled frames instead of snapping at sample boundaries.
 - V27. Real-data replay visual pitch: when source pitch dimensions differ from the local field, replay mode must scale visible field markings, flags, and goals to the recorded pitch so corners and touchlines align with replay coordinates.
 - V28. Live movement authority: during live CPU-vs-CPU halves, every player and ball position update must pass a frame-level max-speed gate; untagged teleports are capped and logged, only explicit restart/dead-ball/reset states may bypass.
+- V29. Live restarts: if the ball has already settled outside the field during live play, restart classification must still award the correct goal kick / corner / throw-in from the actual last-touch team.
 
 ---
 
@@ -126,3 +127,4 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | B22 | 2026-05-01 | Replay sampled at 0.2s but rendered with frame snapping, producing visible 5 FPS positional jumps instead of smooth motion | V26 |
 | B23 | 2026-05-01 | Replay coordinates were correctly centered to the 105x68m source pitch, but field flags/markings remained at the larger 120x80yd local field, so corner takers appeared several feet from the flag | V27 |
 | B24 | 2026-05-02 | Live movement authority began after early movement paths and only guarded command-driven players, so legacy steering/collisions/ball attachment could create untagged player and ball teleports | V28 |
+| B25 | 2026-05-03 | Orchestrator out-of-play logic skipped `dead` balls, so a slow ball settling just beyond the line could lose its goal-kick/corner restart classification and hide last-touch bugs | V29 |

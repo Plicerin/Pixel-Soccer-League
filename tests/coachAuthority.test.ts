@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { enforceCoachAuthorityMovement, enforceLiveMovementAuthority, selectCoachAuthorityAction } from '../src/ai/coachAuthority.ts';
+import {
+  clampFrameBlend,
+  enforceCoachAuthorityMovement,
+  enforceLiveMovementAuthority,
+  selectCoachAuthorityAction,
+} from '../src/ai/coachAuthority.ts';
 
 test('coach authority stays idle before final-third or hold contract is breached', () => {
   assert.equal(selectCoachAuthorityAction({
@@ -84,6 +89,12 @@ test('coach authority prefers a pass over hopeful medium-range shots', () => {
     shotAngle: 0.52,
     distToGoal: 24,
   }), { action: 'pass', reason: 'pattern_contract' });
+});
+
+test('frame blend clamp prevents large-dt lerp overshoot in authority-driven movement', () => {
+  assert.equal(clampFrameBlend(0.016, 8), 0.128);
+  assert.equal(clampFrameBlend(0.5, 10), 1);
+  assert.equal(clampFrameBlend(Number.NaN, 10), 0);
 });
 
 test('V21 coach authority blocks uncommanded player movement', () => {
