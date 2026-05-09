@@ -85,8 +85,6 @@ import {
 import {
   PlayerControllerState,
   createPlayerControllerState,
-  buildOutfielderBT,
-  tickPlayerController,
 } from "../ai/playerController";
 import {
   computeKickoffReceiverSpot,
@@ -97,12 +95,16 @@ import {
   tickGKController,
   createGKControllerState,
 } from "../ai/goalkeeperController";
+import { simpleOutfielderTick, SimplePlayerInput } from "../ai/simpleAI";
 
 export type OrchestratorPlayer = {
   id: string;
   team: TeamSide;
   role: PlayerRole;
+  displayRole: string;
+  displayName: string;
   pos: Vec2;
+  homePos: Vec2;
   vel: Vec2;
   prevPos: Vec2;
   facingRad: number;
@@ -128,6 +130,7 @@ export type OrchestratorEvent =
   | { kind: "ball_out"; restartType: "throw_in" | "goal_kick" | "corner" | "free_kick"; restartTeam: TeamSide }
   | { kind: "possession_change"; newTeam: TeamSide }
   | { kind: "pass"; fromId: string; toId: string; type: string }
+  | { kind: "pass_complete"; passerId: string; receiverId: string }
   | { kind: "shot"; playerId: string; style: string; onTarget: boolean }
   | { kind: "tackle"; winnerId: string; loserId: string }
   | { kind: "clearance"; playerId: string }
@@ -195,8 +198,6 @@ export function createGameOrchestrator(
 
   let homeTactical = createTeamTacticalState("home", config.homeConfig);
   let awayTactical = createTeamTacticalState("away", config.awayConfig);
-
-  const outfieldBT = buildOutfielderBT();
 
   const playerControllers = new Map<string, PlayerControllerState>();
   for (const p of players) {
@@ -297,13 +298,16 @@ export function createGameOrchestrator(
       return null;
     }
 
-    const outCtrl = ctrl as PlayerControllerState;
-    const result = tickPlayerController(outCtrl, playerBelief, belief, blackboard, outfieldBT, 0.016);
-    if (result) {
-      playerControllers.set(p.id, result.newState);
-      return result.intent;
-    }
-    return null;
+    const simpleInput: SimplePlayerInput = {
+      id: p.id,
+      team: p.team,
+      role: p.role,
+      pos: { ...p.pos },
+      homePos: { ...p.homePos },
+      hasBall: p.hasBall,
+      isGK: false,
+    };
+    return simpleOutfielderTick(simpleInput, belief, p.team === "home" ? homeAttackSign : awayAttackSign, elapsed);
   }
 
   function intentToBallCommand(
@@ -384,7 +388,11 @@ export function createGameOrchestrator(
   function detectGoal(): GoalEvent | null {
     const result = isBallInGoalMouth(ball.pos.x, ball.pos.z, ball.pos.y);
     if (!result) return null;
-    const scoringSide: TeamSide = result.team;
+    // Determine which team scored by which end the ball crossed, adjusted for
+    // the current half. homeAttackSign > 0 means home attacks right (RIGHT_GOAL_X).
+    const scoringSide: TeamSide = ball.pos.x > RIGHT_GOAL_X
+      ? (homeAttackSign > 0 ? "home" : "away")
+      : (homeAttackSign < 0 ? "home" : "away");
     return { scoringTeam: scoringSide };
   }
 
@@ -568,6 +576,9 @@ export function createGameOrchestrator(
     }
 
     const prevBallOwnerTeam = ball.ownerTeam;
+    const prevBallLastHeldById = ball.lastHeldById;
+    const prevIntendedTeam = ball.intendedTeam;
+    const prevIntendedReceiverId = ball.intendedReceiverId;
 
     if (pendingBallCommand) {
       executeBallCommand(ball, pendingBallCommand, elapsed);
@@ -579,10 +590,11 @@ export function createGameOrchestrator(
     const homePossession = belief.ball.ownerTeam === "home";
     const awayPossession = belief.ball.ownerTeam === "away";
     const possessionTeam = belief.ball.ownerTeam;
-    const isSetPiece = false;
+    const restartMode = elapsed <= kickoffProtectionUntil ? "kickoff" : null;
+    const isSetPiece = restartMode !== null;
 
-    homeTactical = updateTeamTacticalService(homeTactical, belief, "home", dt, isSetPiece);
-    awayTactical = updateTeamTacticalService(awayTactical, belief, "away", dt, isSetPiece);
+    homeTactical = updateTeamTacticalService(homeTactical, belief, "home", dt, isSetPiece, { restartMode });
+    awayTactical = updateTeamTacticalService(awayTactical, belief, "away", dt, isSetPiece, { restartMode });
 
     const intents = new Map<string, PlayerIntent>();
 
@@ -685,7 +697,7 @@ export function createGameOrchestrator(
           kind: "shot",
           playerId: ballCommandFromIntent.playerId,
           style: "laces_drive",
-          onTarget: true,
+          onTarget: false,
         });
       } else if (ballCommandFromIntent.cmd.kind === "clear") {
         events.push({
@@ -708,10 +720,15 @@ export function createGameOrchestrator(
       ),
       speed: p.speed,
       dribbling: p.ratings.dribbling,
+      defending: p.ratings.defending,
+      standingTackle: p.ratings.standingTackle,
+      reactions: p.ratings.reactions,
+      strength: p.ratings.strength,
     }));
 
     const prevBallState = ball.state;
     const prevBallOwner = ball.ownerPlayerId;
+    const prevBallWasShot = ball.isShot;
     ball = updateBallPhysics(ball, ballContactInfos, elapsed, dt);
 
     if (ball.state === "attached" && ball.ownerPlayerId) {
@@ -732,7 +749,50 @@ export function createGameOrchestrator(
 
       if (prevBallOwner !== ball.ownerPlayerId && ball.ownerTeam) {
         const newTeam = ball.ownerTeam;
-        const oldTeam = newTeam === "home" ? "away" : "home";
+        const lastTouchPlayer = prevBallLastHeldById
+          ? players.find(p => p.id === prevBallLastHeldById)
+          : null;
+        if (prevBallOwner && prevBallOwnerTeam && prevBallOwnerTeam !== newTeam) {
+          events.push({
+            kind: "tackle",
+            winnerId: ball.ownerPlayerId,
+            loserId: prevBallOwner,
+          });
+        } else if (
+          prevBallState !== "dead"
+          && !prevBallOwner
+          && prevIntendedTeam === newTeam
+          && lastTouchPlayer
+          && lastTouchPlayer.team === newTeam
+          && prevBallLastHeldById !== ball.ownerPlayerId
+        ) {
+          events.push({
+            kind: "pass_complete",
+            passerId: prevBallLastHeldById,
+            receiverId: ball.ownerPlayerId,
+          });
+        } else if (
+          prevBallState !== "dead"
+          && prevIntendedTeam
+          && prevIntendedTeam !== newTeam
+          && prevIntendedReceiverId !== ball.ownerPlayerId
+        ) {
+          events.push({
+            kind: "interception",
+            playerId: ball.ownerPlayerId,
+          });
+        } else if (
+          prevBallState !== "dead"
+          && !prevBallOwner
+          && prevBallLastHeldById
+        ) {
+          if (lastTouchPlayer && lastTouchPlayer.team !== newTeam) {
+            events.push({
+              kind: "interception",
+              playerId: ball.ownerPlayerId,
+            });
+          }
+        }
         if (lastPossessionTeam !== newTeam) {
           events.push({ kind: "possession_change", newTeam });
           lastPossessionTeam = newTeam;
@@ -741,8 +801,7 @@ export function createGameOrchestrator(
     }
 
     if (ball.state === "attached" && prevBallState !== "attached" && ball.ownerPlayerId) {
-      const wasShot = ball.isShot;
-      if (wasShot) {
+      if (prevBallWasShot) {
         const keeper = players.find(p => p.id === ball.ownerPlayerId && p.isGK);
         if (keeper) {
           events.push({ kind: "save", keeperId: keeper.id });

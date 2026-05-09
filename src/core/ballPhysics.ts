@@ -32,6 +32,7 @@ import {
   sub2,
   add2,
   scale2,
+  dot2,
   clamp,
 } from "./constants";
 import { segmentCrossesReceiverRadius } from "../ai/passResolution";
@@ -92,6 +93,10 @@ export type PlayerContactInfo = {
   isInOwnBox: boolean;
   speed: number;
   dribbling: number;
+  defending?: number;
+  standingTackle?: number;
+  reactions?: number;
+  strength?: number;
 };
 
 export function executeBallCommand(
@@ -117,7 +122,7 @@ export function executeBallCommand(
       ball.lastHeldAtTime = elapsed;
       ball.intendedReceiverId = cmd.intendedReceiverId ?? null;
       ball.intendedTeam = cmd.intendedTeam ?? null;
-      ball.intendedUntil = ball.intendedReceiverId ? elapsed + clamp(travelTime + 0.75, 0.5, 3.0) : 0;
+      ball.intendedUntil = ball.intendedReceiverId ? elapsed + clamp(travelTime + 1.1, 0.75, 4.0) : 0;
       break;
     }
     case "shot": {
@@ -186,7 +191,7 @@ export function executeBallCommand(
       ball.lastHeldAtTime = elapsed;
       ball.intendedReceiverId = cmd.intendedReceiverId ?? null;
       ball.intendedTeam = cmd.intendedTeam ?? null;
-      ball.intendedUntil = ball.intendedReceiverId ? elapsed + clamp(flightTime + 0.75, 0.5, 4.0) : 0;
+      ball.intendedUntil = ball.intendedReceiverId ? elapsed + clamp(flightTime + 1.25, 0.75, 4.75) : 0;
       break;
     }
     case "dead": {
@@ -231,7 +236,7 @@ export function updateBallPhysics(
 
   if (b.state === "in_flight" || b.state === "loose") {
     if (b.state === "in_flight" && b.isShot) {
-      const blockDefender = findShotBlockDefender(b, players);
+      const blockDefender = findShotBlockDefender(b, players, prevFlatPos);
       if (blockDefender) {
         deflectShotByDefender(b, blockDefender, elapsed);
       }
@@ -243,13 +248,6 @@ export function updateBallPhysics(
   }
 
   applyGoalInteriorCollision(b);
-  const outsideField = !isInFieldOfPlay({ x: b.pos.x, z: b.pos.z });
-  const outsideGoalLine = b.pos.x < LEFT_GOAL_X || b.pos.x > RIGHT_GOAL_X;
-  const inGoalOpening = Math.abs(b.pos.z) <= GOAL_MOUTH_HALF_Z + BALL_RADIUS
-    && b.pos.y <= GOAL_HEIGHT + BALL_RADIUS;
-  if (!outsideField || (outsideGoalLine && inGoalOpening)) {
-    applyStadiumWallCollision(b);
-  }
 
   return b;
 }
@@ -300,6 +298,25 @@ function updateAttachedBall(
   }
 
   b.dribbleVel = { x: holder.vel.x, z: holder.vel.z };
+  const dispossessor = findCarrierDispossessor(holder, players);
+  if (!dispossessor) return;
+
+  b.ownerPlayerId = dispossessor.id;
+  b.ownerTeam = dispossessor.team;
+  b.lastHeldById = dispossessor.id;
+  b.lastHeldAtTime = elapsed;
+  b.intendedReceiverId = null;
+  b.intendedTeam = null;
+  b.intendedUntil = 0;
+  b.isShot = false;
+  b.vel = { x: 0, y: 0, z: 0 };
+  b.spin = { x: 0, y: 0, z: 0 };
+  b.rollingTime = 0;
+  b.rollingLaunchSpeed = 0;
+  b.dribbleVel = { x: 0, z: 0 };
+  b.pos.x = dispossessor.pos.x;
+  b.pos.y = dispossessor.isGK && dispossessor.isInOwnBox ? 0.58 : BALL_GROUND_Y + 0.03;
+  b.pos.z = dispossessor.pos.z;
 }
 
 function updateFlyingBall(b: BallPhysicsState, dt: number): void {
@@ -412,13 +429,26 @@ function findCollector(
   const inIntendedWindow = elapsed <= b.intendedUntil;
 
   if (intendedReceiver && inIntendedWindow) {
-    const d = dist2({ x: b.pos.x, z: b.pos.z }, intendedReceiver.pos);
     const incomingSpeed = Math.sqrt(b.vel.x * b.vel.x + b.vel.z * b.vel.z);
-    const receiverRadius = incomingSpeed > 12 ? 1.22 : 1.05;
-    if (d < receiverRadius) {
+    const receiveHorizon = clamp(
+      dist2({ x: b.pos.x, z: b.pos.z }, intendedReceiver.pos) / Math.max(incomingSpeed, 1.5),
+      0,
+      0.45,
+    );
+    const projectedReceiverPos = add2(
+      intendedReceiver.pos,
+      scale2(intendedReceiver.vel, receiveHorizon),
+    );
+    const receiverRadius = incomingSpeed > 12 ? 1.55 : 1.3;
+    const d = dist2({ x: b.pos.x, z: b.pos.z }, intendedReceiver.pos);
+    const projectedDist = dist2({ x: b.pos.x, z: b.pos.z }, projectedReceiverPos);
+    if (d < receiverRadius || projectedDist < receiverRadius) {
       return intendedReceiver;
     }
     if (prevFlatPos && segmentCrossesReceiverRadius(intendedReceiver.pos, prevFlatPos, { x: b.pos.x, z: b.pos.z }, receiverRadius)) {
+      return intendedReceiver;
+    }
+    if (prevFlatPos && segmentCrossesReceiverRadius(projectedReceiverPos, prevFlatPos, { x: b.pos.x, z: b.pos.z }, receiverRadius)) {
       return intendedReceiver;
     }
   }
@@ -432,10 +462,16 @@ function findCollector(
 
     if (p.isGK && p.isInOwnBox) {
       collectRadius = 1.35;
+    } else if (b.isShot && !p.isGK) {
+      // Shots bypass outfield players — only the keeper should catch them.
+      // Defenders can still deflect via findShotBlockDefender (in_flight only).
+      collectRadius = 0.18;
     } else if (intendedReceiver && p.id === intendedReceiver.id && inIntendedWindow) {
+      collectRadius = 1.1;
+    } else if (b.intendedTeam && p.team === b.intendedTeam && inIntendedWindow) {
       collectRadius = 0.95;
     } else if (b.intendedTeam && p.team !== b.intendedTeam && inIntendedWindow) {
-      collectRadius = 0.38;
+      collectRadius = 0.34;
     } else {
       collectRadius = 0.82;
     }
@@ -452,19 +488,32 @@ function findCollector(
 function findShotBlockDefender(
   b: BallPhysicsState,
   players: PlayerContactInfo[],
+  prevFlatPos?: Vec2,
 ): PlayerContactInfo | null {
   const shooter = b.lastHeldById ? players.find((p) => p.id === b.lastHeldById) : null;
   const shooterTeam = shooter?.team ?? null;
+  const flatPos = { x: b.pos.x, z: b.pos.z };
+  const shotDir = normalize2({ x: b.vel.x, z: b.vel.z });
   let best: PlayerContactInfo | null = null;
   let bestDist = Infinity;
 
   for (const p of players) {
     if (p.isGK || !p.isInOwnBox) continue;
     if (shooterTeam && p.team === shooterTeam) continue;
-    const d = dist2({ x: b.pos.x, z: b.pos.z }, p.pos);
-    if (d > 0.92 || d >= bestDist) continue;
+    if (b.pos.y > 1.15) continue;
+    const d = dist2(flatPos, p.pos);
+    if (d > 0.8 || d >= bestDist) continue;
     const movingTowardDefender = (b.vel.x * (p.pos.x - b.pos.x) + b.vel.z * (p.pos.z - b.pos.z)) > 0;
     if (!movingTowardDefender) continue;
+    if (shooter) {
+      const alongShot = dot2(sub2(p.pos, shooter.pos), shotDir);
+      if (alongShot < 1.1) continue;
+    }
+    const blockRadius = b.pos.y < 0.6 ? 0.6 : 0.42;
+    const crossesPath = prevFlatPos
+      ? segmentCrossesReceiverRadius(p.pos, prevFlatPos, flatPos, blockRadius)
+      : d < blockRadius;
+    if (!crossesPath) continue;
     best = p;
     bestDist = d;
   }
@@ -513,6 +562,47 @@ function collectBall(b: BallPhysicsState, collector: PlayerContactInfo, elapsed:
   b.intendedUntil = 0;
   b.pos.x = collector.pos.x;
   b.pos.z = collector.pos.z;
+}
+
+function findCarrierDispossessor(
+  holder: PlayerContactInfo,
+  players: PlayerContactInfo[],
+): PlayerContactInfo | null {
+  if (holder.isGK && holder.isInOwnBox) return null;
+
+  let best: PlayerContactInfo | null = null;
+  let bestScore = 0.18;
+  for (const challenger of players) {
+    if (challenger.id === holder.id || challenger.team === holder.team) continue;
+
+    const d = dist2(holder.pos, challenger.pos);
+    if (d > 1.15) continue;
+
+    const toHolder = normalize2(sub2(holder.pos, challenger.pos));
+    const challengerDir = len2(challenger.vel) > 0.2
+      ? normalize2(challenger.vel)
+      : { x: Math.cos(challenger.facingRad), z: Math.sin(challenger.facingRad) };
+    const closingAngle = dot2(toHolder, challengerDir);
+    if (closingAngle < 0.05 && d > 0.72) continue;
+
+    const tackleSkill = (
+      (challenger.defending ?? 60) * 0.42 +
+      (challenger.standingTackle ?? challenger.defending ?? 60) * 0.38 +
+      (challenger.strength ?? 60) * 0.20
+    ) / 100;
+    const holderControl = (
+      holder.dribbling * 0.6 +
+      (holder.reactions ?? 60) * 0.25 +
+      (holder.strength ?? 60) * 0.15
+    ) / 100;
+    const speedPressure = clamp(len2(challenger.vel) / Math.max(challenger.speed, 1), 0, 1) * 0.18;
+    const score = tackleSkill + speedPressure - holderControl * 0.72 - d * 0.32;
+    if (score <= bestScore) continue;
+    best = challenger;
+    bestScore = score;
+  }
+
+  return best;
 }
 
 function applyGoalInteriorCollision(b: BallPhysicsState): void {
@@ -585,26 +675,6 @@ function applyGoalInteriorCollision(b: BallPhysicsState): void {
       b.vel = { x: 0, y: 0, z: 0 };
     }
   }
-}
-
-function applyStadiumWallCollision(b: BallPhysicsState): void {
-  const wallHalfW = FIELD_W / 2;
-  const wallHalfD = FIELD_D / 2;
-  const thickness = 0.3;
-  const minX = -wallHalfW + thickness + BALL_RADIUS;
-  const maxX = wallHalfW - thickness - BALL_RADIUS;
-  const minZ = -wallHalfD + thickness + BALL_RADIUS;
-  const maxZ = wallHalfD - thickness - BALL_RADIUS;
-
-  const inGoalWidth = Math.abs(b.pos.z) <= GOAL_MOUTH_HALF_Z + BALL_RADIUS;
-  const inGoalHeight = b.pos.y <= GOAL_HEIGHT + BALL_RADIUS;
-
-  if (!inGoalWidth || !inGoalHeight) {
-    if (b.pos.x < minX) { b.pos.x = minX; b.vel.x = Math.abs(b.vel.x) * 0.35; }
-    if (b.pos.x > maxX) { b.pos.x = maxX; b.vel.x = -Math.abs(b.vel.x) * 0.35; }
-  }
-  if (b.pos.z < minZ) { b.pos.z = minZ; b.vel.z = Math.abs(b.vel.z) * 0.35; }
-  if (b.pos.z > maxZ) { b.pos.z = maxZ; b.vel.z = -Math.abs(b.vel.z) * 0.35; }
 }
 
 export function computePassSpeed(distance: number, type: PassType): number {
