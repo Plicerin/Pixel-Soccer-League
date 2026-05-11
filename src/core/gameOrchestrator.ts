@@ -386,6 +386,8 @@ export function createGameOrchestrator(
   }
 
   function detectGoal(): GoalEvent | null {
+    // If the ball is attached to any player it's been collected — not a goal.
+    if (ball.state === "attached") return null;
     const result = isBallInGoalMouth(ball.pos.x, ball.pos.z, ball.pos.y);
     if (!result) return null;
     // Determine which team scored by which end the ball crossed, adjusted for
@@ -803,7 +805,9 @@ export function createGameOrchestrator(
     if (ball.state === "attached" && prevBallState !== "attached" && ball.ownerPlayerId) {
       if (prevBallWasShot) {
         const keeper = players.find(p => p.id === ball.ownerPlayerId && p.isGK);
-        if (keeper) {
+        // Only count as a save if the GK collected the ball within the penalty area —
+        // filters out false-save events when GK claims a wide shot that has rolled clear.
+        if (keeper && isInPenaltyArea(keeper.pos, keeper.team === "home" ? homeAttackSign > 0 : awayAttackSign > 0)) {
           events.push({ kind: "save", keeperId: keeper.id });
         }
       }

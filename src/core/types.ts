@@ -57,6 +57,16 @@ export type GameMode =
   | "throwin"
   | "penalty";
 
+export type RestartMode =
+  | "kickoff"
+  | "throw_in"
+  | "goal_kick"
+  | "corner"
+  | "free_kick"
+  | "penalty";
+
+export type ScorePressure = "leading" | "tied" | "trailing";
+
 export type PassType =
   | "short"
   | "driven"
@@ -218,6 +228,33 @@ export type MatchBelief = {
   scoreDiff: number;
 };
 
+export type CpuMatchContext = {
+  half: 1 | 2;
+  elapsedInHalf: number;
+  scoreHome: number;
+  scoreAway: number;
+  ballState: BallState;
+  ownerPlayerId: string | null;
+  ownerTeam: TeamSide | null;
+  restartMode: RestartMode | null;
+  pressureWindow: "normal" | "transition" | "restart" | "late_lead" | "late_chase";
+  attackSigns: { home: 1 | -1; away: 1 | -1 };
+};
+
+export type CpuTeamState = {
+  team: TeamSide;
+  phase: PhaseOfPlay;
+  ballZone: BallZone;
+  scoreDiff: number;
+  matchMinute: number;
+  pressLine: number;
+  compactness: number;
+  intent: TeamIntent;
+  transitionAge: number;
+  restartMode: RestartMode | null;
+  scorePressure: ScorePressure;
+};
+
 export type RoleSlot = {
   playerId: string;
   role: PlayerRole;
@@ -239,6 +276,7 @@ export type TacticalBlackboard = {
   tick: number;
   matchMinute: number;
   scoreDiff: number;
+  scorePressure: ScorePressure;
   phase: PhaseOfPlay;
   ballZone: BallZone;
   pressLineY: number;
@@ -249,6 +287,7 @@ export type TacticalBlackboard = {
   supportLanes: SupportLane[];
   setPieceId: string | null;
   setPiecePhase: "prepare" | "deliver" | "react" | null;
+  restartMode: RestartMode | null;
   transitionAge: number;
   transitionDirection: "won" | "lost" | null;
 };

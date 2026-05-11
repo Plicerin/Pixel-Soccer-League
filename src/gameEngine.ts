@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { createGameEngineBridge, tickBridge, syncPositionsFromOrchestrator, syncBallFromOrchestrator, syncBallToOrchestrator, syncPositionsToOrchestrator, processOrchestratorEvents, enableOrchestrator, disableOrchestrator, type GameEngineBridge } from './core/gameEngineBridge.ts';
+import { createGameEngineBridge, tickBridge, syncPositionsFromOrchestrator, syncBallFromOrchestrator, processOrchestratorEvents, enableOrchestrator, disableOrchestrator, type GameEngineBridge } from './core/gameEngineBridge.ts';
 import { OFFENSE_FORMATIONS, DEFENSE_FORMATIONS, PASS_PLAYBOOK, DEFENSE_PLAYBOOK } from './playbookData.ts';
 import { MLS_PLAYER_RATINGS, type MLSPlayerRating } from './mlsRatings.ts';
 import { getMLS2025TeamModifiers } from './mlsTeamStats2025.ts';
@@ -1093,6 +1093,7 @@ export function initGame(container: HTMLElement) {
     goalFromShot: false,
     shotShooter: null as any,
     whistlePending: false,
+    orchGoalAlreadyRecorded: false,
   };
   const pendingShotSnapshotShooter = {
     player: null as any,
@@ -1174,6 +1175,32 @@ export function initGame(container: HTMLElement) {
   const roleStatsA: Record<string, RoleAccum> = {};
   const roleStatsB: Record<string, RoleAccum> = {};
   function getRoleKey(p: any): string { return (p.displayRole || p.role || 'UNK').toUpperCase(); }
+  function toEngineTeam(team: any): 'A' | 'B' | null {
+    if (team === 'A' || team === 'home') return 'A';
+    if (team === 'B' || team === 'away') return 'B';
+    return null;
+  }
+  function getTelemetryPlayerName(player: any): string {
+    return player?.name || player?.displayName || player?.id || 'Unknown';
+  }
+  function planarDistanceXZ(a: { x: number; z: number }, b: { x: number; z: number }): number {
+    return Math.hypot((a?.x ?? 0) - (b?.x ?? 0), (a?.z ?? 0) - (b?.z ?? 0));
+  }
+  function makeOrchestratorTelemetryPlayer(player: any): any {
+    const team = toEngineTeam(player?.team);
+    if (!team) return null;
+    return {
+      id: String(player.id),
+      team,
+      name: getTelemetryPlayerName(player),
+      role: player.displayRole || player.role || 'UNK',
+      displayRole: player.displayRole || player.role || 'UNK',
+      pos: new THREE.Vector3(player.pos.x, 0, player.pos.z),
+      homePos: new THREE.Vector3(player.homePos?.x ?? player.pos.x, 0, player.homePos?.z ?? player.pos.z),
+      vel: { x: player.vel?.x ?? 0, z: player.vel?.z ?? 0 },
+      isGK: player.isGK === true || (player.displayRole || player.role) === 'GK',
+    };
+  }
   function ensureRole(team: 'A' | 'B', role: string): RoleAccum {
     const map = team === 'A' ? roleStatsA : roleStatsB;
     if (!map[role]) map[role] = freshRoleAccum();
@@ -1623,43 +1650,50 @@ function isLiveMovementAuthorityActive() {
       pendingShotSnapshotShooter.player,
       ballState.lastHeldBy,
     ];
-    return candidates.find((candidate: any) => candidate && candidate.team === team) || null;
+    return candidates.find((candidate: any) => candidate && toEngineTeam(candidate.team) === team) || null;
   }
   function captureShotPositionSnapshot(
     eventType: 'SHOT_POSITION_SNAPSHOT' | 'SHOT_ON_TARGET_POSITION_SNAPSHOT',
     team: 'A' | 'B',
     shooterOverride: any = null,
+    sourcePlayers: any[] = players,
+    sourceBall: { x: number; y: number; z: number } = ballState.pos,
   ) {
     const shooter = resolveShotSnapshotShooter(team, shooterOverride);
     const shooterPos = shooter ? shooter.pos : null;
-    const ballX = Math.round(ballState.pos.x * 10) / 10;
-    const ballY = Math.round(ballState.pos.y * 10) / 10;
-    const ballZ = Math.round(ballState.pos.z * 10) / 10;
-    const playerSnapshots = players.map((p: any) => {
+    const ballX = Math.round(sourceBall.x * 10) / 10;
+    const ballY = Math.round(sourceBall.y * 10) / 10;
+    const ballZ = Math.round(sourceBall.z * 10) / 10;
+    const playerSnapshots = sourcePlayers.map((p: any) => {
       const role = (p.displayRole || p.role || '').toString().toUpperCase();
-      const distToBall = Math.hypot(p.pos.x - ballState.pos.x, p.pos.z - ballState.pos.z);
+      const distToBall = Math.hypot(p.pos.x - sourceBall.x, p.pos.z - sourceBall.z);
       const distToShooter = shooterPos ? Math.hypot(p.pos.x - shooterPos.x, p.pos.z - shooterPos.z) : null;
       return {
-        team: p.team,
-        name: p.name,
+        team: toEngineTeam(p.team) ?? p.team,
+        name: getTelemetryPlayerName(p),
         role,
         x: Math.round(p.pos.x * 10) / 10,
         z: Math.round(p.pos.z * 10) / 10,
-        homeX: Math.round(p.homePos.x * 10) / 10,
-        homeZ: Math.round(p.homePos.z * 10) / 10,
+        homeX: Math.round((p.homePos?.x ?? p.pos.x) * 10) / 10,
+        homeZ: Math.round((p.homePos?.z ?? p.pos.z) * 10) / 10,
         distToBall: Math.round(distToBall * 10) / 10,
         distToShooter: distToShooter == null ? null : Math.round(distToShooter * 10) / 10,
         isMidfielder: ['CM', 'DM', 'LM', 'RM', 'CAM'].includes(role),
       };
     });
     pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, eventType, team, 'TEAM', {
-      shooter: shooter ? { name: shooter.name, role: (shooter.displayRole || shooter.role || '').toString().toUpperCase(), team: shooter.team } : null,
+      shooter: shooter ? { name: getTelemetryPlayerName(shooter), role: (shooter.displayRole || shooter.role || '').toString().toUpperCase(), team } : null,
       ball: { x: ballX, y: ballY, z: ballZ },
       players: playerSnapshots,
     });
   }
-  function captureShotOnTargetPositionSnapshot(team: 'A' | 'B', shooterOverride: any = null) {
-    captureShotPositionSnapshot('SHOT_ON_TARGET_POSITION_SNAPSHOT', team, shooterOverride);
+  function captureShotOnTargetPositionSnapshot(
+    team: 'A' | 'B',
+    shooterOverride: any = null,
+    sourcePlayers: any[] = players,
+    sourceBall: { x: number; y: number; z: number } = ballState.pos,
+  ) {
+    captureShotPositionSnapshot('SHOT_ON_TARGET_POSITION_SNAPSHOT', team, shooterOverride, sourcePlayers, sourceBall);
   }
   function pushTuningEvent(elapsed: number, half: number, type: string, team: 'A' | 'B', role: string, detail: Record<string, any>) {
     // Timeline consumers expect event time to be match-clock time within the half.
@@ -1668,6 +1702,20 @@ function isLiveMovementAuthorityActive() {
     const eventElapsed = gameState.practiceModeEnabled
       ? elapsed
       : matchClock.elapsedInHalf;
+    if (type === 'PATTERN_DELIVERY_EXECUTED' || type === 'PATTERN_CROSS_EXECUTED') {
+      const dedupeKey = [
+        type,
+        team,
+        detail?.patternType || '',
+        detail?.passer || '',
+        detail?.target || '',
+        detail?.style || '',
+        Math.round(Number(detail?.crossDist || 0) * 10) / 10,
+        Math.round(eventElapsed * 4) / 4,
+      ].join('|');
+      if ((gameState as any)._lastPatternDeliveryEventKey === dedupeKey) return;
+      (gameState as any)._lastPatternDeliveryEventKey = dedupeKey;
+    }
     const ev = { t: Math.round(eventElapsed * 100) / 100, half, type, team, role, detail };
     tuningEventLog.push(ev);
     if (gameState.practiceModeEnabled) {
@@ -1969,7 +2017,7 @@ function isLiveMovementAuthorityActive() {
     shotShooter: any = null,
     deferWhistle: boolean = false,
   ) {
-    // Track corner / throw-in counters (before early-return guard so we always count)
+    if (delayedRestartState.active) return;
     if (type === 'CORNER') {
       if (team === 'A') gameState.cornersA++; else gameState.cornersB++;
       pushTelemEvent(team, 'CORNER', `Corner kick awarded`);
@@ -1977,7 +2025,6 @@ function isLiveMovementAuthorityActive() {
       if (team === 'A') gameState.throwInsA++; else gameState.throwInsB++;
       pushTelemEvent(team, 'THROW_IN', `Throw-in awarded`);
     }
-    if (delayedRestartState.active) return;
     // Whistle for out-of-bounds restarts (throw-in, goal kick, corner)
     if (type === 'THROW_IN' || type === 'GOAL_KICK' || type === 'CORNER') {
       if (deferWhistle) {
@@ -2102,69 +2149,74 @@ function isLiveMovementAuthorityActive() {
 
     if (delayedRestartState.goalAwardTeam) {
       const scoringTeam = delayedRestartState.goalAwardTeam;
-      if (scoringTeam === 'A') gameState.scoreA += 1;
-      else gameState.scoreB += 1;
-      if (delayedRestartState.goalFromShot) {
-        recordShotOnTarget(scoringTeam, delayedRestartState.shotShooter);
-      }
-      // Enrich the most recent SHOT event with goal flag
-      for (let i = tuningEventLog.length - 1; i >= 0; i--) {
-        if (tuningEventLog[i].type === 'SHOT' && tuningEventLog[i].team === scoringTeam) {
-          tuningEventLog[i].detail.goal = true;
-          break;
+      // When the ORCH path already recorded the goal immediately (score + goalLog),
+      // skip the duplicate increment and log entry — only do the kickoff restart.
+      if (!delayedRestartState.orchGoalAlreadyRecorded) {
+        if (scoringTeam === 'A') gameState.scoreA += 1;
+        else gameState.scoreB += 1;
+        if (delayedRestartState.goalFromShot) {
+          recordShotOnTarget(scoringTeam, delayedRestartState.shotShooter);
         }
-      }
-      // Record goal scorer in log
-      const scorer = goalCelebration.scorer;
-      const goalBoxTraffic = getGoalBoxTraffic(scoringTeam, scorer);
-      const halfDuration = getHalfDurationSeconds();
-      const totalElapsed = (matchClock.half === 1 ? 0 : halfDuration) + matchClock.elapsedInHalf;
-      const matchMinute = Math.max(1, Math.ceil(totalElapsed / (halfDuration / 45)));
-      const penaltyGoal = !!(
-        delayedRestartState.goalFromShot
-        && gameState.lastSpecialShotContext?.type === 'PENALTY'
-        && gameState.lastSpecialShotContext?.team === scoringTeam
-        && gameState.lastSpecialShotContext?.shooterName
-        && scorer?.name
-        && gameState.lastSpecialShotContext.shooterName === scorer.name
-        && gameState.lastSpecialShotContext.expiresAt > performance.now() / 1000
-      );
-      goalLog.push({
-        team: scoringTeam,
-        playerName: scorer?.name || 'Unknown',
-        shirtNumber: scorer?.shirtNumber || 0,
-        matchMinute,
-        playPattern: penaltyGoal ? 'PENALTY' : 'OPEN_PLAY',
-        style: penaltyGoal ? 'PENALTY' : undefined,
-        isPenalty: penaltyGoal,
-        attackersInBox: goalBoxTraffic.attackersInBox,
-        defendersInBox: goalBoxTraffic.defendersInBox,
-        outfieldBoxCrowd: goalBoxTraffic.outfieldBoxCrowd,
-        isBreakaway: goalBoxTraffic.isBreakaway,
-      });
-      if (penaltyGoal) {
-        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PENALTY_SCORED', scoringTeam, getRoleKey(scorer), {
-          scorer: scorer?.name || 'Unknown',
-          scorerRole: getRoleKey(scorer),
+        // Enrich the most recent SHOT event with goal flag
+        for (let i = tuningEventLog.length - 1; i >= 0; i--) {
+          if (tuningEventLog[i].type === 'SHOT' && tuningEventLog[i].team === scoringTeam) {
+            tuningEventLog[i].detail.goal = true;
+            break;
+          }
+        }
+        // Record goal scorer in log
+        const scorer = goalCelebration.scorer;
+        const goalBoxTraffic = getGoalBoxTraffic(scoringTeam, scorer);
+        const halfDuration = getHalfDurationSeconds();
+        const totalElapsed = (matchClock.half === 1 ? 0 : halfDuration) + matchClock.elapsedInHalf;
+        const matchMinute = Math.max(1, Math.ceil(totalElapsed / (halfDuration / 45)));
+        const penaltyGoal = !!(
+          delayedRestartState.goalFromShot
+          && gameState.lastSpecialShotContext?.type === 'PENALTY'
+          && gameState.lastSpecialShotContext?.team === scoringTeam
+          && gameState.lastSpecialShotContext?.shooterName
+          && scorer?.name
+          && gameState.lastSpecialShotContext.shooterName === scorer.name
+          && gameState.lastSpecialShotContext.expiresAt > performance.now() / 1000
+        );
+        goalLog.push({
+          team: scoringTeam,
+          playerName: scorer?.name || 'Unknown',
+          shirtNumber: scorer?.shirtNumber || 0,
+          matchMinute,
+          playPattern: penaltyGoal ? 'PENALTY' : 'OPEN_PLAY',
+          style: penaltyGoal ? 'PENALTY' : undefined,
+          isPenalty: penaltyGoal,
+          attackersInBox: goalBoxTraffic.attackersInBox,
+          defendersInBox: goalBoxTraffic.defendersInBox,
+          outfieldBoxCrowd: goalBoxTraffic.outfieldBoxCrowd,
+          isBreakaway: goalBoxTraffic.isBreakaway,
         });
+        if (penaltyGoal) {
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PENALTY_SCORED', scoringTeam, getRoleKey(scorer), {
+            scorer: scorer?.name || 'Unknown',
+            scorerRole: getRoleKey(scorer),
+          });
+        }
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'GOAL_SCORER', scoringTeam, scorer ? getRoleKey(scorer) : 'UNK', {
+          scorer: scorer?.name || 'Unknown',
+          scorerRole: scorer ? getRoleKey(scorer) : 'UNK',
+          shirtNumber: scorer?.shirtNumber || 0,
+          matchMinute,
+          fromShot: delayedRestartState.goalFromShot,
+          playPattern: penaltyGoal ? 'PENALTY' : 'OPEN_PLAY',
+          attackersInBox: goalBoxTraffic.attackersInBox,
+          defendersInBox: goalBoxTraffic.defendersInBox,
+          outfieldBoxCrowd: goalBoxTraffic.outfieldBoxCrowd,
+          isBreakaway: goalBoxTraffic.isBreakaway,
+        });
+        pushTelemEvent(
+          scoringTeam,
+          'GOAL',
+          `${scorer?.name || 'Unknown'} scores! (${matchMinute}') box crowd=${goalBoxTraffic.outfieldBoxCrowd}`
+        );
       }
-      pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'GOAL_SCORER', scoringTeam, scorer ? getRoleKey(scorer) : 'UNK', {
-        scorer: scorer?.name || 'Unknown',
-        scorerRole: scorer ? getRoleKey(scorer) : 'UNK',
-        shirtNumber: scorer?.shirtNumber || 0,
-        matchMinute,
-        fromShot: delayedRestartState.goalFromShot,
-        playPattern: penaltyGoal ? 'PENALTY' : 'OPEN_PLAY',
-        attackersInBox: goalBoxTraffic.attackersInBox,
-        defendersInBox: goalBoxTraffic.defendersInBox,
-        outfieldBoxCrowd: goalBoxTraffic.outfieldBoxCrowd,
-        isBreakaway: goalBoxTraffic.isBreakaway,
-      });
-      pushTelemEvent(
-        scoringTeam,
-        'GOAL',
-        `${scorer?.name || 'Unknown'} scores! (${matchMinute}') box crowd=${goalBoxTraffic.outfieldBoxCrowd}`
-      );
+      delayedRestartState.orchGoalAlreadyRecorded = false;
     }
 
     const { type, team, x, z, message } = delayedRestartState;
@@ -3091,7 +3143,7 @@ function executeKickoffTouch() {
     delayedRestartState.active = false;
     delayedRestartState.goalAwardTeam = null;
     delayedRestartState.goalFromShot = false;
-    clearKickoffLawState();
+    delayedRestartState.orchGoalAlreadyRecorded = false;
     throwInPresentation.active = false;
     throwInPresentation.relocating = false;
     throwInPresentation.thrower = null;
@@ -3680,6 +3732,8 @@ function executeKickoffTouch() {
         queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'OUT OF BOUNDS RESET', 0.8);
         return true;
       }
+      // In ORCH path the MSM handles throw-in restarts; skip legacy restart machinery.
+      if (_useNewArchitecture && _orchestratorBridge) return true;
       const throwInTeam = soccerRestart.lastTouchTeam === 'A' ? 'B' : 'A';
       queueDelayedRestart('THROW_IN', throwInTeam, THREE.MathUtils.clamp(x, -FIELD_W / 2 + 1, FIELD_W / 2 - 1), z > 0 ? FIELD_D / 2 : -FIELD_D / 2, 'THROW-IN', outOfPlayRestartDelaySec);
       return true;
@@ -3763,6 +3817,9 @@ function executeKickoffTouch() {
         queueDelayedRestart('KICK_OFF', 'A', 0, 0, 'RESET', 0.8);
         return true;
       }
+
+      // In ORCH path the MSM handles goal kicks and corners; skip legacy restart.
+      if (_useNewArchitecture && _orchestratorBridge) return true;
 
       if (soccerRestart.lastTouchTeam === attackingTeam) {
         queueDelayedRestart('GOAL_KICK', defendingTeam, rightGoal ? FIELD_W / 2 - goalKickDepth : -FIELD_W / 2 + goalKickDepth, 0, 'GOAL KICK', outOfPlayRestartDelaySec);
@@ -4536,10 +4593,10 @@ function executeKickoffTouch() {
   let lastAIStateLabelUpdate = 0;
 
   const CORNER_BUNCH_MIN_PLAYERS = 3;
-  const CORNER_BUNCH_COMBINED_MIN_PLAYERS = 4; // Lowered to increase corner frequency
-  const CORNER_BUNCH_MIN_SECONDS = 1.1; // Lowered to increase corner frequency
-  const CORNER_NEAR_X_RATIO = 0.34; // Expanded to increase corner triggers
-  const CORNER_NEAR_Z_RATIO = 0.38; // Expanded to increase corner triggers
+  const CORNER_BUNCH_COMBINED_MIN_PLAYERS = 5;
+  const CORNER_BUNCH_MIN_SECONDS = 1.5;
+  const CORNER_NEAR_X_RATIO = 0.28;
+  const CORNER_NEAR_Z_RATIO = 0.33;
   const cornerBunchTracker = {
     A: { timer: 0, active: false, events: 0, peak: 0, current: 0 },
     B: { timer: 0, active: false, events: 0, peak: 0, current: 0 },
@@ -4877,6 +4934,9 @@ let _useNewArchitecture = false;
 let _orchestratorBridge: GameEngineBridge | null = null;
 let _orchestratorSyncedThisLive = false;
 let _orchPostTickLogged = false;
+// Time-based possession tracking for the ORCH path (centiseconds accumulated per team).
+let _orchPossTeam: 'A' | 'B' | null = null;
+let _orchPossStartElapsed = 0;
   let customHalfDurationSeconds: number | null = null;
   let practiceModeEnabled = false;
   let practiceRouteObjects: THREE.Object3D[] = [];        // per-rep route arrows (cleared each reset)
@@ -8669,7 +8729,7 @@ let _orchPostTickLogged = false;
     const shooterRole = getRoleKey(shooter).toUpperCase();
     const attackSign = teamAttacksRight(team) ? 1 : -1;
     const reboundTarget = shooterRole === 'ST' ? findSecondWaveReboundTarget(shooter, team, attackSign as 1 | -1) : null;
-    const forceCornerDeflection = shooterRole === 'ST' && !reboundTarget && Math.random() < 0.32;
+    const forceCornerDeflection = shooterRole === 'ST' && !reboundTarget && Math.random() < 0.15;
     let secondaryOutcome: 'SECOND_WAVE_REBOUND' | 'CORNER_DEFLECTION' | 'LOOSE_BLOCK' = 'LOOSE_BLOCK';
     if (reboundTarget) {
       const reboundDir = new THREE.Vector3().subVectors(reboundTarget.pos, blockPoint).setY(0);
@@ -8819,9 +8879,71 @@ let _orchPostTickLogged = false;
     if (_activeTransition && _activeTransition.team === team) _transitionPasses++;
   }
 
+  function maybeRecordPatternDeliveryFromPass(
+    passer: any,
+    target: any,
+    targetPos: THREE.Vector3,
+    style: 'SHORT' | 'DRIVEN' | 'OUTSIDE' | 'BACK' | 'DIAGONAL' | 'WALL' | 'LONG_LOFTED' | 'LONG_DRIVEN',
+    elapsed: number,
+  ) {
+    if (!passer || !target || !targetPos) return;
+    const team = passer.team as 'A' | 'B';
+    const activePattern = team === 'A' ? gameState.teamPatternA : gameState.teamPatternB;
+    if (!activePattern?.type) return;
+
+    const attackSign = teamAttacksRight(team) ? 1 : -1;
+    const passDist = passer.pos.distanceTo(targetPos);
+    const forwardProg = (targetPos.x - passer.pos.x) * attackSign;
+    const passerWide = Math.abs(passer.pos.z) >= goalMouthWidth * 0.82;
+    const targetInAttackingBand = attackSign > 0
+      ? targetPos.x >= rightPenaltyX - 6.5
+      : targetPos.x <= leftPenaltyX + 6.5;
+    const targetInCentralLane = Math.abs(targetPos.z) <= penaltyHalfZ * 1.15;
+    const deliveryStyle = ['DRIVEN', 'DIAGONAL', 'LONG_LOFTED', 'LONG_DRIVEN'].includes(style);
+    const realCross = isActualCrossDelivery({
+      passer: passer.pos,
+      target: targetPos,
+      attackSign: attackSign as 1 | -1,
+      fieldWidth: FIELD_W,
+      penaltyDepth,
+      penaltyHalfZ,
+      goalMouthWidth,
+    });
+    const shouldCountDelivery =
+      deliveryStyle
+      && passerWide
+      && forwardProg > 0.8
+      && passDist >= 7
+      && targetInAttackingBand
+      && targetInCentralLane;
+    if (!realCross && !shouldCountDelivery) return;
+
+    const deliveryDetail = {
+      patternType: activePattern.type,
+      passer: passer.name || 'Unknown',
+      target: target.name || 'Unknown',
+      targetRole: getRoleKey(target),
+      crossDist: +passDist.toFixed(1),
+      style,
+      realCross,
+    };
+    pushTuningEvent(elapsed, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
+    if (realCross) {
+      pushTuningEvent(elapsed, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
+    }
+  }
+
   /** Central shot recorder: team counter + role-level + tuning event. */
-  function recordShotTuning(shooter: any, style: string, elapsed: number, distToGoal?: number) {
-    const team = shooter.team as 'A' | 'B';
+  function recordShotTuning(
+    shooter: any,
+    style: string,
+    elapsed: number,
+    distToGoal?: number,
+    sourcePlayers: any[] = players,
+    sourceBallX: number = ballState.pos.x,
+  ) {
+    const team = toEngineTeam(shooter.team);
+    if (!team) return;
     const role = getRoleKey(shooter);
     ensureRole(team, role).shots++;
 
@@ -8830,7 +8952,7 @@ let _orchPostTickLogged = false;
       _activeTransition.duration = Math.round((elapsed - _activeTransition.t) * 100) / 100;
       _activeTransition.passesInTransition = _transitionPasses;
       const progressSign = teamAttacksRight(_activeTransition.team) ? 1 : -1;
-      _activeTransition.progressionYards = Math.round(((ballState.pos.x - _transitionStartX) * progressSign / (FIELD_W / 120)) * 10) / 10;
+      _activeTransition.progressionYards = Math.round(((sourceBallX - _transitionStartX) * progressSign / (FIELD_W / 120)) * 10) / 10;
       _activeTransition.result = style;
       transitionLog.push(_activeTransition);
       _activeTransition = null;
@@ -8844,8 +8966,8 @@ let _orchPostTickLogged = false;
     const aimingAtOwnGoal = distToOwnGoal < dist; // Check if closer to own goal
 
     // ── Tuning Lab: Rich decision metrics ──
-    const opponents = players.filter((p: any) => p.team !== team && !isGoalkeeper(p));
-    const nearbyOppPressure = opponents.filter((opp: any) => opp.pos.distanceTo(shooter.pos) < 5.4).length;
+    const opponents = sourcePlayers.filter((p: any) => toEngineTeam(p.team) !== team && !isGoalkeeper(p));
+    const nearbyOppPressure = opponents.filter((opp: any) => planarDistanceXZ(opp.pos, shooter.pos) < 5.4).length;
     const yardScale = FIELD_W / 120;
     const distYards = Math.round((dist / yardScale) * 10) / 10;
     const angleToGoal = Math.abs(Math.atan2(shooter.pos.z, Math.abs(goalX - shooter.pos.x)));
@@ -11908,7 +12030,11 @@ mesh: group,
     const ownEndlineX = defenseSign * FIELD_W / 2;
     const distToOwnEndline = Math.abs(player.pos.x - ownEndlineX);
     const nearEndline = distToOwnEndline < 7 * X_PER_YARD;
-    if (nearEndline && (style === 'EMERGENCY' || style === 'HEADER') && Math.random() < 0.30) {
+    const cornerMishitChance =
+      style === 'EMERGENCY' ? 0.015
+      : style === 'HEADER' ? 0.005
+      : 0;
+    if (nearEndline && cornerMishitChance > 0 && Math.random() < cornerMishitChance) {
       // Mishit: ball deflects behind own goal for a corner
       const attackingTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
       const cornerZ = (player.pos.z >= 0 ? 1 : -1) * FIELD_D / 2;
@@ -12160,18 +12286,18 @@ mesh: group,
       1,
     );
     const styleBoost =
-      style === 'DRIVEN' ? 0.18
-      : style === 'DIAGONAL' ? 0.12
-      : style === 'LONG_LOFTED' ? 0.07
-      : 0.10;
+      style === 'DRIVEN' ? 0.05
+      : style === 'DIAGONAL' ? 0.04
+      : style === 'LONG_LOFTED' ? 0.03
+      : 0.035;
     const deflectChance = THREE.MathUtils.clamp(
-      0.14
-      + laneBlockStrength * 0.24
-      + laneProfile.frontBlockerCount * 0.08
-      + Math.min(boxDefenders, 5) * 0.055
-      + styleBoost,
-      0.16,
-      0.68,
+      0.005
+      + laneBlockStrength * 0.015
+      + laneProfile.frontBlockerCount * 0.005
+      + Math.min(boxDefenders, 5) * 0.003
+      + styleBoost * 0.5,
+      0.005,
+      0.03,
     );
     if (Math.random() >= deflectChance) return false;
 
@@ -12343,6 +12469,7 @@ mesh: group,
     ballState.possessionLockUntil = elapsed + 0.18;
     sounds.kick();
     recordPassAttempt(passer, target, style || 'SHORT', elapsed);
+    maybeRecordPatternDeliveryFromPass(passer, target, targetPos, style, elapsed);
     if (isGoalkeeper(passer)) recordGkDistribution(passer.team);
     pushTelemEvent(passer.team, 'PASS', `${passer.name} → ${target.name} (${style})`);
 
@@ -12482,6 +12609,7 @@ mesh: group,
 
     sounds.kick();
     recordPassAttempt(passer, target, style, elapsed);
+    maybeRecordPatternDeliveryFromPass(passer, target, targetPos, style, elapsed);
     if (isGoalkeeper(passer)) recordGkDistribution(passer.team);
     pushTelemEvent(passer.team, 'PASS', `${passer.name} → ${target.name} (${style})`);
     showPlayPatternTag(style === 'LONG_LOFTED' ? 'LONG LOFTED PASS' : 'LONG DRIVEN PASS', 'rgba(144,214,255,0.96)');
@@ -13156,8 +13284,7 @@ mesh: group,
         base = { progressivePass: 0.66, dribbleIntent: 0.72, shootBias: 0.04, shotRange: 9 };
         break;
       case 'ST':
-        // Temporary parity test: make the default striker decision profile match CM.
-        base = { progressivePass: 0.62, dribbleIntent: 0.55, shootBias: 0.00, shotRange: 9 };
+        base = { progressivePass: 0.56, dribbleIntent: 0.53, shootBias: 0.16, shotRange: 10 };
         break;
       default:
         base = { progressivePass: 0.58, dribbleIntent: 0.56, shootBias: 0, shotRange: 9 };
@@ -13230,8 +13357,8 @@ mesh: group,
     const attackGoalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const carrierDistToGoal = Math.abs(attackGoalX - carrier.pos.x);
     // Must be in the final third and in a wide channel
-    if (carrierDistToGoal > penaltyDepth + 18) return null;
-    if (Math.abs(carrier.pos.z) < goalMouthWidth * 0.7) return null;
+    if (carrierDistToGoal > penaltyDepth + 30) return null;
+    if (Math.abs(carrier.pos.z) < goalMouthWidth * 0.35) return null;
 
     const teammates = players.filter((p: any) => p.team === team && p !== carrier && !isGoalkeeper(p));
     let bestTarget: any = null;
@@ -13240,27 +13367,52 @@ mesh: group,
     teammates.forEach((tm: any) => {
       const tmDistToGoal = Math.abs(attackGoalX - tm.pos.x);
       // Target must be in or near the penalty area
-      if (tmDistToGoal > penaltyDepth + 6) return;
+      if (tmDistToGoal > penaltyDepth + 10) return;
       // Target should be more central than the crosser
-      if (Math.abs(tm.pos.z) > penaltyHalfZ * 1.1) return;
+      if (Math.abs(tm.pos.z) > penaltyHalfZ * 1.6) return;
       const forwardProg = (tm.pos.x - carrier.pos.x) * attackSign;
       const dist = carrier.pos.distanceTo(tm.pos);
-      if (dist < 4 || dist > 42) return;
-      if (forwardProg < -7) return;
+      if (dist < 4 || dist > 48) return;
+      if (forwardProg < -10) return;
       const oppSpace = getClosestOpponentDistance(tm.pos, team);
       const lanePressure = getPassLanePressure(carrier.pos, tm.pos, team);
+      const roleKey = getRoleKey(tm);
       // Score: prefer central, close to goal, with space, low lane pressure
       const centralBonus = (1 - Math.abs(tm.pos.z) / penaltyHalfZ) * 2.0;
       const proximityBonus = (1 - tmDistToGoal / (penaltyDepth + 2)) * 2.5;
       const progressBonus = THREE.MathUtils.clamp(forwardProg / 8, -0.6, 1.2);
-      const score = oppSpace * 1.5 - lanePressure * 2.0 + centralBonus + proximityBonus + progressBonus;
+      const roleBonus =
+        ['ST', 'CF'].includes(roleKey) ? 1.1
+        : ['LW', 'RW', 'LM', 'RM'].includes(roleKey) ? 0.4
+        : 0;
+      const score = oppSpace * 1.6 - lanePressure * 1.5 + centralBonus + proximityBonus + progressBonus + roleBonus;
       if (score > bestScore) {
         bestScore = score;
         bestTarget = tm;
       }
     });
 
-    return bestTarget;
+    if (bestTarget) return bestTarget;
+
+    return teammates
+      .filter((tm: any) => {
+        const tmDistToGoal = Math.abs(attackGoalX - tm.pos.x);
+        const dist = carrier.pos.distanceTo(tm.pos);
+        return (
+          tmDistToGoal <= penaltyDepth + 14
+          && Math.abs(tm.pos.z) <= penaltyHalfZ * 1.45
+          && dist >= 5
+          && dist <= 50
+          && (tm.pos.x - carrier.pos.x) * attackSign > -12
+        );
+      })
+      .sort((a: any, b: any) => {
+        const aGoal = Math.abs(attackGoalX - a.pos.x);
+        const bGoal = Math.abs(attackGoalX - b.pos.x);
+        const aCentral = Math.abs(a.pos.z);
+        const bCentral = Math.abs(b.pos.z);
+        return (aGoal + aCentral * 0.45) - (bGoal + bCentral * 0.45);
+      })[0] || null;
   }
 
   function isValidGKPassTarget(keeper: any, target: any): boolean {
@@ -13406,13 +13558,13 @@ mesh: group,
       const lastShotDist = Number(gameState.lastShotTelemetry?.distToGoal) || 0;
       const lastShotStyle = String(gameState.lastShotTelemetry?.style || '').toUpperCase();
       const tipOverChance = THREE.MathUtils.clamp(
-        0.42
-        + (lastShotDist > 15 ? THREE.MathUtils.lerp(0.02, 0.12, THREE.MathUtils.clamp((lastShotDist - 15) / 14, 0, 1)) : 0)
-        + (lastShotStyle === 'TOE_POKE' ? 0.10 : 0)
-        + (lastShotStyle === 'HALF_VOLLEY' ? 0.06 : 0)
-        + (lastShotStyle === 'VOLLEY' ? 0.03 : 0),
-        0.38,
-        0.68,
+        0.06
+        + (lastShotDist > 15 ? THREE.MathUtils.lerp(0.005, 0.02, THREE.MathUtils.clamp((lastShotDist - 15) / 14, 0, 1)) : 0)
+        + (lastShotStyle === 'TOE_POKE' ? 0.02 : 0)
+        + (lastShotStyle === 'HALF_VOLLEY' ? 0.015 : 0)
+        + (lastShotStyle === 'VOLLEY' ? 0.01 : 0),
+        0.06,
+        0.14,
       );
       const tipOver = Math.random() < tipOverChance;
       if (tipOver) {
@@ -15224,25 +15376,26 @@ mesh: group,
   }
 
   function emitOrchestratorPassTelemetry(passer: any, target: any, style: string, elapsed: number) {
-    const team = passer.team as 'A' | 'B';
+    const team = toEngineTeam(passer.team);
+    if (!team) return;
     const role = getRoleKey(passer);
     ensureRole(team, role).passAtt++;
     const attackSign = teamAttacksRight(team) ? 1 : -1;
     const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const progress = target ? Math.round((target.pos.x - passer.pos.x) * attackSign * 10) / 10 : 0;
     pushTuningEvent(elapsed, matchClock.half, 'PASS', team, role, {
-      passer: passer?.name || '?',
+      passer: getTelemetryPlayerName(passer),
       style,
-      to: target?.name || '?',
+      to: getTelemetryPlayerName(target),
       toRole: target ? getRoleKey(target) : '?',
-      receiver: target?.name || '?',
+      receiver: getTelemetryPlayerName(target),
       receiverRole: target ? getRoleKey(target) : '?',
       completed: true,
       x: Math.round(passer.pos.x * 10) / 10,
       z: Math.round(passer.pos.z * 10) / 10,
       targetX: target ? Math.round(target.pos.x * 10) / 10 : 0,
       targetZ: target ? Math.round(target.pos.z * 10) / 10 : 0,
-      dist: target ? Math.round(passer.pos.distanceTo(target.pos) * 10) / 10 : 0,
+      dist: target ? Math.round(planarDistanceXZ(passer.pos, target.pos) * 10) / 10 : 0,
       progress,
       passerDistToGoal: Math.round(Math.abs(goalX - passer.pos.x) * 10) / 10,
     });
@@ -15250,9 +15403,12 @@ mesh: group,
   }
 
   function updateOrchestratorTelemetry(bridge: GameEngineBridge, result: any, elapsed: number) {
-      const controllerMap = bridge.orchestrator.getPlayerControllers();
-    const carrier = ballState.heldBy;
-    const possessionTeam = carrier?.team === 'A' || carrier?.team === 'B' ? carrier.team : null;
+    const controllerMap = bridge.orchestrator.getPlayerControllers();
+    const orchPlayers = bridge.orchestrator.getPlayers();
+    const carrier = result.ball.ownerPlayerId
+      ? orchPlayers.find((p: any) => String(p.id) === result.ball.ownerPlayerId) ?? null
+      : null;
+    const possessionTeam = carrier ? toEngineTeam(carrier.team) : toEngineTeam(result.ball.ownerTeam);
 
     for (const team of ['A', 'B'] as const) {
       const side = team === 'A' ? 'home' : 'away';
@@ -15275,10 +15431,10 @@ mesh: group,
         patternState.startedAt = elapsed;
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_START', team, 'TEAM', {
           type: nextPatternType,
-          initiator: carrier?.name || null,
+          initiator: getTelemetryPlayerName(carrier) || null,
           startedAt: elapsed,
           expiresAt: +(elapsed + 6).toFixed(2),
-          roles: carrier ? { [carrier.name || carrier.id || 'carrier']: 'CARRIER' } : {},
+          roles: carrier ? { [getTelemetryPlayerName(carrier)]: 'CARRIER' } : {},
         });
       }
       if (patternState.type && possessionTeam !== team) {
@@ -15299,13 +15455,13 @@ mesh: group,
       const bb = result.blackboards?.[side];
       const attackSign = teamAttacksRight(possessionTeam) ? 1 : -1;
       const phase = getOrchestratorDirectorPhase(String(bb?.phase || ''), carrier, attackSign);
-      const teammates = players.filter((p: any) => p.team === possessionTeam && !isGoalkeeper(p));
+      const teammates = orchPlayers.filter((p: any) => toEngineTeam(p.team) === possessionTeam && !isGoalkeeper(p));
       gameState.possessionDirector = makeDirectorSnapshot({
         team: possessionTeam,
         intent: mapOrchestratorIntentToDirectorIntent(bb?.intent),
         phase,
         currentBoxAttackers: countDirectorBoxAttackers(teammates, carrier, attackSign),
-        action: carrier === ballState.heldBy ? 'carry' : 'observe',
+        action: carrier ? 'carry' : 'observe',
         reason: `orchestrator_${String(bb?.intent?.kind || 'observe')}`,
       });
 
@@ -15319,7 +15475,7 @@ mesh: group,
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'CARRIER_TRACE', possessionTeam, getRoleKey(carrier), {
           branch: 'ORCH',
           action: carrierIntent?.name || 'hold_position',
-          carrier: carrier.name || 'Unknown',
+          carrier: getTelemetryPlayerName(carrier),
           patternType: _orchestratorPatternState[possessionTeam].type || 'NONE',
           patternRole: 'CARRIER',
           x: +carrier.pos.x.toFixed(2),
@@ -15342,14 +15498,15 @@ mesh: group,
       gameState.possessionDirector = emptyDirectorSnapshot();
     }
 
-    for (const p of players) {
+    for (const p of orchPlayers) {
       if (isGoalkeeper(p)) continue;
-      const team = p.team as 'A' | 'B';
+      const team = toEngineTeam(p.team);
+      if (!team) continue;
       const attackSign = teamAttacksRight(team) ? 1 : -1;
       const pAny = p as any;
       const lastIntent = controllerMap.get(String(p.id))?.lastIntentObj ?? null;
       const target = getOrchestratorIntentTarget(lastIntent) ?? p.homePos ?? p.pos;
-      const targetVec = target instanceof THREE.Vector3 ? target : new THREE.Vector3(target.x, 0, target.z);
+      const targetPos = { x: target.x, z: target.z };
       const patternType = _orchestratorPatternState[team].type;
       const patternRole = getOrchestratorPatternRole(p, carrier, patternType, attackSign);
 
@@ -15362,25 +15519,25 @@ mesh: group,
         const owner =
           carrier === p ? 'CARRIER'
           : (lastIntent?.name === 'support' || lastIntent?.name === 'receive' || lastIntent?.name === 'overlap') ? 'PATTERN_ROLE'
-          : Math.abs(targetVec.z) > Math.abs(homeZ) + 2.0 ? 'WIDE_HOME'
+          : Math.abs(targetPos.z) > Math.abs(homeZ) + 2.0 ? 'WIDE_HOME'
           : (patternRole !== 'NONE' ? 'STRUCTURED_ATTACK' : 'ROLE_SLOT');
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'POSITION_OWNER_SAMPLE', team, role, {
-          player: p.name || 'Unknown',
+          player: getTelemetryPlayerName(p),
           owner,
           phase: String(result.blackboards?.[team === 'A' ? 'home' : 'away']?.phase || 'transition'),
           patternRole,
           structuredRole: patternRole,
           x: +p.pos.x.toFixed(2),
           z: +p.pos.z.toFixed(2),
-          targetX: +targetVec.x.toFixed(2),
-          targetZ: +targetVec.z.toFixed(2),
+          targetX: +targetPos.x.toFixed(2),
+          targetZ: +targetPos.z.toFixed(2),
           homeX: +homeX.toFixed(2),
           homeZ: +homeZ.toFixed(2),
           homeErr: +Math.hypot(p.pos.x - homeX, p.pos.z - homeZ).toFixed(2),
           attackX: +(p.pos.x * attackSign).toFixed(2),
           absZ: +Math.abs(p.pos.z).toFixed(2),
-          targetAbsZ: +Math.abs(targetVec.z).toFixed(2),
-          carrierTeam: carrier?.team || null,
+          targetAbsZ: +Math.abs(targetPos.z).toFixed(2),
+          carrierTeam: toEngineTeam(carrier?.team) || null,
           carrierRole: carrier ? getRoleKey(carrier) : null,
           possessionTeam,
           continuityCarrier: carrier === p,
@@ -15391,13 +15548,13 @@ mesh: group,
       if (elapsed - lastTraceAt >= 0.7 && ['ST', 'AM', 'LW', 'RW', 'CM_L', 'CM_R'].includes(getRoleKey(p))) {
         pAny._lastOrchestratorAttackerZoneTraceAt = elapsed;
         const zone = classifyAttackingZone(p, attackSign);
-        const defenders = players.filter((opp: any) => opp.team !== team && !isGoalkeeper(opp));
-        const nearestDefenderDist = defenders.reduce((best: number, defender: any) => Math.min(best, defender.pos.distanceTo(p.pos)), 99);
+        const defenders = orchPlayers.filter((opp: any) => toEngineTeam(opp.team) !== team && !isGoalkeeper(opp));
+        const nearestDefenderDist = defenders.reduce((best: number, defender: any) => Math.min(best, planarDistanceXZ(defender.pos, p.pos)), 99);
         pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'ATTACKER_ZONE_TRACE', team, getRoleKey(p), {
           branch: 'ORCH',
-          playerName: p.name || 'Unknown',
+          playerName: getTelemetryPlayerName(p),
           hasBall: carrier === p,
-          carrierName: carrier?.name || null,
+          carrierName: carrier ? getTelemetryPlayerName(carrier) : null,
           carrierRole: carrier ? getRoleKey(carrier) : null,
           patternType: patternType || 'NONE',
           patternRole,
@@ -15417,8 +15574,8 @@ mesh: group,
           speed: +Math.hypot(p.vel.x || 0, p.vel.z || 0).toFixed(2),
           velX: +(p.vel.x || 0).toFixed(2),
           velZ: +(p.vel.z || 0).toFixed(2),
-          supportTargetX: +targetVec.x.toFixed(2),
-          supportTargetZ: +targetVec.z.toFixed(2),
+          supportTargetX: +targetPos.x.toFixed(2),
+          supportTargetZ: +targetPos.z.toFixed(2),
         });
       }
     }
@@ -15427,7 +15584,7 @@ mesh: group,
       _lastShapeSampleAt = matchClock.elapsedInHalf;
       for (const team of ['A', 'B'] as const) {
         const attackSign = teamAttacksRight(team) ? 1 : -1;
-        const outfield = players.filter((p: any) => p.team === team && !isGoalkeeper(p));
+        const outfield = orchPlayers.filter((p: any) => toEngineTeam(p.team) === team && !isGoalkeeper(p));
         if (outfield.length === 0) continue;
         const avgX = outfield.reduce((sum: number, p: any) => sum + p.pos.x, 0) / outfield.length;
         const avgZ = outfield.reduce((sum: number, p: any) => sum + p.pos.z, 0) / outfield.length;
@@ -15448,19 +15605,19 @@ mesh: group,
         };
         (team === 'A' ? shapeSamplesA : shapeSamplesB).push(sample);
 
-        const teamPlayers = players.filter((p: any) => p.team === team && !isGoalkeeper(p));
+        const teamPlayers = orchPlayers.filter((p: any) => toEngineTeam(p.team) === team && !isGoalkeeper(p));
         const centroidX = avgX;
         const centroidZ = avgZ;
         for (const p of teamPlayers) {
-          const opponents = players.filter((o: any) => o.team !== team && !isGoalkeeper(o));
-          const teammates = players.filter((t: any) => t.team === team && t !== p && !isGoalkeeper(t));
-          const nearOppDist = opponents.length > 0 ? Math.min(...opponents.map((o: any) => p.pos.distanceTo(o.pos))) : -1;
-          const nearTmDist = teammates.length > 0 ? Math.min(...teammates.map((t: any) => p.pos.distanceTo(t.pos))) : -1;
+          const opponents = orchPlayers.filter((o: any) => toEngineTeam(o.team) !== team && !isGoalkeeper(o));
+          const teammates = orchPlayers.filter((t: any) => toEngineTeam(t.team) === team && t !== p && !isGoalkeeper(t));
+          const nearOppDist = opponents.length > 0 ? Math.min(...opponents.map((o: any) => planarDistanceXZ(p.pos, o.pos))) : -1;
+          const nearTmDist = teammates.length > 0 ? Math.min(...teammates.map((t: any) => planarDistanceXZ(p.pos, t.pos))) : -1;
           const ax = p.pos.x * attackSign;
           const compDelta = Math.hypot(ax - centroidX, p.pos.z - centroidZ);
           const forwardDrift = p.homePos ? (p.pos.x - p.homePos.x) * attackSign : 0;
           const widthDrift = p.homePos ? (p.pos.z - p.homePos.z) : 0;
-          const liveCarrier = carrier && carrier.team === team ? carrier : null;
+          const liveCarrier = carrier && toEngineTeam(carrier.team) === team ? carrier : null;
           const carrierGap = liveCarrier ? (liveCarrier.pos.x - p.pos.x) * attackSign : null;
           const supportLaneGap = liveCarrier ? Math.abs(liveCarrier.pos.z - p.pos.z) : null;
           playerPositioningSamples.push({
@@ -15468,7 +15625,7 @@ mesh: group,
             half: matchClock.half,
             team,
             role: getRoleKey(p),
-            homeErr: Math.round((p.homePos ? p.pos.distanceTo(p.homePos) : 0) * 10) / 10,
+            homeErr: Math.round((p.homePos ? planarDistanceXZ(p.pos, p.homePos) : 0) * 10) / 10,
             forwardDrift: Math.round(forwardDrift * 10) / 10,
             lateralDrift: Math.round(Math.abs(widthDrift) * 10) / 10,
             widthDrift: Math.round(widthDrift * 10) / 10,
@@ -16014,7 +16171,7 @@ mesh: group,
   ) {
     const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
     const distToGoal = Math.abs(goalX - cpuCarrier.pos.x);
-    const inShootingLane = Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 0.85;
+    const inShootingLane = Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 2.2;
     const insidePenaltyArea = distToGoal < penaltyDepth;
     const closePressure = gameState.disableOpponentPressure
       ? 0
@@ -16028,7 +16185,7 @@ mesh: group,
     const isAttackingCarrier = ['ST', 'CF', 'CAM', 'LM', 'RM'].includes(carrierRoleLabel);
     const isBuildoutCarrier = ['CB', 'LB', 'RB', 'DM'].includes(carrierRoleLabel);
     const isPrimaryFinisher = ['ST', 'CF', 'CAM'].includes(carrierRoleLabel);
-    const isWideFinisher = ['LM', 'RM'].includes(carrierRoleLabel);
+    const isWideFinisher = ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(carrierRoleLabel);
     const isDeepRole = ['CB', 'LB', 'RB', 'DM'].includes(carrierRoleLabel);
     const carrierZone = classifyAttackingZone(cpuCarrier, attackSign);
     carrierAny._simpleCarrierZone = carrierZone.zone;
@@ -16037,8 +16194,8 @@ mesh: group,
     const wideCarrierCutbackWindow =
       isWideFinisher
       && inFinalThird
-      && distToGoal < penaltyDepth + 11.5
-      && Math.abs(cpuCarrier.pos.z) > goalMouthWidth * 1.05;
+      && distToGoal < penaltyDepth + 18.0
+      && Math.abs(cpuCarrier.pos.z) > goalMouthWidth * 0.82;
     const deadPocketCarrier =
       isAttackingCarrier
       && insidePenaltyArea
@@ -16793,18 +16950,18 @@ mesh: group,
         }
         return;
       }
-      const structuredTarget = (coachForceDelivery ? coachForcedTargetPlayer : null)
-        || (telemetryCoachFinalActionEntry ? telemetryCoachFinalActionEntry.player : null)
-        || (tempoReleaseDelivery ? tempoReleaseTargetEntry?.player : null)
-        || (forceDirectorDelivery ? directorReadyTargets[0]?.player : null)
+        const structuredTarget = (coachForceDelivery ? coachForcedTargetPlayer : null)
+          || (telemetryCoachFinalActionEntry ? telemetryCoachFinalActionEntry.player : null)
+          || (tempoReleaseDelivery ? tempoReleaseTargetEntry?.player : null)
+          || (forceDirectorDelivery ? directorReadyTargets[0]?.player : null)
         || structuredTargets.find((entry) =>
           entry.finishLane
-          && entry.laneAcceptable
-          && entry.oppSpace >= 1.25
-          && entry.passDist <= entry.maxPassDist + 2
-          && entry.score >= 2.4
-        )?.player
-        || (telemetryCoachExperiment ? null : findCrossTarget(cpuCarrier, team, attackSign));
+          && (entry.laneAcceptable || entry.role === 'CUTBACK' || entry.role === 'SECOND_WAVE')
+            && entry.oppSpace >= 0.95
+            && entry.passDist <= entry.maxPassDist + 4.5
+            && entry.score >= 1.9
+          )?.player
+          || findCrossTarget(cpuCarrier, team, attackSign);
       if (structuredTarget) {
         const coachDeliveryPoint = coachForceDelivery && coachForcedTargetPoint ? coachForcedTargetPoint.clone() : null;
         gameState.possessionDirector = makeDirectorSnapshot({
@@ -17449,7 +17606,7 @@ mesh: group,
       && nearestMidfieldSupportDist <= (insidePenaltyArea ? 12.0 : 11.0);
     const centralShotWindow =
       inShootingLane
-      && Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 0.6;
+      && Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 1.4;
     const closeRangeShotAngle = Math.abs(Math.atan2(Math.abs(cpuCarrier.pos.z), Math.max(0.5, distToGoal)));
     const decentCentralShotAngle = closeRangeShotAngle <= 0.52;
     const preferredShotWindowOpen =
@@ -17457,17 +17614,17 @@ mesh: group,
       && centralShotWindow
       && decentCentralShotAngle
       && distToGoal >= 4.4
-      && distToGoal <= 10.8
+      && distToGoal <= 14.5
       && keeperDistToCarrier >= 3.0
-      && closePressure <= 2;
+      && closePressure <= 3;
     const supportedShotWindowOpen =
       supportedCentralFinisher
       && centralShotWindow
       && decentCentralShotAngle
       && distToGoal >= 4.4
-      && distToGoal <= 11.4
+      && distToGoal <= 15.5
       && keeperDistToCarrier >= 2.8
-      && closePressure <= 2;
+      && closePressure <= 3;
     const earlyCentralShotWindow =
       (isPrimaryFinisher || supportedCentralFinisher)
       && centralShotWindow
@@ -17543,6 +17700,17 @@ mesh: group,
       deadPocketCarrier || bylineCarrier || wideCarrierCutbackWindow
         ? findCrossTarget(cpuCarrier, team, attackSign)
         : null;
+    const wideDeliveryReady =
+      !!crossTarget
+      && inFinalThird
+      && !insidePenaltyArea
+      && Math.abs(cpuCarrier.pos.z) > goalMouthWidth * 0.72
+      && distToGoal <= penaltyDepth + 18
+      && !preferredShotWindowOpen
+      && !supportedShotWindowOpen
+      && !instantCloseKeeperShotForce
+      && !faceToFaceWithKeeper
+      && !badAngleCloseRangeShotVeto;
     const deadPocketShotWindow =
       deadPocketCarrier
       && distToGoal <= 5.4
@@ -17672,7 +17840,7 @@ mesh: group,
     const simpleTimeSinceTeamShot = elapsed - ((gameState as any)[simpleLastShotKey] ?? -99);
     const simpleTeamShots = team === 'A' ? gameState.shotsA : gameState.shotsB;
     const shotScarcityBoost = inFinalThird
-      ? THREE.MathUtils.clamp((simpleTimeSinceTeamShot - 12) / 24, 0, 0.14)
+      ? THREE.MathUtils.clamp((simpleTimeSinceTeamShot - 8) / 16, 0, 0.14)
         + (simpleTeamShots === 0 && elapsed > 45 ? 0.05 : 0)
       : 0;
     const serviceableShotLane = Math.abs(cpuCarrier.pos.z) < goalMouthWidth * 1.9;
@@ -17696,11 +17864,12 @@ mesh: group,
         || earlyCentralShotWindow
         || quietCentralShotWindow
         ||
-        (isPrimaryFinisher && distToGoal < 7.8 && closePressure <= 1)
-        || (supportedCentralFinisher && distToGoal < penaltyDepth + 6.6 && closePressure <= 1)
-        || (!isDeepRole && insidePenaltyArea && distToGoal < penaltyDepth + 4.8 && closePressure <= 1 && strongMidfieldSupport)
-        || (isPrimaryFinisher && distToGoal < penaltyDepth + 4.8 && closePressure <= 1 && midfieldSupportCount >= 1)
-        || (supportedCentralFinisher && distToGoal < penaltyDepth + 5.4 && closePressure <= 1)
+        (isPrimaryFinisher && distToGoal < 9.5 && closePressure <= 3)
+        || (isPrimaryFinisher && insidePenaltyArea && closePressure <= 3)
+        || (supportedCentralFinisher && distToGoal < penaltyDepth + 9.5 && closePressure <= 3)
+        || (!isDeepRole && insidePenaltyArea && distToGoal < penaltyDepth + 4.8 && closePressure <= 3 && strongMidfieldSupport)
+        || (isPrimaryFinisher && distToGoal < penaltyDepth + 7.5 && closePressure <= 3 && midfieldSupportCount >= 1)
+        || (supportedCentralFinisher && distToGoal < penaltyDepth + 7.5 && closePressure <= 3)
         || (!isWideFinisher && distToGoal < penaltyDepth + 5.8 && closePressure === 0 && veryStrongMidfieldSupport)
         || (isWideFinisher && insidePenaltyArea && distToGoal < 7.2 && closePressure === 0 && veryStrongMidfieldSupport)
         || (isDeepRole && distToGoal < 4.2 && closePressure <= 1 && midfieldSupportCount >= 2)
@@ -17777,9 +17946,11 @@ mesh: group,
         bylineCutbackPassAvailable
         ||
         centralCutbackPassAvailable
+        ||
+        wideDeliveryReady
         || 
-        passForwardProg > (isAttackingCarrier ? 2.4 : 1.0)
-        || (closePressure >= 3 && passForwardProg > -1.0)
+        passForwardProg > (isAttackingCarrier ? 1.6 : 0.6)
+        || (closePressure >= 2 && passForwardProg > -1.0)
         || (!isAttackingCarrier && midfieldSupportCount === 0 && !passIsLargeBackpass)
         || (passNearestOppDist > (isAttackingCarrier ? 4.0 : 3.2) && passForwardProg > (isAttackingCarrier ? 0.5 : -0.5))
         || (insidePenaltyArea && !isAttackingCarrier && passForwardProg > -0.5 && passNearestOppDist > 2.8)
@@ -17833,7 +18004,8 @@ mesh: group,
           0.18
           + (bylineCutbackPassAvailable ? 0.36 : 0)
           + (centralCutbackPassAvailable ? 0.24 : 0)
-          + (crossTarget ? 0.08 : 0)
+          + (crossTarget ? 0.14 : 0)
+          + (wideDeliveryReady ? 0.20 : 0)
           + THREE.MathUtils.clamp(passForwardProg / 8, -0.16, 0.20)
           + THREE.MathUtils.clamp((passNearestOppDist - 2.5) / 6, -0.12, 0.16)
           + (shouldPass ? 0.14 : 0)
@@ -18745,6 +18917,60 @@ mesh: group,
         executeAIGroundPass(cpuCarrier, bylineCutbackTarget, elapsed, { style: bylinePassStyle as 'SHORT' | 'BACK' | 'DIAGONAL' | 'DRIVEN' });
         (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
         return;
+      }
+      if (wideDeliveryReady && crossTarget) {
+        const crossDist = cpuCarrier.pos.distanceTo(crossTarget.pos);
+        const wideDeliveryStyle: 'LONG_LOFTED' | 'DRIVEN' =
+          crossDist > 12.5 || Math.abs(cpuCarrier.pos.z) > penaltyHalfZ * 1.02
+            ? 'LONG_LOFTED'
+            : 'DRIVEN';
+        emitSimplePassDecision({
+          target: crossTarget.name || crossTarget.displayRole || crossTarget.role || 'Unknown',
+          targetRole: (crossTarget.displayRole || crossTarget.role || '').toString(),
+          passStyle: wideDeliveryStyle,
+          passDist: +crossDist.toFixed(1),
+          forwardProg: +(((crossTarget.pos.x - cpuCarrier.pos.x) * attackSign)).toFixed(1),
+          passNearestOppDist: +opponents.reduce((best: number, opp: any) => Math.min(best, opp.pos.distanceTo(crossTarget.pos)), 99).toFixed(2),
+          hasForwardPassOption: true,
+          shouldPass: true,
+          forceRecycle: false,
+          holdReason: 'wide_delivery',
+          strikerHesitationShotForce,
+        });
+        resetCornerTrapState();
+        resetCarrierEdgeStallState();
+        resetStrikerHesitationState();
+        resetBoxDecisionLoopState();
+        resetMissedShotWindowState();
+        const launched = wideDeliveryStyle === 'LONG_LOFTED'
+          ? executeAILoftedPass(cpuCarrier, crossTarget, elapsed, 'LONG_LOFTED')
+          : executeAIGroundPass(cpuCarrier, crossTarget, elapsed, { style: 'DRIVEN' });
+        if (launched) {
+          const realCross = isActualCrossDelivery({
+            passer: cpuCarrier.pos,
+            target: crossTarget.pos,
+            attackSign: attackSign as 1 | -1,
+            fieldWidth: FIELD_W,
+            penaltyDepth,
+            penaltyHalfZ,
+            goalMouthWidth,
+          });
+          const deliveryDetail = {
+            patternType: _p25_teamPattern?.type || 'LEGACY_WIDE_DELIVERY',
+            passer: cpuCarrier.name || 'Unknown',
+            target: crossTarget.name || 'Unknown',
+            targetRole: getRoleKey(crossTarget),
+            crossDist: +crossDist.toFixed(1),
+            style: wideDeliveryStyle,
+            realCross,
+          };
+          pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
+          if (realCross) {
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
+          }
+          (gameState as any)[cooldownKey] = aiStyle.cooldownPass;
+          return;
+        }
       }
       if (forceCornerRelease && cornerReleaseTarget) {
         const useLoftedCornerRelease =
@@ -23432,6 +23658,13 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           && matchClock.elapsedInHalf >= halfLimit) {
         console.log(`[HALFTIME/FULLTIME] Phase: ${matchClock.phase}, Elapsed: ${matchClock.elapsedInHalf.toFixed(2)}s, HalfLimit: ${halfLimit}s, Half: ${matchClock.half}`);
         matchClock.elapsedInHalf = halfLimit;
+        // Finalize the last possession segment for the ORCH path before resetting counters.
+        if (_useNewArchitecture && _orchPossTeam !== null) {
+          const segCs = Math.round((matchClock.elapsedInHalf - _orchPossStartElapsed) * 100);
+          if (_orchPossTeam === 'A') gameState.possessionFramesA += segCs;
+          else gameState.possessionFramesB += segCs;
+          _orchPossTeam = null;
+        }
         if (matchClock.phase === 'FIRST_HALF') {
           console.log(`[HALFTIME] Transitioning to HALFTIME`);
           matchClock.phase = 'HALFTIME';
@@ -23917,8 +24150,10 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       players.map((p: any) => ({
         id: String(p.id),
         team: p.team,
+        name: p.name,
         role: p.displayRole || p.role,
         pos: { x: p.pos.x, z: p.pos.z },
+        homePos: { x: p.homePos?.x ?? p.pos.x, z: p.homePos?.z ?? p.pos.z },
         isGK: isGoalkeeper(p),
         ratings: {
           pace: (p.stats?.speed ?? 0.5) * 100,
@@ -23956,27 +24191,9 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       _orchestratorBridge.orchestrator.setAttackSigns(currentHomeAttackSign);
     }
     if (!_orchestratorSyncedThisLive) {
-      syncPositionsToOrchestrator(_orchestratorBridge, players);
-      syncBallToOrchestrator(_orchestratorBridge, ballState);
       _orchestratorSyncedThisLive = true;
       _orchPostTickLogged = false;
       _orchestratorBridge.orchestrator.resetMotionLog();
-      const orchMSM = _orchestratorBridge.orchestrator.getMatchState();
-      if (orchMSM.state.kind !== "live_play") {
-        _orchestratorBridge.orchestrator.forceMatchState({ kind: "live_play", half: orchMSM.clock.half as 1 | 2, startTick: 0 });
-        if (ballState.heldBy) {
-          const playerId = String(ballState.heldBy.id);
-          _orchestratorBridge.orchestrator.giveBallToPlayer(playerId);
-        } else {
-          const orchPlayers = _orchestratorBridge.orchestrator.getPlayers();
-          const restartTeamSide = gameState.offensiveTeam === 'A' ? 'home' : 'away';
-          const restartPlayer = orchPlayers.find(p => p.team === restartTeamSide && !p.isGK)
-            ?? orchPlayers.find(p => p.team === restartTeamSide);
-          if (restartPlayer) {
-            _orchestratorBridge.orchestrator.giveBallToPlayer(restartPlayer.id);
-          }
-        }
-      }
       const orchPlayers = _orchestratorBridge.orchestrator.getPlayers();
         const geSample = players[0] as any;
         const orchSample = orchPlayers[0];
@@ -23994,6 +24211,8 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
       }
         const result = tickBridge(_orchestratorBridge, dt, elapsed);
         if (result) {
+          const orchPlayers = _orchestratorBridge.orchestrator.getPlayers();
+          const orchPlayerById = new Map(orchPlayers.map((p: any) => [String(p.id), p]));
           if (!_orchPostTickLogged) {
             _orchPostTickLogged = true;
             const resSample = result.players[0];
@@ -24008,23 +24227,41 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           gameState.ballPos.copy(ballState.pos);
           updateOrchestratorTelemetry(_orchestratorBridge, result, elapsed);
         processOrchestratorEvents(_orchestratorBridge, {
-          onGoal: (team: any) => {
-            const engineTeam = team === 'home' ? 'A' : 'B';
-            gameState[`score${engineTeam}` as 'scoreA' | 'scoreB']++;
-            goalLog.push({ team: engineTeam, playerName: 'Unknown', shirtNumber: 0, matchMinute: matchClock.elapsedInHalf, attackersInBox: 0, defendersInBox: 0, outfieldBoxCrowd: 0, isBreakaway: false });
-            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'GOAL', engineTeam, 'TEAM', {
-              scorer: 'Unknown',
-              scorerRole: null,
-              x: +ballState.pos.x.toFixed(2),
-              z: +ballState.pos.z.toFixed(2),
+      onGoal: (team: any) => {
+        const engineTeam = team === 'home' ? 'A' : 'B';
+        gameState[`score${engineTeam}` as 'scoreA' | 'scoreB']++;
+        if (engineTeam === 'A') gameState.shotsOnTargetA++;
+        else gameState.shotsOnTargetB++;
+        // Look up the actual scorer from the ball's lastHeldById.
+        const scorerId = _orchestratorBridge!.orchestrator.getBallState().lastHeldById;
+        const scorerPlayer = scorerId ? orchPlayerById.get(String(scorerId)) : undefined;
+        const scorerName = scorerPlayer ? getTelemetryPlayerName(scorerPlayer as any) : 'Unknown';
+        const scorerShirt = (scorerPlayer as any)?.shirtNumber ?? 0;
+        goalLog.push({ team: engineTeam, playerName: scorerName, shirtNumber: scorerShirt, matchMinute: matchClock.elapsedInHalf, attackersInBox: 0, defendersInBox: 0, outfieldBoxCrowd: 0, isBreakaway: false });
+        // Store scorer in goalCelebration so updateDelayedRestart uses the ORCH name.
+        // The score and goalLog were already recorded above; the delayed handler will skip them.
+        goalCelebration.scorer = { name: scorerName, shirtNumber: scorerShirt };
+        goalCelebration.scoringTeam = engineTeam;
+        goalCelebration.active = true;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'GOAL', engineTeam, 'TEAM', {
+          scorer: scorerName,
+              scorerRole: scorerPlayer ? getRoleKey(scorerPlayer as any) : null,
+              x: +result.ball.pos.x.toFixed(2),
+              z: +result.ball.pos.z.toFixed(2),
             });
             sounds.goalAnnouncer();
             sounds.crowdRoar();
             gameState.isLive = false;
             gameState.message = 'GOAL!';
             delayedRestartState.active = true;
+            delayedRestartState.type = 'KICK_OFF';
+            delayedRestartState.team = engineTeam === 'A' ? 'B' : 'A';
+            delayedRestartState.x = 0;
+            delayedRestartState.z = 0;
+            delayedRestartState.message = 'GOAL!';
             delayedRestartState.goalAwardTeam = engineTeam;
             delayedRestartState.goalFromShot = true;
+            delayedRestartState.orchGoalAlreadyRecorded = true;
             delayedRestartState.restartAt = elapsed + 3.0;
           },
       onBallOut: (restartType: string, restartTeam: any) => {
@@ -24033,47 +24270,46 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
           : restartType === 'corner' ? 'CORNER'
           : restartType === 'throw_in' ? 'THROW_IN'
           : 'TURNOVER';
-        const restartX = geRestartType === 'GOAL_KICK'
-          ? (teamAttacksRight(engineTeam) ? -FIELD_W / 2 + 3.0 : FIELD_W / 2 - 3.0)
-          : ballState.pos.x;
-        const restartZ = geRestartType === 'THROW_IN'
-          ? (ballState.pos.z > 0 ? FIELD_D / 2 : -FIELD_D / 2)
-          : (geRestartType === 'CORNER'
-            ? (ballState.pos.z > 0 ? FIELD_D / 2 : -FIELD_D / 2)
-            : 0);
+        // In the ORCH path the orchestrator manages the ball_out restart timer
+        // internally (1.5 s → gives ball to restart player → live_play). Calling
+        // startSoccerRestart here would also set isLive=false and start legacy
+        // presentation logic that conflicts with the ORCH's own handling, so
+        // we only update the HUD message and let the ORCH proceed.
         const restartMessage = geRestartType === 'GOAL_KICK' ? 'GOAL KICK'
           : geRestartType === 'CORNER' ? 'CORNER'
           : geRestartType === 'THROW_IN' ? 'THROW IN'
           : 'FREE KICK';
-        startSoccerRestart(geRestartType as any, engineTeam, restartX, restartZ, restartMessage);
+        gameState.message = restartMessage;
       },
       onPass: (fromId: string, toId: string, type: string) => {
-        const fromP = players.find((p: any) => String(p.id) === fromId);
-        const toP = players.find((p: any) => String(p.id) === toId);
+        const fromP = orchPlayerById.get(fromId);
+        const toP = orchPlayerById.get(toId);
         if (fromP) {
-          if (fromP.team === 'A') { gameState.passesA++; if (type !== 'long') gameState.passesCompletedA++; }
-          else { gameState.passesB++; if (type !== 'long') gameState.passesCompletedB++; }
+          const team = toEngineTeam(fromP.team);
+          if (!team) return;
+          if (team === 'A') { gameState.passesA++; }
+          else { gameState.passesB++; }
           emitOrchestratorPassTelemetry(fromP, toP ?? null, type, matchClock.elapsedInHalf);
-          const attackSign = teamAttacksRight(fromP.team) ? 1 : -1;
+          const attackSign = teamAttacksRight(team) ? 1 : -1;
           const zone = classifyAttackingZone(fromP, attackSign);
           gameState.passDecisionLog.push({
             elapsedInHalf: matchClock.elapsedInHalf,
             half: matchClock.half,
-            team: fromP.team,
-            passer: fromP.name || 'Unknown',
+            team,
+            passer: getTelemetryPlayerName(fromP),
             role: getRoleKey(fromP),
             shouldPass: true,
             carrierZone: zone.zone,
             style: type,
-            target: toP?.name || 'Unknown',
+            target: getTelemetryPlayerName(toP),
             targetRole: toP ? getRoleKey(toP) : '?',
           });
           if (type === 'cross' || type === 'cutback') {
             const deliveryDetail = {
-              type: _orchestratorPatternState[fromP.team as 'A' | 'B'].type || 'ORCH_DIRECT',
-              carrier: fromP.name || 'Unknown',
+              type: _orchestratorPatternState[team].type || 'ORCH_DIRECT',
+              carrier: getTelemetryPlayerName(fromP),
               carrierRole: getRoleKey(fromP),
-              receiver: toP?.name || 'Unknown',
+              receiver: getTelemetryPlayerName(toP),
               receiverRole: toP ? getRoleKey(toP) : '?',
               x: +fromP.pos.x.toFixed(2),
               z: +fromP.pos.z.toFixed(2),
@@ -24081,30 +24317,48 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               targetZ: toP ? +toP.pos.z.toFixed(2) : null,
               realCross: type === 'cross',
             };
-            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', fromP.team, 'TEAM', deliveryDetail);
+            pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
             if (type === 'cross') {
-              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', fromP.team, 'TEAM', deliveryDetail);
+              pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
             }
           }
         }
       },
+      onPassComplete: (passerId: string, receiverId: string) => {
+        const passer = orchPlayerById.get(passerId);
+        const receiver = orchPlayerById.get(receiverId);
+        if (!passer || !receiver) return;
+        const team = toEngineTeam(passer.team);
+        if (!team) return;
+        if (team === 'A') gameState.passesCompletedA++;
+        else gameState.passesCompletedB++;
+        const receiverRole = getRoleKey(receiver);
+        ensureRole(team, receiverRole).touches++;
+        ensureRole(team, getRoleKey(passer)).passComp++;
+        recordPassNetComplete(team, getRoleKey(passer), receiverRole);
+      },
       onShot: (playerId: string, style: string, onTarget: boolean) => {
-        const p = players.find((pl: any) => String(pl.id) === playerId);
+        const p = orchPlayerById.get(playerId);
         if (p) {
-          if (p.team === 'A') { gameState.shotsA++; if (onTarget) gameState.shotsOnTargetA++; }
-          else { gameState.shotsB++; if (onTarget) gameState.shotsOnTargetB++; }
-          pendingShotSnapshotShooter.player = p;
-          captureShotPositionSnapshot('SHOT_POSITION_SNAPSHOT', p.team, p);
+          const shooter = makeOrchestratorTelemetryPlayer(p);
+          if (!shooter) return;
+          const shotPlayers = orchPlayers
+            .map((player: any) => makeOrchestratorTelemetryPlayer(player))
+            .filter(Boolean);
+          if (shooter.team === 'A') { gameState.shotsA++; }
+          else { gameState.shotsB++; }
+          pendingShotSnapshotShooter.player = shooter;
+          captureShotPositionSnapshot('SHOT_POSITION_SNAPSHOT', shooter.team, shooter, shotPlayers, result.ball.pos);
           if (onTarget) {
-            captureShotOnTargetPositionSnapshot(p.team, p);
+            captureShotOnTargetPositionSnapshot(shooter.team, shooter, shotPlayers, result.ball.pos);
           }
-          recordShotTuning(p, style, matchClock.elapsedInHalf);
+          recordShotTuning(shooter, style, matchClock.elapsedInHalf, undefined, shotPlayers, result.ball.pos.x);
           gameState.shotDecisionLog.push({
             elapsedInHalf: matchClock.elapsedInHalf,
             half: matchClock.half,
-            team: p.team,
-            shooter: p.name || 'Unknown',
-            role: getRoleKey(p),
+            team: shooter.team,
+            shooter: getTelemetryPlayerName(shooter),
+            role: getRoleKey(shooter),
             shouldShoot: true,
             style,
             onTarget,
@@ -24112,44 +24366,54 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
         }
       },
       onSave: (keeperId: string) => {
-        const k = players.find((p: any) => String(p.id) === keeperId);
+        const k = orchPlayerById.get(keeperId);
         if (k) {
-          if (k.team === 'A') gameState.savesA++;
+          const team = toEngineTeam(k.team);
+          const shooterTeam = team === 'A' ? 'B' : 'A';
+          if (team === 'A') gameState.savesA++;
           else gameState.savesB++;
+          if (shooterTeam === 'A') gameState.shotsOnTargetA++;
+          else gameState.shotsOnTargetB++;
         }
       },
       onTackle: (winnerId: string, loserId: string) => {
-        const winner = players.find((p: any) => String(p.id) === winnerId);
-        const loser = players.find((p: any) => String(p.id) === loserId);
+        const winner = orchPlayerById.get(winnerId);
+        const loser = orchPlayerById.get(loserId);
         if (!winner) return;
-        if (winner.team === 'A') gameState.tacklesWonA++;
+        const winnerTeam = toEngineTeam(winner.team);
+        if (!winnerTeam) return;
+        if (winnerTeam === 'A') gameState.tacklesWonA++;
         else gameState.tacklesWonB++;
         const tRole = getRoleKey(winner);
-        ensureRole(winner.team, tRole).tackles++;
-        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TACKLE', winner.team, tRole, {
-          winner: winner.name || 'Unknown',
-          loser: loser?.name || 'Unknown',
+        ensureRole(winnerTeam, tRole).tackles++;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TACKLE', winnerTeam, tRole, {
+          winner: getTelemetryPlayerName(winner),
+          loser: getTelemetryPlayerName(loser),
           x: Math.round(winner.pos.x * 10) / 10,
           z: Math.round(winner.pos.z * 10) / 10,
         });
       },
       onClearance: (playerId: string) => {
-        const p = players.find((pl: any) => String(pl.id) === playerId);
+        const p = orchPlayerById.get(playerId);
         if (!p) return;
-        if (p.team === 'A') gameState.clearancesA++;
+        const team = toEngineTeam(p.team);
+        if (!team) return;
+        if (team === 'A') gameState.clearancesA++;
         else gameState.clearancesB++;
-        ensureRole(p.team, getRoleKey(p)).clearances++;
-        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'CLEARANCE', p.team, getRoleKey(p), {
+        ensureRole(team, getRoleKey(p)).clearances++;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'CLEARANCE', team, getRoleKey(p), {
           style: 'ORCHESTRATOR',
           x: Math.round(p.pos.x * 10) / 10,
           z: Math.round(p.pos.z * 10) / 10,
         });
       },
       onInterception: (playerId: string) => {
-        const p = players.find((pl: any) => String(pl.id) === playerId);
+        const p = orchPlayerById.get(playerId);
         if (!p) return;
-        ensureRole(p.team, getRoleKey(p)).interceptions++;
-        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'INTERCEPTION', p.team, getRoleKey(p), {
+        const team = toEngineTeam(p.team);
+        if (!team) return;
+        ensureRole(team, getRoleKey(p)).interceptions++;
+        pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'INTERCEPTION', team, getRoleKey(p), {
           aerial: false,
           x: Math.round(p.pos.x * 10) / 10,
           z: Math.round(p.pos.z * 10) / 10,
@@ -24166,13 +24430,19 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             }
             const wonTeam = newTeam === 'home' ? 'A' : 'B';
             const lostTeam = wonTeam === 'A' ? 'B' : 'A';
-            if (wonTeam === 'A') { gameState.possessionFramesA++; }
-            else { gameState.possessionFramesB++; }
+            // Accumulate duration of the previous possession segment (centiseconds).
+            if (_orchPossTeam !== null) {
+              const segCs = Math.round((matchClock.elapsedInHalf - _orchPossStartElapsed) * 100);
+              if (_orchPossTeam === 'A') gameState.possessionFramesA += segCs;
+              else gameState.possessionFramesB += segCs;
+            }
+            _orchPossTeam = wonTeam;
+            _orchPossStartElapsed = matchClock.elapsedInHalf;
             if (_activeTransition) {
               _activeTransition.duration = Math.round((matchClock.elapsedInHalf - _activeTransition.t) * 100) / 100;
               _activeTransition.passesInTransition = _transitionPasses;
               const progressSign = teamAttacksRight(_activeTransition.team) ? 1 : -1;
-              _activeTransition.progressionYards = Math.round(((ballState.pos.x - _transitionStartX) * progressSign / (FIELD_W / 120)) * 10) / 10;
+              _activeTransition.progressionYards = Math.round(((result.ball.pos.x - _transitionStartX) * progressSign / (FIELD_W / 120)) * 10) / 10;
               transitionLog.push(_activeTransition);
             }
             _activeTransition = {
@@ -24180,19 +24450,19 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               half: matchClock.half,
               team: wonTeam,
               direction: 'ATK',
-              triggerX: Math.round(ballState.pos.x * 10) / 10,
-              triggerZ: Math.round(ballState.pos.z * 10) / 10,
+              triggerX: Math.round(result.ball.pos.x * 10) / 10,
+              triggerZ: Math.round(result.ball.pos.z * 10) / 10,
             };
             _transitionPasses = 0;
-            _transitionStartX = ballState.pos.x;
+            _transitionStartX = result.ball.pos.x;
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'RECOVERY', wonTeam, 'TEAM', {
-              x: Math.round(ballState.pos.x * 10) / 10,
-              z: Math.round(ballState.pos.z * 10) / 10,
+              x: Math.round(result.ball.pos.x * 10) / 10,
+              z: Math.round(result.ball.pos.z * 10) / 10,
             });
             pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'TURNOVER', lostTeam, 'TEAM', {
               cause: 'POSSESSION_CHANGE',
-              x: Math.round(ballState.pos.x * 10) / 10,
-              z: Math.round(ballState.pos.z * 10) / 10,
+              x: Math.round(result.ball.pos.x * 10) / 10,
+              z: Math.round(result.ball.pos.z * 10) / 10,
             });
           },
         });
@@ -24840,10 +25110,41 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 if (!crossTarget) return false;
                 const carrierRole = (cpuCarrier.displayRole || cpuCarrier.role || '').toUpperCase();
                 const isWinger = ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(carrierRole);
-                const crossChance = isWinger ? 0.65 : 0.40;
+                const carrierInCrossZone = attackSign > 0
+                  ? cpuCarrier.pos.x > FIELD_W * 0.10
+                  : cpuCarrier.pos.x < -FIELD_W * 0.10;
+                const crossDist = cpuCarrier.pos.distanceTo(crossTarget.pos);
+                const crossChance = isWinger
+                  ? (carrierInCrossZone ? 0.92 : 0.76)
+                  : (carrierInCrossZone ? 0.66 : 0.48);
                 if (Math.random() > crossChance) return false;
-                // Use DRIVEN pass for cross
-                executeAIGroundPass(cpuCarrier, crossTarget, elapsed, { style: 'DRIVEN' });
+                const crossStyle: 'DRIVEN' | 'LONG_LOFTED' = crossDist > 14.5 ? 'LONG_LOFTED' : 'DRIVEN';
+                const launched = crossStyle === 'LONG_LOFTED'
+                  ? executeAILoftedPass(cpuCarrier, crossTarget, elapsed, 'LONG_LOFTED')
+                  : executeAIGroundPass(cpuCarrier, crossTarget, elapsed, { style: 'DRIVEN' });
+                if (!launched) return false;
+                const realCross = isActualCrossDelivery({
+                  passer: cpuCarrier.pos,
+                  target: crossTarget.pos,
+                  attackSign: attackSign as 1 | -1,
+                  fieldWidth: FIELD_W,
+                  penaltyDepth,
+                  penaltyHalfZ,
+                  goalMouthWidth,
+                });
+                const deliveryDetail = {
+                  patternType: 'LEGACY_WIDE_DELIVERY',
+                  passer: cpuCarrier.name || 'Unknown',
+                  target: crossTarget.name || 'Unknown',
+                  targetRole: getRoleKey(crossTarget),
+                  crossDist: +crossDist.toFixed(1),
+                  style: crossStyle,
+                  realCross,
+                };
+                pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_DELIVERY_EXECUTED', team, 'TEAM', deliveryDetail);
+                if (realCross) {
+                  pushTuningEvent(matchClock.elapsedInHalf, matchClock.half, 'PATTERN_CROSS_EXECUTED', team, 'TEAM', deliveryDetail);
+                }
                 showPlayPatternTag('CROSS', 'rgba(255,200,80,0.96)');
                 return true;
               })()
@@ -25021,17 +25322,23 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 // If receiver is heavily pressed, reject the pass for execution; be more permissive
                 // for short striker layoffs and central midfield support outlets in the final third.
                 const isShortCentralOutlet = targetForwardProg >= 0.5 && targetForwardProg <= 7.0 && targetLaneGap < FIELD_D * 0.16;
+                const finalThirdSupportOutlet = distToGoal < 30 && targetForwardProg >= -0.5 && targetLaneGap < FIELD_D * 0.20;
                 const passExecutionPressureLimit =
-                  (distToGoal < 30 && isStrikerOutlet && isShortCentralOutlet) ? 3
-                  : (distToGoal < 30 && isCentralMidOutlet && isShortCentralOutlet) ? 3
+                  (distToGoal < 30 && isStrikerOutlet && isShortCentralOutlet) ? 4
+                  : (distToGoal < 30 && isCentralMidOutlet && finalThirdSupportOutlet) ? 4
+                  : (distToGoal < 30 && targetForwardProg > 0.8) ? 3
                   : 2;
                 const executionAllowedDespitePressure =
-                  isShortCentralOutlet
-                  && nearestReceiverOppDist > 1.1
-                  && targetForwardProg > 0.5;
+                  finalThirdSupportOutlet
+                  && nearestReceiverOppDist > 0.9
+                  && receiverPressure <= passExecutionPressureLimit + 1
+                  && targetForwardProg > 0.25;
                 if (receiverPressure > passExecutionPressureLimit) {
                   if (!executionAllowedDespitePressure) {
                     shotPassTargetRejectedReason = 'receiver_pressure';
+                    if (usableForShotSuppression && targetForwardProg > 0.4 && nearestReceiverOppDist > 0.85) {
+                      softShotPassTarget = bestPassTarget;
+                    }
                     bestPassTarget = null;
                   }
                 }
@@ -25360,6 +25667,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
             const supportShotBonus = goodMidfieldSupport ? 0.03 : 0;
             const isolatedStrikerPenalty = isStriker && inFinalThird && !goodMidfieldSupport ? 0.28 : 0;
             const midfielderShotPenalty = isMidfieldCarrier && passTarget && !insidePenaltyArea ? 0.18 : 0;
+            const defenderShotPenalty = ['LB', 'RB', 'CB'].includes(carrierRoleLabel) && passTarget && !insidePenaltyArea ? 0.16 : 0;
             const locationRiskPenalty = !insidePenaltyArea && (distToGoal > 18 || !inShootingLane || angleToGoal > 0.50) ? 0.16 : 0;
             const lowSupportPenalty = !insidePenaltyArea && !hasGoalSupport && !goodMidfieldSupport ? 0.12 : 0;
             const lowEvShotMargin = gameState.tuningConfig.lowEvShotMargin ?? 0.08;
@@ -25447,7 +25755,7 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
                 ? (structuredFinishIntentRole === 'CUTBACK' ? 0.52 : 0.44)
                 : 0;
             const structuredFinishPassPenalty = structuredFinishIntentActive ? 0.24 : 0;
-            const shotThreshold = shootChance + strikerBoxBoost + strikerSelfishness + supportShotBonus + structuredFinishShotBonus - supportIncomingSuppression - isolatedStrikerPenalty - passValuePenalty - flankShotPenalty - tightAnglePenalty - reboundSuppression * (structuredFinishIntentActive ? 0.25 : 0.9) - longRangeShotPenalty - locationRiskPenalty - lowSupportPenalty - strikerPassShotSuppression - midfielderShotPenalty;
+            const shotThreshold = shootChance + strikerBoxBoost + strikerSelfishness + supportShotBonus + structuredFinishShotBonus - supportIncomingSuppression - isolatedStrikerPenalty - passValuePenalty - flankShotPenalty - tightAnglePenalty - reboundSuppression * (structuredFinishIntentActive ? 0.25 : 0.9) - longRangeShotPenalty - locationRiskPenalty - lowSupportPenalty - strikerPassShotSuppression - midfielderShotPenalty - defenderShotPenalty;
             const lowEvShootAllowed = forceShotNow || atGoalLineForce || (passChance != null && passChance < (gameState.tuningConfig.lowEvShotPassChanceThreshold ?? 0.18));
             const belowThreshold = shotThreshold <= 0;
             const isolatedStrikerArrivalVeto = isStriker
@@ -25536,10 +25844,21 @@ if (!useAIPositioningModel && gameState.useForceField && gameState.forceFieldBle
               );
             const directorPatternPassOverride = (directorPatternSettleShotVeto || directorPatternLongShotVeto) && !!passTarget && bestTargetForwardProg > -10;
             const directorPatternPassBoost = directorPatternActive && !!passTarget ? 0.42 : 0;
+            const lowValueShotPassLean =
+              !!passTarget
+              && !structuredFinishNoPassActive
+              && (
+                crowdedShotLane
+                || (shootChance != null && passChance != null && passChance > shootChance + 0.06)
+                || shotThreshold < 0.08
+                || (['LB', 'RB', 'CB'].includes(carrierRoleLabel) && distToGoal > 8.5)
+                || (bestPassTargetIsStriker && bestTargetForwardProg > 2.0 && distToGoal > 9.0)
+              );
             const shouldPass = !forbidBackwardBoxPass && (
               forceResolutionPass
               || (supportPassOverride && !!passTarget)
               || (directorPatternPassOverride && !structuredFinishIntentActive)
+              || lowValueShotPassLean
               || (!structuredFinishNoPassActive && !shouldShoot && !!passTarget && (patternPassOverride || closePressure >= 2 || Math.random() < passChance + forwardPassGateBonus + passPriorityBoost + directorPatternPassBoost - backwardPassGatePenalty - structuredFinishPassPenalty))
             );
             const strikerShotLaneProfile = isStriker && !inTapInZone
@@ -29329,6 +29648,8 @@ ballGroup.position.copy(ballState.pos);
       gameState.throwInsB = 0;
       gameState.possessionFramesA = 0;
       gameState.possessionFramesB = 0;
+      _orchPossTeam = null;
+      _orchPossStartElapsed = 0;
       goalLog.length = 0;
       telemEventLog.length = 0;
       matchClock.phase = 'FIRST_HALF';
@@ -29825,6 +30146,8 @@ ballGroup.position.copy(ballState.pos);
       gameState.throwInsB = 0;
       gameState.possessionFramesA = 0;
       gameState.possessionFramesB = 0;
+      _orchPossTeam = null;
+      _orchPossStartElapsed = 0;
       gameState.passDecisionLog.length = 0;
       gameState.pendingPassDecision = null;
       gameState.pendingPenaltyContext = null;

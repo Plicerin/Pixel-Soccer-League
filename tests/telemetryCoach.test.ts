@@ -18,6 +18,8 @@ import {
   deriveMetricaEventCoachControl,
   METRICA_SAMPLE_EVENT_PROFILE,
 } from '../src/ai/metricaEventModel.ts';
+import { createTeamTacticalState, updateTeamTacticalService } from '../src/ai/teamTacticalService.ts';
+import { makeBelief, makePlayer } from './helpers/cpuGameplayFixtures.ts';
 
 test('telemetry coach plan encodes real-movement attacking constraints', () => {
   const plan = createTelemetryCoachPlanFromRealMovement();
@@ -176,4 +178,67 @@ test('attacking coach counters opponent over-cover by selecting an uncovered pla
   });
 
   assert.equal(counterRole, 'NEAR_POST');
+});
+
+test('team tactical service protects late leads with calmer possession intent', () => {
+  const state = createTeamTacticalState('home');
+  const carrier = makePlayer({ id: 'home-carrier', team: 'home', hasBall: true, pos: { x: -10, z: 0 } });
+  const teammate = makePlayer({ id: 'home-wide', team: 'home', role: 'RW', pos: { x: 2, z: 12 } });
+  const defender = makePlayer({ id: 'away-press', team: 'away', pos: { x: -6, z: 0 } });
+
+  const next = updateTeamTacticalService(
+    state,
+    makeBelief({
+      homePlayers: [carrier, teammate],
+      awayPlayers: [defender],
+      matchMinute: 84,
+      scoreDiff: 1,
+      ball: {
+        pos: carrier.pos,
+        vel: { x: 0, z: 0 },
+        height: 0,
+        ownerPlayerId: carrier.id,
+        ownerTeam: 'home',
+        state: 'attached',
+      },
+    }),
+    'home',
+    0.5,
+    false,
+  );
+
+  assert.equal(next.blackboard.scorePressure, 'leading');
+  assert.equal(next.blackboard.intent.kind, 'possess');
+  assert.ok(next.blackboard.intent.widthPreference >= 0.72);
+});
+
+test('team tactical service chases late deficits with more direct buildup intent', () => {
+  const state = createTeamTacticalState('home');
+  const carrier = makePlayer({ id: 'home-carrier', team: 'home', hasBall: true, pos: { x: -18, z: 0 } });
+  const runner = makePlayer({ id: 'home-runner', team: 'home', role: 'ST', pos: { x: -4, z: 2 } });
+  const defender = makePlayer({ id: 'away-cover', team: 'away', pos: { x: -8, z: 1 } });
+
+  const next = updateTeamTacticalService(
+    state,
+    makeBelief({
+      homePlayers: [carrier, runner],
+      awayPlayers: [defender],
+      matchMinute: 88,
+      scoreDiff: -1,
+      ball: {
+        pos: carrier.pos,
+        vel: { x: 0, z: 0 },
+        height: 0,
+        ownerPlayerId: carrier.id,
+        ownerTeam: 'home',
+        state: 'attached',
+      },
+    }),
+    'home',
+    0.5,
+    false,
+  );
+
+  assert.equal(next.blackboard.scorePressure, 'trailing');
+  assert.equal(next.blackboard.intent.kind, 'progress');
 });

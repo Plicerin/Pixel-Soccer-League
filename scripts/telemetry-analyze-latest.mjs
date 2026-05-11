@@ -3,6 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
 import { MLS_2025_GLOBAL_AVERAGES, MLS_2025_TEAM_BASELINES } from '../src/telemetry/mls2025-baselines.ts'
 
@@ -1623,6 +1624,67 @@ function summarizeEventStream(events, passLog) {
   }
 }
 
+function summarizeKeeperEvents(bundle, passLog = []) {
+  const passStyle = (entry) => String(entry?.detail?.style ?? entry?.style ?? '').toUpperCase()
+  const byTeam = {
+    A: {
+      saves: bundle.teamA?.saves ?? 0,
+      keeperKicks: 0,
+      goalKicks: 0,
+    },
+    B: {
+      saves: bundle.teamB?.saves ?? 0,
+      keeperKicks: 0,
+      goalKicks: 0,
+    },
+  }
+
+  for (const entry of passLog) {
+    const team = entry?.team
+    if (team !== 'A' && team !== 'B') continue
+    const style = passStyle(entry)
+    if (style === 'KEEPER_KICK') byTeam[team].keeperKicks += 1
+    if (style === 'GOAL_KICK') byTeam[team].goalKicks += 1
+  }
+
+  return {
+    totalSaves: byTeam.A.saves + byTeam.B.saves,
+    byTeam,
+  }
+}
+
+function summarizeRestartCounts(events, passLog = []) {
+  const byTeam = {
+    A: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
+    B: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
+  }
+
+  for (const event of events) {
+    const team = event?.team
+    if (team !== 'A' && team !== 'B') continue
+    if (event.type === 'CORNER') byTeam[team].corners += 1
+    if (event.type === 'THROW_IN') byTeam[team].throwIns += 1
+    if (event.type === 'GOAL_KICK') byTeam[team].goalKicks += 1
+  }
+
+  for (const entry of passLog) {
+    const team = entry?.team
+    if (team !== 'A' && team !== 'B') continue
+    const style = String(entry?.detail?.style ?? entry?.style ?? '').toUpperCase()
+    if (style === 'FREE_KICK') byTeam[team].freeKicks += 1
+  }
+
+  return {
+    total: {
+      corners: byTeam.A.corners + byTeam.B.corners,
+      throwIns: byTeam.A.throwIns + byTeam.B.throwIns,
+      goalKicks: byTeam.A.goalKicks + byTeam.B.goalKicks,
+      freeKicks: byTeam.A.freeKicks + byTeam.B.freeKicks,
+    },
+    byTeam,
+  }
+}
+
 function compareToBaselines(bundle, teamAName, teamBName) {
   const baselineMap = buildTeamBaselineMap()
   const baselineA = baselineMap.get(normalizeTeamName(teamAName).toLowerCase()) || null
@@ -2086,6 +2148,8 @@ function buildMarkdownReport(report) {
     `- Pass decisions: ${report.counts.passDecisions}`,
     `- Interceptions: ${report.counts.interceptions}`,
     `- Turnovers: ${report.counts.turnovers}`,
+    `- Keeper saves: ${report.keeperSummary.byTeam.A.saves}-${report.keeperSummary.byTeam.B.saves}`,
+    `- Restart counters: corners ${report.restartSummary.total.corners}, throw-ins ${report.restartSummary.total.throwIns}, goal kicks ${report.restartSummary.total.goalKicks}, free kicks ${report.restartSummary.total.freeKicks}`,
     ``,
     `## Decision Telemetry`,
     `- Forced shots: ${report.shotDecisionSummary.forcedShots} of ${report.shotDecisionSummary.total}`,
@@ -2277,6 +2341,7 @@ function printSummary(report) {
   console.log(`Tuning KPIs | overall ${report.kpis.overall.score} (${report.kpis.overall.grade}) | baseline ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) | structure ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) | efficiency ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade})`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
+  console.log(`Keeper / restarts | saves ${report.keeperSummary.byTeam.A.saves}-${report.keeperSummary.byTeam.B.saves} | corners ${report.restartSummary.total.corners} | throw-ins ${report.restartSummary.total.throwIns} | goal kicks ${report.restartSummary.total.goalKicks} | free kicks ${report.restartSummary.total.freeKicks}`)
   console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
   console.log(`Heat map | ${teamA} width ${report.shape.A.avgWidth}, center+narrow ${report.shape.A.centerAndNarrowPct}% | ${teamB} width ${report.shape.B.avgWidth}, center+narrow ${report.shape.B.centerAndNarrowPct}%`)
   const ownerFmt = (team) => Object.entries(report.positionOwners.byTeam[team]).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'
@@ -2482,6 +2547,8 @@ function main() {
     },
     positionOwners: summarizePositionOwners(events),
     eventStream: summarizeEventStream(events, passLog),
+    keeperSummary: summarizeKeeperEvents(bundle, passLog),
+    restartSummary: summarizeRestartCounts(events, passLog),
     baselines: compareToBaselines(bundle, row.team_a_name, row.team_b_name),
     phaseTime: summarizePhaseTime(events),
     passByZone: summarizePassByZone(passDecisions),
@@ -2523,4 +2590,15 @@ function main() {
   console.log(`Saved telemetry report Markdown: ${path.resolve(process.cwd(), options.reportMd)}`)
 }
 
-main()
+export {
+  summarizeKeeperEvents,
+  summarizeRestartCounts,
+}
+
+const isDirectRun = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false
+
+if (isDirectRun) {
+  main()
+}

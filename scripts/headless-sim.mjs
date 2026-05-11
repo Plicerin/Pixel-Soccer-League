@@ -1043,6 +1043,15 @@ function createReportPayload(options, results, runMeta = {}) {
   }
 }
 
+export {
+  createReportPayload,
+  getMatchWaitTimeoutMs,
+  loadFixtureList,
+  parseArgs,
+  resolveFormation,
+  resolveTeamName,
+}
+
 function writeHeadlessReport(repoRoot, options, results, runMeta = {}) {
   if (!options.reportJson) return null
   const outPath = path.resolve(repoRoot, options.reportJson)
@@ -1273,7 +1282,13 @@ async function run() {
   }
 }
 
-run().catch((error) => {
-  console.error(error.message || error)
-  process.exitCode = 1
-})
+const isDirectRun = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false
+
+if (isDirectRun) {
+  run().catch((error) => {
+    console.error(error.message || error)
+    process.exitCode = 1
+  })
+}

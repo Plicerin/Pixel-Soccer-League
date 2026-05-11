@@ -8,6 +8,8 @@ import type {
   TeamIntent,
   RoleSlot,
   SupportLane,
+  RestartMode,
+  ScorePressure,
   TacticalBlackboard,
 } from "../core/types";
 
@@ -16,6 +18,7 @@ export function createBlackboard(team: TeamSide): TacticalBlackboard {
     tick: 0,
     matchMinute: 0,
     scoreDiff: 0,
+    scorePressure: "tied",
     phase: "transition",
     ballZone: "own_mid",
     pressLineY: 0,
@@ -26,6 +29,7 @@ export function createBlackboard(team: TeamSide): TacticalBlackboard {
     supportLanes: [],
     setPieceId: null,
     setPiecePhase: null,
+    restartMode: null,
     transitionAge: 99,
     transitionDirection: null,
   };
@@ -64,6 +68,20 @@ export function setTransition(
   direction: "won" | "lost" | null,
 ): TacticalBlackboard {
   return { ...bb, transitionAge: age, transitionDirection: direction };
+}
+
+export function setRestartMode(
+  bb: TacticalBlackboard,
+  restartMode: RestartMode | null,
+): TacticalBlackboard {
+  return { ...bb, restartMode };
+}
+
+export function setScorePressure(
+  bb: TacticalBlackboard,
+  scorePressure: ScorePressure,
+): TacticalBlackboard {
+  return { ...bb, scorePressure };
 }
 
 export function getRoleSlotForPlayer(

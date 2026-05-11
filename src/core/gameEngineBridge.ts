@@ -11,12 +11,69 @@ export type GameEngineBridge = {
   homeAttackSign: 1 | -1;
 };
 
+function canAcceptLegacyBootstrapState(bridge: GameEngineBridge): boolean {
+  return bridge.enabled && !bridge.synced;
+}
+
+export function mapLegacyRoleToOrchestratorRole(
+  role: string,
+  pos: { x: number; z: number },
+  isGK: boolean,
+): PlayerRole {
+  if (isGK) return "GK";
+
+  const label = (role || "").toString().toUpperCase();
+  const sideIsLeft = pos.z <= 0;
+
+  switch (label) {
+    case "GK":
+      return "GK";
+    case "CB_L":
+      return "CB_L";
+    case "CB_R":
+      return "CB_R";
+    case "CB":
+      return sideIsLeft ? "CB_L" : "CB_R";
+    case "LB":
+    case "LWB":
+      return "LB";
+    case "RB":
+    case "RWB":
+      return "RB";
+    case "DM":
+    case "CDM":
+      return "DM";
+    case "CM_L":
+      return "CM_L";
+    case "CM_R":
+      return "CM_R";
+    case "CM":
+      return sideIsLeft ? "CM_L" : "CM_R";
+    case "AM":
+    case "CAM":
+      return "AM";
+    case "LM":
+    case "LW":
+      return "LW";
+    case "RM":
+    case "RW":
+      return "RW";
+    case "CF":
+    case "ST":
+      return "ST";
+    default:
+      throw new Error(`Unsupported legacy role for orchestrator bridge: ${role}`);
+  }
+}
+
 export function createGameEngineBridge(
   playersData: Array<{
     id: string;
     team: "A" | "B";
     role: string;
+    name?: string;
     pos: { x: number; z: number };
+    homePos?: { x: number; z: number };
     isGK: boolean;
     ratings: PlayerBelief["ratings"];
   }>,
@@ -34,8 +91,11 @@ export function createGameEngineBridge(
   const orchestratorPlayers: OrchestratorPlayer[] = playersData.map(p => ({
     id: p.id,
     team: teamMap[p.team],
-    role: (p.role as PlayerRole) ?? "CM_L",
+    role: mapLegacyRoleToOrchestratorRole(p.role, p.pos, p.isGK),
+    displayRole: p.role,
+    displayName: p.name ?? p.id,
     pos: { x: p.pos.x, z: p.pos.z },
+    homePos: p.homePos ? { x: p.homePos.x, z: p.homePos.z } : { x: p.pos.x, z: p.pos.z },
     vel: { x: 0, z: 0 },
     prevPos: { x: p.pos.x, z: p.pos.z },
     facingRad: 0,
@@ -154,6 +214,7 @@ export function processOrchestratorEvents(
     onGoal?: (team: TeamSide) => void;
     onBallOut?: (restartType: string, restartTeam: TeamSide) => void;
     onPass?: (fromId: string, toId: string, type: string) => void;
+    onPassComplete?: (passerId: string, receiverId: string) => void;
     onShot?: (playerId: string, style: string, onTarget: boolean) => void;
     onSave?: (keeperId: string) => void;
     onPossessionChange?: (newTeam: TeamSide) => void;
@@ -170,6 +231,7 @@ export function processOrchestratorEvents(
       case "goal": handlers.onGoal?.(event.team); break;
       case "ball_out": handlers.onBallOut?.(event.restartType, event.restartTeam); break;
       case "pass": handlers.onPass?.(event.fromId, event.toId, event.type); break;
+      case "pass_complete": handlers.onPassComplete?.(event.passerId, event.receiverId); break;
       case "shot": handlers.onShot?.(event.playerId, event.style, event.onTarget); break;
       case "save": handlers.onSave?.(event.keeperId); break;
       case "possession_change": handlers.onPossessionChange?.(event.newTeam); break;
@@ -195,7 +257,7 @@ export function syncBallToOrchestrator(
     intendedUntil?: number;
   },
 ): void {
-  if (!bridge.enabled) return;
+  if (!canAcceptLegacyBootstrapState(bridge)) return;
   const orchBall = bridge.orchestrator.getBallState();
   const orchestratorElapsed = bridge.orchestrator.getMatchState().clock.elapsedInHalf;
   if (ballState.heldBy) {
@@ -261,7 +323,7 @@ export function syncPositionsToOrchestrator(
     pos: { x: number; z: number };
   }>,
 ): void {
-  if (!bridge.enabled) return;
+  if (!canAcceptLegacyBootstrapState(bridge)) return;
   let matchCount = 0;
   for (const gep of gameEnginePlayers) {
     const idStr = String(gep.id);

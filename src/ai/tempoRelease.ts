@@ -58,9 +58,9 @@ export function chooseTempoReleaseTarget<T extends TempoReleaseTarget>(
       && entry.finishLane
       && entry.laneAcceptable
       && !entry.laneBlocked
-      && entry.passDist <= entry.maxPassDist + 3.5
-      && entry.oppSpace >= 0.85
-      && entry.forwardProg > -10.0
+      && entry.passDist <= entry.maxPassDist + 4.5
+      && entry.oppSpace >= 0.65
+      && entry.forwardProg > -12.0
     )
     .sort((a, b) => centralTempoScore(b) - centralTempoScore(a));
 

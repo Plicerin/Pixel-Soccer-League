@@ -103,6 +103,13 @@ export function evaluatePassOptions(
     const receiverAttackX = tm.pos.x * attackSign;
     const receiverCentral = Math.abs(tm.pos.z) < FIELD_D * 0.18;
     const receiverAttackingRole = tm.role === "ST" || tm.role === "AM" || tm.role === "LW" || tm.role === "RW";
+    const receiverWide = Math.abs(tm.pos.z) > FIELD_D * 0.2;
+    const passProgress = targetPoint.x * attackSign - carrierAttackX;
+    const lateralShift = Math.abs(targetPoint.z - carrier.pos.z);
+    const settledPossession =
+      blackboard.intent.kind === "possess"
+      || blackboard.phase === "build_up"
+      || blackboard.phase === "progression";
     let deliveryBonus = 0;
 
     if (advancedWideCarrier && receiverCentral && receiverAttackX >= carrierAttackX - 4) {
@@ -119,7 +126,33 @@ export function evaluatePassOptions(
       type = "cross";
     }
 
-    const quality = openness * 0.45 + passSkill * 0.28 + (isForward ? 0.18 : 0) + deliveryBonus;
+    let recyclePenalty = 0;
+    let progressBonus = 0;
+    if (passProgress > 10) progressBonus += 0.14;
+    else if (passProgress > 5) progressBonus += 0.07;
+    if (receiverAttackingRole && receiverAttackX > carrierAttackX + 4) {
+      progressBonus += receiverCentral ? 0.12 : 0.05;
+    }
+    if (wideCarrier && receiverCentral && receiverAttackX >= carrierAttackX + 2) {
+      progressBonus += 0.1;
+    }
+    if (settledPossession) {
+      if (!isForward) recyclePenalty += 0.12;
+      if (passProgress < 2) recyclePenalty += 0.16;
+      else if (passProgress < 5) recyclePenalty += 0.08;
+      if (lateralShift < 6 && passProgress < 6) recyclePenalty += 0.06;
+      if (pressureOnCarrier === 0 && passProgress < 4) recyclePenalty += 0.05;
+      if (wideCarrier && receiverWide && passProgress < 7) recyclePenalty += 0.1;
+      if (wideCarrier && !receiverCentral && lateralShift < 8 && passProgress < 8) recyclePenalty += 0.08;
+    }
+
+    const quality =
+      openness * 0.45 +
+      passSkill * 0.28 +
+      (isForward ? 0.18 : 0) +
+      deliveryBonus +
+      progressBonus -
+      recyclePenalty;
 
     options.push({
       targetPlayerId: tm.id,

@@ -124,9 +124,10 @@ export function selectAIPassTarget(
 
     const centralLaneGap = Math.abs(candidate.pos.z - carrier.pos.z);
     const secondWavePocketGap = Math.abs(candidateX - carrierX - 5.5);
+    const attackerOutlet = ['ST', 'CF', 'CAM'].includes(candidateRole);
     const midfieldSupportBonus = ['CM', 'DM'].includes(candidateRole) && progress > 0.4 && supportSpace > 1.7 ? 5.4 : 0;
-    const layoffBonus = ['CM', 'DM', 'CAM', 'ST', 'CF'].includes(candidateRole) && progress >= -1.5 && progress <= 7.5 && centralLaneGap < constants.fieldDepth * 0.16 ? 3.4 : 0;
-    const strikerTargetBias = 0;
+    const layoffBonus = ['CM', 'DM', 'CAM', 'ST', 'CF'].includes(candidateRole) && progress >= -2.0 && progress <= 8.5 && centralLaneGap < constants.fieldDepth * 0.18 ? 4.2 : 0;
+    const strikerTargetBias = attackerOutlet && progress > 1.5 ? 1.3 : 0;
     const centralSupportBias = ['CM', 'DM', 'CAM'].includes(candidateRole) ? Math.max(0, 2.6 - centralLaneGap * 0.14) : 0;
     const secondWavePocketBonus = candidateRole === 'CM'
       && progress >= 2.0
@@ -140,17 +141,19 @@ export function selectAIPassTarget(
       && Math.abs(candidate.pos.z) > constants.fieldDepth * 0.2
       ? 1.1
       : 0;
-    const crossTargetBonus = Math.abs(candidate.pos.z) < constants.penaltyHalfZ && carrierInFinalThird && Math.abs(candidate.pos.z) < constants.goalMouthWidth ? 2.0 : 0;
+    const crossTargetBonus = Math.abs(candidate.pos.z) < constants.penaltyHalfZ && carrierInFinalThird && Math.abs(candidate.pos.z) < constants.goalMouthWidth * 1.2 ? 2.4 : 0;
     const backwardPenalty = progress < 0 ? (Math.abs(progress) + 0.8) * 6.4 : 0;
     const isOpen = receiverDanger < 5.0 && supportSpace > 0.9;
-    const strikerOpenRelaxed = false;
-    const centralMidOpenRelaxed = ['CM', 'DM', 'CAM'].includes(candidateRole) && progress > -1.5 && centralLaneGap < constants.fieldDepth * 0.18 && receiverDanger < 5.2 && supportSpace > 0.8;
+    const strikerOpenRelaxed = attackerOutlet && progress > 1.5 && centralLaneGap < constants.fieldDepth * 0.22 && receiverDanger < 6.2 && supportSpace > 0.6;
+    const centralMidOpenRelaxed = ['CM', 'DM', 'CAM'].includes(candidateRole) && progress > -2.5 && centralLaneGap < constants.fieldDepth * 0.2 && receiverDanger < 5.8 && supportSpace > 0.65;
+    const lanePenaltyScale = carrierInFinalThird ? (attackerOutlet ? 0.68 : 0.78) : 0.95;
+    const receiverDangerScale = carrierInFinalThird ? (attackerOutlet ? 1.3 : 1.55) : 1.95;
 
     const score =
       progress * 0.88
       + supportSpace * 0.78
-      - lanePressure * 0.95
-      - receiverDanger * 1.95
+      - lanePressure * lanePenaltyScale
+      - receiverDanger * receiverDangerScale
       - preferredDistPenalty
       - backwardPenalty
       + midfieldSupportBonus

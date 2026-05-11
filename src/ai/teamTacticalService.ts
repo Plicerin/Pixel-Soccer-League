@@ -13,6 +13,8 @@ import type {
   SupportLane,
   TacticalBlackboard,
   PlayerRatings,
+  RestartMode,
+  ScorePressure,
 } from "../core/types";
 import {
   FIELD_W,
@@ -75,6 +77,10 @@ export type TeamTacticalState = {
   config: TeamTacticalConfig;
 };
 
+export type TeamTacticalContext = {
+  restartMode?: RestartMode | null;
+};
+
 export function createTeamTacticalState(
   team: TeamSide,
   config?: Partial<TeamTacticalConfig>,
@@ -95,6 +101,7 @@ export function updateTeamTacticalService(
   team: TeamSide,
   dt: number,
   isSetPiece: boolean,
+  context: TeamTacticalContext = {},
 ): TeamTacticalState {
   const next = { ...state };
   next.timeSinceService += dt;
@@ -133,6 +140,8 @@ export function updateTeamTacticalService(
 
   const compactness = computeCompactness(phase);
   const pressLineY = computePressLineY(ballZone, attackSign as 1 | -1);
+  const scorePressure = deriveScorePressure(team, belief);
+  const restartMode = context.restartMode ?? null;
 
   const halfW = FIELD_W / 2;
   const halfD = FIELD_D / 2;
@@ -159,23 +168,26 @@ export function updateTeamTacticalService(
     supportLanes,
     roleSlots,
     next.config,
+    scorePressure,
   );
 
   const pressLine = computePressLine(phase, ballPos, attackSign as 1 | -1, halfW);
 
   next.blackboard = {
     ...next.blackboard,
-    tick: next.blackboard.tick + 1,
-    matchMinute: belief.matchMinute,
-    scoreDiff: belief.scoreDiff,
-    phase,
-    ballZone,
-    pressLineY: pressLine,
-    compactness,
-    roleSlots,
-    intent: teamIntent,
-    supportLanes,
-  };
+      tick: next.blackboard.tick + 1,
+      matchMinute: belief.matchMinute,
+      scoreDiff: belief.scoreDiff,
+      scorePressure,
+      phase,
+      ballZone,
+      pressLineY: pressLine,
+      compactness,
+      roleSlots,
+      intent: teamIntent,
+      supportLanes,
+      restartMode,
+    };
 
   return next;
 }
@@ -256,15 +268,22 @@ function selectTeamIntent(
   supportLanes: SupportLane[],
   roleSlots: RoleSlot[],
   config: TeamTacticalConfig,
+  scorePressure: ScorePressure,
 ): TeamIntent {
   const possessionTeam = belief.ball.ownerTeam;
   const hasPossession = possessionTeam === team;
+  const lateMatch = belief.matchMinute >= 70;
+  const protectLead = lateMatch && scorePressure === "leading";
+  const urgentChase = lateMatch && scorePressure === "trailing";
 
   if (!hasPossession) {
-    if (phase === "counterpress" && belief.ball.ownerPlayerId) {
+    if (!protectLead && phase === "counterpress" && belief.ball.ownerPlayerId) {
       return { kind: "counterpress", triggerPlayerId: belief.ball.ownerPlayerId };
     }
-    return { kind: "defend", pressureLevel: phase === "defensive_block" ? 0.6 : 0.3 };
+    return {
+      kind: "defend",
+      pressureLevel: urgentChase ? 0.82 : protectLead ? 0.42 : phase === "defensive_block" ? 0.6 : 0.3,
+    };
   }
 
   const bestLane = supportLanes.length > 0 ? supportLanes[0] : null;
@@ -283,15 +302,18 @@ function selectTeamIntent(
 
     case "final_third": {
       const shotQuality = computeShotQuality(belief, team);
-      if (shotQuality > 0.6) {
+      if (shotQuality > (urgentChase ? 0.48 : 0.6)) {
         return { kind: "finish", shotQuality };
       }
-      const pattern = selectAttackPattern(supportLanes, belief, team);
+      const pattern = selectAttackPattern(supportLanes, belief, team, roleSlots);
       const carrier = findCarrier(belief, team);
       return { kind: "attack", pattern, carrierId: carrier?.id ?? "" };
     }
 
     case "progression": {
+      if (protectLead) {
+        return { kind: "possess", widthPreference: 0.72 };
+      }
       const side = bestLane && bestLane.isForward
         ? (bestLane.toPlayerId && findPlayerRole(bestLane.toPlayerId, roleSlots))
         : "center";
@@ -303,8 +325,24 @@ function selectTeamIntent(
 
     case "build_up":
     default:
-      return { kind: "possess", widthPreference: 0.5 };
+      if (urgentChase) {
+        const forwardSide = bestLane?.isForward
+          ? (bestLane.toPlayerId && findPlayerRole(bestLane.toPlayerId, roleSlots))
+          : "center";
+        const sideName = forwardSide === "LB" || forwardSide === "LW" ? "left"
+          : forwardSide === "RB" || forwardSide === "RW" ? "right"
+          : "center";
+        return { kind: "progress", side: sideName as "left" | "center" | "right" };
+      }
+      return { kind: "possess", widthPreference: protectLead ? 0.78 : 0.5 };
   }
+}
+
+function deriveScorePressure(team: TeamSide, belief: MatchBelief): ScorePressure {
+  const perspectiveScoreDiff = team === "home" ? belief.scoreDiff : -belief.scoreDiff;
+  if (perspectiveScoreDiff > 0) return "leading";
+  if (perspectiveScoreDiff < 0) return "trailing";
+  return "tied";
 }
 
 function computeShotQuality(belief: MatchBelief, team: TeamSide): number {
@@ -329,13 +367,14 @@ function selectAttackPattern(
   supportLanes: SupportLane[],
   belief: MatchBelief,
   team: TeamSide,
+  roleSlots: RoleSlot[],
 ): AttackPattern {
   const wideLanes = supportLanes.filter(l =>
     Math.abs(belief.ball.pos.z - (findPlayerPos(l.toPlayerId, belief, team)?.z ?? 0)) > 10
   );
 
   if (wideLanes.length > 0 && wideLanes[0].score > 0.4) {
-    return wideLanes[0].toPlayerId && findPlayerRole(wideLanes[0].toPlayerId, []) === "LW"
+    return wideLanes[0].toPlayerId && findPlayerRole(wideLanes[0].toPlayerId, roleSlots) === "LW"
       ? "wing_cross" : "wing_cutback";
   }
 

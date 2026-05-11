@@ -40,3 +40,8 @@ rl/logs/
 
 # VSCode
 .claude/worktrees/
+.vscode/
+.idea/
+Thumbs.db
+*.tmp
+*.swp

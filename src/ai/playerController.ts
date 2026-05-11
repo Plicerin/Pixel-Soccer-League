@@ -59,6 +59,39 @@ export function buildOutfielderBT(): BTNode {
     sequence("carrier_branch", [
       condition("has_ball", (ctx) => ctx.player.hasBall),
       selector("carrier_options", [
+        sequence("defensive_emergency_clear", [
+          condition("deep_defender_under_pressure", (ctx) => {
+            const defensiveRole =
+              ctx.player.role === "CB_L"
+              || ctx.player.role === "CB_R"
+              || ctx.player.role === "LB"
+              || ctx.player.role === "RB"
+              || ctx.player.role === "DM";
+            if (!defensiveRole) return false;
+            const attackSign = ctx.player.team === "home" ? ctx.belief.homeAttackSign : ctx.belief.awayAttackSign;
+            const ownGoalX = attackSign > 0 ? -FIELD_W / 2 : FIELD_W / 2;
+            const distToOwnGoal = Math.abs(ctx.player.pos.x - ownGoalX);
+            if (distToOwnGoal > FIELD_W * 0.34) return false;
+            const opponents = ctx.player.team === "home" ? ctx.belief.awayPlayers : ctx.belief.homePlayers;
+            const nearPressure = opponents.filter((opp) => dist2(ctx.player.pos, opp.pos) < 3.2).length;
+            return nearPressure > 0;
+          }),
+          action("generate_emergency_clear", (ctx) => {
+            const attackSign = ctx.player.team === "home" ? ctx.belief.homeAttackSign : ctx.belief.awayAttackSign;
+            const opponents = ctx.player.team === "home" ? ctx.belief.awayPlayers : ctx.belief.homePlayers;
+            const nearestOpp = opponents.reduce<PlayerBelief | null>((best, opp) => {
+              if (!best) return opp;
+              return dist2(ctx.player.pos, opp.pos) < dist2(ctx.player.pos, best.pos) ? opp : best;
+            }, null);
+            const lateralAway = nearestOpp
+              ? Math.sign(ctx.player.pos.z - nearestOpp.pos.z) || (ctx.player.pos.z >= 0 ? 1 : -1)
+              : (ctx.player.pos.z >= 0 ? 1 : -1);
+            return {
+              name: "clear",
+              direction: normalize2({ x: attackSign * 1.0, z: lateralAway * 0.72 }),
+            };
+          }),
+        ]),
         sequence("final_third_shot", [
           condition("in_final_third", (ctx) => {
             const attackSign = ctx.player.team === "home" ? ctx.belief.homeAttackSign : ctx.belief.awayAttackSign;
@@ -70,14 +103,37 @@ export function buildOutfielderBT(): BTNode {
             const best = shots[0];
             const intentKind = ctx.blackboard.intent.kind;
             const isPrimaryFinisher = ["ST", "LW", "RW", "AM"].includes(ctx.player.role);
+            const isDefensiveRole = ["CB_L", "CB_R", "LB", "RB", "DM"].includes(ctx.player.role);
+            const isCentralMidfielder = ctx.player.role === "CM_L" || ctx.player.role === "CM_R";
+            const isWideAttacker = ctx.player.role === "LW" || ctx.player.role === "RW";
+            const attackSign = ctx.player.team === "home" ? ctx.belief.homeAttackSign : ctx.belief.awayAttackSign;
+            const goalX = attackSign > 0 ? FIELD_W / 2 : -FIELD_W / 2;
+            const distToGoal = Math.abs(goalX - ctx.player.pos.x);
+            const centralLane = Math.abs(ctx.player.pos.z) < 6.5;
+            const veryWideLane = Math.abs(ctx.player.pos.z) > 9;
             if (intentKind === "finish" && isPrimaryFinisher && best.quality >= 0.1) {
               return true;
+            }
+            if (isDefensiveRole) {
+              return intentKind === "finish"
+                && distToGoal < 9.5
+                && centralLane
+                && best.quality >= 0.34;
             }
             let minQuality =
               intentKind === "finish" ? 0.14
               : intentKind === "attack" || intentKind === "counter" ? 0.2
               : 0.24;
             if (isPrimaryFinisher) minQuality -= 0.02;
+            if (isCentralMidfielder) {
+              minQuality += distToGoal > 14 ? 0.08 : 0.03;
+            }
+            if (isWideAttacker && veryWideLane) {
+              if (intentKind !== "finish" && distToGoal > 12.5) {
+                return false;
+              }
+              minQuality += distToGoal > 10 ? 0.12 : 0.05;
+            }
             if (Math.abs(ctx.player.pos.z) < 8) minQuality -= 0.01;
             return best.quality >= Math.max(0.12, minQuality);
           }),
@@ -119,7 +175,14 @@ export function buildOutfielderBT(): BTNode {
         sequence("progressive_carry", [
           condition("carry_beats_safe_recycle", (ctx) => {
             const intentKind = ctx.blackboard.intent.kind;
-            if (!["progress", "attack", "counter"].includes(intentKind)) return false;
+            const settledPossession =
+              intentKind === "possess"
+              || ctx.blackboard.phase === "build_up"
+              || ctx.blackboard.phase === "progression";
+            const recentPassCount = countRecentIntents(ctx, "pass", 6);
+            if (!["progress", "attack", "counter"].includes(intentKind) && !(settledPossession && recentPassCount >= 2)) {
+              return false;
+            }
             const attackSign = ctx.player.team === "home" ? ctx.belief.homeAttackSign : ctx.belief.awayAttackSign;
             const attackX = ctx.player.pos.x * attackSign;
             if (attackX > FIELD_W * 0.24) return false;
@@ -127,6 +190,9 @@ export function buildOutfielderBT(): BTNode {
             if (passes.length === 0) return true;
             const bestPass = passes[0];
             const passProgress = bestPass.targetPoint.x * attackSign - attackX;
+            if (settledPossession && recentPassCount >= 2 && passProgress < 8) {
+              return true;
+            }
             return !bestPass.isForward || bestPass.quality < 0.78 || passProgress < 6;
           }),
           action("generate_progressive_carry", (ctx) => {
@@ -143,6 +209,12 @@ export function buildOutfielderBT(): BTNode {
             const inFinalThird = ctx.player.pos.x * attackSign > FIELD_W * 0.28;
             const intentKind = ctx.blackboard.intent.kind;
             const bestPass = passes[0];
+            const passProgress = bestPass.targetPoint.x * attackSign - ctx.player.pos.x * attackSign;
+            const recentPassCount = countRecentIntents(ctx, "pass", 6);
+            const settledPossession =
+              intentKind === "possess"
+              || ctx.blackboard.phase === "build_up"
+              || ctx.blackboard.phase === "progression";
             const shots = evaluateShotOptions(ctx.player, ctx.belief, ctx.blackboard);
             const bestShotQuality = shots[0]?.quality ?? 0;
             let minPassQuality = inFinalThird
@@ -151,6 +223,12 @@ export function buildOutfielderBT(): BTNode {
             if (intentKind === "counter" && bestPass.isForward) minPassQuality -= 0.08;
             if (inFinalThird && bestShotQuality > 0.16) {
               minPassQuality = Math.max(minPassQuality, bestShotQuality + 0.12);
+            }
+            if (settledPossession && recentPassCount >= 2) {
+              if (passProgress < 4) return false;
+              if (!bestPass.isForward || passProgress < 7) {
+                minPassQuality += 0.18;
+              }
             }
             return bestPass.quality >= Math.max(0.22, minPassQuality);
           }),
@@ -272,6 +350,7 @@ export function tickPlayerController(
     belief,
     blackboard,
     lastIntent: state.lastIntentObj,
+    recentIntents: state.recentIntents,
     candidates: [],
   };
 
@@ -325,4 +404,14 @@ function updateRecentIntents(state: PlayerControllerState, name: IntentName): vo
     { name, tick: state.lastTick },
     ...state.recentIntents.filter(r => state.lastTick - r.tick < 24),
   ].slice(0, 8);
+}
+
+function countRecentIntents(
+  ctx: BTContext,
+  name: IntentName,
+  tickWindow: number,
+): number {
+  return ctx.recentIntents.filter((recent) =>
+    recent.name === name && ctx.recentIntents.length > 0 && (ctx.recentIntents[0].tick - recent.tick) < tickWindow
+  ).length;
 }

@@ -7,6 +7,7 @@ export type BTContext = {
   belief: MatchBelief;
   blackboard: TacticalBlackboard;
   lastIntent: PlayerIntent | null;
+  recentIntents: Array<{ name: PlayerIntent["name"]; tick: number }>;
   candidates: PlayerIntent[];
 };
 

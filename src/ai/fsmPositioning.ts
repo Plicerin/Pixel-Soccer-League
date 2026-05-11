@@ -9,6 +9,7 @@ import {
   getStructuredAttackRole,
   type StructuredAttackState,
 } from './structuredAttack.ts';
+import { getBallArea, getSWOSTarget } from './swosTactics.ts';
 
 // Phase A FSM positioning — single-owner deterministic target for off-ball players.
 // Inspired by ysoccer-ai's AiStatePositioning: walk to a home target, no force field,
@@ -86,36 +87,70 @@ function phaseShiftedHome(
   hasPossession: boolean,
   attackPhase: string,
   fieldDepth: number,
+  ballPos?: THREE.Vector3,
 ): { x: number; z: number; owner: FsmMovementOwner } {
   const home = player.homePos;
   if (!home) return { x: 0, z: 0, owner: 'PHASE_HOME' };
   const role = (player.displayRole || player.role || '').toString().toUpperCase();
+
+  // SWOS ball-area-aware positioning: look up the 35-area table for the role
+  // so every non-carrier player's target shifts with ball position, not just
+  // during special states (box-crash, pattern, etc.).
+  if (ballPos) {
+    const ballArea = getBallArea(ballPos.x, ballPos.z, attackSign);
+    const swosTarget = getSWOSTarget(role, home, ballArea, attackSign);
+
+    // Small possession push on top of SWOS base (SWOS already encodes retreating
+    // when defending, so this is only a modest additional nudge when attacking).
+    let pushU = 0;
+    if (hasPossession && attackPhase === 'FINAL_THIRD') {
+      if (role === 'ST' || role === 'CF') pushU = 2.5;
+      else if (role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW') pushU = 2.5;
+      else if (role === 'CM' || role === 'CAM' || role === 'AM') pushU = 1.5;
+    }
+
+    const isWideMid = role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW';
+    const isFullback = role === 'LB' || role === 'RB' || role === 'LWB' || role === 'RWB';
+    if (isWideMid || isFullback) {
+      const side = Math.sign(home.z || (role.includes('L') ? -1 : 1)) || 1;
+      const minWideAbsZ = isWideMid
+        ? (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.66 : fieldDepth * 0.60)
+        : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.60 : attackPhase === 'TRANSITION' ? fieldDepth * 0.56 : fieldDepth * 0.52);
+      const naturalAbsZ = Math.abs(swosTarget.z);
+      return {
+        x: swosTarget.x + attackSign * pushU,
+        z: side * Math.max(naturalAbsZ, minWideAbsZ),
+        owner: 'WIDE_HOME',
+      };
+    }
+
+    return { x: swosTarget.x + attackSign * pushU, z: swosTarget.z, owner: 'PHASE_HOME' };
+  }
+
+  // Fallback when ballPos not available: original static homePos logic.
   if (!hasPossession) {
     return { x: home.x, z: home.z, owner: 'PHASE_HOME' };
   }
-  // Only forwards/wingers push noticeably; backline holds shape.
   let pushU = 0;
   if (role === 'ST' || role === 'CF') pushU = attackPhase === 'FINAL_THIRD' ? 8 : 4;
-  else if (role === 'LM' || role === 'RM') pushU = attackPhase === 'FINAL_THIRD' ? 6 : 3;
-  else if (role === 'CM' || role === 'CAM') pushU = attackPhase === 'FINAL_THIRD' ? 4 : 2;
+  else if (role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW') pushU = attackPhase === 'FINAL_THIRD' ? 7 : 4;
+  else if (role === 'CM' || role === 'CAM') pushU = attackPhase === 'FINAL_THIRD' ? 4.5 : 2.5;
   else if (role === 'DM') pushU = 1;
 
-  const isWideMid = role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW';
-  const isFullback = role === 'LB' || role === 'RB' || role === 'LWB' || role === 'RWB';
-  if (isWideMid || isFullback) {
+  const isWideMidFb = role === 'LM' || role === 'RM' || role === 'LW' || role === 'RW';
+  const isFullbackFb = role === 'LB' || role === 'RB' || role === 'LWB' || role === 'RWB';
+  if (isWideMidFb || isFullbackFb) {
     const side = Math.sign(home.z || (role.includes('L') ? -1 : 1)) || 1;
-    const minWideAbsZ = isWideMid
-      ? (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.62 : fieldDepth * 0.57)
-      : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.58 : attackPhase === 'TRANSITION' ? fieldDepth * 0.54 : fieldDepth * 0.50);
+    const minWideAbsZ = isWideMidFb
+      ? (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.66 : fieldDepth * 0.60)
+      : (attackPhase === 'FINAL_THIRD' ? fieldDepth * 0.60 : attackPhase === 'TRANSITION' ? fieldDepth * 0.56 : fieldDepth * 0.52);
     const naturalAbsZ = Math.abs(home.z || 0);
-    const z = side * Math.max(naturalAbsZ, minWideAbsZ);
-    return { x: home.x + attackSign * pushU, z, owner: 'WIDE_HOME' };
+    return { x: home.x + attackSign * pushU, z: side * Math.max(naturalAbsZ, minWideAbsZ), owner: 'WIDE_HOME' };
   }
-
   return { x: home.x + attackSign * pushU, z: home.z, owner: 'PHASE_HOME' };
 }
 
-// Designated defender per team — closest non-keeper opponent to the ball.
+
 // Only this player chases / presses; everyone else holds shape.
 // Inspired by ysoccer-ai's "bestDefender" concept (only one player aggressively
 // tracks the ball, the rest stay in POSITIONING).
@@ -381,10 +416,10 @@ function getDangerMarkAssignment(
       const d = defender.pos.distanceTo(attacker.pos);
       const roleLabel = roleLabelOf(defender);
       const markerBias =
-        ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM'].includes(roleLabel) ? -2.6
-        : roleLabel === 'CM' ? -1.0
+        ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM'].includes(roleLabel) ? -3.2
+        : roleLabel === 'CM' ? -1.3
         : 0;
-      const goalSideBias = (defender.pos.x - attacker.pos.x) * defenderAttackSign < 0 ? -0.8 : 0.6;
+      const goalSideBias = (defender.pos.x - attacker.pos.x) * defenderAttackSign < 0 ? -1.2 : 1.0;
       const score = d + markerBias + goalSideBias;
       if (score < bestScore) {
         bestScore = score;
@@ -407,7 +442,7 @@ function computeDangerMarkTarget(
   const toGoalX = ownGoalX - attacker.pos.x;
   const toGoalZ = -attacker.pos.z;
   const len = Math.max(0.001, Math.hypot(toGoalX, toGoalZ));
-  const markDistance = 0.72;
+  const markDistance = 0.42;
   return {
     x: attacker.pos.x + (toGoalX / len) * markDistance,
     z: attacker.pos.z + (toGoalZ / len) * markDistance,
@@ -436,7 +471,7 @@ function shouldBoxCoverDefend(
 
   const ballPresser = pickFsmDefender(player.team, allPlayers, ballPos);
   if (player === ballPresser) return false;
-  const coverCount = urgentCentralThreat ? 6 : 5;
+  const coverCount = urgentCentralThreat ? 7 : 6;
   const goalLaneScore = (p: any) => {
     const toGoalX = ownGoalX - ballPos.x;
     const toGoalZ = -ballPos.z;
@@ -448,9 +483,9 @@ function shouldBoxCoverDefend(
     const laneZ = ballPos.z + toGoalZ * t;
     const laneDist = Math.hypot(p.pos.x - laneX, p.pos.z - laneZ);
     const roleBias =
-      ['CB', 'DM'].includes(roleLabelOf(p)) ? -2.6
-      : ['LB', 'RB', 'LWB', 'RWB'].includes(roleLabelOf(p)) ? -1.2
-      : roleLabelOf(p) === 'CM' ? -0.8
+      ['CB', 'DM'].includes(roleLabelOf(p)) ? -3.0
+      : ['LB', 'RB', 'LWB', 'RWB'].includes(roleLabelOf(p)) ? -1.6
+      : roleLabelOf(p) === 'CM' ? -1.1
       : 0;
     return laneDist * 2.4 + p.pos.distanceTo(ballPos) * 0.28 + roleBias;
   };
@@ -626,7 +661,7 @@ export function computeFsmOffBallTargetWithOwner(ctx: FsmContext): FsmTargetResu
   // 4. No pattern role, no special state — phase-shifted home (sensible default).
   // hasPossession means *our* team has the ball, not just any carrier.
   const hasPossession = !!carrier && carrier.team === player.team;
-  const shifted = phaseShiftedHome(player, attackSign, hasPossession, attackPhase, fieldDepth);
+  const shifted = phaseShiftedHome(player, attackSign, hasPossession, attackPhase, fieldDepth, ballPos);
   _tmp.set(
     clamp(shifted.x, -fieldWidth / 2 + 1.5, fieldWidth / 2 - 1.5),
     0.15,

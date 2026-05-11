@@ -1171,12 +1171,14 @@ const RetroFootball: React.FC = () => {
 
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
-gameRef.current = initGame(containerRef.current);
-    (window as any).pslGame = gameRef.current;
-    if (new URLSearchParams(window.location.search).has('newarch')) {
-      gameRef.current?.setShowOrchTelemetry?.(true);
-      gameRef.current?.setUseNewArchitecture?.(true);
-    }
+      gameRef.current = initGame(containerRef.current);
+      (window as any).pslGame = gameRef.current;
+      const urlParams = new URLSearchParams(window.location.search);
+      const useNewArchitecture = urlParams.has('newarch');
+      gameRef.current?.setUseNewArchitecture?.(useNewArchitecture);
+      if (useNewArchitecture) {
+        gameRef.current?.setShowOrchTelemetry?.(true);
+      }
       const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
       const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);

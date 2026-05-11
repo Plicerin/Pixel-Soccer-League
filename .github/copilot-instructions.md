@@ -30,3 +30,13 @@
 - The dev server is more than static hosting. If you touch telemetry export, tuning relay, or match-history flows, check both the client callers and the custom Vite endpoints under `/__telemetry/*`, `/__tuning/*`, and `/__db/*`.
 - Server-side match history deliberately filters ghost/default splash matches before returning rows. Preserve the `matchFilters` guardrail when changing SQLite writes or reads.
 - Repo-local MCP configuration lives under `.copilot\mcp-config.json`. Use `scripts\copilot-local.ps1` when you want Copilot CLI to load the committed Playwright MCP setup for this repository.
+
+<!-- SPECKIT START -->
+Current feature plan: `specs/001-fix-cpu-gameplay/plan.md`
+
+Related planning artifacts:
+- `specs/001-fix-cpu-gameplay/research.md`
+- `specs/001-fix-cpu-gameplay/data-model.md`
+- `specs/001-fix-cpu-gameplay/contracts/gameplay-validation-contract.md`
+- `specs/001-fix-cpu-gameplay/quickstart.md`
+<!-- SPECKIT END -->
