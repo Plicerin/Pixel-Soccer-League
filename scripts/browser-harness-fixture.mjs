@@ -116,6 +116,84 @@ async function pickPage(browser, options) {
   return { page, reused: false }
 }
 
+async function keepPageLifecycleActive(page) {
+  let stopped = false
+  let client = null
+  try {
+    client = await page.context().newCDPSession(page)
+    await client.send('Page.enable').catch(() => {})
+    await client.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {})
+  } catch {
+    client = null
+  }
+
+  const activate = async () => {
+    if (stopped) return
+    await page.bringToFront().catch(() => {})
+    if (!client) return
+    await client.send('Page.setWebLifecycleState', { state: 'active' }).catch(() => {})
+    await client.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {})
+  }
+
+  await activate()
+  const interval = setInterval(() => {
+    void activate()
+  }, 500)
+
+  return async () => {
+    stopped = true
+    clearInterval(interval)
+    if (client) {
+      await client.detach().catch(() => {})
+    }
+  }
+}
+
+function isDestroyedContextError(error) {
+  const message = String(error?.message || error || '')
+  return message.includes('Execution context was destroyed')
+    || message.includes('Cannot find context with specified id')
+    || message.includes('Target closed')
+}
+
+async function hasFixtureApi(page) {
+  try {
+    return await page.evaluate(() => Boolean(window.pslSmokeTest?.runFixture))
+  } catch (error) {
+    if (isDestroyedContextError(error)) return false
+    throw error
+  }
+}
+
+async function waitForFixtureApi(page, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await page.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => {})
+    if (await hasFixtureApi(page)) return true
+    await page.waitForTimeout(250)
+  }
+  return false
+}
+
+async function evaluateFixtureRun(page, fixtureOptions) {
+  let lastError = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await page.evaluate(async (runOptions) => {
+        if (!window.pslSmokeTest?.runFixture) {
+          throw new Error('window.pslSmokeTest.runFixture is unavailable. Reload the app first.')
+        }
+        return await window.pslSmokeTest.runFixture(runOptions)
+      }, fixtureOptions)
+    } catch (error) {
+      lastError = error
+      if (!isDestroyedContextError(error)) throw error
+      await waitForFixtureApi(page, 10000)
+    }
+  }
+  throw lastError
+}
+
 async function runFixtureInPage(page, options) {
   const fixtureOptions = {
     homeTeam: options.homeTeam,
@@ -127,12 +205,46 @@ async function runFixtureInPage(page, options) {
     timeoutMs: Math.floor(options.timeoutMs),
   }
 
-  return await page.evaluate(async (runOptions) => {
-    if (!window.pslSmokeTest?.runFixture) {
-      throw new Error('window.pslSmokeTest.runFixture is unavailable. Reload the app first.')
+  let hasFixture = await waitForFixtureApi(page, 5000)
+  if (!hasFixture) {
+    const separator = options.url.includes('?') ? '&' : '?'
+    await page.goto(`${options.url}${separator}fixtureReload=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch((error) => {
+      if (!isDestroyedContextError(error)) throw error
+    })
+    hasFixture = await waitForFixtureApi(page, 30000)
+  }
+  if (!hasFixture) {
+    throw new Error('window.pslSmokeTest.runFixture is unavailable after reload.')
+  }
+
+  const releaseLifecycleHold = await keepPageLifecycleActive(page)
+  try {
+    return await evaluateFixtureRun(page, fixtureOptions)
+  } finally {
+    await releaseLifecycleHold()
+  }
+}
+
+async function connectBrowser(options) {
+  const candidates = [options.cdpUrl]
+  if (options.cdpUrl === 'http://127.0.0.1:9222') {
+    candidates.push('http://[::1]:9222')
+  }
+
+  let lastError = null
+  for (const cdpUrl of candidates) {
+    try {
+      const browser = await chromium.connectOverCDP(cdpUrl)
+      return { browser, cdpUrl }
+    } catch (error) {
+      lastError = error
     }
-    return await window.pslSmokeTest.runFixture(runOptions)
-  }, fixtureOptions)
+  }
+
+  throw new Error(
+    `Could not connect to Chrome/Edge CDP at ${candidates.join(' or ')}. ` +
+    `Start a visible browser with --remote-debugging-port=9222 first. ${lastError?.message || lastError}`
+  )
 }
 
 async function main() {
@@ -143,18 +255,18 @@ async function main() {
   }
 
   let browser
+  let cdpUrl = options.cdpUrl
   try {
-    browser = await chromium.connectOverCDP(options.cdpUrl)
+    const connected = await connectBrowser(options)
+    browser = connected.browser
+    cdpUrl = connected.cdpUrl
   } catch (error) {
-    throw new Error(
-      `Could not connect to Chrome/Edge CDP at ${options.cdpUrl}. ` +
-      `Start a visible browser with --remote-debugging-port=9222 first. ${error?.message || error}`
-    )
+    throw error
   }
 
   try {
     const { page, reused } = await pickPage(browser, options)
-    console.log(`[sim:browser] app-tab=${reused ? 'reused' : 'opened'} url=${page.url()}`)
+    console.log(`[sim:browser] cdp=${cdpUrl} app-tab=${reused ? 'reused' : 'opened'} url=${page.url()}`)
     const result = await runFixtureInPage(page, options)
     console.log(
       `[sim:browser] FINAL ${result.teamA} ${result.scoreA}-${result.scoreB} ${result.teamB} | ` +
@@ -172,7 +284,7 @@ async function main() {
           formationA: options.formationA || null,
           formationB: options.formationB || null,
           url: options.url,
-          cdpUrl: options.cdpUrl,
+          cdpUrl,
           halfSeconds: options.halfSeconds,
           speedMul: options.speedMul,
           timeoutMs: options.timeoutMs,
@@ -183,11 +295,13 @@ async function main() {
       console.log(`Saved browser fixture report: ${outPath}`)
     }
   } finally {
-    await browser?.close().catch(() => {})
+    browser?.disconnect?.()
   }
 }
 
-main().catch((error) => {
+main().then(() => {
+  process.exit(0)
+}).catch((error) => {
   console.error(error.message || error)
   process.exit(1)
 })

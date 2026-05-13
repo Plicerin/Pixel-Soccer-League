@@ -16,6 +16,7 @@
     "sim:headless": "node scripts/headless-sim.mjs",
     "sim:match": "node scripts/headless-sim.mjs --games 1",
     "sim:smoke": "node scripts/headless-sim.mjs --games 1 --mode smoke",
+    "sim:simple-kpi": "node --import tsx scripts/simple-model-kpi.mjs",
     "sim:browser": "node scripts/browser-harness-fixture.mjs",
     "sim:probe-gpu": "node scripts/probe-headless-gpu.mjs",
     "browser:open": "node scripts/open-debug-browser.mjs",
@@ -34,7 +35,7 @@
     "self-edit:loop": "node scripts/self-edit-loop.mjs",
     "tuning:scoreboard": "node scripts/tuning-scoreboard.mjs",
     "eval:cycle": "node scripts/eval-cycle.mjs",
-    "eval:guard": "node scripts/eval-cycle.mjs --guard coach-authority"
+    "eval:guard": "node --import tsx scripts/simple-model-kpi.mjs --guard simple-kpi"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

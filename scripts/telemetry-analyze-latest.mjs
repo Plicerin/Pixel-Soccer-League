@@ -1653,18 +1653,38 @@ function summarizeKeeperEvents(bundle, passLog = []) {
   }
 }
 
-function summarizeRestartCounts(events, passLog = []) {
+function summarizeRestartCounts(events, passLog = [], bundle = null) {
   const byTeam = {
     A: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
     B: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
   }
 
+  const bundleA = bundle?.teamA || {}
+  const bundleB = bundle?.teamB || {}
+  byTeam.A.corners = Number(bundleA.corners ?? 0)
+  byTeam.B.corners = Number(bundleB.corners ?? 0)
+  byTeam.A.throwIns = Number(bundleA.throwIns ?? 0)
+  byTeam.B.throwIns = Number(bundleB.throwIns ?? 0)
+  byTeam.A.goalKicks = Number(bundleA.goalKicks ?? 0)
+  byTeam.B.goalKicks = Number(bundleB.goalKicks ?? 0)
+
+  const eventCounts = {
+    A: { corners: 0, throwIns: 0, goalKicks: 0 },
+    B: { corners: 0, throwIns: 0, goalKicks: 0 },
+  }
+
   for (const event of events) {
     const team = event?.team
     if (team !== 'A' && team !== 'B') continue
-    if (event.type === 'CORNER') byTeam[team].corners += 1
-    if (event.type === 'THROW_IN') byTeam[team].throwIns += 1
-    if (event.type === 'GOAL_KICK') byTeam[team].goalKicks += 1
+    if (event.type === 'CORNER') eventCounts[team].corners += 1
+    if (event.type === 'THROW_IN') eventCounts[team].throwIns += 1
+    if (event.type === 'GOAL_KICK') eventCounts[team].goalKicks += 1
+  }
+
+  for (const team of ['A', 'B']) {
+    byTeam[team].corners = Math.max(byTeam[team].corners, eventCounts[team].corners)
+    byTeam[team].throwIns = Math.max(byTeam[team].throwIns, eventCounts[team].throwIns)
+    byTeam[team].goalKicks = Math.max(byTeam[team].goalKicks, eventCounts[team].goalKicks)
   }
 
   for (const entry of passLog) {
@@ -1689,23 +1709,25 @@ function compareToBaselines(bundle, teamAName, teamBName) {
   const baselineMap = buildTeamBaselineMap()
   const baselineA = baselineMap.get(normalizeTeamName(teamAName).toLowerCase()) || null
   const baselineB = baselineMap.get(normalizeTeamName(teamBName).toLowerCase()) || null
+  const duration = getBundleDurationInfo(bundle)
+  const scaleBaseline = (value) => round(Number(value) || 0)
 
   const global = {
     totalGoals: {
       simulated: (bundle.teamA?.score ?? 0) + (bundle.teamB?.score ?? 0),
-      baseline: MLS_2025_GLOBAL_AVERAGES.goalsPerGame,
+      baseline: scaleBaseline(MLS_2025_GLOBAL_AVERAGES.goalsPerGame),
     },
     totalShots: {
       simulated: (bundle.teamA?.shots ?? 0) + (bundle.teamB?.shots ?? 0),
-      baseline: MLS_2025_GLOBAL_AVERAGES.shotsPerGame * 2,
+      baseline: scaleBaseline(MLS_2025_GLOBAL_AVERAGES.shotsPerGame * 2),
     },
     totalShotsOnTarget: {
       simulated: (bundle.teamA?.shotsOnTarget ?? 0) + (bundle.teamB?.shotsOnTarget ?? 0),
-      baseline: MLS_2025_GLOBAL_AVERAGES.shotsOnTargetPerGame * 2,
+      baseline: scaleBaseline(MLS_2025_GLOBAL_AVERAGES.shotsOnTargetPerGame * 2),
     },
     totalCorners: {
       simulated: (bundle.teamA?.corners ?? 0) + (bundle.teamB?.corners ?? 0),
-      baseline: MLS_2025_GLOBAL_AVERAGES.cornersPerGame * 2,
+      baseline: scaleBaseline(MLS_2025_GLOBAL_AVERAGES.cornersPerGame * 2),
     },
   }
 
@@ -1725,12 +1747,12 @@ function compareToBaselines(bundle, teamAName, teamBName) {
         corners: bundle.teamA?.corners ?? 0,
       },
       baseline: baselineA ? {
-        goals: baselineA.goalsFor,
-        shots: baselineA.shotsPerGame,
-        shotsOnTarget: baselineA.shotsOnTargetPerGame,
+        goals: scaleBaseline(baselineA.goalsFor),
+        shots: scaleBaseline(baselineA.shotsPerGame),
+        shotsOnTarget: scaleBaseline(baselineA.shotsOnTargetPerGame),
         passCompletionPct: round(baselineA.passCompletionRate * 100, 1),
         possessionPct: round(baselineA.possession * 100, 1),
-        corners: baselineA.corners,
+        corners: scaleBaseline(baselineA.corners),
       } : null,
     },
     {
@@ -1744,17 +1766,29 @@ function compareToBaselines(bundle, teamAName, teamBName) {
         corners: bundle.teamB?.corners ?? 0,
       },
       baseline: baselineB ? {
-        goals: baselineB.goalsFor,
-        shots: baselineB.shotsPerGame,
-        shotsOnTarget: baselineB.shotsOnTargetPerGame,
+        goals: scaleBaseline(baselineB.goalsFor),
+        shots: scaleBaseline(baselineB.shotsPerGame),
+        shotsOnTarget: scaleBaseline(baselineB.shotsOnTargetPerGame),
         passCompletionPct: round(baselineB.passCompletionRate * 100, 1),
         possessionPct: round(baselineB.possession * 100, 1),
-        corners: baselineB.corners,
+        corners: scaleBaseline(baselineB.corners),
       } : null,
     },
   ]
 
-  return { global, teamComparison }
+  return { duration, global, teamComparison }
+}
+
+function getBundleDurationInfo(bundle) {
+  const halfSeconds = Math.max(1, Number(bundle?.metadata?.halfDuration ?? 2700) || 2700)
+  const matchSeconds = halfSeconds * 2
+  return {
+    halfSeconds,
+    matchSeconds,
+    runtimeMinutes: round(matchSeconds / 60, 2),
+    matchMinutes: 90,
+    durationFactor: 1,
+  }
 }
 
 function clamp01(value) {
@@ -1795,6 +1829,12 @@ function gradeKpi(score) {
 }
 
 function summarizeKpis(report) {
+  const disabledMetrics = new Set(report.model?.disabledMetrics || [])
+  const simpleModelV1 = report.model?.name === 'simple-v1'
+  const durationFactor = Number(report.baselines.duration?.durationFactor ?? 1) || 1
+  const durationMinutes = Number(report.baselines.duration?.matchMinutes ?? 90) || 90
+  const scaleTarget = (value) => value * durationFactor
+  const scaleTolerance = (value, floor) => Math.max(floor, value * durationFactor)
   const goals = Number(report.baselines.global.totalGoals.simulated ?? 0)
   const shots = Number(report.baselines.global.totalShots.simulated ?? 0)
   const sot = Number(report.baselines.global.totalShotsOnTarget.simulated ?? 0)
@@ -1833,40 +1873,54 @@ function summarizeKpis(report) {
 
   const baselineFit = {
     score: weightedScore([
-      { label: 'goals', score: scoreRange(goals, 2.8, 2.2), weight: 0.22 },
-      { label: 'shots', score: scoreRange(shots, 26, 9), weight: 0.22 },
-      { label: 'shotsOnTarget', score: scoreRange(sot, 9.5, 5.5), weight: 0.24 },
-      { label: 'longRangeSot', score: scoreMax(longRangeSot, 4), weight: 0.16 },
-      { label: 'corners', score: scoreRange(corners, 8, 6), weight: 0.16 },
+      { label: 'goals', score: scoreRange(goals, scaleTarget(2.8), scaleTolerance(2.2, 1.25)), weight: 0.22 },
+      { label: 'shots', score: scoreRange(shots, scaleTarget(26), scaleTolerance(9, 1.5)), weight: 0.22 },
+      { label: 'shotsOnTarget', score: scoreRange(sot, scaleTarget(9.5), scaleTolerance(5.5, 1)), weight: 0.24 },
+      { label: 'longRangeSot', score: scoreMax(longRangeSot, Math.max(1, scaleTarget(4))), weight: 0.16 },
+      { label: 'corners', score: scoreRange(corners, scaleTarget(8), scaleTolerance(6, 1)), weight: disabledMetrics.has('corners') ? 0 : 0.16 },
     ]),
-    inputs: { goals, shots, shotsOnTarget: sot, longRangeSot, corners },
-    target: 'one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3',
+    inputs: { goals, shots, shotsOnTarget: sot, longRangeSot, corners, durationMinutes, durationFactor: round(durationFactor, 4), disabledMetrics: [...disabledMetrics] },
+    target: disabledMetrics.has('corners')
+      ? `simple-v1 full-match raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}; corners disabled`
+      : `one-match MLS full-match raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}, corners ~${round(scaleTarget(8))}`,
   }
 
-  const soccerStructure = {
-    score: weightedScore([
-      { label: 'teamWidthA', score: scoreMin(widthA, 18), weight: 0.17 },
-      { label: 'teamWidthB', score: scoreMin(widthB, 18), weight: 0.17 },
-      { label: 'centerAndNarrow', score: scoreMax(centerNarrowWorst, 35), weight: 0.18 },
-      { label: 'overloads', score: scoreMin(overloadShare, 0.25), weight: 0.14 },
-      { label: 'dangerMarking', score: scoreMin(dangerMarkedPct, 78), weight: 0.12 },
-      { label: 'shotBoxDefense', score: Math.min(scoreMin(shotCorridorDefenders, 1.2), scoreMax(shotBoxEmptyRate, 0.35)), weight: 0.10 },
-      { label: 'patternTouches', score: scoreMin(avgPatternTouches, 2.0), weight: 0.14 },
-      { label: 'realCrosses', score: scoreMin(Number(report.patternCrosses.total ?? 0), 5), weight: 0.10 },
-    ]),
-    inputs: {
-      widthA,
-      widthB,
-      centerAndNarrowWorst: centerNarrowWorst,
-      finalThirdOverloadShare: round(overloadShare * 100, 1),
-      dangerMarkedPct: round(dangerMarkedPct, 1),
-      shotCorridorDefenders: round(shotCorridorDefenders, 2),
-      emptyBoxShotPct: round(shotBoxEmptyRate * 100, 1),
-      avgPatternTouches: round(avgPatternTouches, 2),
-      realCrosses: Number(report.patternCrosses.total ?? 0),
-    },
-    target: 'soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5',
-  }
+  const soccerStructure = simpleModelV1
+    ? {
+        score: 100,
+        inputs: {
+          widthA,
+          widthB,
+          centerAndNarrowWorst: centerNarrowWorst,
+          finalThirdOverloadShare: round(overloadShare * 100, 1),
+          disabledForModel: 'simple-v1',
+        },
+        target: 'advanced shape/pattern/cross structure is out of scope for simple-v1',
+      }
+    : {
+        score: weightedScore([
+          { label: 'teamWidthA', score: scoreMin(widthA, 18), weight: 0.17 },
+          { label: 'teamWidthB', score: scoreMin(widthB, 18), weight: 0.17 },
+          { label: 'centerAndNarrow', score: scoreMax(centerNarrowWorst, 35), weight: 0.18 },
+          { label: 'overloads', score: scoreMin(overloadShare, 0.25), weight: 0.14 },
+          { label: 'dangerMarking', score: scoreMin(dangerMarkedPct, 78), weight: 0.12 },
+          { label: 'shotBoxDefense', score: Math.min(scoreMin(shotCorridorDefenders, 1.2), scoreMax(shotBoxEmptyRate, 0.35)), weight: 0.10 },
+          { label: 'patternTouches', score: scoreMin(avgPatternTouches, 2.0), weight: 0.14 },
+          { label: 'realCrosses', score: scoreMin(Number(report.patternCrosses.total ?? 0), 5), weight: 0.10 },
+        ]),
+        inputs: {
+          widthA,
+          widthB,
+          centerAndNarrowWorst: centerNarrowWorst,
+          finalThirdOverloadShare: round(overloadShare * 100, 1),
+          dangerMarkedPct: round(dangerMarkedPct, 1),
+          shotCorridorDefenders: round(shotCorridorDefenders, 2),
+          emptyBoxShotPct: round(shotBoxEmptyRate * 100, 1),
+          avgPatternTouches: round(avgPatternTouches, 2),
+          realCrosses: Number(report.patternCrosses.total ?? 0),
+        },
+        target: 'soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5',
+      }
 
   const tuningEfficiency = {
     score: weightedScore([
@@ -1901,6 +1955,7 @@ function summarizeKpis(report) {
 
 function buildRecommendations(report) {
   const recommendations = []
+  const simpleModelV1 = report.model?.name === 'simple-v1'
   const worstBackpassRate = Math.max(report.passProfile.A.backwardPct, report.passProfile.B.backwardPct)
   const centerAndNarrowWorst = Math.max(report.shape.A.centerAndNarrowPct, report.shape.B.centerAndNarrowPct)
   const longRangeOnTarget = report.eventStream.longRangeOnTargetCount
@@ -1920,7 +1975,29 @@ function buildRecommendations(report) {
   const emptyShotBoxRate = report.shotBoxDefense?.shots
     ? report.shotBoxDefense.emptyBoxShots / report.shotBoxDefense.shots
     : 0
+  const totalShots = Number(report.baselines.global.totalShots.simulated ?? 0)
+  const totalShotsOnTarget = Number(report.baselines.global.totalShotsOnTarget.simulated ?? 0)
+  const totalGoals = Number(report.baselines.global.totalGoals.simulated ?? 0)
+  const totalPasses = Math.max(
+    Number(report.counts.passLog ?? 0),
+    Number(report.match.passesA ?? 0) + Number(report.match.passesB ?? 0),
+  )
 
+  if (totalShots === 0) {
+    recommendations.push(`Completed match has 0 shots despite ${totalPasses} pass events. Treat this as a model failure: goalmouth smothers, final-third backpasses, or low shot urge consumed all attacking production.`)
+  }
+  if (totalShots > 0 && totalShots < 20) {
+    recommendations.push(`Full-match attacking volume is too low: ${totalShots} shots vs the 20-35 MLS target. Increase action cadence and shot selection; do not treat compressed runtime as a partial-match sample.`)
+  }
+  if (totalShotsOnTarget < 7) {
+    recommendations.push(`Full-match shot-on-target volume is too low: ${totalShotsOnTarget} SOT vs the 7-16 MLS target. Raise credible shot frequency before accepting goalkeeper or finishing tuning.`)
+  }
+  if (totalPasses > 0 && totalPasses < 450) {
+    recommendations.push(`Full-match pass volume is too low: ${totalPasses} passes vs the 450-750 MLS target. Runtime length must not lower possession/action production KPIs.`)
+  }
+  if (totalGoals === 0 && totalShots < 10) {
+    recommendations.push('Scoreless output with very low shot volume is not a defensive 0-0; it is an underproduction failure. Tune shot creation first, then finishing.')
+  }
   if (forcedBrokenAiSimpleRows >= 3 || brokenAiSimplePct >= 20) {
     recommendations.push('AI_SIMPLE shot decisions are still collapsing into zeroed/null evaluation rows. Separate computed shot/pass values from forced overrides and block forced shots when the real evaluation is missing.')
   }
@@ -1933,19 +2010,19 @@ function buildRecommendations(report) {
   if (attackerBackpasses > 12 || worstBackpassRate > 18) {
     recommendations.push('Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.')
   }
-  if (centerAndNarrowWorst > 30 || report.shape.A.avgWidth < 18 || report.shape.B.avgWidth < 18) {
+  if (!simpleModelV1 && (centerAndNarrowWorst > 30 || report.shape.A.avgWidth < 18 || report.shape.B.avgWidth < 18)) {
     recommendations.push('Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.')
   }
-  if (dangerMarkedWorst < 70) {
+  if (!simpleModelV1 && dangerMarkedWorst < 70) {
     recommendations.push('Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.')
   }
-  if (report.shotBoxDefense?.shots >= 3 && emptyShotBoxRate > 0.25) {
+  if (!simpleModelV1 && report.shotBoxDefense?.shots >= 3 && emptyShotBoxRate > 0.25) {
     recommendations.push('Too many shots are arriving with an empty defensive box. Keep one presser, but pull two non-pressing defenders into the goal corridor when the carrier reaches shooting range.')
   }
-  if ((report.roleCentrality.A.wideShotShareVsCentral ?? 0) < 0.2 || (report.roleCentrality.B.wideShotShareVsCentral ?? 0) < 0.2) {
+  if (!simpleModelV1 && ((report.roleCentrality.A.wideShotShareVsCentral ?? 0) < 0.2 || (report.roleCentrality.B.wideShotShareVsCentral ?? 0) < 0.2)) {
     recommendations.push('Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.')
   }
-  if (report.baselines.global.totalCorners.simulated <= 1) {
+  if (!simpleModelV1 && report.baselines.global.totalCorners.simulated <= 1) {
     recommendations.push('Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.')
   }
   if (report.shotSupport.some((shot) => shot.nearestMid !== null && shot.nearestMid > 12)) {
@@ -2039,6 +2116,7 @@ function buildBundleFromHeadlessResult(report, result, index) {
       shotsOnTarget: result.sogA ?? 0,
       saves: result.savesA ?? 0,
       passes: result.passesA ?? 0,
+      passesCompleted: result.passCompA ?? 0,
       passCompletions: result.passCompA ?? 0,
       tackles: result.tacklesA ?? 0,
       clearances: result.clearancesA ?? 0,
@@ -2054,6 +2132,7 @@ function buildBundleFromHeadlessResult(report, result, index) {
       shotsOnTarget: result.sogB ?? 0,
       saves: result.savesB ?? 0,
       passes: result.passesB ?? 0,
+      passesCompleted: result.passCompB ?? 0,
       passCompletions: result.passCompB ?? 0,
       tackles: result.tacklesB ?? 0,
       clearances: result.clearancesB ?? 0,
@@ -2073,6 +2152,69 @@ function loadBundleRowFromFile(filePath, resultIndex) {
   const resolved = path.resolve(process.cwd(), filePath)
   const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'))
   parsed.__sourcePath = resolved
+  if (parsed.model === 'simple-v1' && parsed.summary && Array.isArray(parsed.results) && resultIndex < 0) {
+    const summary = parsed.summary
+    const teamAPossession = Number(summary.possessionA ?? 50)
+    const passesPerTeam = Number(summary.passes ?? 0) / 2
+    const passCompletionPerTeam = passesPerTeam * (Number(summary.passCompletionPct ?? 0) / 100)
+    const bundle = {
+      matchId: `simple-model-kpi-aggregate-${path.basename(resolved)}`,
+      sessionActive: true,
+      events: [],
+      passLog: [],
+      shotDecisions: [],
+      passDecisions: [],
+      shapeA: [],
+      shapeB: [],
+      goalLog: [],
+      tuning: {
+        model: 'simple-v1',
+        disabledRules: ['fouls'],
+      },
+      telemetry: {
+        disabledMetrics: ['fouls'],
+      },
+      metadata: {
+        model: 'simple-v1',
+        sessionId: `simple-kpi-aggregate:${path.basename(resolved)}`,
+        generatedAt: Date.parse(parsed.generatedAt || '') || Date.now(),
+        games: summary.games,
+      },
+      teamA: {
+        name: 'Simple Model Aggregate',
+        score: Number(summary.goals ?? 0) / 2,
+        shots: Number(summary.shots ?? 0) / 2,
+        shotsOnTarget: Number(summary.shotsOnTarget ?? 0) / 2,
+        saves: Number(summary.saves ?? 0) / 2,
+        passes: passesPerTeam,
+        passesCompleted: passCompletionPerTeam,
+        passCompletions: passCompletionPerTeam,
+        corners: 0,
+        possession: teamAPossession,
+        roles: {},
+      },
+      teamB: {
+        name: 'MLS KPI Target',
+        score: Number(summary.goals ?? 0) / 2,
+        shots: Number(summary.shots ?? 0) / 2,
+        shotsOnTarget: Number(summary.shotsOnTarget ?? 0) / 2,
+        saves: Number(summary.saves ?? 0) / 2,
+        passes: passesPerTeam,
+        passesCompleted: passCompletionPerTeam,
+        passCompletions: passCompletionPerTeam,
+        corners: 0,
+        possession: 100 - teamAPossession,
+        roles: {},
+      },
+    }
+    return {
+      session_id: bundle.metadata.sessionId,
+      timestamp: bundle.metadata.generatedAt,
+      team_a_name: bundle.teamA.name,
+      team_b_name: bundle.teamB.name,
+      bundle_json: JSON.stringify(bundle),
+    }
+  }
   if (Array.isArray(parsed.results)) {
     const index = Number.isInteger(resultIndex) && resultIndex >= 0
       ? resultIndex
@@ -2112,6 +2254,7 @@ function formatEventBullet(event) {
 
 function buildMarkdownReport(report) {
   const global = report.baselines.global
+  const duration = report.baselines.duration || { matchMinutes: 90, halfSeconds: 2700, durationFactor: 1 }
   const teamA = report.match.teamA
   const teamB = report.match.teamB
   const lines = [
@@ -2121,6 +2264,8 @@ function buildMarkdownReport(report) {
     `- Fixture: ${teamA} ${report.match.score} ${teamB}`,
     `- Session: ${report.match.sessionId}`,
     `- Timestamp: ${new Date(report.match.timestamp).toISOString()}`,
+    `- Runtime duration: ${duration.runtimeMinutes} minutes total (${duration.halfSeconds}s halves)`,
+    `- Simulated match duration: ${duration.matchMinutes} minutes`,
     `- Shots: ${report.match.shotsA}-${report.match.shotsB}`,
     `- Shots on target: ${report.match.shotsOnTargetA}-${report.match.shotsOnTargetB}`,
     ``,
@@ -2134,6 +2279,7 @@ function buildMarkdownReport(report) {
     `  - Inputs: forced shots ${report.kpis.tuningEfficiency.inputs.forcedShotSharePct}%, final-third backpasses ${report.kpis.tuningEfficiency.inputs.attackerBackpasses}, zigzag flips ${report.kpis.tuningEfficiency.inputs.zigzagFlips}, direct-blocker passes ${report.kpis.tuningEfficiency.inputs.directBlockerPasses}, broken shot rows ${report.kpis.tuningEfficiency.inputs.brokenShotRowsPct}%`,
     ``,
     `## MLS Baseline Comparison`,
+    `- Baselines below are full-match MLS raw expectations; selected runtime length does not scale KPI targets.`,
     `- Total goals: ${global.totalGoals.simulated} vs ${global.totalGoals.baseline} baseline (drift ${global.totalGoals.drift})`,
     `- Total shots: ${global.totalShots.simulated} vs ${global.totalShots.baseline} baseline (drift ${global.totalShots.drift})`,
     `- Total shots on target: ${global.totalShotsOnTarget.simulated} vs ${global.totalShotsOnTarget.baseline} baseline (drift ${global.totalShotsOnTarget.drift})`,
@@ -2335,9 +2481,11 @@ function printSummary(report) {
   const teamA = report.match.teamA
   const teamB = report.match.teamB
   const global = report.baselines.global
+  const duration = report.baselines.duration || { matchMinutes: 90, halfSeconds: 2700, durationFactor: 1 }
 
   const mid = report.match.matchId ? ` [${report.match.matchId}]` : ''
   console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB}${mid} | session ${report.match.sessionId}`)
+  console.log(`Runtime duration ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves); simulated match is 90 min and MLS baselines are full-match raw expectations`)
   console.log(`Tuning KPIs | overall ${report.kpis.overall.score} (${report.kpis.overall.grade}) | baseline ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) | structure ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) | efficiency ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade})`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
@@ -2497,6 +2645,15 @@ function main() {
 
   const report = {
     generatedAt: new Date().toISOString(),
+    model: {
+      name: bundle.metadata?.model || bundle.tuning?.model || null,
+      disabledRules: bundle.tuning?.disabledRules || [],
+      disabledMetrics: bundle.telemetry?.disabledMetrics || (
+        (bundle.metadata?.model || bundle.tuning?.model) === 'simple-v1'
+          ? ['fouls']
+          : []
+      ),
+    },
     match: {
       sessionId: row.session_id,
       matchId: bundle.matchId || null,
@@ -2508,6 +2665,8 @@ function main() {
       shotsB: bundle.teamB?.shots ?? 0,
       shotsOnTargetA: bundle.teamA?.shotsOnTarget ?? 0,
       shotsOnTargetB: bundle.teamB?.shotsOnTarget ?? 0,
+      passesA: bundle.teamA?.passes ?? 0,
+      passesB: bundle.teamB?.passes ?? 0,
     },
     counts: {
       events: events.length,
@@ -2548,7 +2707,7 @@ function main() {
     positionOwners: summarizePositionOwners(events),
     eventStream: summarizeEventStream(events, passLog),
     keeperSummary: summarizeKeeperEvents(bundle, passLog),
-    restartSummary: summarizeRestartCounts(events, passLog),
+    restartSummary: summarizeRestartCounts(events, passLog, bundle),
     baselines: compareToBaselines(bundle, row.team_a_name, row.team_b_name),
     phaseTime: summarizePhaseTime(events),
     passByZone: summarizePassByZone(passDecisions),

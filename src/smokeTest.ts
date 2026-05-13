@@ -12,6 +12,12 @@
  *   window.pslSmokeTest.stop()                         // abort early
  */
 import { findRecentCompletedMatches } from './telemetry';
+import {
+  classifyFixtureClockProgress,
+  computeFixtureTimeoutMs,
+  getFixtureElapsedSimSeconds,
+  type FixtureTimeoutReason,
+} from './fixtureTiming';
 
 const MLS_TEAMS = [
   'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
@@ -61,6 +67,10 @@ type FixtureRunResult = {
   formB: string;
   finished: boolean;
   timedOut: boolean;
+  timeoutReason: FixtureTimeoutReason | null;
+  wallElapsedMs: number;
+  simElapsedSeconds: number;
+  expectedSimSeconds: number;
   scoreA: number;
   scoreB: number;
   shotsA: number;
@@ -76,6 +86,14 @@ type FixtureRunResult = {
   startedAt: number;
   completedAt: number;
   positionalDrift?: any[];
+};
+
+type FixtureWaitResult = {
+  finished: boolean;
+  reason: FixtureTimeoutReason | null;
+  wallElapsedMs: number;
+  simElapsedSeconds: number;
+  expectedSimSeconds: number;
 };
 
 // Store state on window so HMR module reloads don't lose it
@@ -95,18 +113,75 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function waitForFullTime(timeoutMs: number = 900_000): Promise<boolean> {
+async function waitForFullTime(options: Required<Pick<FixtureRunOptions, 'halfSeconds' | 'speedMul' | 'timeoutMs'>>): Promise<FixtureWaitResult> {
   const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (getState().aborted) return false;
+  let lastSimElapsed = 0;
+  let lastProgressAt = start;
+  while (Date.now() - start < options.timeoutMs) {
+    const wallElapsedMs = Date.now() - start;
+    if (getState().aborted) {
+      return {
+        finished: false,
+        reason: 'aborted',
+        wallElapsedMs,
+        simElapsedSeconds: lastSimElapsed,
+        expectedSimSeconds: options.halfSeconds * 2,
+      };
+    }
     const game = getGameRef();
-    if (!game) return false;
+    if (!game) {
+      return {
+        finished: false,
+        reason: 'no_game',
+        wallElapsedMs,
+        simElapsedSeconds: lastSimElapsed,
+        expectedSimSeconds: options.halfSeconds * 2,
+      };
+    }
     const snap = game.getMatchSnapshot?.();
-    if (snap?.phase === 'FULL_TIME') return true;
+    const simElapsedSeconds = getFixtureElapsedSimSeconds(snap, options.halfSeconds);
+    if (simElapsedSeconds > lastSimElapsed + 0.25) {
+      lastSimElapsed = simElapsedSeconds;
+      lastProgressAt = Date.now();
+    }
+    if (snap?.phase === 'FULL_TIME') {
+      return {
+        finished: true,
+        reason: null,
+        wallElapsedMs,
+        simElapsedSeconds,
+        expectedSimSeconds: options.halfSeconds * 2,
+      };
+    }
+    const progressReason = classifyFixtureClockProgress({
+      wallElapsedMs,
+      simElapsedSeconds,
+      speedMul: options.speedMul,
+    });
+    if (progressReason && wallElapsedMs % 30_000 < 500) {
+      console.warn(
+        `[SmokeTest] Browser clock slow: sim=${simElapsedSeconds.toFixed(1)}s wall=${Math.round(wallElapsedMs / 1000)}s speed=${options.speedMul}x`
+      );
+    }
+    if (Date.now() - lastProgressAt > 90_000) {
+      return {
+        finished: false,
+        reason: 'clock_stalled',
+        wallElapsedMs,
+        simElapsedSeconds,
+        expectedSimSeconds: options.halfSeconds * 2,
+      };
+    }
     await sleep(500);
   }
   console.warn('[SmokeTest] Timeout waiting for FULL_TIME');
-  return false;
+  return {
+    finished: false,
+    reason: 'wall_time',
+    wallElapsedMs: Date.now() - start,
+    simElapsedSeconds: lastSimElapsed,
+    expectedSimSeconds: options.halfSeconds * 2,
+  };
 }
 
 async function waitForPhase(phase: string, timeoutMs: number = 10_000): Promise<boolean> {
@@ -130,7 +205,10 @@ function normalizeFixtureOptions(input: FixtureRunOptions = {}): Required<Fixtur
     formationB: input.formationB || pickRandom(FORMATIONS),
     speedMul: Math.max(1, input.speedMul ?? 1),
     halfSeconds: Math.max(30, Math.floor(input.halfSeconds ?? 300)),
-    timeoutMs: Math.max(30_000, Math.floor(input.timeoutMs ?? 900_000)),
+    timeoutMs: Math.max(30_000, Math.floor(input.timeoutMs ?? computeFixtureTimeoutMs({
+      halfSeconds: Math.max(30, Math.floor(input.halfSeconds ?? 300)),
+      speedMul: Math.max(1, input.speedMul ?? 1),
+    }))),
     randomizeTeams: input.randomizeTeams ?? true,
   };
 }
@@ -151,7 +229,7 @@ async function configureFixture(game: any, options: Required<FixtureRunOptions>)
   game.startKickoffPresentation?.(true);
 }
 
-function buildFixtureResult(game: any, options: Required<FixtureRunOptions>, finished: boolean): FixtureRunResult {
+function buildFixtureResult(game: any, options: Required<FixtureRunOptions>, wait: FixtureWaitResult): FixtureRunResult {
   const snap = game.getMatchSnapshot?.() || {};
   const bundle = game.getTuningBundle?.() || {};
   return {
@@ -159,8 +237,12 @@ function buildFixtureResult(game: any, options: Required<FixtureRunOptions>, fin
     teamB: options.awayTeam,
     formA: options.formationA,
     formB: options.formationB,
-    finished,
-    timedOut: !finished,
+    finished: wait.finished,
+    timedOut: !wait.finished && (wait.reason === 'wall_time' || wait.reason === 'clock_stalled' || wait.reason === 'clock_too_slow'),
+    timeoutReason: wait.reason,
+    wallElapsedMs: wait.wallElapsedMs,
+    simElapsedSeconds: wait.simElapsedSeconds,
+    expectedSimSeconds: wait.expectedSimSeconds,
     scoreA: snap.scoreA ?? 0,
     scoreB: snap.scoreB ?? 0,
     shotsA: snap.shotsA ?? 0,
@@ -205,17 +287,17 @@ export async function runFixture(input: FixtureRunOptions = {}): Promise<Fixture
 
   try {
     await configureFixture(game, options);
-    const finished = await waitForFullTime(options.timeoutMs);
-    const result = buildFixtureResult(game, options, finished);
+    const wait = await waitForFullTime(options);
+    const result = buildFixtureResult(game, options, wait);
     (window as any).__lastSmokeFixtureResult = result;
-    if (finished) {
+    if (wait.finished) {
       console.log(
         `%c[SmokeTest] FINAL: ${result.teamA} ${result.scoreA} - ${result.scoreB} ${result.teamB} | Shots: ${result.shotsA}-${result.shotsB} | SOG: ${result.shotsOnTargetA}-${result.shotsOnTargetB}`,
         'color: #ff0'
       );
     } else {
       console.warn(
-        `%c[SmokeTest] Fixture timed out at ${result.phase} half=${result.half} clock=${result.elapsedInHalf.toFixed(1)}`,
+        `%c[SmokeTest] Fixture ${result.timeoutReason || 'timed_out'} at ${result.phase} half=${result.half} clock=${result.elapsedInHalf.toFixed(1)} wall=${Math.round(result.wallElapsedMs / 1000)}s sim=${result.simElapsedSeconds.toFixed(1)}s/${result.expectedSimSeconds}s`,
         'color: #f80'
       );
     }
@@ -272,11 +354,11 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
     await configureFixture(game, options);
 
     // Wait for full time
-    const finished = await waitForFullTime();
+    const wait = await waitForFullTime(options);
     const snap = game.getMatchSnapshot?.();
     const live = game.getLiveTelemetry?.();
 
-    if (finished && snap) {
+    if (wait.finished && snap) {
       console.log(
         `%c[SmokeTest] Game ${i + 1} FINAL: ${teamA} ${snap?.scoreA ?? '?'} - ${snap?.scoreB ?? '?'} ${teamB}  |  Shots: ${snap?.shotsA}-${snap?.shotsB}  SOG: ${snap?.shotsOnTargetA}-${snap?.shotsOnTargetB}  Saves: ${snap?.savesA}-${snap?.savesB}`,
         'color: #ff0'

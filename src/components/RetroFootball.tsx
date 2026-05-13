@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Pause, Play } from 'lucide-react';
 import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
@@ -19,6 +20,9 @@ import {
   recoverLatestMirroredSession,
   TelemetryRecorder,
 } from '../telemetry';
+import { compactLiveDashboardPayload } from '../telemetry/liveDashboardPayload';
+import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
+import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
 
@@ -429,7 +433,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
               <CustomDropdown
                 value={`${halfLengthMinutes}`}
                 onChange={(value) => onHalfLengthMinutesChange(Number(value))}
-                options={['5', '10', '15', '20', '30', '45']}
+                options={['2', '5', '15', '45']}
               />
             </div>
           </div>
@@ -567,6 +571,37 @@ const CustomDropdown = <T extends string>({
   );
 };
 
+function formatScoreboardClock(snapshot: any) {
+  if (!snapshot) return '00:00';
+  const elapsed = Math.max(0, Number(snapshot.elapsedInHalf) || 0);
+  const halfDuration = Math.max(1, Number(snapshot.halfDuration) || 45 * 60);
+  const halfOffset = snapshot.half === 2 ? halfDuration : 0;
+  const totalSeconds = Math.floor(halfOffset + elapsed);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function scoreboardPhaseLabel(snapshot: any) {
+  const phase = snapshot?.phase || 'PRE_MATCH';
+  if (phase === 'FIRST_HALF') return '1H';
+  if (phase === 'SECOND_HALF') return '2H';
+  if (phase === 'HALFTIME') return 'HT';
+  if (phase === 'FULL_TIME') return 'FT';
+  if (phase === 'KICKOFF') return 'KO';
+  return 'PRE';
+}
+
+function shortTeamName(name: string) {
+  return String(name || 'TEAM')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 4)
+    .toUpperCase() || 'TEAM';
+}
+
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<any>(null);
@@ -600,6 +635,7 @@ const RetroFootball: React.FC = () => {
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
   const [autoClearances, setAutoClearances] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
+  const [matchSnapshot, setMatchSnapshot] = useState<any | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [selectedDefensePlayer, setSelectedDefensePlayer] = useState<any>(null);
   const [driftRows, setDriftRows] = useState<any[]>([]);
@@ -633,6 +669,7 @@ const RetroFootball: React.FC = () => {
   }>>([]);
   const [movementTrailPaths, setMovementTrailPaths] = useState<Record<string, string>>({});
   const [isLive, setIsLive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isGroundVisible, setIsGroundVisible] = useState(true);
   const [isFieldVisible, setIsFieldVisible] = useState(true);
   const [isGrassVisible, setIsGrassVisible] = useState(true);
@@ -690,6 +727,14 @@ const RetroFootball: React.FC = () => {
 
   const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
   const MENU_ITEM_COUNT = 8; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Replay, 6=Season, 7=Practice
+  const showScoreboard = !showSplash && !isFullTime && !!matchSnapshot && matchSnapshot.phase !== 'PRE_MATCH';
+  const scoreboardTeamA = matchSnapshot?.teamAName || teamAName;
+  const scoreboardTeamB = matchSnapshot?.teamBName || teamBName;
+
+  const handleTogglePause = () => {
+    const paused = gameRef.current?.togglePaused?.();
+    setIsPaused(!!paused);
+  };
 
   useEffect(() => {
     try {
@@ -880,6 +925,8 @@ const RetroFootball: React.FC = () => {
       if (gameRef.current) {
         const currentIsLive = gameRef.current.getIsLive();
         const snapshot = gameRef.current.getMatchSnapshot?.() || null;
+        setIsPaused(!!gameRef.current.getPaused?.());
+        if (snapshot) setMatchSnapshot(snapshot);
 
         if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
           setIsFullTime(true);
@@ -1016,6 +1063,36 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     let dashChannel: BroadcastChannel | null = null;
     try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
+    let dashWs: WebSocket | null = null;
+    let dashWsReconnect: ReturnType<typeof setTimeout> | null = null;
+    let dashWsStopped = false;
+    const dashWsUrl = `ws://${window.location.hostname || 'localhost'}:8081`;
+    const connectDashboardWs = () => {
+      if (dashWsStopped || typeof WebSocket === 'undefined') return;
+      try {
+        dashWs = new WebSocket(dashWsUrl);
+        dashWs.onopen = () => console.log('[PSL-Bridge] WebSocket connected:', dashWsUrl);
+        dashWs.onclose = () => {
+          dashWs = null;
+          if (!dashWsStopped && !dashWsReconnect) {
+            dashWsReconnect = setTimeout(() => {
+              dashWsReconnect = null;
+              connectDashboardWs();
+            }, 2000);
+          }
+        };
+        dashWs.onerror = () => {
+          try { dashWs?.close(); } catch {}
+        };
+      } catch (err) {
+        console.warn('[PSL-Bridge] WebSocket connect failed:', err);
+      }
+    };
+    const sendDashboardWs = (payload: unknown) => {
+      if (dashWs?.readyState !== WebSocket.OPEN) return;
+      try { dashWs.send(JSON.stringify(payload)); } catch (err) { console.warn('[PSL-Bridge] WebSocket send failed:', err); }
+    };
+    connectDashboardWs();
     console.log('[PSL] Dashboard bridge useEffect MOUNTED');
     let prevPhase = '';
     let _dashTick = 0;
@@ -1055,28 +1132,30 @@ const RetroFootball: React.FC = () => {
       const phase = snap2?.phase || '';
       const isPhaseChange = phase !== prevPhase;
 
-      const bundle = g.getTuningBundle?.();
-      if (!bundle) {
+      const rawBundle = g.getTuningBundle?.();
+      if (!rawBundle) {
         if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: getTuningBundle returned null, phase=', phase);
         return;
       }
-      const bundleMatchId = snap2?.matchId || (bundle as any).matchId || (bundle as any).metadata?.matchId || null;
+      const bundleMatchId = snap2?.matchId || (rawBundle as any).matchId || (rawBundle as any).metadata?.matchId || null;
       const defaultSplashGhostLive =
-        bundle.teamA?.name === 'Inter Miami'
-        && bundle.teamB?.name === 'LA Galaxy'
+        rawBundle.teamA?.name === 'Inter Miami'
+        && rawBundle.teamB?.name === 'LA Galaxy'
         && !bundleMatchId;
       if (defaultSplashGhostLive) {
         if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: default splash ghost without match id');
         return;
       }
       const live2 = g.getLiveTelemetry?.();
-      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: snap2?.sessionActive !== false };
+      const payload = compactLiveDashboardPayload({ type: 'tuning', bundle: rawBundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: snap2?.sessionActive !== false });
+      const bundle = payload.bundle;
 
       // Live in-memory channels: send every tick (2s) so dashboard gets data quickly
       if (_dashTick % 5 === 0) {
         console.log('[PSL-Bridge] posting tick=' + _dashTick + ' phase=' + phase + ' isLive=' + snap2?.isLive + ' score=' + bundle.teamA?.score + '-' + bundle.teamB?.score);
       }
       try { dashChannel?.postMessage(payload); } catch (e) { console.warn('[PSL-Bridge] BroadcastChannel post failed:', e); }
+      sendDashboardWs(payload);
       try { (window as any).sendDashboardUpdate?.('tuning', bundle, snap2); } catch (e) {}
 
       // Expensive disk/network ops: rate-limit to once every 20s or on phase change
@@ -1085,9 +1164,9 @@ const RetroFootball: React.FC = () => {
 
       if (isPhaseChange) {
         console.log(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
-        try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
-          try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
-        }
+      }
+      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
+        try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
       }
 
       // Server relay: reduce frequency via fetch
@@ -1100,46 +1179,29 @@ const RetroFootball: React.FC = () => {
       if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false && !smokeTestActiveRef.current) {
         // Save to SQLite via server endpoint
         try {
-          const a = bundle.teamA, b = bundle.teamB;
+          const fullBundle = rawBundle;
+          const a = fullBundle.teamA, b = fullBundle.teamB;
           const matchId = snap2?.matchId || null;
           const defaultSplashGhost =
             a?.name === 'Inter Miami'
             && b?.name === 'LA Galaxy'
             && !matchId
-            && !(bundle as any).matchId
-            && !(bundle as any).metadata?.matchId;
+            && !(fullBundle as any).matchId
+            && !(fullBundle as any).metadata?.matchId;
           if (defaultSplashGhost) {
             console.warn('[PSL] skipped ghost full-time row: Inter Miami vs LA Galaxy without match id');
             prevPhase = phase;
             return;
           }
-          if (matchId && !(bundle as any).matchId) (bundle as any).matchId = matchId;
+          if (matchId && !(fullBundle as any).matchId) (fullBundle as any).matchId = matchId;
           fetch('/__db/match-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session_id: snap2?.sessionId || `ft-${Date.now()}`,
-              timestamp: Date.now(),
-              team_a_name: a?.name || '',
-              team_b_name: b?.name || '',
-              team_a_formation: a?.formation || '',
-              team_b_formation: b?.formation || '',
-              score_a: a?.score ?? 0,
-              score_b: b?.score ?? 0,
-              shots_a: a?.shots ?? 0,
-              shots_b: b?.shots ?? 0,
-              shots_on_target_a: a?.shotsOnTarget ?? 0,
-              shots_on_target_b: b?.shotsOnTarget ?? 0,
-              saves_a: a?.saves ?? 0,
-              saves_b: b?.saves ?? 0,
-              headers_a: 0,
-              headers_b: 0,
-              possession_a: a?.possession ?? 50,
-              phase: 'FULL_TIME',
-              half: 2,
-              elapsed_in_half: snap2?.elapsedInHalf ?? 300,
-              bundle_json: JSON.stringify(bundle),
-            }),
+            body: JSON.stringify(buildMatchResultPayload({
+              bundle: fullBundle,
+              snapshot: snap2,
+              fallbackSessionId: `ft-${Date.now()}`,
+            })),
           }).then(r => {
             if (r.ok) console.log(`[PSL] Match saved ${matchId || '(no id)'}: ${a?.name} ${a?.score}-${b?.score} ${b?.name}`);
             else console.warn('[PSL] SQLite save failed:', r.status);
@@ -1154,7 +1216,7 @@ const RetroFootball: React.FC = () => {
             teamB: bundle.teamB?.name,
             scoreA: bundle.teamA?.score ?? 0,
             scoreB: bundle.teamB?.score ?? 0,
-            bundle,
+            bundle: rawBundle,
           };
           history.push(entry);
           while (history.length > 50) history.shift();
@@ -1165,6 +1227,9 @@ const RetroFootball: React.FC = () => {
     }, 2000);
     return () => {
       clearInterval(dashInterval);
+      dashWsStopped = true;
+      if (dashWsReconnect) clearTimeout(dashWsReconnect);
+      try { dashWs?.close(); } catch {}
       try { dashChannel?.close(); } catch {}
     };
   }, []);
@@ -1221,6 +1286,7 @@ const RetroFootball: React.FC = () => {
 
       // Expose game API on window for automation / telemetry scripts
       (window as any).__gameRef = gameRef.current;
+      (window as any).game = gameRef.current;
       (window as any).__gameRef.setSmokeTestMode = (active: boolean) => {
         smokeTestActiveRef.current = active;
         // Pause/resume the React telemetry recorder to avoid double-recording
@@ -1446,6 +1512,7 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setSplashSceneMode?.(false);
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
+    setIsPaused(false);
     setIsFullTime(false);
     setFullTimeScore(null);
     try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
@@ -1511,6 +1578,8 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setPracticeMode?.(false);
     gameRef.current?.splashMusicStop?.();
     gameRef.current?.setMenuVisible?.(false);
+    gameRef.current?.setPaused?.(false);
+    setIsPaused(false);
     setIsFullTime(false);
     setFullTimeScore(null);
     try {
@@ -1519,20 +1588,27 @@ const RetroFootball: React.FC = () => {
     } catch {}
 
     try {
+      const fixtureHalfSeconds = halfLengthMinutes * 60;
+      const fixtureSpeedMul = computeWatchedFixtureSpeedMul(fixtureHalfSeconds);
       const result = await runner({
         homeTeam: teamAName,
         awayTeam: teamBName,
         formationA: teamAFormation,
         formationB: teamBFormation,
-        halfSeconds: halfLengthMinutes * 60,
-        speedMul: 1,
-        timeoutMs: Math.max(420000, halfLengthMinutes * 120000),
+        halfSeconds: fixtureHalfSeconds,
+        speedMul: fixtureSpeedMul,
+        timeoutMs: computeFixtureTimeoutMs({ halfSeconds: fixtureHalfSeconds, speedMul: fixtureSpeedMul }),
       });
 
       if (!result) {
         setWatchedFixtureMessage('Fixture run did not start.');
       } else if (result.timedOut) {
-        setWatchedFixtureMessage(`Timed out at ${result.phase} ${result.elapsedInHalf?.toFixed?.(1) ?? '0.0'}s`);
+        const clock = `${result.phase} ${result.elapsedInHalf?.toFixed?.(1) ?? '0.0'}s`;
+        if (result.timeoutReason === 'clock_too_slow' || result.timeoutReason === 'clock_stalled') {
+          setWatchedFixtureMessage(`Clock stalled at ${clock}`);
+        } else {
+          setWatchedFixtureMessage(`Timed out at ${clock}`);
+        }
       } else {
         setWatchedFixtureMessage(`Final ${result.teamA} ${result.scoreA}-${result.scoreB} ${result.teamB}`);
       }
@@ -1987,6 +2063,82 @@ const RetroFootball: React.FC = () => {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black font-mono">
       <div ref={containerRef} className="w-full h-full" />
+
+      {showScoreboard && (() => {
+        const colorA = getTeamColor(scoreboardTeamA);
+        const colorB = getTeamColor(scoreboardTeamB);
+        const logoA = MLS_TEAM_LOGOS[scoreboardTeamA] ?? '';
+        const logoB = MLS_TEAM_LOGOS[scoreboardTeamB] ?? '';
+        const phase = scoreboardPhaseLabel(matchSnapshot);
+        const oldPhaseLabel = phase === '1H' ? '1ST HALF' : phase === '2H' ? '2ND HALF' : phase;
+        return (
+          <div className="absolute top-5 left-1/2 z-[120] w-[min(92vw,720px)] -translate-x-1/2 pointer-events-none">
+            <div
+              data-psl-scoreboard="live"
+              className="relative h-[68px] w-full min-w-0 sm:min-w-[560px] overflow-hidden rounded-md border border-white/10 bg-white shadow-[0_6px_28px_rgba(0,0,0,0.65)] flex items-stretch font-sans text-black"
+            >
+              <div
+                className="absolute left-0 top-0 z-[2] h-[3px] w-full"
+                style={{ background: `linear-gradient(90deg, ${colorA} 0 50%, ${colorB} 50% 100%)` }}
+              />
+              <div className="flex-1 min-w-0 flex items-center justify-end gap-2 sm:gap-3 px-2 sm:px-5">
+                <div className="min-w-0 text-right">
+                  <div className="text-[9px] sm:text-[10px] leading-none uppercase tracking-[0.12em] text-black/55">Home</div>
+                  <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamA}</div>
+                  <div className="sm:hidden text-[13px] font-extrabold uppercase leading-tight text-black">{shortTeamName(scoreboardTeamA)}</div>
+                </div>
+                {logoA ? (
+                  <img src={logoA} alt="" className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 object-contain" />
+                ) : (
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded bg-black/5 grid place-items-center text-[10px] font-black uppercase text-black/65">
+                    {shortTeamName(scoreboardTeamA).slice(0, 3)}
+                  </div>
+                )}
+                <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
+                  {matchSnapshot?.scoreA ?? 0}
+                </div>
+              </div>
+              <div className="w-[108px] sm:w-32 shrink-0 flex flex-col items-center justify-center gap-[3px] border-x border-black/10 bg-white px-2">
+                <div className="text-[24px] sm:text-[26px] leading-none font-bold tabular-nums tracking-[0.04em] text-black" style={{ fontFamily: 'var(--font-score-clock)' }}>
+                  {formatScoreboardClock(matchSnapshot)}
+                </div>
+                <div className="text-[9px] sm:text-[10px] leading-none font-semibold uppercase tracking-[0.12em] text-black/70">
+                  {oldPhaseLabel}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-start gap-2 sm:gap-3 px-2 sm:px-5">
+                <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
+                  {matchSnapshot?.scoreB ?? 0}
+                </div>
+                {logoB ? (
+                  <img src={logoB} alt="" className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 object-contain" />
+                ) : (
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded bg-black/5 grid place-items-center text-[10px] font-black uppercase text-black/65">
+                    {shortTeamName(scoreboardTeamB).slice(0, 3)}
+                  </div>
+                )}
+                <div className="min-w-0 text-left">
+                  <div className="text-[9px] sm:text-[10px] leading-none uppercase tracking-[0.12em] text-black/55">Away</div>
+                  <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamB}</div>
+                  <div className="sm:hidden text-[13px] font-extrabold uppercase leading-tight text-black">{shortTeamName(scoreboardTeamB)}</div>
+                </div>
+              </div>
+            </div>
+            {hasActiveMatchSession && matchSnapshot?.phase !== 'FULL_TIME' && (
+              <button
+                type="button"
+                data-psl-pause-button="match"
+                onClick={handleTogglePause}
+                className="pointer-events-auto absolute right-0 top-[76px] inline-flex h-10 items-center gap-2 rounded-md border border-white/15 bg-black/80 px-3 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-[0_4px_18px_rgba(0,0,0,0.45)] hover:bg-black focus:outline-none focus:ring-2 focus:ring-white/60"
+                aria-pressed={isPaused}
+              >
+                {isPaused ? <Play size={15} strokeWidth={2.5} /> : <Pause size={15} strokeWidth={2.5} />}
+                {isPaused ? 'Resume' : 'Pause'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Splash Screen ── */}
       {showSplash && (
@@ -3118,7 +3270,10 @@ const RetroFootball: React.FC = () => {
       )}
 
       {!showSplash && watchedFixtureMessage && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 bg-black/75 border border-emerald-400/40 rounded-lg backdrop-blur-sm">
+        <div
+          data-psl-watched-fixture-status="compact"
+          className="absolute bottom-4 left-4 z-30 max-w-[min(360px,calc(100vw-32px))] px-4 py-2 bg-black/75 border border-emerald-400/40 rounded-lg backdrop-blur-sm pointer-events-none"
+        >
           <div className="text-[9px] uppercase tracking-[0.24em] text-emerald-200">
             {watchedFixtureRunning ? 'Watched Fixture Running' : 'Watched Fixture'}
           </div>

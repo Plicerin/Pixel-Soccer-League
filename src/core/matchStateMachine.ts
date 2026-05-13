@@ -107,6 +107,7 @@ export function advanceMatchState(
     }
 
     case "goal_scored": {
+      next.clock.elapsedInHalf += dt;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         const scoringTeam = next.state.scoringTeam;
@@ -188,7 +189,7 @@ export function detectBallOut(
         if (restartTeam !== attackingTeam) {
           return { restartType: "goal_kick", restartTeam };
         } else {
-          return { restartType: "corner", restartTeam: attackingTeam === "home" ? "away" : "home" };
+          return { restartType: "corner", restartTeam: attackingTeam };
         }
       }
       if (ballX < LEFT_GOAL_X) {
@@ -197,7 +198,7 @@ export function detectBallOut(
         if (restartTeam !== attackingTeam) {
           return { restartType: "goal_kick", restartTeam };
         } else {
-          return { restartType: "corner", restartTeam: attackingTeam === "home" ? "away" : "home" };
+          return { restartType: "corner", restartTeam: attackingTeam };
         }
       }
     }

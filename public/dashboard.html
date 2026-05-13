@@ -39,6 +39,16 @@ input[type="file"]{display:none}
 .stat-card .label{font-size:.7rem;color:var(--fg2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
 .stat-card .value{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
 .stat-card .sub{font-size:.65rem;color:var(--fg3);margin-top:1px}
+.stat-card.kpi-pass{border-top:2px solid var(--accent-green)}
+.stat-card.kpi-watch{border-top:2px solid var(--accent-yellow)}
+.stat-card.kpi-fail{border-top:2px solid var(--accent-red)}
+.kpi-table{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:10px}
+.kpi-table th,.kpi-table td{padding:5px 8px;border-bottom:1px solid var(--bg3);text-align:left}
+.kpi-table th{color:var(--fg2);font-weight:700;text-transform:uppercase;font-size:.65rem;letter-spacing:.04em}
+.kpi-pill{display:inline-block;min-width:44px;text-align:center;border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:800;text-transform:uppercase}
+.kpi-pill.pass{background:#12351d;color:#86efac}
+.kpi-pill.watch{background:#3b2f0b;color:#fde68a}
+.kpi-pill.fail{background:#3b1111;color:#fca5a5}
 
 /* ── Comparison bar ── */
 .comp-bar{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:.72rem}
@@ -144,6 +154,16 @@ input[type="file"]{display:none}
     <div id="scoreline" style="display:flex;align-items:center;justify-content:center;gap:16px;font-size:1.6rem;font-weight:800;margin:6px 0;letter-spacing:.02em">— vs —</div>
     <div class="stat-row" id="overviewStats"></div>
     <div id="overviewBars" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ══════ 1b. KPI REPORT ══════ -->
+<div class="panel full-width" id="panelKpis">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>KPI REPORT<button class="copy-btn" onclick="copySection('kpis')">Copy</button></div>
+  <div class="panel-body">
+    <div class="stat-row" id="kpiStats"></div>
+    <div id="kpiDetails"></div>
+    <div id="kpiFlags" class="flags"></div>
   </div>
 </div>
 
@@ -300,7 +320,7 @@ input[type="file"]{display:none}
 // ══════ WEBSOCKET CLIENT FOR LIVE UPDATES ══════
 // WebSocket client for live updates from ws-server.js
 (function() {
-  const WS_URL = 'ws://localhost:8081';
+  const WS_URL = `ws://${location.hostname || 'localhost'}:8081`;
   let ws;
   let reconnectTimeout = null;
   function connectWS() {
@@ -416,6 +436,127 @@ function formatEventTime(ev, metadata) {
   return `${min}:${String(sec).padStart(2, '0')}`;
 }
 
+function getMatchDurationInfo() {
+  const halfSeconds = Math.max(1, Number(D?.metadata?.halfDuration ?? snap?.halfDuration ?? 2700) || 2700);
+  const runtimeMinutes = Math.max(1 / 60, (halfSeconds * 2) / 60);
+  return {
+    halfSeconds,
+    halfMinutes: halfSeconds / 60,
+    runtimeMinutes,
+    matchMinutes: 90,
+    durationFactor: 1,
+  };
+}
+
+function fmtRate(value, digits = 1) {
+  const n = Number(value) || 0;
+  return n.toFixed(digits);
+}
+
+const FULL_MATCH_EXPECTED_RAW = {
+  goals: { min: 2.0, max: 4.0, target: 2.8 },
+  xg: { min: 2.0, max: 4.0, target: 2.8 },
+  shots: { min: 20, max: 35, target: 26 },
+  shotsOnTarget: { min: 7, max: 16, target: 9.5 },
+  passes: { min: 450, max: 750, target: 585 },
+};
+
+function expectedRawRange(metric) {
+  const base = FULL_MATCH_EXPECTED_RAW[metric] || { min: 0, max: 0, target: 0 };
+  return {
+    min: base.min,
+    max: base.max,
+    target: base.target,
+  };
+}
+
+function fmtExpectedRange(metric, digits = 1) {
+  const range = expectedRawRange(metric);
+  return `${fmtRate(range.min, digits)}-${fmtRate(range.max, digits)}`;
+}
+
+function getRawKpiTotals() {
+  if (!D) return null;
+  const a = D.teamA || {};
+  const b = D.teamB || {};
+  const passes = Number(a.passes || 0) + Number(b.passes || 0);
+  const passCompletions = Number(a.passesCompleted || a.passCompletions || 0) + Number(b.passesCompleted || b.passCompletions || 0);
+  const shots = Number(a.shots || 0) + Number(b.shots || 0);
+  const shotsOnTarget = Number(a.shotsOnTarget || 0) + Number(b.shotsOnTarget || 0);
+  const phase = D.metadata?.matchPhase || D.phase || snap?.phase || '';
+  return {
+    goals: Number(a.score || 0) + Number(b.score || 0),
+    shots,
+    shotsOnTarget,
+    passes,
+    saves: Number(a.saves || 0) + Number(b.saves || 0),
+    passCompletionPct: passes ? (passCompletions / passes) * 100 : 0,
+    shotDecisions: Array.isArray(D.shotDecisions) ? D.shotDecisions.length : 0,
+    shotOpportunities: Array.isArray(D.shotOpportunities) ? D.shotOpportunities.length : 0,
+    zeroShotFullTime: phase === 'FULL_TIME' && shots === 0,
+    phase,
+  };
+}
+
+function getRawKpiRows() {
+  const totals = getRawKpiTotals();
+  if (!totals) return [];
+  return [
+    buildRawKpiRow('goals', 'Goals', totals.goals),
+    buildRawKpiRow('shots', 'Shots', totals.shots, totals.zeroShotFullTime),
+    buildRawKpiRow('shotsOnTarget', 'On Target', totals.shotsOnTarget, totals.zeroShotFullTime),
+    buildRawKpiRow('passes', 'Passes', totals.passes),
+  ];
+}
+
+function buildRawKpiRow(metric, label, value, forceFail = false) {
+  const expected = expectedRawRange(metric);
+  const status = forceFail ? 'fail' : classifyRawKpi(value, expected, metric);
+  return {
+    metric,
+    label,
+    value,
+    expected,
+    drift: value - expected.target,
+    status,
+  };
+}
+
+function classifyRawKpi(value, expected, metric) {
+  if (value >= expected.min && value <= expected.max) return 'pass';
+  if (metric === 'shotsOnTarget' && value < expected.min * 0.5) return 'fail';
+  const span = Math.max(0.35, expected.max - expected.min);
+  const lowWatch = Math.max(0, expected.min - span);
+  const highWatch = expected.max + span;
+  if (metric === 'goals' && value === 0 && expected.target < 0.75) return 'watch';
+  if (value >= lowWatch && value <= highWatch) return 'watch';
+  return 'fail';
+}
+
+function kpiScore(rows, totals) {
+  const weights = { goals: 0.20, shots: 0.25, shotsOnTarget: 0.25, passes: 0.20 };
+  let score = rows.reduce((sum, row) => {
+    const value = row.status === 'pass' ? 100 : row.status === 'watch' ? 65 : 0;
+    return sum + value * (weights[row.metric] || 0);
+  }, 0);
+  score += totals?.zeroShotFullTime ? 0 : 10;
+  return Math.round(score);
+}
+
+function kpiGrade(score) {
+  if (score >= 85) return 'pass';
+  if (score >= 70) return 'watch';
+  return 'fail';
+}
+
+function kpiPill(status) {
+  return `<span class="kpi-pill ${status}">${status}</span>`;
+}
+
+function kpiCard(label, value, sub, status) {
+  return `<div class="stat-card kpi-${status}"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+}
+
 function copySection(key) {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
@@ -423,6 +564,7 @@ function copySection(key) {
   let text = '';
 
   if (key === 'overview') {
+    const duration = getMatchDurationInfo();
     const xgA = ((a.shotsOnTarget||0)*0.35+((a.shots||0)-(a.shotsOnTarget||0))*0.05).toFixed(2);
     const xgB = ((b.shotsOnTarget||0)*0.35+((b.shots||0)-(b.shotsOnTarget||0))*0.05).toFixed(2);
     const intA = a.roleStats ? Object.values(a.roleStats).reduce((s,r)=>s+(r.interceptions||0),0) : 0;
@@ -431,21 +573,40 @@ function copySection(key) {
     const transB = (D.transitions||[]).filter(t=>t.team==='B').length;
     text = [
       `MATCH OVERVIEW — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
-      `xG: ${xgA} – ${xgB}`,
+      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated match: 90 min`,
+      `Full-match expected raw totals: goals ${fmtExpectedRange('goals')} | shots ${fmtExpectedRange('shots')} | SOT ${fmtExpectedRange('shotsOnTarget')} | passes ${fmtExpectedRange('passes')}`,
+      `xG raw: ${xgA} – ${xgB}`,
+      `xG full-match expected raw total: ${fmtExpectedRange('xg')}`,
       `Possession: ${a.possession??50}% – ${b.possession??50}%`,
-      `Shots / SOT: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
+      `Shots / SOT raw: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
+      `Shots / SOT full-match expected raw totals: ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`,
       `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
+      `Passes full-match expected raw total: ${fmtExpectedRange('passes')}`,
       `Def Actions: ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
       `Transitions: ${transA} \u2013 ${transB}`,
       `Saves: ${a.saves} – ${b.saves}`,
-      `Shots bar: ${a.shots||0} – ${b.shots||0}`,
-      `SOT bar: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
-      `Passes bar: ${a.passes||0} – ${b.passes||0}`,
+      `Shots bar raw: ${a.shots||0} – ${b.shots||0}`,
+      `SOT bar raw: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
+      `Passes bar raw: ${a.passes||0} – ${b.passes||0}`,
       `Tackles bar: ${a.tackles||0} – ${b.tackles||0}`,
       `Fouls bar: ${a.fouls||0} – ${b.fouls||0}`,
       `Transitions bar: ${transA} – ${transB}`,
       `Offsides bar: ${a.offsides||0} – ${b.offsides||0}`,
       `Corners bar: ${a.corners||0} – ${b.corners||0}`,
+    ].join('\n');
+  } else if (key === 'kpis') {
+    const duration = getMatchDurationInfo();
+    const totals = getRawKpiTotals();
+    const rows = getRawKpiRows();
+    const score = kpiScore(rows, totals);
+    text = [
+      `KPI REPORT — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
+      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated match: 90 min`,
+      `Baseline Fit: ${score}/100 (${kpiGrade(score)})`,
+      `Zero-shot full-time guard: ${totals?.zeroShotFullTime ? 'FAIL' : 'PASS'}`,
+      ...rows.map(row => `${row.label}: ${row.value} vs ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)} expected raw (${row.status}, drift ${fmtRate(row.drift)})`),
+      `Pass completion: ${fmtRate(totals?.passCompletionPct || 0)}%`,
+      `Shot decisions / opportunities: ${totals?.shotDecisions || 0} / ${totals?.shotOpportunities || 0}`,
     ].join('\n');
   } else if (key === 'timeline') {
     const evs = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
@@ -793,8 +954,9 @@ async function setDFromPayload(payload) {
   D = payload.bundle || payload;
   snap = payload.snapshot || null;
   live = payload.live || null;
-  if (D && D.sessionId) {
-    const dbEvents = await fetchTelemetryEvents(D.sessionId);
+  const sessionId = D?.sessionId || D?.metadata?.sessionId || snap?.sessionId || null;
+  if (D && sessionId) {
+    const dbEvents = await fetchTelemetryEvents(sessionId);
     if (dbEvents.length > 0) D.events = dbEvents;
   }
   lastUpdate = Date.now();
@@ -996,6 +1158,7 @@ function renderOverview() {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
   const nameA = a.name || 'Team A', nameB = b.name || 'Team B';
+  const duration = getMatchDurationInfo();
   $('scoreline').innerHTML =
     `<span style="display:flex;align-items:center;gap:8px">${teamLogo(nameA,'team-logo-lg')}<span>${nameA}</span></span>` +
     `<span style="padding:0 20px;font-variant-numeric:tabular-nums">${a.score ?? 0}&thinsp;—&thinsp;${b.score ?? 0}</span>` +
@@ -1015,10 +1178,13 @@ function renderOverview() {
   const transB = (D.transitions || []).filter(t => t.team === 'B').length;
 
   $('overviewStats').innerHTML = [
-    statCard('xG', `${xgA} — ${xgB}`),
+    statCard('Runtime', `${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min`, `simulates 90 min`),
+    statCard('Full-Match KPI', `G ${fmtExpectedRange('goals')} | Sh ${fmtExpectedRange('shots')}`, `SOT ${fmtExpectedRange('shotsOnTarget')} | P ${fmtExpectedRange('passes')}`),
+    statCard('xG raw', `${xgA} — ${xgB}`, `expected total ${fmtExpectedRange('xg')}`),
     statCard('Possession', `${a.possession ?? 50}% — ${b.possession ?? 50}%`),
-    statCard('Shots / SOT', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`),
+    statCard('Shots / SOT raw', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`, `expected totals ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`),
     statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
+    statCard('Passes raw', `${a.passes || 0} — ${b.passes || 0}`, `expected total ${fmtExpectedRange('passes')}`),
     statCard('Def Actions', `${(a.tackles||0)+intA+recA} — ${(b.tackles||0)+intB+recB}`, `T/I/R`),
     statCard('Transitions', `${transA} — ${transB}`),
     statCard('Saves', `${a.saves} — ${b.saves}`),
@@ -1034,6 +1200,55 @@ function renderOverview() {
     compBar('Offsides', a.offsides || 0, b.offsides || 0, 'Offsides'),
     compBar('Corners', a.corners || 0, b.corners || 0, 'Corners'),
   ].join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 1b. KPI REPORT
+   ═══════════════════════════════════════════════════════════ */
+function renderKpiReport() {
+  if (!D) return;
+  const totals = getRawKpiTotals();
+  const rows = getRawKpiRows();
+  const score = kpiScore(rows, totals);
+  const grade = kpiGrade(score);
+  const duration = getMatchDurationInfo();
+  const productionFail = rows.some(row => row.status === 'fail');
+  const productionWatch = rows.some(row => row.status === 'watch');
+
+  $('kpiStats').innerHTML = [
+    kpiCard('Baseline Fit', `${score}/100`, 'full-match MLS raw stats', grade),
+    kpiCard('Zero-Shot Guard', totals.zeroShotFullTime ? 'FAIL' : 'PASS', totals.zeroShotFullTime ? 'full-time with 0 shots' : 'full-time floor clear', totals.zeroShotFullTime ? 'fail' : 'pass'),
+    kpiCard('Production', productionFail ? 'FAIL' : productionWatch ? 'WATCH' : 'PASS', `G/Sh/SOT/P vs 90 min simulation`, productionFail ? 'fail' : productionWatch ? 'watch' : 'pass'),
+    kpiCard('Shot Decisions', `${totals.shotDecisions}`, `${totals.shotOpportunities} opportunities`, totals.shotDecisions === 0 && totals.shots === 0 ? 'fail' : 'pass'),
+    kpiCard('Pass Completion', `${fmtRate(totals.passCompletionPct)}%`, `${totals.passes} raw passes`, totals.passCompletionPct >= 71 && totals.passCompletionPct <= 80 ? 'pass' : 'watch'),
+  ].join('');
+
+  $('kpiDetails').innerHTML = `<table class="kpi-table">
+    <thead><tr><th>KPI</th><th>Actual Raw</th><th>Expected Raw</th><th>Drift</th><th>Status</th></tr></thead>
+    <tbody>
+      ${rows.map(row => `<tr>
+        <td>${row.label}</td>
+        <td>${fmtRate(row.value)}</td>
+        <td>${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}</td>
+        <td>${fmtRate(row.drift)}</td>
+        <td>${kpiPill(row.status)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+  const flags = [];
+  if (totals.zeroShotFullTime) {
+    flags.push({ cls: 'bad', text: `Completed match has 0 shots after ${totals.passes} pass events. This is a model failure, not a valid draw.` });
+  }
+  if (totals.shots === 0 && totals.shotOpportunities > 0) {
+    flags.push({ cls: 'bad', text: `${totals.shotOpportunities} shot opportunities produced 0 shot decisions. Check goalmouth smothers, final-third pass choices, and shot urge.` });
+  }
+  for (const row of rows) {
+    if (row.status === 'fail') flags.push({ cls: 'bad', text: `${row.label} raw total ${fmtRate(row.value)} is outside the full-match MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+    else if (row.status === 'watch') flags.push({ cls: 'warn', text: `${row.label} raw total ${fmtRate(row.value)} is near the edge of the full-match MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+  }
+  if (!flags.length) flags.push({ cls: 'ok', text: 'Full-match MLS raw KPI checks are currently within guardrails.' });
+  $('kpiFlags').innerHTML = flags.map(flag => `<div class="flag ${flag.cls}"><span>${flag.text}</span></div>`).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1446,9 +1661,21 @@ function renderShapeChart() {
 function renderPassIntel() {
   if (!D) return;
   const nameA = D.teamA?.name || 'Team A', nameB = D.teamB?.name || 'Team B';
-  const events = D.events || [];
-  const passesA = events.filter(e => e.type === 'PASS' && e.team === 'A');
-  const passesB = events.filter(e => e.type === 'PASS' && e.team === 'B');
+  const decisionRows = Array.isArray(D.passDecisions) && D.passDecisions.length
+    ? D.passDecisions.map((p) => ({
+        type: 'PASS',
+        team: p.team,
+        role: p.role || p.passerRole,
+        detail: {
+          ...p,
+          progress: p.progress ?? p.passForwardProg ?? p.bestTargetForwardProg ?? 0,
+          completed: p.completed,
+        },
+      }))
+    : null;
+  const passRows = decisionRows || (D.passLog || D.events || []).filter(e => e.type === 'PASS' || e.type === 'TURNOVER' || e.type === 'OFFSIDE');
+  const passesA = passRows.filter(e => e.team === 'A');
+  const passesB = passRows.filter(e => e.team === 'B');
 
   // Classify direction by progress field
   const classify = (p) => {
@@ -1595,37 +1822,40 @@ function renderRolePanel() {
   const r = rs[role];
   if (!r) { $('roleStatsGrid').innerHTML = '<div style="color:var(--fg3);font-size:.8rem">No data for ' + role + '</div>'; return; }
 
-  const passAccu = r.passAtt > 0 ? pct(r.passComp, r.passAtt) : '—';
+  const passAtt = r.passAtt ?? r.passes ?? 0;
+  const passComp = r.passComp ?? r.passesCompleted ?? 0;
+  const passAccu = passAtt > 0 ? pct(passComp, passAtt) : '—';
+  const statValue = (value) => value ?? 0;
 
   $('roleStatsGrid').innerHTML = [
-    { l: 'Touches', v: r.touches },
-    { l: 'Poss Frames', v: r.possFrames },
-    { l: 'Pass Att', v: r.passAtt },
-    { l: 'Pass Comp', v: r.passComp },
+    { l: 'Touches', v: statValue(r.touches) },
+    { l: 'Poss Frames', v: statValue(r.possFrames) },
+    { l: 'Pass Att', v: passAtt },
+    { l: 'Pass Comp', v: passComp },
     { l: 'Pass %', v: passAccu },
-    { l: 'Shots', v: r.shots },
-    { l: 'SOT', v: r.shotsOnTarget },
-    { l: 'Tackles', v: r.tackles },
-    { l: 'Interceptions', v: r.interceptions },
-    { l: 'Clearances', v: r.clearances },
-    { l: 'Recoveries', v: r.recoveries },
-    { l: 'Turnovers', v: r.turnovers },
-    { l: 'Fouls', v: r.fouls },
-    { l: 'Fouled', v: r.fouled },
+    { l: 'Shots', v: statValue(r.shots) },
+    { l: 'SOT', v: statValue(r.shotsOnTarget) },
+    { l: 'Tackles', v: statValue(r.tackles) },
+    { l: 'Interceptions', v: statValue(r.interceptions) },
+    { l: 'Clearances', v: statValue(r.clearances) },
+    { l: 'Recoveries', v: statValue(r.recoveries) },
+    { l: 'Turnovers', v: statValue(r.turnovers) },
+    { l: 'Fouls', v: statValue(r.fouls) },
+    { l: 'Fouled', v: statValue(r.fouled) },
   ].map(s => `<div class="role-stat"><div class="rs-label">${s.l}</div><div class="rs-val">${s.v}</div></div>`).join('');
 
   // Behavioral flags
   const flags = [];
   const totalPoss = D.teamA?.possession || 50;
-  if (r.possFrames > 0 && r.passAtt > 0) {
-    const holdPerPass = r.possFrames / r.passAtt;
+  if (r.possFrames > 0 && passAtt > 0) {
+    const holdPerPass = r.possFrames / passAtt;
     if (holdPerPass > 60) flags.push({ icon: '⚠️', text: `Holding ball too long (${holdPerPass.toFixed(0)} frames/pass)`, cls: 'warn' });
   }
-  if (r.passAtt >= 5 && r.passComp / r.passAtt < 0.5) flags.push({ icon: '⚠️', text: `Low pass completion (${pct(r.passComp, r.passAtt)})`, cls: 'warn' });
+  if (passAtt >= 5 && passComp / passAtt < 0.5) flags.push({ icon: '⚠️', text: `Low pass completion (${pct(passComp, passAtt)})`, cls: 'warn' });
   if (r.turnovers > 5) flags.push({ icon: '⚠️', text: `High turnover count (${r.turnovers})`, cls: 'warn' });
-  if (['ST', 'LW', 'RW', 'AM'].includes(role) && r.shots === 0 && r.passAtt > 10) flags.push({ icon: '⚠️', text: 'Attacker with 0 shots', cls: 'warn' });
+  if (['ST', 'LW', 'RW', 'AM'].includes(role) && r.shots === 0 && passAtt > 10) flags.push({ icon: '⚠️', text: 'Attacker with 0 shots', cls: 'warn' });
   if (['CB', 'RB', 'LB'].includes(role) && r.tackles + r.interceptions + r.clearances === 0 && r.possFrames > 100) flags.push({ icon: '⚠️', text: 'Defender with 0 defensive actions', cls: 'warn' });
-  if (r.passAtt >= 3 && r.passComp / r.passAtt >= 0.8) flags.push({ icon: '✅', text: `Good pass accuracy (${pct(r.passComp, r.passAtt)})`, cls: 'ok' });
+  if (passAtt >= 3 && passComp / passAtt >= 0.8) flags.push({ icon: '✅', text: `Good pass accuracy (${pct(passComp, passAtt)})`, cls: 'ok' });
   if (r.tackles + r.interceptions >= 5) flags.push({ icon: '✅', text: `Strong defensive presence (${r.tackles + r.interceptions} T+I)`, cls: 'ok' });
 
   $('roleFlags').innerHTML = flags.length
@@ -2287,7 +2517,7 @@ function renderInsights() {
   const insights = [];
   const a = D.teamA, b = D.teamB;
 
-  if (D.tuning) {
+  if (D.tuning?.label || D.tuning?.description) {
     insights.push({ cls: 'info', text: `Tuning marker: ${D.tuning.label} — ${D.tuning.description}` });
   }
 
@@ -2472,6 +2702,7 @@ function renderAll() {
   $('liveDot').style.display = isLiveNow ? '' : 'none';
 
   renderOverview();
+  renderKpiReport();
   renderTimeline();
   renderTeamStyle();
   renderPassIntel();
@@ -2549,6 +2780,10 @@ async function refreshHistorySelect() {
       const date = new Date(h.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       sel.innerHTML += `<option value="${i}">${h.team_a_name || 'A'} ${h.score_a}-${h.score_b} ${h.team_b_name || 'B'} (${date})</option>`;
     }
+    if (!D && !_historyModeActive && history.length > 0) {
+      sel.value = '0';
+      loadFromHistory();
+    }
   } catch { sel.innerHTML = '<option value="">— No history —</option>'; }
 }
 
@@ -2574,6 +2809,12 @@ function loadFromHistory() {
     }
 
     if (!bundle) { alert('No bundle data available'); return; }
+    bundle.metadata = {
+      ...(bundle.metadata || {}),
+      matchPhase: bundle.metadata?.matchPhase || entry.phase || 'FULL_TIME',
+      half: bundle.metadata?.half || entry.half || 2,
+      elapsedInHalf: bundle.metadata?.elapsedInHalf ?? entry.elapsed_in_half,
+    };
 
     D = bundle;
     prevD = null;  // Clear comparison

@@ -1,7 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { filterGhostMatchRows, isGhostMatchRow } from './matchFilters';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '..', 'psl.db');
 
 let _db: Database.Database | null = null;
@@ -46,6 +48,21 @@ CREATE TABLE IF NOT EXISTS match_results (
   elapsed_in_half REAL,
   bundle_json TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_match_results_timestamp_desc
+ON match_results(timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS telemetry_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_type TEXT NOT NULL,
+  timestamp DATETIME NOT NULL,
+  session_id TEXT NOT NULL,
+  player_id TEXT,
+  payload TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_events_session_id
+ON telemetry_events(session_id, id DESC);
 `;
 
 // ── Live tuning relay ──
@@ -124,4 +141,12 @@ export function getRecentMatches(limit = 50): MatchResultRow[] {
     'SELECT * FROM match_results ORDER BY timestamp DESC LIMIT ?'
   ).all(fetchLimit) as MatchResultRow[];
   return filterGhostMatchRows(rows).slice(0, limit);
+}
+
+export function getTelemetryEvents(sessionId: string, limit = 10000): Array<Record<string, unknown>> {
+  if (!sessionId) return [];
+  const db = getDb();
+  return db.prepare(
+    'SELECT * FROM telemetry_events WHERE session_id = ? ORDER BY id DESC LIMIT ?'
+  ).all(sessionId, Math.min(Math.max(1, limit), 10000)) as Array<Record<string, unknown>>;
 }

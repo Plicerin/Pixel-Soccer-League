@@ -79,6 +79,7 @@ async function main() {
   const args = [
     `--remote-debugging-port=${Math.floor(options.port)}`,
     `--user-data-dir=${options.profile}`,
+    '--start-maximized',
     options.url,
   ]
 

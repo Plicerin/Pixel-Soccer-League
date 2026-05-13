@@ -1,0 +1,403 @@
+#!/usr/bin/env node
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
+import { SimpleMatchModel } from '../src/core/simpleMatchModel.ts'
+import { FIELD_W } from '../src/core/constants.ts'
+
+const FIXTURES = [
+  ['Inter Miami', 'LA Galaxy'],
+  ['Seattle Sounders', 'San Jose Earthquakes'],
+  ['LAFC', 'Austin FC'],
+  ['Philadelphia Union', 'Toronto FC'],
+  ['Vancouver Whitecaps', 'Sporting Kansas City'],
+  ['Atlanta United', 'Nashville SC'],
+  ['Columbus Crew', 'New York Red Bulls'],
+  ['Portland Timbers', 'FC Dallas'],
+  ['Orlando City', 'New York City FC'],
+  ['Real Salt Lake', 'Houston Dynamo'],
+]
+
+const FORMATIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3']
+
+const THRESHOLDS = {
+  goals: { min: 2.0, max: 4.0, target: 2.8 },
+  shots: { min: 20, max: 35, target: 26 },
+  shotsOnTarget: { min: 7, max: 16, target: 9.5 },
+  passes: { min: 450, max: 750, target: 585 },
+  passCompletionPct: { min: 71, max: 80, target: 76 },
+  avgPassBallSpeedMps: { min: 15, max: 65, target: 35 },
+  maxPassBallSpeedMps: { min: 15, max: 90, target: 55 },
+  avgShotBallSpeedMps: { min: 15, max: 80, target: 45 },
+  maxShotBallSpeedMps: { min: 15, max: 95, target: 65 },
+  visualRealityViolations: { min: 0, max: 0, target: 0 },
+  emptyFlightLandings: { min: 0, max: 0, target: 0 },
+  ballCarrierGapViolations: { min: 0, max: 0, target: 0 },
+  zeroShotMatches: { min: 0, max: 0, target: 0 },
+  invalidGoalGeometry: { min: 0, max: 0, target: 0 },
+  possessionA: { min: 40, max: 60, target: 50 },
+  fullTimePct: { min: 100, max: 100, target: 100 },
+}
+
+function parseArgs(argv) {
+  const opts = {
+    games: 30,
+    halfSeconds: 2700,
+    dt: 0.25,
+    seed: 'simple-kpi-v1',
+    outJson: 'telemetry/simple-model-kpi.json',
+    outMd: 'telemetry/simple-model-kpi.md',
+    guard: '',
+  }
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--games') opts.games = Number(argv[++i])
+    else if (arg === '--half-seconds') opts.halfSeconds = Number(argv[++i])
+    else if (arg === '--dt') opts.dt = Number(argv[++i])
+    else if (arg === '--seed') opts.seed = argv[++i] || opts.seed
+    else if (arg === '--out-json') opts.outJson = argv[++i] || opts.outJson
+    else if (arg === '--out-md') opts.outMd = argv[++i] || opts.outMd
+    else if (arg === '--guard') opts.guard = (argv[++i] || '').toLowerCase()
+    else if (arg === '--help' || arg === '-h') {
+      printHelp()
+      process.exit(0)
+    } else {
+      throw new Error(`Unknown argument: ${arg}`)
+    }
+  }
+  opts.games = Math.max(1, Math.floor(opts.games || 1))
+  opts.halfSeconds = Math.max(5, opts.halfSeconds || 2700)
+  opts.dt = Math.max(1 / 120, Math.min(1, opts.dt || 0.25))
+  return opts
+}
+
+function printHelp() {
+  console.log(`Run full-length simple-model KPI telemetry without graphics.
+
+Usage:
+  npm run sim:simple-kpi -- --games 30
+  npm run sim:simple-kpi -- --games 30 --guard simple-kpi
+
+Options:
+  --games <n>          number of model-only matches (default 30)
+  --half-seconds <n>   seconds per half (default 2700)
+  --seed <value>       deterministic seed salt (default simple-kpi-v1)
+  --out-json <path>    write machine-readable report
+  --out-md <path>      write markdown report
+  --guard simple-kpi   exit non-zero when aggregate KPIs miss thresholds
+`)
+}
+
+function runMatch(index, opts) {
+  const model = new SimpleMatchModel()
+  const [teamA, teamB] = FIXTURES[index % FIXTURES.length]
+  const formationA = FORMATIONS[index % FORMATIONS.length]
+  const formationB = FORMATIONS[(index + 2) % FORMATIONS.length]
+  model.setTeamNames(teamA, teamB)
+  model.setTeamFormations(formationA, formationB)
+  model.setSeed(`${opts.seed}:${index}`)
+  model.setHalfDurationSeconds(opts.halfSeconds)
+  model.setRestartDelays(0, 0)
+  model.startMatch()
+
+  const maxSteps = Math.ceil((opts.halfSeconds * 2 + 60) / opts.dt) * 4
+  for (let step = 0; step < maxSteps && model.getMatchSnapshot().phase !== 'FULL_TIME'; step++) {
+    model.step(opts.dt)
+  }
+
+  const snapshot = model.getMatchSnapshot()
+  const tuning = model.getTuningBundle()
+  return {
+    index,
+    sessionId: `simple-kpi-${index}`,
+    teamA,
+    teamB,
+    formA: formationA,
+    formB: formationB,
+    scoreA: snapshot.scoreA,
+    scoreB: snapshot.scoreB,
+    shotsA: snapshot.shotsA,
+    shotsB: snapshot.shotsB,
+    sogA: snapshot.shotsOnTargetA,
+    sogB: snapshot.shotsOnTargetB,
+    savesA: snapshot.savesA,
+    savesB: snapshot.savesB,
+    passesA: snapshot.passesA,
+    passesB: snapshot.passesB,
+    passCompA: snapshot.passesCompletedA,
+    passCompB: snapshot.passesCompletedB,
+    possA: snapshot.possessionA,
+    possB: snapshot.possessionB,
+    tacklesA: snapshot.tacklesWonA,
+    tacklesB: snapshot.tacklesWonB,
+    cornersA: snapshot.cornersA,
+    cornersB: snapshot.cornersB,
+    throwInsA: snapshot.throwInsA,
+    throwInsB: snapshot.throwInsB,
+    goalKicksA: snapshot.goalKicksA,
+    goalKicksB: snapshot.goalKicksB,
+    foulsA: 0,
+    foulsB: 0,
+    phase: snapshot.phase,
+    tuning,
+  }
+}
+
+function average(rows, fn) {
+  return rows.reduce((sum, row) => sum + fn(row), 0) / Math.max(1, rows.length)
+}
+
+function round(value, digits = 2) {
+  if (!Number.isFinite(Number(value))) return 0
+  return +Number(value).toFixed(digits)
+}
+
+function getMatchDuration(options) {
+  const halfSeconds = Math.max(5, Number(options.halfSeconds) || 2700)
+  const matchSeconds = halfSeconds * 2
+  return {
+    halfSeconds,
+    matchSeconds,
+    runtimeMinutes: round(matchSeconds / 60, 2),
+    simulatedMinutes: 90,
+    durationFactor: 1,
+  }
+}
+
+function simulationThresholds() {
+  return Object.fromEntries(Object.entries(THRESHOLDS).map(([key, threshold]) => {
+    return [key, {
+      ...threshold,
+      expectedMin: threshold.min,
+      expectedMax: threshold.max,
+      samplingPad: 0,
+    }]
+  }))
+}
+
+function summarize(results) {
+  const passAttempts = results.reduce((sum, row) => sum + row.passesA + row.passesB, 0)
+  const passEventAttempts = results.reduce((sum, row) => sum + (row.tuning?.passLog?.length || 0), 0)
+  const passAttemptsForKpi = Math.max(passAttempts, passEventAttempts)
+  const passCompletions = results.reduce((sum, row) => sum + row.passCompA + row.passCompB, 0)
+  const flights = results.flatMap((row) => row.tuning?.ballFlightTelemetry || [])
+  const passFlights = flights.filter((flight) => flight.kind === 'pass')
+  const shotFlights = flights.filter((flight) => ['shot', 'miss', 'save'].includes(flight.kind))
+  const visualRealityEvents = results.flatMap((row) => row.tuning?.visualRealityEvents || [])
+  const shotOpportunities = results.flatMap((row) => row.tuning?.shotOpportunities || [])
+  const shotDecisions = results.flatMap((row) => row.tuning?.shotDecisions || [])
+  const goalRows = results.flatMap((row) => row.tuning?.goalLog || [])
+  const shotsChosen = shotOpportunities.filter((row) => row.outcome === 'shot')
+  const shotPasses = shotOpportunities.filter((row) => row.outcome === 'pass')
+  const shotDistanceBins = summarizeShotDistanceBins(shotDecisions)
+  return {
+    games: results.length,
+    goals: round(average(results, (row) => row.scoreA + row.scoreB)),
+    shots: round(average(results, (row) => row.shotsA + row.shotsB)),
+    shotsOnTarget: round(average(results, (row) => row.sogA + row.sogB)),
+    saves: round(average(results, (row) => row.savesA + row.savesB)),
+    passes: round(average(results, (row) => Math.max(row.passesA + row.passesB, row.tuning?.passLog?.length || 0))),
+    passCompletionPct: round((passCompletions / Math.max(1, passAttemptsForKpi)) * 100),
+    corners: round(average(results, (row) => row.cornersA + row.cornersB)),
+    throwIns: round(average(results, (row) => row.throwInsA + row.throwInsB)),
+    goalKicks: round(average(results, (row) => row.goalKicksA + row.goalKicksB)),
+    avgPassBallSpeedMps: round(average(passFlights, (flight) => flight.speedMps || 0)),
+    maxPassBallSpeedMps: round(maxOf(passFlights, (flight) => flight.speedMps || 0)),
+    avgShotBallSpeedMps: round(average(shotFlights, (flight) => flight.speedMps || 0)),
+    maxShotBallSpeedMps: round(maxOf(shotFlights, (flight) => flight.speedMps || 0)),
+    ballFlightSamples: {
+      pass: passFlights.length,
+      shot: shotFlights.length,
+      interception: flights.filter((flight) => flight.kind === 'interception').length,
+      save: flights.filter((flight) => flight.kind === 'save').length,
+    },
+    visualRealityViolations: visualRealityEvents.length,
+    emptyFlightLandings: visualRealityEvents.filter((event) => event.type === 'EMPTY_FLIGHT_LANDING').length,
+    missingFlightTargets: visualRealityEvents.filter((event) => event.type === 'MISSING_FLIGHT_TARGET').length,
+    ballCarrierGapViolations: visualRealityEvents.filter((event) => event.type === 'BALL_CARRIER_GAP').length,
+    zeroShotMatches: results.filter((row) => row.shotsA + row.shotsB === 0).length,
+    invalidGoalGeometry: goalRows.filter(invalidGoalGeometry).length,
+    shotOpportunities: round(shotOpportunities.length / Math.max(1, results.length)),
+    shotOpportunityShotPct: round((shotsChosen.length / Math.max(1, shotOpportunities.length)) * 100),
+    shotOpportunityPassPct: round((shotPasses.length / Math.max(1, shotOpportunities.length)) * 100),
+    shotDistanceBins,
+    distanceShotDecisions: shotDecisions.filter((row) => row.shotSelectionType === 'distance_shot').length,
+    longRangeShotPct: round(((shotDistanceBins.y24_30 + shotDistanceBins.gte30) / Math.max(1, shotDecisions.length)) * 100),
+    possessionA: round(average(results, (row) => row.possA)),
+    fullTimePct: round((results.filter((row) => row.phase === 'FULL_TIME').length / results.length) * 100),
+    disabledMetrics: ['fouls'],
+  }
+}
+
+function summarizeShotDistanceBins(shotDecisions) {
+  const bins = { lt12: 0, y12_18: 0, y18_24: 0, y24_30: 0, gte30: 0 }
+  for (const row of shotDecisions) {
+    const yards = Number(row.distToGoalYards)
+    if (!Number.isFinite(yards)) continue
+    if (yards < 12) bins.lt12 += 1
+    else if (yards < 18) bins.y12_18 += 1
+    else if (yards < 24) bins.y18_24 += 1
+    else if (yards < 30) bins.y24_30 += 1
+    else bins.gte30 += 1
+  }
+  return bins
+}
+
+function maxGoalDistanceYards(role) {
+  if (role === 'GK') return 0
+  if (role === 'CB' || role === 'FB') return 34
+  if (role === 'DM' || role === 'CM') return 42
+  return 46
+}
+
+function invalidGoalGeometry(goal) {
+  const role = goal.role || ''
+  const yards = Number.isFinite(Number(goal.distToGoalYards))
+    ? Number(goal.distToGoalYards)
+    : (Number(goal.distToGoal || 0) / FIELD_W) * 120
+  const maxYards = Number.isFinite(Number(goal.maxGoalDistanceYards))
+    ? Number(goal.maxGoalDistanceYards)
+    : maxGoalDistanceYards(role)
+  return yards > maxYards || goal.invalidGoalGeometry === true
+}
+
+function maxOf(rows, fn) {
+  if (!rows.length) return 0
+  return rows.reduce((max, row) => Math.max(max, fn(row)), -Infinity)
+}
+
+function evaluate(summary, thresholds) {
+  const checks = Object.fromEntries(Object.entries(thresholds).map(([key, threshold]) => {
+    const value = Number(summary[key])
+    return [key, {
+      value,
+      ...threshold,
+      passed: value >= threshold.min && value <= threshold.max,
+    }]
+  }))
+  return {
+    passed: Object.values(checks).every((check) => check.passed),
+    checks,
+  }
+}
+
+function buildMarkdown(report) {
+  const duration = report.duration
+  const lines = [
+    '# Simple Model KPI Report',
+    '',
+    `- Generated: ${report.generatedAt}`,
+    `- Games: ${report.options.games}`,
+    `- Runtime length: ${duration.runtimeMinutes} minutes total (${duration.halfSeconds}s halves)`,
+    `- Simulated match length: ${duration.simulatedMinutes} minutes`,
+    `- Seed: ${report.options.seed}`,
+    `- Guard: ${report.guard.passed ? 'passed' : 'failed'}`,
+    '',
+    '## Aggregate KPIs',
+    '',
+    '| KPI | Value | Target | Status |',
+    '|---|---:|---:|---|',
+  ]
+  for (const [key, check] of Object.entries(report.guard.checks)) {
+    const expected = check.expectedMin === undefined ? null : ` expected ${check.expectedMin}-${check.expectedMax};`
+    const target = check.min === check.max ? `${check.target}` : `${check.min}-${check.max}${expected || ''}`
+    lines.push(`| ${key} | ${check.value} | ${target} | ${check.passed ? 'pass' : 'fail'} |`)
+  }
+  lines.push(
+    '',
+    '## Rendered Ball Speed',
+    '',
+    `- Pass avg/max: ${report.summary.avgPassBallSpeedMps}/${report.summary.maxPassBallSpeedMps} m/s`,
+    `- Shot avg/max: ${report.summary.avgShotBallSpeedMps}/${report.summary.maxShotBallSpeedMps} m/s`,
+    `- Samples: pass ${report.summary.ballFlightSamples.pass}, shot ${report.summary.ballFlightSamples.shot}, interception ${report.summary.ballFlightSamples.interception}, save ${report.summary.ballFlightSamples.save}`,
+    '',
+    '## Restart Counters',
+    '',
+    `- Corners per match: ${report.summary.corners}`,
+    `- Throw-ins per match: ${report.summary.throwIns}`,
+    `- Goal kicks per match: ${report.summary.goalKicks}`,
+    '',
+    '## Visual Reality Audit',
+    '',
+    `- Violations: ${report.summary.visualRealityViolations}`,
+    `- Empty flight landings: ${report.summary.emptyFlightLandings}`,
+    `- Missing flight targets: ${report.summary.missingFlightTargets}`,
+    `- Carrier-ball gap violations: ${report.summary.ballCarrierGapViolations}`,
+    `- Zero-shot full-time matches: ${report.summary.zeroShotMatches}`,
+    `- Invalid goal geometry: ${report.summary.invalidGoalGeometry}`,
+    '',
+    '## Shot Opportunity Telemetry',
+    '',
+    `- Opportunities per match: ${report.summary.shotOpportunities}`,
+    `- Shot/pass choice: ${report.summary.shotOpportunityShotPct}% / ${report.summary.shotOpportunityPassPct}%`,
+    `- Distance-shot decisions: ${report.summary.distanceShotDecisions}`,
+    `- Long-range shot share (24+ yd): ${report.summary.longRangeShotPct}%`,
+    `- Shot distance bins: <12 ${report.summary.shotDistanceBins.lt12} | 12-18 ${report.summary.shotDistanceBins.y12_18} | 18-24 ${report.summary.shotDistanceBins.y18_24} | 24-30 ${report.summary.shotDistanceBins.y24_30} | 30+ ${report.summary.shotDistanceBins.gte30}`,
+  )
+  lines.push('', '## Match Results', '')
+  lines.push('| Match | Score | Shots | SOT | Saves | Pass % | Corners | Throw-ins | Goal kicks | Poss A |')
+  lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|')
+  for (const row of report.results) {
+    const passAttempts = row.passesA + row.passesB
+    const passPct = round(((row.passCompA + row.passCompB) / Math.max(1, passAttempts)) * 100)
+    lines.push(`| ${row.teamA} vs ${row.teamB} | ${row.scoreA}-${row.scoreB} | ${row.shotsA + row.shotsB} | ${row.sogA + row.sogB} | ${row.savesA + row.savesB} | ${passPct} | ${row.cornersA + row.cornersB} | ${row.throwInsA + row.throwInsB} | ${row.goalKicksA + row.goalKicksB} | ${row.possA} |`)
+  }
+  lines.push('')
+  return `${lines.join('\n')}\n`
+}
+
+function writeReport(report) {
+  const jsonPath = path.resolve(process.cwd(), report.options.outJson)
+  const mdPath = path.resolve(process.cwd(), report.options.outMd)
+  fs.mkdirSync(path.dirname(jsonPath), { recursive: true })
+  fs.mkdirSync(path.dirname(mdPath), { recursive: true })
+  fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2))
+  fs.writeFileSync(mdPath, buildMarkdown(report))
+  return { jsonPath, mdPath }
+}
+
+function printSummary(report, paths) {
+  const s = report.summary
+  const duration = report.duration
+  const checks = report.guard.checks
+  console.log(`Simple model KPI: ${report.guard.passed ? 'PASS' : 'FAIL'} (${s.games} games)`)
+  console.log(`runtime length ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves) | KPI targets are full-match MLS outputs`)
+  console.log(`goals ${s.goals} | shots ${s.shots} | SOT ${s.shotsOnTarget} | saves ${s.saves}`)
+  console.log(`full-match expected goals ${checks.goals.expectedMin}-${checks.goals.expectedMax} | shots ${checks.shots.expectedMin}-${checks.shots.expectedMax} | SOT ${checks.shotsOnTarget.expectedMin}-${checks.shotsOnTarget.expectedMax} | passes ${checks.passes.expectedMin}-${checks.passes.expectedMax}`)
+  console.log(`guard raw goals ${checks.goals.min}-${checks.goals.max} | shots ${checks.shots.min}-${checks.shots.max} | SOT ${checks.shotsOnTarget.min}-${checks.shotsOnTarget.max} | passes ${checks.passes.min}-${checks.passes.max}`)
+  console.log(`passes ${s.passes} | pass completion ${s.passCompletionPct}% | possession A ${s.possessionA}% | full-time ${s.fullTimePct}%`)
+  console.log(`restarts corners ${s.corners} | throw-ins ${s.throwIns} | goal kicks ${s.goalKicks}`)
+  console.log(`ball speed pass avg/max ${s.avgPassBallSpeedMps}/${s.maxPassBallSpeedMps} m/s | shot avg/max ${s.avgShotBallSpeedMps}/${s.maxShotBallSpeedMps} m/s`)
+  console.log(`visual reality violations ${s.visualRealityViolations} | empty landings ${s.emptyFlightLandings} | carrier gaps ${s.ballCarrierGapViolations} | zero-shot matches ${s.zeroShotMatches}`)
+  console.log(`invalid goal geometry ${s.invalidGoalGeometry}`)
+  console.log(`Saved JSON: ${paths.jsonPath}`)
+  console.log(`Saved Markdown: ${paths.mdPath}`)
+}
+
+function main() {
+  const options = parseArgs(process.argv.slice(2))
+  if (options.guard && options.guard !== 'simple-kpi') {
+    throw new Error(`Unknown guard: ${options.guard}`)
+  }
+  const results = Array.from({ length: options.games }, (_, index) => runMatch(index, options))
+  const summary = summarize(results)
+  const duration = getMatchDuration(options)
+  const thresholds = simulationThresholds()
+  const guard = evaluate(summary, thresholds)
+  const report = {
+    generatedAt: new Date().toISOString(),
+    model: 'simple-v1',
+    options,
+    duration,
+    thresholds,
+    fullMatchThresholds: THRESHOLDS,
+    summary,
+    guard,
+    results,
+  }
+  const paths = writeReport(report)
+  printSummary(report, paths)
+  if (options.guard && !guard.passed) process.exit(3)
+}
+
+main()

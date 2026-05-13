@@ -311,9 +311,7 @@ function tuningRelayPlugin(): Plugin {
     return teamA === 'Inter Miami' && teamB === 'LA Galaxy' && !matchId;
   };
 
-  return {
-    name: 'tuning-relay',
-    configureServer(server) {
+  const installRoutes = (server: any) => {
       // Game POSTs live tuning payload
       server.middlewares.use('/__tuning/push', async (req: any, res: any) => {
         if (req.method !== 'POST') { res.writeHead(405).end(); return; }
@@ -401,6 +399,32 @@ function tuningRelayPlugin(): Plugin {
           res.writeHead(500).end(String(err));
         }
       });
+      
+      // Dashboard GETs raw telemetry events. Completed simple-model bundles
+      // carry most events inside bundle_json; this route keeps the dashboard
+      // fetch contract valid in dev and preview even when no event rows exist.
+      server.middlewares.use('/__db/telemetry-events', async (req: any, res: any) => {
+        if (req.method !== 'GET') { res.writeHead(405).end(); return; }
+        try {
+          const mod = await getDbModule();
+          const url = new URL(req.url || '/', 'http://localhost');
+          const sessionId = url.searchParams.get('session_id') || '';
+          const limit = Math.min(10000, Math.max(1, parseInt(url.searchParams.get('limit') || '10000', 10)));
+          const rows = mod.getTelemetryEvents?.(sessionId, limit) || [];
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(rows));
+        } catch (err) {
+          res.writeHead(500).end(String(err));
+        }
+      });
+  };
+
+  return {
+    name: 'tuning-relay',
+    configureServer(server) {
+      installRoutes(server);
+    },
+    configurePreviewServer(server) {
+      installRoutes(server);
     },
   };
 }
@@ -424,8 +448,11 @@ export default defineConfig(({mode}) => {
       hmr: process.env.DISABLE_HMR !== 'true',
       allowedHosts: ['localhost', '127.0.0.1', 'gakeen'],
       watch: {
-        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**', '**/telemetry/latest-report.json', '**/telemetry/latest-report.md', '**/telemetry/snapshot-*.json', '**/telemetry/eval/**', '**/telemetry/overnight/**'],
+        ignored: ['**/match-results.json', '**/telemetry-snapshots.json', '**/telemetry-batches.ndjson', '**/shot-events.ndjson', '**/keeper-experience.ndjson', '**/scripts/**', '**/psl.db', '**/psl.db-wal', '**/psl.db-shm', '**/keeper-model/**', '**/telemetry/**', '**/dist/**'],
       },
+    },
+    optimizeDeps: {
+      entries: ['index.html'],
     },
   };
 });

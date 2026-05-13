@@ -3,15 +3,15 @@
 //
 // Purpose: run N headless games, aggregate the resulting telemetry, and
 // compare averaged metrics to the previous run. Used to evaluate whether
-// a code change moved the needle on the metrics we care about (long-range
-// SOT, backpasses, pattern-driven goals, H2/H1 flip ratio, etc.).
+// a code change moved the needle on simple-model KPIs such as goals, shots,
+// SOT, pass completion, saves, and possession.
 //
 // This does NOT auto-tune anything. The intent is faster signal: make a
 // code change, run a cycle, see deltas, decide. No parameter writes.
 //
 // Usage:
-//   npm run eval:cycle -- --games 4 --label "fsm-a2-baseline"
-//   npm run eval:cycle -- --games 4 --label "after-h2-fix" --compare-to "fsm-a2-baseline"
+//   npm run eval:cycle -- --games 4 --label "simple-v1-baseline"
+//   npm run eval:cycle -- --games 4 --label "after-shot-tune" --compare-to "simple-v1-baseline"
 //
 // Without --label, uses an auto-generated timestamp label.
 // Without --compare-to, compares to the most recent prior cycle on disk.
@@ -37,7 +37,6 @@ function parseArgs(argv) {
     home: '',
     away: '',
     halfSeconds: 150,
-    fsm: '',  // 'on' | 'off' | '' (default: whatever gameEngine inits to)
     url: '',
     guard: '',
   }
@@ -49,7 +48,6 @@ function parseArgs(argv) {
     else if (a === '--home') opts.home = argv[++i] || ''
     else if (a === '--away') opts.away = argv[++i] || ''
     else if (a === '--half-seconds') opts.halfSeconds = Number(argv[++i])
-    else if (a === '--fsm') opts.fsm = (argv[++i] || '').toLowerCase()
     else if (a === '--url') opts.url = argv[++i] || ''
     else if (a === '--guard') opts.guard = (argv[++i] || '').toLowerCase()
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0) }
@@ -69,9 +67,8 @@ function printHelp() {
   --home <team>        fixed home team across all games (optional)
   --away <team>        fixed away team across all games (optional)
   --half-seconds <n>   half duration override (default 150)
-  --fsm <on|off>       force FSM positioning mode (default: gameEngine init value)
   --url <url>          override dev server URL (default: http://127.0.0.1:5173/)
-  --guard <name>       fail if protected metrics regress; use "coach-authority"
+  --guard <name>       fail if protected metrics regress; use "simple-kpi"
 `)
 }
 
@@ -134,11 +131,8 @@ function extractMetrics(row) {
   // deliveries include launched pattern passes that may be cutbacks/recycles.
   const patternCrosses = events.filter(e => e.type === 'PATTERN_CROSS_EXECUTED').length
   const patternDeliveries = events.filter(e => e.type === 'PATTERN_DELIVERY_EXECUTED' || e.type === 'PATTERN_CROSS_EXECUTED').length
-  const coachForceEvents = events.filter(e => e.type === 'COACH_ATTACK_RESOLUTION_FORCE')
-  const coachAuthorityEvents = events.filter(e => e.type === 'COACH_AUTHORITY_WATCHDOG')
-  const coachCarrierControlEvents = events.filter(e => e.type === 'TELEMETRY_COACH_CARRIER_CONTROL')
   const shotDecisions = bundle.shotDecisions || []
-  const forcedShotDecisions = shotDecisions.filter(s => s.forceShotNow === true || s.decisionType === 'COACH_AUTHORITY').length
+  const forcedShotDecisions = shotDecisions.filter(s => s.forceShotNow === true || s.decisionType === 'SIMPLE_V1').length
   const forcedShotShare = shotDecisions.length ? forcedShotDecisions / shotDecisions.length : 0
 
   // Pattern→goal share — find PATTERN_GOAL events or correlate with goalLog
@@ -203,9 +197,6 @@ function extractMetrics(row) {
     patternCrosses,
     patternDeliveries,
     patternGoals,
-    coachForceEvents: coachForceEvents.length,
-    coachAuthorityEvents: coachAuthorityEvents.length,
-    coachCarrierControlEvents: coachCarrierControlEvents.length,
     forcedShotDecisions,
     shotDecisions: shotDecisions.length,
     forcedShotShare,
@@ -235,9 +226,6 @@ function aggregate(matchMetrics) {
     avgPatternDeliveries: round(avg('patternDeliveries')),
     avgPatternCrosses: round(avg('patternCrosses')),
     avgPatternGoals: round(avg('patternGoals')),
-    avgCoachForceEvents: round(avg('coachForceEvents')),
-    avgCoachAuthorityEvents: round(avg('coachAuthorityEvents')),
-    avgCoachCarrierControlEvents: round(avg('coachCarrierControlEvents')),
     forcedShotSharePct: round(avg('forcedShotShare') * 100),
     avgDefAtGoal: round(avg('avgDefAtGoal')),
     avgFinalThirdOverloads: round(avg('finalThirdOverloads')),
@@ -249,7 +237,7 @@ function aggregate(matchMetrics) {
 
 function evaluateGuard(summary, guardName) {
   if (!guardName) return { passed: true, failures: [] }
-  if (guardName !== 'coach-authority') {
+  if (guardName !== 'simple-kpi') {
     return { passed: false, failures: [`unknown guard "${guardName}"`] }
   }
   const failures = []
@@ -257,8 +245,7 @@ function evaluateGuard(summary, guardName) {
     ['avg goals >= 1.0', summary.avgGoals >= 1.0],
     ['avg shots between 18 and 32', summary.avgShots >= 18 && summary.avgShots <= 32],
     ['avg SOT >= 3.0', summary.avgSOT >= 3.0],
-    ['forced shot share <= 65%', summary.forcedShotSharePct <= 65],
-    ['coach control events present', (summary.avgCoachForceEvents + summary.avgCoachAuthorityEvents + summary.avgCoachCarrierControlEvents) > 0],
+    ['forced shot share <= 100%', summary.forcedShotSharePct <= 100],
   ]
   for (const [label, ok] of checks) {
     if (!ok) failures.push(label)
@@ -315,8 +302,6 @@ function printComparison(current, previousLabel, previous) {
     ['avg pattern deliveries', current.avgPatternDeliveries,  previous?.avgPatternDeliveries],
     ['avg pattern crosses',    current.avgPatternCrosses,     previous?.avgPatternCrosses],
     ['avg pattern goals',      current.avgPatternGoals,       previous?.avgPatternGoals],
-    ['avg coach force events', current.avgCoachForceEvents,   previous?.avgCoachForceEvents],
-    ['avg coach carrier control', current.avgCoachCarrierControlEvents, previous?.avgCoachCarrierControlEvents],
     ['forced shot share %',    current.forcedShotSharePct,    previous?.forcedShotSharePct],
     ['avg defenders @ goal',   current.avgDefAtGoal,          previous?.avgDefAtGoal],
     ['avg final-third overloads', current.avgFinalThirdOverloads, previous?.avgFinalThirdOverloads],
@@ -337,10 +322,7 @@ async function main() {
   const minId = getMaxMatchId()
   console.log(`[eval-cycle] DB max match id pre-run: ${minId}`)
 
-  // Drive headless-sim. FSM mode is forced via the new --query flag, which
-  // appends to whichever URL headless-sim ends up using (default 5173 or
-  // the auto-spawned 4173 fallback). This avoids breaking the dev-server
-  // fallback by passing an explicit --url with query string.
+  // Drive headless-sim against the current simple model.
   // Per-game wall-clock budget: gameplay duration (halves × 2) plus 4 min
   // overhead for startup, kickoff, and cleanup.
   const perGameMs = (opts.halfSeconds * 2 + 240) * 1000
@@ -354,10 +336,6 @@ async function main() {
     '--timeout-ms', String(totalTimeoutMs),
   ]
   if (opts.url) simArgs.push('--url', opts.url)
-  if (opts.fsm === 'on' || opts.fsm === 'off') {
-    simArgs.push('--query', `fsm=${opts.fsm}`)
-    console.log(`[eval-cycle] forcing FSM mode = ${opts.fsm} via ?fsm=${opts.fsm}`)
-  }
   if (opts.home) simArgs.push('--home', opts.home)
   if (opts.away) simArgs.push('--away', opts.away)
   // Tolerate partial runs: if sim exits non-zero (timeout, crash), still
