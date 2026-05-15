@@ -747,6 +747,9 @@ export class SimpleMatchModel {
     if (this.msm.state.kind === "goal_scored" && this.goalNetVisualPending()) {
       this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
     }
+    if (this.msm.state.kind === "goal_scored" && this.kickoffSetupMoving && !this.isKickoffSetupReady()) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
     const halfLimit = this.msm.clock.halfDuration + this.msm.clock.stoppageTime;
     if (this.msm.state.kind === "live_play" && this.msm.clock.elapsedInHalf < halfLimit) {
       if (this.shouldForceFinalNoShotAttempt(clockDt)) {
@@ -808,7 +811,7 @@ export class SimpleMatchModel {
       }
     }
 
-    if (this.msm.state.kind === "kickoff" && prevKind !== "kickoff") {
+    if (this.msm.state.kind === "kickoff" && prevKind !== "kickoff" && !this.goalKickoffSetupInstalled) {
       const kickoffState = this.msm.state as { kind: "kickoff"; team: TeamSide };
       this.installKickoffSetup(codeFromSide(kickoffState.team));
     }
@@ -2488,6 +2491,7 @@ export class SimpleMatchModel {
     this.kickoffTeam = null;
     this.kickoffKickerId = null;
     this.kickoffSetupMoving = false;
+    this.goalKickoffSetupInstalled = false;
   }
 
   private claimLooseBallPossession(fallbackTeam: SimpleTeamCode) {

@@ -130,6 +130,10 @@ test('browser game wires legacy sound assets to match events', () => {
   assert.match(engine, /case 'CORNER':[\s\S]*?this\.playGameplayBuffer\('corner'/, 'corners must trigger corner audio');
   assert.match(engine, /case 'THROW_IN':[\s\S]*?event\.meta\?\.phase === 'setup'[\s\S]*?this\.playGameplayBuffer\('throw'/, 'throw-in announcer must play on setup, not after release');
   assert.match(engine, /this\.playSoundForLiveEvent\(event\)/, 'event cue loop must invoke the audio mapper');
+  assert.match(engine, /private readonly audioBytes: Partial<Record<SoundBufferKey, ArrayBuffer>>/, 'audio bytes must be cached before first user gesture');
+  assert.match(engine, /private preloadAudioBytes\(keys\?: SoundBufferKey\[\]\)/, 'engine must expose a byte preload path separate from AudioContext playback');
+  assert.match(engine, /this\.preloadAudioBytes\(\);/, 'constructor must start audio byte preloading while the splash screen is visible');
+  assert.match(engine, /const decodeOrder: SoundBufferKey\[\] = \['splashMusic', 'welcome', 'crowd'/, 'intro music and welcome callout must decode before lower-priority sound effects');
   assert.doesNotMatch(engine, /splashMusicStart = \(\) => \{\};/, 'splash music API must not remain stubbed');
   assert.doesNotMatch(engine, /setCrowdVolume = \(_value: number\) => \{\};/, 'crowd volume API must not remain stubbed');
 });

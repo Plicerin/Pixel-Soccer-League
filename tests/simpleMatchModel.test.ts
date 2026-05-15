@@ -1459,6 +1459,70 @@ test("V85 scored goals send the ball into the back of the net before kickoff set
   assert.ok(model.ball.pos.x > RIGHT_GOAL_X + GOAL_FLOOR_DEPTH * 0.5, "visible ball must reach the back of the net");
 });
 
+test("V97 post-goal restart does not expose kickoff until setup is ready", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v97-post-goal-kickoff-ready");
+  model.setTeamNames("Canada", "Mexico");
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+
+  attacker.pos = { x: RIGHT_GOAL_X - 2.0, y: 0, z: GOAL_MOUTH_HALF_Z * 0.12 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  attacker.vel = { x: 0, z: 0 };
+  keeper.pos = { x: RIGHT_GOAL_X - 8.0, y: 0, z: FIELD_D / 2 - 2 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  keeper.vel = { x: 0, z: 0 };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+
+  const goalEvent = (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; forceGoal: boolean; reason: string },
+    ) => { scoringTeam: "home" | "away" } | null;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: RIGHT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    forceGoal: true,
+    reason: "V97_FORCED_GOAL",
+  });
+  assert.ok(goalEvent);
+  model.msm.score[goalEvent.scoringTeam] += 1;
+  model.msm.state = { kind: "goal_scored", scoringTeam: goalEvent.scoringTeam, restartAfter: 2.0 };
+  model.msm.restartTimer = 2.0;
+
+  let sawMovingGoalSetup = false;
+  let kickoffFrames = 0;
+  let restarted = false;
+  for (let i = 0; i < 60 * 18; i++) {
+    model.step(1 / 60);
+    const snapshot = model.getMatchSnapshot();
+    if (snapshot.phase === "GOAL_SCORED" && (model as unknown as { kickoffSetupMoving: boolean }).kickoffSetupMoving) {
+      sawMovingGoalSetup = true;
+    }
+    if (snapshot.phase === "KICKOFF") {
+      kickoffFrames += 1;
+      assert.equal((model as unknown as { kickoffSetupMoving: boolean }).kickoffSetupMoving, false, "KICKOFF phase must not start while setup players are still moving");
+    }
+    if (snapshot.phase === "FIRST_HALF") {
+      restarted = true;
+      break;
+    }
+  }
+
+  assert.equal(sawMovingGoalSetup, true, "post-goal player reset should happen during goal-scored restart delay");
+  assert.equal(restarted, true, "post-goal restart must return to live play within a bounded window");
+  assert.ok(kickoffFrames <= 45, `kickoff window should be short once setup is ready, got ${kickoffFrames} frames`);
+});
+
 test("V43 simple model final stats cannot show goals with zero shots", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v43-final-stat-integrity");

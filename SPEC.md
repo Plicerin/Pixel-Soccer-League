@@ -128,6 +128,7 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 - V94. Pre-pass offside visual continuity: if the model flags an intended receiver offside before launching a pass flight, the free-kick setup spot must stay at the ball-at-touch origin; it must not snap the rendered ball to the offside runner across the field.
 - V95. Offside call spacing: after an offside call, AI pass target selection must suppress intentional offside runners for a visible cooldown window so the browser cannot produce back-to-back offside calls in rapid succession from normal CPU decisions.
 - V96. Full-time identity integrity: browser full-time overlay, persisted `psl_fullTimeScore`, and end-screen stats must capture the active match teams and final score exactly once; they must not fall back to initial menu defaults or be overwritten after full time.
+- V97. Post-goal restart readiness: after a goal, visible player reset to legal kickoff positions must complete during `GOAL_SCORED`; `KICKOFF` may start only when setup is ready and must release to live play within a short bounded window.
 
 ---
 
@@ -257,3 +258,4 @@ Pixel Soccer League: accurate soccer simulation with voxel/pixelated aesthetic a
 | B88 | 2026-05-14 | Pre-pass offside detection staged the free kick at the intended receiver position even though no pass flight had launched, so the browser showed the ball teleporting across the field to the runner | V94 |
 | B89 | 2026-05-14 | AI target selection could immediately choose another deliberate offside runner after an offside free-kick restart, making the browser call offsides twice in rapid succession | V95 |
 | B90 | 2026-05-15 | Full-time React polling closed over initial `United States`/`Mexico` menu state and rewrote the final overlay every tick, so random/current fixtures could end on a default 0-0 screen | V96 |
+| B91 | 2026-05-15 | Goal-scored timer could expire before kickoff setup players were ready, exposing a long `KICKOFF` dead state after goals that looked like the game would not restart | V97 |

@@ -543,6 +543,9 @@ class SimpleGameEngine {
   private audioCtx: AudioContext | null = null;
   private audioMasterGain: GainNode | null = null;
   private audioPreloadStarted = false;
+  private audioBytePreloadStarted = false;
+  private readonly audioBytes: Partial<Record<SoundBufferKey, ArrayBuffer>> = {};
+  private readonly audioFetchPromises: Partial<Record<SoundBufferKey, Promise<ArrayBuffer>>> = {};
   private readonly audioBuffers: Partial<Record<SoundBufferKey, AudioBuffer>> = {};
   private readonly crowdLoop: {
     source: AudioBufferSourceNode | null;
@@ -594,6 +597,7 @@ class SimpleGameEngine {
     this.resize();
     window.addEventListener('resize', this.resize);
     this.animate();
+    this.preloadAudioBytes();
   }
 
   resetMatch = () => {
@@ -771,13 +775,45 @@ class SimpleGameEngine {
     return this.audioCtx;
   }
 
+  private preloadAudioBytes(keys?: SoundBufferKey[]) {
+    if (this.disposed) return;
+    const entries = keys ?? (Object.keys(SOUND_ASSETS) as SoundBufferKey[]);
+    if (!keys) this.audioBytePreloadStarted = true;
+    for (const key of entries) {
+      if (this.audioBytes[key] || this.audioFetchPromises[key]) continue;
+      this.audioFetchPromises[key] = fetch(SOUND_ASSETS[key])
+        .then((response) => {
+          if (!response.ok) throw new Error(`Audio fetch failed: ${SOUND_ASSETS[key]}`);
+          return response.arrayBuffer();
+        })
+        .then((buffer) => {
+          this.audioBytes[key] = buffer;
+          return buffer;
+        })
+        .catch(() => {
+          delete this.audioFetchPromises[key];
+          return new ArrayBuffer(0);
+        });
+    }
+  }
+
   private preloadAudio() {
     if (this.audioPreloadStarted || !this.audioCtx) return;
     this.audioPreloadStarted = true;
-    for (const [key, url] of Object.entries(SOUND_ASSETS) as Array<[SoundBufferKey, string]>) {
-      void fetch(url)
-        .then((response) => response.arrayBuffer())
-        .then((buffer) => this.audioCtx?.decodeAudioData(buffer))
+    if (!this.audioBytePreloadStarted) this.preloadAudioBytes();
+    const decodeOrder: SoundBufferKey[] = ['splashMusic', 'welcome', 'crowd', ...((Object.keys(SOUND_ASSETS) as SoundBufferKey[]).filter((key) => key !== 'splashMusic' && key !== 'welcome' && key !== 'crowd'))];
+    for (const key of decodeOrder) {
+      const bytes = this.audioBytes[key]
+        ? Promise.resolve(this.audioBytes[key] as ArrayBuffer)
+        : (this.audioFetchPromises[key] ?? fetch(SOUND_ASSETS[key]).then((response) => response.arrayBuffer()));
+      this.audioFetchPromises[key] = bytes;
+      void bytes
+        .then((buffer) => {
+          if (buffer.byteLength <= 0) throw new Error(`Audio fetch failed: ${SOUND_ASSETS[key]}`);
+          this.audioBytes[key] = buffer;
+          const copy = buffer.slice(0);
+          return this.audioCtx?.decodeAudioData(copy);
+        })
         .then((decoded) => {
           if (!decoded) return;
           this.audioBuffers[key] = decoded;
