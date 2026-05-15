@@ -13,10 +13,11 @@ export function computeFixtureTimeoutMs(input: { halfSeconds: number; speedMul?:
 }
 
 export function getFixtureElapsedSimSeconds(snapshot: any, halfSeconds: number): number {
-  const half = Math.max(30, Number(halfSeconds) || 300);
+  const half = Math.max(30, Number(snapshot?.runtimeHalfDuration ?? halfSeconds) || 300);
   if (snapshot?.phase === 'FULL_TIME') return half * 2;
+  const clockScale = Math.max(0.001, Number(snapshot?.matchClockScale) || (Number(snapshot?.halfDuration) > half ? Number(snapshot?.halfDuration) / half : 1));
   const elapsed = Math.max(0, Number(snapshot?.elapsedInHalf) || 0);
-  return (snapshot?.half === 2 ? half : 0) + Math.min(half, elapsed);
+  return (snapshot?.half === 2 ? half : 0) + Math.min(half, elapsed / clockScale);
 }
 
 export function classifyFixtureClockProgress(input: {

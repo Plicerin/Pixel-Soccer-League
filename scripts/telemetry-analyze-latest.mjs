@@ -1655,8 +1655,8 @@ function summarizeKeeperEvents(bundle, passLog = []) {
 
 function summarizeRestartCounts(events, passLog = [], bundle = null) {
   const byTeam = {
-    A: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
-    B: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0 },
+    A: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0, penalties: 0 },
+    B: { corners: 0, throwIns: 0, goalKicks: 0, freeKicks: 0, penalties: 0 },
   }
 
   const bundleA = bundle?.teamA || {}
@@ -1667,10 +1667,12 @@ function summarizeRestartCounts(events, passLog = [], bundle = null) {
   byTeam.B.throwIns = Number(bundleB.throwIns ?? 0)
   byTeam.A.goalKicks = Number(bundleA.goalKicks ?? 0)
   byTeam.B.goalKicks = Number(bundleB.goalKicks ?? 0)
+  byTeam.A.penalties = Number(bundleA.penaltiesAwarded ?? 0)
+  byTeam.B.penalties = Number(bundleB.penaltiesAwarded ?? 0)
 
   const eventCounts = {
-    A: { corners: 0, throwIns: 0, goalKicks: 0 },
-    B: { corners: 0, throwIns: 0, goalKicks: 0 },
+    A: { corners: 0, throwIns: 0, goalKicks: 0, penalties: 0 },
+    B: { corners: 0, throwIns: 0, goalKicks: 0, penalties: 0 },
   }
 
   for (const event of events) {
@@ -1679,12 +1681,14 @@ function summarizeRestartCounts(events, passLog = [], bundle = null) {
     if (event.type === 'CORNER') eventCounts[team].corners += 1
     if (event.type === 'THROW_IN') eventCounts[team].throwIns += 1
     if (event.type === 'GOAL_KICK') eventCounts[team].goalKicks += 1
+    if (event.type === 'PENALTY' && event.detail?.phase === 'setup') eventCounts[team].penalties += 1
   }
 
   for (const team of ['A', 'B']) {
     byTeam[team].corners = Math.max(byTeam[team].corners, eventCounts[team].corners)
     byTeam[team].throwIns = Math.max(byTeam[team].throwIns, eventCounts[team].throwIns)
     byTeam[team].goalKicks = Math.max(byTeam[team].goalKicks, eventCounts[team].goalKicks)
+    byTeam[team].penalties = Math.max(byTeam[team].penalties, eventCounts[team].penalties)
   }
 
   for (const entry of passLog) {
@@ -1700,6 +1704,7 @@ function summarizeRestartCounts(events, passLog = [], bundle = null) {
       throwIns: byTeam.A.throwIns + byTeam.B.throwIns,
       goalKicks: byTeam.A.goalKicks + byTeam.B.goalKicks,
       freeKicks: byTeam.A.freeKicks + byTeam.B.freeKicks,
+      penalties: byTeam.A.penalties + byTeam.B.penalties,
     },
     byTeam,
   }
@@ -2121,7 +2126,9 @@ function buildBundleFromHeadlessResult(report, result, index) {
       tackles: result.tacklesA ?? 0,
       clearances: result.clearancesA ?? 0,
       fouls: result.foulsA ?? 0,
+      offsides: result.offsidesA ?? 0,
       corners: result.cornersA ?? 0,
+      freeKicks: result.freeKicksA ?? 0,
       possession: result.possA ?? 0,
       roles: tuning.roleStatsA || {},
     },
@@ -2137,7 +2144,9 @@ function buildBundleFromHeadlessResult(report, result, index) {
       tackles: result.tacklesB ?? 0,
       clearances: result.clearancesB ?? 0,
       fouls: result.foulsB ?? 0,
+      offsides: result.offsidesB ?? 0,
       corners: result.cornersB ?? 0,
+      freeKicks: result.freeKicksB ?? 0,
       possession: result.possB ?? 0,
       roles: tuning.roleStatsB || {},
     },
@@ -2169,10 +2178,10 @@ function loadBundleRowFromFile(filePath, resultIndex) {
       goalLog: [],
       tuning: {
         model: 'simple-v1',
-        disabledRules: ['fouls'],
+        disabledRules: [],
       },
       telemetry: {
-        disabledMetrics: ['fouls'],
+        disabledMetrics: [],
       },
       metadata: {
         model: 'simple-v1',
@@ -2189,7 +2198,11 @@ function loadBundleRowFromFile(filePath, resultIndex) {
         passes: passesPerTeam,
         passesCompleted: passCompletionPerTeam,
         passCompletions: passCompletionPerTeam,
-        corners: 0,
+        tackles: Number(summary.tackles ?? 0),
+        fouls: Number(summary.fouls ?? 0),
+        offsides: Number(summary.offsides ?? 0),
+        corners: Number(summary.corners ?? 0),
+        freeKicks: Number(summary.freeKicks ?? 0),
         possession: teamAPossession,
         roles: {},
       },
@@ -2203,6 +2216,10 @@ function loadBundleRowFromFile(filePath, resultIndex) {
         passesCompleted: passCompletionPerTeam,
         passCompletions: passCompletionPerTeam,
         corners: 0,
+        freeKicks: 0,
+        tackles: 0,
+        fouls: 0,
+        offsides: 0,
         possession: 100 - teamAPossession,
         roles: {},
       },
@@ -2293,9 +2310,12 @@ function buildMarkdownReport(report) {
     `- Shot decisions: ${report.counts.shotDecisions}`,
     `- Pass decisions: ${report.counts.passDecisions}`,
     `- Interceptions: ${report.counts.interceptions}`,
+    `- Tackles: ${report.counts.tackles}`,
+    `- Fouls: ${report.counts.fouls}`,
+    `- Offsides: ${report.counts.offsides}`,
     `- Turnovers: ${report.counts.turnovers}`,
     `- Keeper saves: ${report.keeperSummary.byTeam.A.saves}-${report.keeperSummary.byTeam.B.saves}`,
-    `- Restart counters: corners ${report.restartSummary.total.corners}, throw-ins ${report.restartSummary.total.throwIns}, goal kicks ${report.restartSummary.total.goalKicks}, free kicks ${report.restartSummary.total.freeKicks}`,
+    `- Restart counters: corners ${report.restartSummary.total.corners}, throw-ins ${report.restartSummary.total.throwIns}, goal kicks ${report.restartSummary.total.goalKicks}, free kicks ${report.restartSummary.total.freeKicks}, penalties ${report.restartSummary.total.penalties}`,
     ``,
     `## Decision Telemetry`,
     `- Forced shots: ${report.shotDecisionSummary.forcedShots} of ${report.shotDecisionSummary.total}`,
@@ -2489,7 +2509,7 @@ function printSummary(report) {
   console.log(`Tuning KPIs | overall ${report.kpis.overall.score} (${report.kpis.overall.grade}) | baseline ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) | structure ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) | efficiency ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade})`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
-  console.log(`Keeper / restarts | saves ${report.keeperSummary.byTeam.A.saves}-${report.keeperSummary.byTeam.B.saves} | corners ${report.restartSummary.total.corners} | throw-ins ${report.restartSummary.total.throwIns} | goal kicks ${report.restartSummary.total.goalKicks} | free kicks ${report.restartSummary.total.freeKicks}`)
+  console.log(`Keeper / restarts | saves ${report.keeperSummary.byTeam.A.saves}-${report.keeperSummary.byTeam.B.saves} | corners ${report.restartSummary.total.corners} | throw-ins ${report.restartSummary.total.throwIns} | goal kicks ${report.restartSummary.total.goalKicks} | free kicks ${report.restartSummary.total.freeKicks} | penalties ${report.restartSummary.total.penalties}`)
   console.log(`Movement telemetry | carriers ${report.movement.carriersTracked} | lateral flips ${report.movement.totalLateralFlips} | switch requests ${report.movement.totalSwitchRequests} | facing mismatch ${report.movement.facingMovementMismatchPct}%`)
   console.log(`Heat map | ${teamA} width ${report.shape.A.avgWidth}, center+narrow ${report.shape.A.centerAndNarrowPct}% | ${teamB} width ${report.shape.B.avgWidth}, center+narrow ${report.shape.B.centerAndNarrowPct}%`)
   const ownerFmt = (team) => Object.entries(report.positionOwners.byTeam[team]).map(([owner, count]) => `${owner}:${count}`).join(' | ') || '(none)'
@@ -2684,8 +2704,9 @@ function main() {
       passDecisions: passDecisions.length,
       turnovers: countByType(events, 'TURNOVER'),
       interceptions: countByType(events, 'INTERCEPTION'),
-      fouls: countByType(events, 'FOUL'),
-      tackles: countByType(events, 'TACKLE'),
+      fouls: countByType(events, 'FOUL') || Number(bundle.teamA?.fouls ?? 0) + Number(bundle.teamB?.fouls ?? 0),
+      tackles: countByType(events, 'TACKLE') || Number(bundle.teamA?.tackles ?? 0) + Number(bundle.teamB?.tackles ?? 0),
+      offsides: countByType(events, 'OFFSIDE') || Number(bundle.teamA?.offsides ?? 0) + Number(bundle.teamB?.offsides ?? 0),
     },
     passProfile: {
       A: { team: row.team_a_name, ...summarizePasses(passLog, 'A') },

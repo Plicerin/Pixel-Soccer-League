@@ -4,15 +4,25 @@ import {
   FIELD_D,
   FIELD_SCALE_PER_YARD,
   FIELD_W,
+  GOAL_BOX_DEPTH,
+  GOAL_BOX_HALF_Z,
+  GOAL_FLOOR_DEPTH,
   GOAL_MOUTH_HALF_Z,
   LEFT_GOAL_X,
+  LEFT_PENALTY_X,
+  PENALTY_HALF_Z,
+  PENALTY_SPOT_DIST,
   PLAYER_ACCELERATION,
+  PLAYER_RADIUS,
   RIGHT_GOAL_X,
+  RIGHT_PENALTY_X,
   SIMULATION_DT,
   clamp,
   dist2,
+  isInPenaltyArea,
   normalize2,
 } from "./constants";
+import { DEFAULT_AWAY_TEAM, DEFAULT_HOME_TEAM } from "../teamCatalog.js";
 import {
   advanceMatchState,
   createMatchStateMachine,
@@ -47,7 +57,14 @@ export type SimplePlayerStats = {
   shotsOnTarget: number;
   goals: number;
   saves: number;
+  headers: number;
+  headerShots: number;
+  headerClearances: number;
   tackles: number;
+  fouls: number;
+  fouled: number;
+  penaltiesTaken: number;
+  penaltiesScored: number;
   interceptions: number;
   distance: number;
   possessionSeconds: number;
@@ -78,15 +95,25 @@ type TeamStats = {
   shots: number;
   shotsOnTarget: number;
   saves: number;
+  headers: number;
+  headerShots: number;
+  headerClearances: number;
   passes: number;
   passesCompleted: number;
   tacklesWon: number;
   clearances: number;
   fouls: number;
   offsides: number;
+  penaltiesAwarded: number;
+  penaltiesTaken: number;
+  penaltiesScored: number;
+  penaltiesSaved: number;
+  penaltiesMissed: number;
+  penaltyXg: number;
   corners: number;
   throwIns: number;
   goalKicks: number;
+  freeKicks: number;
   gkDistributions: number;
   gkDistCompleted: number;
   possessionSeconds: number;
@@ -126,9 +153,26 @@ type BallFlightState = {
   from: Vec2;
   to: Vec2;
   followPlayerId?: string;
+  aerial?: boolean;
+  headerEligible?: boolean;
+  sourceAction?: string;
+  attackingTeam?: SimpleTeamCode;
+  passerId?: string;
+  passerName?: string;
+  receiverId?: string;
   elapsed: number;
   duration: number;
   arc: number;
+};
+
+type BallFlightOptions = {
+  aerial?: boolean;
+  headerEligible?: boolean;
+  sourceAction?: string;
+  attackingTeam?: SimpleTeamCode;
+  passerId?: string;
+  passerName?: string;
+  receiverId?: string;
 };
 
 type ShotResolutionContext = {
@@ -136,6 +180,8 @@ type ShotResolutionContext = {
   forceOnTarget?: boolean;
   forceGoal?: boolean;
   forceSave?: boolean;
+  forceWoodwork?: boolean;
+  forceWoodworkPart?: "crossbar" | "post";
   minGoalChance?: number;
   style?: string;
   details?: Record<string, unknown>;
@@ -155,8 +201,15 @@ type BallOutRestartContext = {
   spot: Vec2;
   lastTouchTeam: SimpleTeamCode | null;
   lastTouchPlayerId: string | null;
-  crossedLine: "left_goal_line" | "right_goal_line" | "top_touchline" | "bottom_touchline";
+  crossedLine: "left_goal_line" | "right_goal_line" | "top_touchline" | "bottom_touchline" | "infraction";
   takerId?: string;
+  fouledPlayerId?: string | null;
+};
+
+type VisibleBallOutPending = {
+  event: BallOutEvent;
+  context: BallOutRestartContext;
+  holdSeconds: number;
 };
 
 export type BallFlightTelemetry = {
@@ -177,6 +230,13 @@ export type BallFlightTelemetry = {
   to: Vec2;
   followPlayerId?: string;
   followPlayerName?: string;
+  aerial?: boolean;
+  headerEligible?: boolean;
+  sourceAction?: string;
+  attackingTeam?: SimpleTeamCode;
+  passerId?: string;
+  passerName?: string;
+  receiverId?: string;
 };
 
 export type VisualRealityEvent = {
@@ -193,11 +253,18 @@ export type VisualRealityEvent = {
   nearestPlayerGap?: number;
 };
 
-const DEFAULT_TEAM_A = "Inter Miami";
-const DEFAULT_TEAM_B = "LA Galaxy";
+const DEFAULT_TEAM_A = DEFAULT_HOME_TEAM;
+const DEFAULT_TEAM_B = DEFAULT_AWAY_TEAM;
 const KICKOFF_OWN_HALF_BUFFER = 2.4;
 const KICKOFF_SHAPE_RELEASE_SECONDS = 18;
 const KICKOFF_SHAPE_HOLD_SECONDS = 2.4;
+const BALL_HOLD_TIME_MULTIPLIER = 1.5;
+const VISIBLE_RECEPTION_HOLD_MIN_SECONDS = 1.5;
+const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
+const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
+const HEADER_MIN_ARC = 0.18;
+const HEADER_CONTEST_RADIUS = 3.2;
+const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
 
 function createStats(): SimplePlayerStats {
   return {
@@ -207,7 +274,14 @@ function createStats(): SimplePlayerStats {
     shotsOnTarget: 0,
     goals: 0,
     saves: 0,
+    headers: 0,
+    headerShots: 0,
+    headerClearances: 0,
     tackles: 0,
+    fouls: 0,
+    fouled: 0,
+    penaltiesTaken: 0,
+    penaltiesScored: 0,
     interceptions: 0,
     distance: 0,
     possessionSeconds: 0,
@@ -224,15 +298,25 @@ function makeTeamStats(name: string, formation: SimpleFormationName): TeamStats 
     shots: 0,
     shotsOnTarget: 0,
     saves: 0,
+    headers: 0,
+    headerShots: 0,
+    headerClearances: 0,
     passes: 0,
     passesCompleted: 0,
     tacklesWon: 0,
     clearances: 0,
     fouls: 0,
     offsides: 0,
+    penaltiesAwarded: 0,
+    penaltiesTaken: 0,
+    penaltiesScored: 0,
+    penaltiesSaved: 0,
+    penaltiesMissed: 0,
+    penaltyXg: 0,
     corners: 0,
     throwIns: 0,
     goalKicks: 0,
+    freeKicks: 0,
     gkDistributions: 0,
     gkDistCompleted: 0,
     possessionSeconds: 0,
@@ -302,6 +386,7 @@ export class SimpleMatchModel {
   readonly shotDecisions: Record<string, unknown>[] = [];
   readonly shotOpportunities: Record<string, unknown>[] = [];
   readonly passDecisions: Record<string, unknown>[] = [];
+  readonly headerLog: Record<string, unknown>[] = [];
   readonly shapeA: Record<string, unknown>[] = [];
   readonly shapeB: Record<string, unknown>[] = [];
   readonly goalLog: Record<string, unknown>[] = [];
@@ -316,6 +401,8 @@ export class SimpleMatchModel {
   teamB = makeTeamStats(DEFAULT_TEAM_B, "4-4-2");
   cpuVsCpu = false;
   seriesSpeedMul = 1;
+  runtimeHalfDuration = this.msm.clock.halfDuration;
+  matchClockScale = 1;
   restartDelayGoal = 2.0;
   restartDelayHalf = 3.0;
   weather = "SUNNY";
@@ -333,6 +420,7 @@ export class SimpleMatchModel {
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
+  private offsideTargetSelectionLockedUntil = 0;
   private lastStateKind = "pre_match";
   private shapeTimer = 0;
   private seedSalt = "";
@@ -348,6 +436,9 @@ export class SimpleMatchModel {
   private lastBallPos: Vec2 = { x: 0, z: 0 };
   private pendingBallOutEvent: BallOutEvent | null = null;
   private pendingBallOutContext: BallOutRestartContext | null = null;
+  private visibleBallOutPending: VisibleBallOutPending | null = null;
+  private goalNetSettleRemaining = 0;
+  private goalKickoffSetupInstalled = false;
   private restartContext: BallOutRestartContext | null = null;
 
   constructor() {
@@ -380,8 +471,10 @@ export class SimpleMatchModel {
   }
 
   setHalfDurationSeconds(seconds: number) {
-    const duration = Math.max(5, Number(seconds) || 150);
-    this.msm.clock.halfDuration = duration;
+    const runtimeDuration = Math.max(5, Number(seconds) || 150);
+    this.runtimeHalfDuration = runtimeDuration;
+    this.msm.clock.halfDuration = SIMULATED_HALF_DURATION_SECONDS;
+    this.matchClockScale = SIMULATED_HALF_DURATION_SECONDS / runtimeDuration;
   }
 
   setSeriesSpeedMul(value: number) {
@@ -399,8 +492,7 @@ export class SimpleMatchModel {
   }
 
   resetMatch() {
-    const halfDuration = this.msm.clock.halfDuration;
-    this.msm = createMatchStateMachine(halfDuration);
+    this.msm = createMatchStateMachine(this.msm.clock.halfDuration);
     this.teamA = makeTeamStats(this.teamA.name, this.teamA.formation);
     this.teamB = makeTeamStats(this.teamB.name, this.teamB.formation);
     this.ball = { pos: { x: 0, y: 0.18, z: 0 }, vel: { x: 0, z: 0 } };
@@ -413,6 +505,7 @@ export class SimpleMatchModel {
     this.keeperSeq = 0;
     this.passLoopSeq = 0;
     this.ballFlightSeq = 0;
+    this.offsideTargetSelectionLockedUntil = 0;
     this.lastCompletedPass = null;
     this.dribblePhase = 0;
     this.kickoffTeam = null;
@@ -424,6 +517,9 @@ export class SimpleMatchModel {
     this.lastBallPos = { x: 0, z: 0 };
     this.pendingBallOutEvent = null;
     this.pendingBallOutContext = null;
+    this.visibleBallOutPending = null;
+    this.goalNetSettleRemaining = 0;
+    this.goalKickoffSetupInstalled = false;
     this.restartContext = null;
     this.lastShotTelemetry = null;
     this.lastKeeperKickTelemetry = null;
@@ -434,6 +530,7 @@ export class SimpleMatchModel {
     this.shotDecisions.length = 0;
     this.shotOpportunities.length = 0;
     this.passDecisions.length = 0;
+    this.headerLog.length = 0;
     this.ballOutLog.length = 0;
     this.shapeA.length = 0;
     this.shapeB.length = 0;
@@ -483,26 +580,38 @@ export class SimpleMatchModel {
       shotsOnTargetB: effectiveB.shotsOnTarget,
       savesA: this.teamA.saves,
       savesB: this.teamB.saves,
-      headersA: 0,
-      headersB: 0,
+      headersA: this.teamA.headers,
+      headersB: this.teamB.headers,
       passesA: this.teamA.passes,
       passesB: this.teamB.passes,
       passesCompletedA: this.teamA.passesCompleted,
       passesCompletedB: this.teamB.passesCompleted,
-      foulsA: 0,
-      foulsB: 0,
+      foulsA: this.teamA.fouls,
+      foulsB: this.teamB.fouls,
       offsidesA: this.teamA.offsides,
       offsidesB: this.teamB.offsides,
+      penaltiesAwardedA: this.teamA.penaltiesAwarded,
+      penaltiesAwardedB: this.teamB.penaltiesAwarded,
+      penaltiesScoredA: this.teamA.penaltiesScored,
+      penaltiesScoredB: this.teamB.penaltiesScored,
+      penaltiesSavedA: this.teamA.penaltiesSaved,
+      penaltiesSavedB: this.teamB.penaltiesSaved,
+      penaltiesMissedA: this.teamA.penaltiesMissed,
+      penaltiesMissedB: this.teamB.penaltiesMissed,
+      penaltyXgA: +this.teamA.penaltyXg.toFixed(2),
+      penaltyXgB: +this.teamB.penaltyXg.toFixed(2),
       cornersA: this.teamA.corners,
       cornersB: this.teamB.corners,
       throwInsA: this.teamA.throwIns,
       throwInsB: this.teamB.throwIns,
       goalKicksA: this.teamA.goalKicks,
       goalKicksB: this.teamB.goalKicks,
+      freeKicksA: this.teamA.freeKicks,
+      freeKicksB: this.teamB.freeKicks,
       tacklesWonA: this.teamA.tacklesWon,
       tacklesWonB: this.teamB.tacklesWon,
-      clearancesA: 0,
-      clearancesB: 0,
+      clearancesA: this.teamA.clearances,
+      clearancesB: this.teamB.clearances,
       possessionA: possession.A,
       possessionB: possession.B,
       gkDistributionsA: this.teamA.gkDistributions,
@@ -519,6 +628,8 @@ export class SimpleMatchModel {
       half: this.msm.clock.half,
       elapsedInHalf: this.msm.clock.elapsedInHalf,
       halfDuration: this.msm.clock.halfDuration,
+      runtimeHalfDuration: this.runtimeHalfDuration,
+      matchClockScale: this.matchClockScale,
       teamAName: this.teamA.name,
       teamBName: this.teamB.name,
       teamAFormation: this.teamA.formation,
@@ -548,12 +659,15 @@ export class SimpleMatchModel {
       half: this.msm.clock.half,
       elapsedInHalf: this.msm.clock.elapsedInHalf,
       halfDuration: this.msm.clock.halfDuration,
+      runtimeHalfDuration: this.runtimeHalfDuration,
+      matchClockScale: this.matchClockScale,
       isLive: this.msm.state.kind === "live_play",
       score: { a: this.msm.score.home, b: this.msm.score.away },
       eventLog: this.eventLog.slice(-80),
       shotDecisions: this.shotDecisions.slice(-80),
       shotOpportunities: this.shotOpportunities.slice(-80),
       passDecisions: this.passDecisions.slice(-80),
+      headerLog: this.headerLog.slice(-80),
       possessionDirector: {
         active: this.msm.state.kind === "live_play",
         team: this.possession?.team || "",
@@ -577,6 +691,7 @@ export class SimpleMatchModel {
       teamB: this.bundleTeam("B"),
       events: this.events.slice(-2000),
       passLog: this.passLog.slice(-2000),
+      headerLog: this.headerLog.slice(-1000),
       ballFlightTelemetry: this.ballFlightTelemetry.slice(-2000),
       visualRealityEvents: this.visualRealityEvents.slice(-1000),
       shapeA: this.shapeA.slice(-600),
@@ -591,15 +706,18 @@ export class SimpleMatchModel {
       possessionDirector: this.getLiveTelemetry().possessionDirector,
       tuning: {
         model: "simple-v1",
-        disabledRules: ["fouls"],
+        disabledRules: [],
       },
       telemetry: {
-        disabledMetrics: ["fouls"],
+        disabledMetrics: [],
       },
       metadata: {
         model: "simple-v1",
         sessionId: `simple-${Date.now()}`,
         halfDuration: this.msm.clock.halfDuration,
+        runtimeHalfDuration: this.runtimeHalfDuration,
+        matchClockScale: this.matchClockScale,
+        simulatedHalfDuration: this.msm.clock.halfDuration,
         generatedAt: Date.now(),
       },
     };
@@ -616,12 +734,22 @@ export class SimpleMatchModel {
 
   private stepFixed(dt: number) {
     const prevKind = this.msm.state.kind;
+    const clockDt = dt * this.matchClockScale;
     let goalEvent: GoalEvent | null = null;
     this.pendingBallOutEvent = null;
     this.pendingBallOutContext = null;
+    if (this.msm.state.kind === "ball_out" && this.restartContext?.restartType === "goal_kick" && !this.isGoalKickSetupReady(this.restartContext)) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
+    if (this.msm.state.kind === "ball_out" && this.restartContext?.restartType === "penalty" && !this.isPenaltySetupReady(this.restartContext)) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
+    if (this.msm.state.kind === "goal_scored" && this.goalNetVisualPending()) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
     const halfLimit = this.msm.clock.halfDuration + this.msm.clock.stoppageTime;
     if (this.msm.state.kind === "live_play" && this.msm.clock.elapsedInHalf < halfLimit) {
-      if (this.shouldForceFinalNoShotAttempt(dt)) {
+      if (this.shouldForceFinalNoShotAttempt(clockDt)) {
         goalEvent = this.forceNoShotAttempt("NO_SHOT_FINAL_WHISTLE");
       } else {
         goalEvent = this.playLiveTick(dt);
@@ -629,7 +757,7 @@ export class SimpleMatchModel {
     }
 
     if (this.msm.state.kind === "kickoff" && this.kickoffSetupMoving && !this.isKickoffSetupReady()) {
-      this.msm.clock.elapsedInHalf += dt;
+      this.msm.clock.elapsedInHalf += clockDt;
       this.elapsedTotal += dt;
       this.kickoffShapeReleaseRemaining = Math.max(0, this.kickoffShapeReleaseRemaining - dt);
       this.movePlayers(dt);
@@ -643,19 +771,24 @@ export class SimpleMatchModel {
 
     const ballOutEvent = goalEvent ? null : this.pendingBallOutEvent;
     const ballOutContext = goalEvent ? null : this.pendingBallOutContext;
-    this.msm = advanceMatchState(this.msm, dt, ballOutEvent, goalEvent);
+    this.msm = advanceMatchState(this.msm, dt, ballOutEvent, goalEvent, clockDt);
     this.elapsedTotal += dt;
     this.kickoffShapeReleaseRemaining = Math.max(0, this.kickoffShapeReleaseRemaining - dt);
 
     if (this.msm.state.kind === "ball_out") {
-      if (prevKind !== "ball_out") this.installBallOutRestart(ballOutContext);
+      if (prevKind !== "ball_out" && !this.restartContext) this.installBallOutRestart(ballOutContext);
       this.moveRestartPlayers(dt);
     } else if (this.msm.state.kind === "goal_scored") {
       this.msm.restartTimer = Math.min(this.msm.restartTimer, this.restartDelayGoal);
-      if (prevKind !== "goal_scored") {
+      const goalVisualComplete = this.updateGoalScoredBall(dt);
+      if (!goalVisualComplete) {
+        this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+      }
+      if (!this.goalKickoffSetupInstalled && goalVisualComplete) {
         const scoringTeam = (this.msm.state as { kind: "goal_scored"; scoringTeam: TeamSide }).scoringTeam;
         const restartTeam: SimpleTeamCode = scoringTeam === "home" ? "B" : "A";
         this.installKickoffSetup(restartTeam);
+        this.goalKickoffSetupInstalled = true;
       }
       if (this.kickoffSetupMoving) {
         this.movePlayers(dt);
@@ -690,26 +823,33 @@ export class SimpleMatchModel {
       this.addLiveEvent("", "HALF", "halftime");
     }
     if (this.msm.state.kind === "full_time" && prevKind !== "full_time") {
+      if (this.totalShots() === 0) this.forceNoShotAttempt("NO_SHOT_FULL_TIME_FALLBACK");
       this.addLiveEvent("", "FULL", `${this.teamA.name} ${this.msm.score.home}-${this.msm.score.away} ${this.teamB.name}`);
     }
     this.lastStateKind = this.msm.state.kind;
   }
 
   private playLiveTick(dt: number): GoalEvent | null {
-    if (!this.possession) this.claimLooseBallPossession("A");
+    if (this.visibleBallOutPending) {
+      this.visibleBallOutPending.holdSeconds -= dt;
+      this.ball.vel = { x: 0, z: 0 };
+      this.ball.pos.y = this.ballGroundY();
+      if (this.visibleBallOutPending.holdSeconds <= 0) {
+        this.pendingBallOutEvent = this.visibleBallOutPending.event;
+        this.pendingBallOutContext = this.visibleBallOutPending.context;
+        this.visibleBallOutPending = null;
+      }
+      return null;
+    }
+    if (!this.possession && !this.ballFlight) this.claimLooseBallPossession("A");
     if (this.possession) {
       this.rememberTouch(this.possession);
       this.team(this.possession.team).possessionSeconds += dt;
       this.possession.stats.possessionSeconds += dt;
-      if (!this.ballFlight) {
-        this.lastBallPos = { x: this.ball.pos.x, z: this.ball.pos.z };
-        this.ball.pos.x = this.possession.pos.x;
-        this.ball.pos.y = 0.18;
-        this.ball.pos.z = this.possession.pos.z;
-      }
     }
     this.updateTargets();
     this.movePlayers(dt);
+    if (this.possession && !this.ballFlight) this.updateControlledBall(dt, this.possession);
     this.shapeTimer += dt;
     if (this.shapeTimer >= 1) {
       this.shapeTimer = 0;
@@ -719,6 +859,7 @@ export class SimpleMatchModel {
       this.actionTimer = Math.max(0, this.actionTimer - dt);
       this.updateBallFlight(dt);
       this.detectAndStageBallOut();
+      if (!this.ballFlight && this.possession) this.updateControlledBall(dt, this.possession);
       return null;
     }
 
@@ -738,6 +879,13 @@ export class SimpleMatchModel {
     this.actionTimer -= dt;
     if (this.actionTimer > 0) return null;
     this.actionTimer = this.nextActionDelay();
+
+    if (carrier.role === "GK") {
+      this.executeKeeperDropKick(carrier, pressure);
+      return null;
+    }
+
+    if (this.resolvePressureDuel(carrier, pressure)) return null;
 
     if (urgentGoalmouth) {
       const keeper = this.players.find((p) => p.team === otherTeam(carrier.team) && p.role === "GK");
@@ -770,8 +918,7 @@ export class SimpleMatchModel {
           recoveryChance,
         });
         this.possession = keeper;
-        this.team(keeper.team).tacklesWon += 1;
-        keeper.stats.tackles += 1;
+        this.recordTackle(keeper, carrier, pressure, "GOAL_LINE_RECOVERY");
         this.startBallFlight("interception", { x: carrier.pos.x, z: carrier.pos.z }, keeper.pos, this.flightDuration(0.38), 0.35, keeper);
         this.addLiveEvent(keeper.team, "SMOTHER", `${keeper.label} recovered`);
         this.recordEvent("KEEPER_SMOTHER", keeper.team, keeper, {
@@ -811,8 +958,7 @@ export class SimpleMatchModel {
             smotherChance,
           });
           this.possession = keeper;
-          this.team(keeper.team).tacklesWon += 1;
-          keeper.stats.tackles += 1;
+          this.recordTackle(keeper, carrier, pressure, "KEEPER_SMOTHER");
           this.startBallFlight("interception", { x: carrier.pos.x, z: carrier.pos.z }, keeper.pos, this.flightDuration(0.38), 0.35, keeper);
           this.addLiveEvent(keeper.team, "SMOTHER", `${keeper.label} smothered`);
           this.recordEvent("KEEPER_SMOTHER", keeper.team, keeper, {
@@ -879,6 +1025,36 @@ export class SimpleMatchModel {
       phase: this.zoneForDist(distToGoal),
     });
 
+    const inAttackingPenaltyArea = this.isInAttackingPenaltyArea(carrier);
+    if (inAttackingPenaltyArea) {
+      const penaltyShotChance = this.penaltyAreaShotChance(carrier, distToGoal, pressure);
+      const penaltyShotRoll = this.rng.next();
+      if (penaltyShotChance > penaltyShotRoll) {
+        this.recordShotOpportunity(carrier, distToGoal, pressure, penaltyShotChance, "penalty_area_shot", {
+          roll: penaltyShotRoll,
+          forwardX,
+          inAttackingPenaltyArea,
+          reason: "PENALTY_AREA_SHOT",
+        });
+        return this.resolveShot(carrier, distToGoal, pressure, {
+          reason: "PENALTY_AREA_SHOT",
+          style: pressure > 1.1 ? "first_time" : "driven",
+          details: {
+            inAttackingPenaltyArea,
+            shotSelectionType: "penalty_area_shot",
+            forwardX,
+          },
+        });
+      }
+      this.recordShotOpportunity(carrier, distToGoal, pressure, penaltyShotChance, "penalty_area_pass", {
+        roll: penaltyShotRoll,
+        forwardX,
+        inAttackingPenaltyArea,
+      });
+      this.resolvePass(carrier, pressure);
+      return null;
+    }
+
     const distanceShotChance = this.distanceShotChance(carrier, distToGoal, pressure, forwardX);
     const distanceShotRoll = this.rng.next();
     if (distanceShotChance > distanceShotRoll) {
@@ -908,7 +1084,7 @@ export class SimpleMatchModel {
       return this.resolveShot(carrier, distToGoal, pressure);
     }
 
-    const shouldPass = pressure > 0.8 || forwardX < 10 || this.rng.next() < 0.98;
+    const shouldPass = pressure > 0.8 || forwardX < 10 || this.rng.next() < 0.995;
     if (shouldPass) {
       this.recordShotOpportunity(carrier, distToGoal, pressure, shootUrge, "pass", {
         roll: shootRoll,
@@ -933,19 +1109,59 @@ export class SimpleMatchModel {
       return;
     }
     if (this.ballFlight) return;
-    if (this.possession) {
-      this.dribblePhase += dt * 9;
-      const goal = goalCenterForAttack(this.attackSign(this.possession.team));
-      const forward = normalize2({ x: goal.x - this.possession.pos.x, z: goal.z - this.possession.pos.z });
-      const lateral = { x: -forward.z, z: forward.x };
-      const touch = Math.sin(this.dribblePhase);
-      const lead = 0.92 + Math.max(0, touch) * 0.38;
-      const side = Math.sin(this.dribblePhase * 0.5 + this.possession.shirtNumber) * 0.28;
-      this.ball.pos.x = this.possession.pos.x + forward.x * lead + lateral.x * side;
-      this.ball.pos.y = 0.14 + Math.max(0, touch) * 0.12;
-      this.ball.pos.z = this.possession.pos.z + forward.z * lead + lateral.z * side;
+    if (this.possession && this.msm.state.kind === "live_play") {
       this.auditCarrierBallGap(this.possession);
     }
+  }
+
+  private updateControlledBall(dt: number, carrier: SimplePlayer) {
+    this.dribblePhase += dt * 9;
+    const previous = { x: this.ball.pos.x, z: this.ball.pos.z };
+    this.lastBallPos = previous;
+    const target = this.controlledBallTarget(carrier);
+    const dx = target.x - this.ball.pos.x;
+    const dz = target.z - this.ball.pos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+    const carrierSpeed = Math.sqrt(carrier.vel.x * carrier.vel.x + carrier.vel.z * carrier.vel.z);
+    const maxStep = Math.max(0.04, (BASE_RUN_SPEED * 1.9 + carrierSpeed * 0.55) * dt);
+    if (distance <= maxStep || distance < 0.001) {
+      this.ball.pos.x = target.x;
+      this.ball.pos.z = target.z;
+    } else {
+      this.ball.pos.x += (dx / distance) * maxStep;
+      this.ball.pos.z += (dz / distance) * maxStep;
+    }
+    const gapToCarrier = dist2(this.ball.pos, carrier.pos);
+    const maxLeash = 1.85;
+    if (gapToCarrier > maxLeash) {
+      const away = normalize2({ x: this.ball.pos.x - carrier.pos.x, z: this.ball.pos.z - carrier.pos.z });
+      this.ball.pos.x = carrier.pos.x + away.x * maxLeash;
+      this.ball.pos.z = carrier.pos.z + away.z * maxLeash;
+    }
+    this.ball.pos.y += (target.y - this.ball.pos.y) * clamp(dt * 12, 0, 1);
+    this.ball.vel = {
+      x: dt > 0 ? (this.ball.pos.x - previous.x) / dt : 0,
+      z: dt > 0 ? (this.ball.pos.z - previous.z) / dt : 0,
+    };
+    this.auditCarrierBallGap(carrier);
+  }
+
+  private controlledBallTarget(carrier: SimplePlayer) {
+    const goal = goalCenterForAttack(this.attackSign(carrier.team));
+    const forward = normalize2({ x: goal.x - carrier.pos.x, z: goal.z - carrier.pos.z });
+    const lateral = { x: -forward.z, z: forward.x };
+    const touch = Math.sin(this.dribblePhase);
+    const lead = 0.82 + Math.max(0, touch) * 0.34;
+    const side = Math.sin(this.dribblePhase * 0.5 + carrier.shirtNumber) * 0.26;
+    const target = clampToPlayable({
+      x: carrier.pos.x + forward.x * lead + lateral.x * side,
+      z: carrier.pos.z + forward.z * lead + lateral.z * side,
+    });
+    return {
+      x: target.x,
+      y: 0.14 + Math.max(0, touch) * 0.12,
+      z: target.z,
+    };
   }
 
   private updateBallFlight(dt: number) {
@@ -954,10 +1170,6 @@ export class SimpleMatchModel {
     const prev = { x: this.ball.pos.x, z: this.ball.pos.z };
     this.lastBallPos = prev;
     flight.elapsed += Math.max(0, dt);
-    if (flight.followPlayerId) {
-      const receiver = this.players.find((player) => player.id === flight.followPlayerId);
-      if (receiver) flight.to = { x: receiver.pos.x, z: receiver.pos.z };
-    }
     const t = clamp(flight.elapsed / Math.max(0.001, flight.duration), 0, 1);
     this.ball.pos.x = flight.from.x + (flight.to.x - flight.from.x) * t;
     this.ball.pos.z = flight.from.z + (flight.to.z - flight.from.z) * t;
@@ -967,6 +1179,7 @@ export class SimpleMatchModel {
       z: dt > 0 ? (this.ball.pos.z - prev.z) / dt : 0,
     };
     if (t >= 1) {
+      if (this.resolveAerialHeaderOnArrival(flight)) return;
       this.ball.pos.x = flight.to.x;
       this.ball.pos.y = this.ballGroundY();
       this.ball.pos.z = flight.to.z;
@@ -977,17 +1190,198 @@ export class SimpleMatchModel {
     }
   }
 
+  private resolveAerialHeaderOnArrival(flight: BallFlightState) {
+    if (!flight.headerEligible || flight.sourceAction === "header_clearance") return false;
+    if (flight.kind !== "restart" && flight.arc < HEADER_MIN_ARC) return false;
+    const attackingTeam = flight.attackingTeam
+      || this.players.find((player) => player.id === flight.followPlayerId)?.team
+      || null;
+    if (!attackingTeam) return false;
+    const contact = { x: flight.to.x, z: flight.to.z };
+    const defendingTeam = otherTeam(attackingTeam);
+    const receiver = flight.followPlayerId ? this.players.find((player) => player.id === flight.followPlayerId) || null : null;
+    const attacker = receiver?.team === attackingTeam
+      ? receiver
+      : this.nearestTeamPlayer(attackingTeam, contact);
+    const defender = this.nearestTeamPlayer(defendingTeam, contact);
+    const attackerGap = attacker ? dist2(attacker.pos, contact) : Infinity;
+    const defenderGap = defender ? dist2(defender.pos, contact) : Infinity;
+    const attackerCanHead = !!attacker
+      && attacker.role !== "GK"
+      && attackerGap <= HEADER_CONTEST_RADIUS
+      && this.isHeaderShotZone(attacker.team, contact);
+    const defenderCanHead = !!defender
+      && defender.role !== "GK"
+      && defenderGap <= HEADER_CONTEST_RADIUS
+      && this.isDefensiveHeaderZone(defender.team, contact);
+
+    if (defender && defenderCanHead && (!attackerCanHead || defenderGap + 0.25 < attackerGap || this.rng.next() < 0.42)) {
+      this.performHeaderClearance(defender, flight, contact, defenderGap);
+      return true;
+    }
+    if (attacker && attackerCanHead) {
+      const sourceBonus = flight.sourceAction === "corner" ? 0.18 : flight.sourceAction === "throw_in" ? 0.04 : 0;
+      const shotChance = clamp(0.52 + sourceBonus + attacker.ratings.shooting * 0.12 - attackerGap * 0.06, 0.34, 0.82);
+      if (this.rng.next() < shotChance) {
+        this.performHeaderShot(attacker, flight, contact, attackerGap);
+        return true;
+      }
+    }
+    if (defender && defenderCanHead && this.rng.next() < 0.65) {
+      this.performHeaderClearance(defender, flight, contact, defenderGap);
+      return true;
+    }
+    return false;
+  }
+
+  private isHeaderShotZone(team: SimpleTeamCode, pos: Vec2) {
+    const goal = goalCenterForAttack(this.attackSign(team));
+    return dist2(pos, goal) <= 15 && Math.abs(pos.z) <= PENALTY_HALF_Z + 2.5;
+  }
+
+  private isDefensiveHeaderZone(team: SimpleTeamCode, pos: Vec2) {
+    const ownGoal = goalCenterForAttack((-this.attackSign(team)) as 1 | -1);
+    return dist2(pos, ownGoal) <= 19 && Math.abs(pos.z) <= PENALTY_HALF_Z + 3.0;
+  }
+
+  private performHeaderShot(player: SimplePlayer, flight: BallFlightState, contact: Vec2, contactGap: number) {
+    this.ballFlight = null;
+    this.possession = player;
+    this.rememberTouch(player);
+    this.ball.pos.x = contact.x;
+    this.ball.pos.y = this.ballGroundY() + Math.max(0.72, Math.min(1.05, flight.arc));
+    this.ball.pos.z = contact.z;
+    this.recordHeader(player, "shot", flight, contact, contactGap);
+    this.addLiveEvent(player.team, "HEADER_SHOT", `${player.label} header`, {
+      playerId: player.id,
+      playerName: player.name,
+      sourceAction: flight.sourceAction,
+      contactPoint: { x: +contact.x.toFixed(2), z: +contact.z.toFixed(2) },
+      ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
+    });
+    const distToGoal = dist2(contact, goalCenterForAttack(this.attackSign(player.team)));
+    const pressure = this.pressureOn(player);
+    this.resolveShot(player, distToGoal, pressure, {
+      reason: "HEADER_SHOT",
+      style: "HEADER",
+      minGoalChance: 0.08,
+      details: {
+        header: true,
+        sourceAction: flight.sourceAction,
+        ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
+        contactGap: +contactGap.toFixed(2),
+      },
+    });
+  }
+
+  private performHeaderClearance(player: SimplePlayer, flight: BallFlightState, contact: Vec2, contactGap: number) {
+    this.ballFlight = null;
+    this.possession = null;
+    this.lastCompletedPass = null;
+    this.rememberTouch(player);
+    const stats = this.team(player.team);
+    stats.clearances += 1;
+    player.stats.touches += 1;
+    this.recordHeader(player, "clearance", flight, contact, contactGap);
+    this.addLiveEvent(player.team, "HEADER_CLEARANCE", `${player.label} cleared`, {
+      playerId: player.id,
+      playerName: player.name,
+      sourceAction: flight.sourceAction,
+      contactPoint: { x: +contact.x.toFixed(2), z: +contact.z.toFixed(2) },
+      ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
+    });
+    this.recordEvent("CLEARANCE", player.team, player, {
+      style: "HEADER",
+      sourceAction: flight.sourceAction,
+      contactGap: +contactGap.toFixed(2),
+      x: +contact.x.toFixed(2),
+      z: +contact.z.toFixed(2),
+    });
+    const attackSign = this.attackSign(player.team);
+    const target = clampToPlayable({
+      x: contact.x + attackSign * this.rng.range(16, 27),
+      z: contact.z + this.rng.range(-10, 10),
+    });
+    this.ball.pos.x = contact.x;
+    this.ball.pos.y = this.ballGroundY() + Math.max(0.72, Math.min(1.05, flight.arc));
+    this.ball.pos.z = contact.z;
+    this.startBallFlight("pass", contact, target, this.flightDuration(0.9), 0.55, undefined, {
+      aerial: true,
+      headerEligible: false,
+      sourceAction: "header_clearance",
+      attackingTeam: player.team,
+      passerId: player.id,
+      passerName: player.name,
+    });
+    this.actionTimer = Math.max(this.actionTimer, 0.45);
+  }
+
+  private recordHeader(player: SimplePlayer, type: "shot" | "clearance", flight: BallFlightState, contact: Vec2, contactGap: number) {
+    const stats = this.team(player.team);
+    stats.headers += 1;
+    player.stats.headers += 1;
+    if (type === "shot") {
+      stats.headerShots += 1;
+      player.stats.headerShots += 1;
+    } else {
+      stats.headerClearances += 1;
+      player.stats.headerClearances += 1;
+    }
+    const row = {
+      seq: this.headerLog.length + 1,
+      type,
+      team: player.team,
+      playerId: player.id,
+      playerName: player.name,
+      role: player.role,
+      sourceAction: flight.sourceAction || flight.kind,
+      minute: getMatchMinute(this.msm),
+      half: this.msm.clock.half,
+      elapsedInHalf: +this.msm.clock.elapsedInHalf.toFixed(2),
+      ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
+      contactGap: +contactGap.toFixed(2),
+      x: +contact.x.toFixed(2),
+      z: +contact.z.toFixed(2),
+    };
+    this.headerLog.push(row);
+    if (this.headerLog.length > 1000) this.headerLog.shift();
+    this.recordEvent(type === "shot" ? "HEADER_SHOT" : "HEADER_CLEARANCE", player.team, player, row);
+  }
+
+  private goalNetVisualPending() {
+    return !!this.ballFlight || this.goalNetSettleRemaining > 0;
+  }
+
+  private updateGoalScoredBall(dt: number) {
+    const hadFlight = !!this.ballFlight;
+    if (this.ballFlight) this.updateBallFlight(dt);
+    if (hadFlight && !this.ballFlight) {
+      this.goalNetSettleRemaining = Math.max(this.goalNetSettleRemaining, 1.5);
+    }
+    if (!this.ballFlight && this.goalNetSettleRemaining > 0) {
+      this.goalNetSettleRemaining = Math.max(0, this.goalNetSettleRemaining - dt);
+      this.ball.vel = { x: 0, z: 0 };
+      this.ball.pos.y = this.ballGroundY();
+    }
+    return !this.ballFlight && this.goalNetSettleRemaining <= 0;
+  }
+
   private updateTargets() {
     for (const player of this.players) {
       const attackSign = this.attackSign(player.team);
       const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
+      const receivingFlight = this.ballFlight?.followPlayerId === player.id;
       let target = { ...player.homePos };
       if (this.possession?.id === player.id) {
-        const goal = goalCenterForAttack(attackSign);
-        const dir = normalize2({ x: goal.x - player.pos.x, z: goal.z - player.pos.z });
-        const lane = Math.sin(this.elapsedTotal * 0.8 + player.shirtNumber) * 1.8;
-        const expansion = this.attackExpansionScale();
-        target = { x: player.pos.x + dir.x * 8 * expansion, z: player.pos.z + dir.z * 5 * Math.min(expansion, 1.6) + lane };
+        if (receivingFlight && this.ballFlight) {
+          target = { ...this.ballFlight.to };
+        } else {
+          const goal = goalCenterForAttack(attackSign);
+          const dir = normalize2({ x: goal.x - player.pos.x, z: goal.z - player.pos.z });
+          const lane = Math.sin(this.elapsedTotal * 0.8 + player.shirtNumber) * 1.8;
+          const expansion = this.attackExpansionScale();
+          target = { x: player.pos.x + dir.x * 8 * expansion, z: player.pos.z + dir.z * 5 * Math.min(expansion, 1.6) + lane };
+        }
       } else if (this.possession?.team === player.team) {
         const push = player.role === "ST" || player.role === "W" || player.role === "AM" ? 7 : 3;
         const expansion = this.attackExpansionScale();
@@ -1006,7 +1400,7 @@ export class SimpleMatchModel {
           };
         }
       }
-      if (player.role === "GK") {
+      if (player.role === "GK" && !receivingFlight) {
         const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + 2.4 : RIGHT_GOAL_X - 2.4;
         target = { x: ownGoalX, z: clamp(ball.z * 0.25, -4, 4) };
         if (this.possession && this.possession.team !== player.team) {
@@ -1041,6 +1435,7 @@ export class SimpleMatchModel {
   }
 
   private movePlayers(dt: number) {
+    const tickStart = new Map(this.players.map((player) => [player.id, { x: player.pos.x, z: player.pos.z }]));
     for (const player of this.players) {
       const target = player.targetPos;
       const dx = target.x - player.pos.x;
@@ -1072,6 +1467,86 @@ export class SimpleMatchModel {
       player.vel = { x: (player.pos.x - oldX) / dt, z: (player.pos.z - oldZ) / dt };
       player.stats.distance += Math.sqrt((player.pos.x - oldX) ** 2 + (player.pos.z - oldZ) ** 2);
     }
+    const skipCap = this.playersNeedImmediateOverlapRecovery();
+    this.resolvePlayerCollisions();
+    if (!skipCap) this.capTickPlayerDisplacements(tickStart, dt);
+  }
+
+  private playersNeedImmediateOverlapRecovery() {
+    const recoveryDistanceSq = 0.05 * 0.05;
+    for (let i = 0; i < this.players.length; i++) {
+      const a = this.players[i];
+      for (let j = i + 1; j < this.players.length; j++) {
+        const b = this.players[j];
+        const dx = b.pos.x - a.pos.x;
+        const dz = b.pos.z - a.pos.z;
+        const aParked = dist2(a.pos, a.targetPos) < 0.001;
+        const bParked = dist2(b.pos, b.targetPos) < 0.001;
+        if (aParked && bParked && dx * dx + dz * dz < recoveryDistanceSq) return true;
+      }
+    }
+    return false;
+  }
+
+  private capTickPlayerDisplacements(startPositions: Map<string, Vec2>, dt: number) {
+    const maxVisualStep = BASE_RUN_SPEED * 0.93 * Math.max(0, dt);
+    for (const player of this.players) {
+      const start = startPositions.get(player.id);
+      if (!start) continue;
+      const dx = player.pos.x - start.x;
+      const dz = player.pos.z - start.z;
+      const moved = Math.hypot(dx, dz);
+      if (moved <= maxVisualStep || moved <= 0.0001) continue;
+      const scale = maxVisualStep / moved;
+      player.pos.x = start.x + dx * scale;
+      player.pos.z = start.z + dz * scale;
+      player.vel = { x: (player.pos.x - start.x) / dt, z: (player.pos.z - start.z) / dt };
+    }
+  }
+
+  private resolvePlayerCollisions() {
+    const minDistance = PLAYER_MIN_SEPARATION;
+    const minDistanceSq = minDistance * minDistance;
+    for (let iteration = 0; iteration < 4; iteration++) {
+      let corrected = false;
+      for (let i = 0; i < this.players.length; i++) {
+        const a = this.players[i];
+        for (let j = i + 1; j < this.players.length; j++) {
+          const b = this.players[j];
+          const dx = b.pos.x - a.pos.x;
+          const dz = b.pos.z - a.pos.z;
+          const distanceSq = dx * dx + dz * dz;
+          if (distanceSq >= minDistanceSq) continue;
+
+          const distance = Math.sqrt(distanceSq);
+          let nx = 1;
+          let nz = 0;
+          if (distance > 0.0001) {
+            nx = dx / distance;
+            nz = dz / distance;
+          } else {
+            const angle = ((i + 1) * 2.399963 + (j + 1) * 0.917) % (Math.PI * 2);
+            nx = Math.cos(angle);
+            nz = Math.sin(angle);
+          }
+
+          const push = (minDistance - distance) * 0.5;
+          a.pos.x -= nx * push;
+          a.pos.z -= nz * push;
+          b.pos.x += nx * push;
+          b.pos.z += nz * push;
+
+          const clampedA = clampToPlayable(a.pos);
+          const clampedB = clampToPlayable(b.pos);
+          a.pos.x = clampedA.x;
+          a.pos.z = clampedA.z;
+          b.pos.x = clampedB.x;
+          b.pos.z = clampedB.z;
+          corrected = true;
+        }
+      }
+      if (!corrected) return;
+    }
   }
 
   private resolvePass(carrier: SimplePlayer, pressure: number) {
@@ -1084,7 +1559,7 @@ export class SimpleMatchModel {
     const separation = this.nearestDefenderDistance(target, otherTeam(carrier.team));
     const offside = this.offsideInfraction(carrier, target, origin);
     if (offside) {
-      this.resolveOffside(carrier, target, offside);
+      this.resolveOffside(carrier, target, offside, origin);
       return;
     }
     const completionChance = clamp(
@@ -1095,13 +1570,19 @@ export class SimpleMatchModel {
         + separation * 0.018
         - Math.max(0, progress) * 0.003,
       0.34,
-      0.88,
+      0.84,
     );
     const complete = this.rng.next() < completionChance;
     const stats = this.team(carrier.team);
     stats.passes += 1;
     carrier.stats.passes += 1;
     carrier.stats.touches += 1;
+    const passStyle = progress > 3 ? "FORWARD" : progress < -2 ? "BACK" : "LATERAL";
+    const targetDistToGoal = dist2(target.pos, goalCenterForAttack(this.attackSign(carrier.team)));
+    const aerialDelivery = passStyle === "FORWARD"
+      && distance / FIELD_SCALE_PER_YARD >= 24
+      && progress >= 7
+      && targetDistToGoal <= 16;
     const decision = {
       team: carrier.team,
       passer: carrier.name,
@@ -1117,7 +1598,8 @@ export class SimpleMatchModel {
       closePressure: +pressure.toFixed(2),
       completionChance: +completionChance.toFixed(2),
       shouldPass: true,
-      passStyle: progress > 3 ? "FORWARD" : progress < -2 ? "BACK" : "LATERAL",
+      passStyle,
+      aerialDelivery,
       carrierZone: this.zoneForDist(dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team)))),
       completed: complete,
     };
@@ -1129,7 +1611,16 @@ export class SimpleMatchModel {
       target.stats.touches += 1;
       this.possession = target;
       this.rememberTouch(target);
-      this.startBallFlight("pass", origin, target.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), 0.75, target);
+      const flightSeconds = this.startBallFlight("pass", origin, target.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), aerialDelivery ? 0.75 : 0.32, target, {
+        aerial: aerialDelivery,
+        headerEligible: aerialDelivery,
+        sourceAction: aerialDelivery ? "lofted_pass" : "pass",
+        attackingTeam: carrier.team,
+        passerId: carrier.id,
+        passerName: carrier.name,
+        receiverId: target.id,
+      });
+      this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
       this.rememberCompletedPass(carrier, target);
       this.addLiveEvent(carrier.team, "PASS", `${carrier.label} to ${target.label}`);
       const event = this.recordEvent("PASS", carrier.team, carrier, {
@@ -1181,10 +1672,15 @@ export class SimpleMatchModel {
     this.lastCompletedPass = null;
     if (this.possession) {
       this.rememberTouch(this.possession);
-      this.team(this.possession.team).tacklesWon += 1;
       this.possession.stats.interceptions += 1;
       this.possession.stats.touches += 1;
-      this.startBallFlight("interception", origin, this.possession.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.3)), 0.65, this.possession);
+      const flightSeconds = this.startBallFlight("interception", origin, this.possession.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.3)), 0.65, this.possession);
+      this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
+      this.recordEvent("INTERCEPTION", this.possession.team, this.possession, {
+        passer: carrier.name,
+        intendedTarget: target.name,
+        completionChance,
+      });
     }
     this.addLiveEvent(otherTeam(carrier.team), "TURNOVER", `${target.label} pass cut out`);
     const event = this.recordEvent("TURNOVER", otherTeam(carrier.team), this.possession || carrier, {
@@ -1194,6 +1690,139 @@ export class SimpleMatchModel {
       completionChance,
     });
     this.passLog.push(event);
+  }
+
+  private executeKeeperDropKick(keeper: SimplePlayer, pressure: number) {
+    const origin = { x: this.ball.pos.x, z: this.ball.pos.z };
+    const target = this.dropKickTarget(keeper);
+    if (!target) return;
+    const distance = dist2(origin, target.pos);
+    const progress = (target.pos.x - keeper.pos.x) * this.attackSign(keeper.team);
+    const separation = this.nearestDefenderDistance(target, otherTeam(keeper.team));
+    const completionChance = clamp(
+      0.66
+        + keeper.ratings.passing * 0.12
+        + separation * 0.010
+        - Math.max(0, distance - 26) * 0.010
+        - pressure * 0.050,
+      0.46,
+      0.78,
+    );
+    const complete = this.rng.next() < completionChance;
+    const stats = this.team(keeper.team);
+    stats.gkDistributions += 1;
+    stats.passes += 1;
+    keeper.stats.passes += 1;
+    keeper.stats.touches += 1;
+    const telemetry = {
+      seq: ++this.keeperSeq,
+      team: keeper.team,
+      keeper: keeper.name,
+      style: "drop_kick",
+      completed: complete,
+      distance: +distance.toFixed(2),
+      target: target.name,
+      completionChance: +completionChance.toFixed(2),
+    };
+    this.lastKeeperKickTelemetry = telemetry;
+    const releaseMeta = {
+      phase: "release",
+      restartType: "drop_kick",
+      presentationKind: "drop_kick",
+      presentationSeconds: 0.95,
+      takerId: keeper.id,
+      takerName: keeper.name,
+      receiverId: target.id,
+      receiverName: target.name,
+      spot: { x: +origin.x.toFixed(2), z: +origin.z.toFixed(2) },
+      targetPoint: { x: +target.pos.x.toFixed(2), z: +target.pos.z.toFixed(2) },
+      distance: +distance.toFixed(2),
+      completionChance: +completionChance.toFixed(2),
+      completed: complete,
+    };
+    this.addLiveEvent(keeper.team, "DROP_KICK", `${keeper.label} to ${target.label}`, releaseMeta);
+    this.recordEvent("DROP_KICK", keeper.team, keeper, releaseMeta);
+
+    if (complete) {
+      stats.gkDistCompleted += 1;
+      stats.passesCompleted += 1;
+      keeper.stats.passesCompleted += 1;
+      target.stats.touches += 1;
+      this.possession = target;
+      this.rememberTouch(target);
+      const flightSeconds = this.startBallFlight("pass", origin, target.pos, this.flightDuration(clamp(distance / 24, 0.85, 1.45)), 0.82, target, {
+        aerial: true,
+        headerEligible: true,
+        sourceAction: "drop_kick",
+        attackingTeam: keeper.team,
+        passerId: keeper.id,
+        passerName: keeper.name,
+        receiverId: target.id,
+      });
+      this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
+      const event = this.recordEvent("PASS", keeper.team, keeper, {
+        ...releaseMeta,
+        passer: keeper.name,
+        target: target.name,
+        outcome: "complete",
+        passStyle: "DROP_KICK",
+        progress,
+      });
+      this.passLog.push(event);
+      this.rememberCompletedPass(keeper, target);
+      return;
+    }
+
+    const interceptor = this.nearestTeamPlayer(otherTeam(keeper.team), target.pos);
+    this.possession = interceptor;
+    this.lastCompletedPass = null;
+    if (interceptor) {
+      this.rememberTouch(interceptor);
+      interceptor.stats.interceptions += 1;
+      interceptor.stats.touches += 1;
+      const flightSeconds = this.startBallFlight("interception", origin, interceptor.pos, this.flightDuration(clamp(distance / 24, 0.85, 1.45)), 0.85, interceptor, {
+        aerial: true,
+        sourceAction: "drop_kick",
+        attackingTeam: keeper.team,
+        passerId: keeper.id,
+        passerName: keeper.name,
+        receiverId: interceptor.id,
+      });
+      this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
+      this.recordEvent("INTERCEPTION", interceptor.team, interceptor, {
+        passer: keeper.name,
+        intendedTarget: target.name,
+        sourceAction: "drop_kick",
+        completionChance,
+      });
+    }
+    const event = this.recordEvent("TURNOVER", otherTeam(keeper.team), interceptor || keeper, {
+      passer: keeper.name,
+      intendedTarget: target.name,
+      outcome: "drop_kick_interception",
+      completionChance,
+    });
+    this.passLog.push(event);
+  }
+
+  private dropKickTarget(keeper: SimplePlayer) {
+    const attackSign = this.attackSign(keeper.team);
+    const maxDropKickDistance = 78 * FIELD_SCALE_PER_YARD;
+    const roleScore = (player: SimplePlayer) => player.role === "ST" ? 5 : player.role === "W" ? 4 : player.role === "AM" ? 3 : player.role === "CM" ? 2 : 0;
+    const scored = this.players
+      .filter((player) => player.team === keeper.team && player.role !== "GK")
+      .map((player) => {
+        const d = dist2(keeper.pos, player.pos);
+        const progress = (player.pos.x - keeper.pos.x) * attackSign;
+        const separation = this.nearestDefenderDistance(player, otherTeam(keeper.team));
+        return {
+          player,
+          score: roleScore(player) * 4 + progress * 0.30 + separation * 0.35 - Math.abs(d - 32) * 0.12 + this.rng.range(-0.25, 0.25),
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+    const candidates = scored.filter((candidate) => dist2(keeper.pos, candidate.player.pos) <= maxDropKickDistance);
+    return candidates[0]?.player || null;
   }
 
   private offsideInfraction(carrier: SimplePlayer, target: SimplePlayer, ballAtTouch: Vec2) {
@@ -1221,19 +1850,11 @@ export class SimpleMatchModel {
     };
   }
 
-  private resolveOffside(carrier: SimplePlayer, target: SimplePlayer, offside: NonNullable<ReturnType<SimpleMatchModel["offsideInfraction"]>>) {
+  private resolveOffside(carrier: SimplePlayer, target: SimplePlayer, offside: NonNullable<ReturnType<SimpleMatchModel["offsideInfraction"]>>, ballAtTouch: Vec2) {
     const defendingTeam = otherTeam(carrier.team);
-    const restartTaker = this.nearestTeamPlayer(defendingTeam, target.pos) || this.players.find((player) => player.team === defendingTeam) || null;
+    const restartSpot = clampToPlayable(ballAtTouch);
+    const restartTaker = this.nearestTeamPlayer(defendingTeam, restartSpot) || this.players.find((player) => player.team === defendingTeam) || null;
     this.team(carrier.team).offsides += 1;
-    this.possession = restartTaker;
-    this.lastCompletedPass = null;
-    this.ballFlight = null;
-    if (restartTaker) {
-      this.ball.pos.x = restartTaker.pos.x;
-      this.ball.pos.y = 0.18;
-      this.ball.pos.z = restartTaker.pos.z;
-    }
-    this.actionTimer = Math.max(0.25, this.nextActionDelay() * 0.5);
     this.addLiveEvent(carrier.team, "OFFSIDE", `${target.label} flagged`);
     const event = this.recordEvent("OFFSIDE", carrier.team, target, {
       passer: carrier.name,
@@ -1246,8 +1867,11 @@ export class SimpleMatchModel {
       margin: +offside.margin.toFixed(2),
       restartTeam: defendingTeam,
       restartTaker: restartTaker?.name || null,
+      restartSpot: { x: +restartSpot.x.toFixed(2), z: +restartSpot.z.toFixed(2) },
     });
     this.passLog.push(event);
+    this.offsideTargetSelectionLockedUntil = this.elapsedTotal + 8;
+    this.stageFreeKickRestart(defendingTeam, restartSpot, carrier.team, carrier.id);
   }
 
   private resolveShot(
@@ -1256,17 +1880,31 @@ export class SimpleMatchModel {
     pressure: number,
     context: ShotResolutionContext = {},
   ): GoalEvent | null {
+    const carrierDistYards = (distToGoal / FIELD_W) * 120;
+    if (!context.forceGoal && !context.forceOnTarget && context.reason !== "NO_SHOT_FINAL_WHISTLE" && context.reason !== "NO_SHOT_FULL_TIME_FALLBACK" && carrierDistYards > 36) {
+      this.recordShotOpportunity(carrier, distToGoal, pressure, 0, "range_recycled", {
+        reason: "LONG_SHOT_SUPPRESSED",
+        distToGoalYards: +carrierDistYards.toFixed(1),
+      });
+      this.resolvePass(carrier, pressure);
+      return null;
+    }
     const teamStats = this.team(carrier.team);
     const defendingTeam = otherTeam(carrier.team);
     this.rememberTouch(carrier);
     const keeper = this.players.find((p) => p.team === defendingTeam && p.role === "GK");
-    const anglePenalty = Math.min(1, Math.abs(carrier.pos.z) / (FIELD_D * 0.42));
-    const onTargetChance = clamp(0.64 - distToGoal * 0.010 - anglePenalty * 0.16 - pressure * 0.045 + carrier.ratings.shooting * 0.17, 0.15, 0.84);
+    const shotOrigin = this.shotOriginForCarrier(carrier);
+    const shotDistToGoal = dist2(shotOrigin, goalCenterForAttack(this.attackSign(carrier.team)));
+    const shotDistToGoalYards = (shotDistToGoal / FIELD_W) * 120;
+    const carrierBallGap = dist2(shotOrigin, carrier.pos);
+    const anglePenalty = Math.min(1, Math.abs(shotOrigin.z) / (FIELD_D * 0.42));
+    const distanceOnTargetPenalty = Math.max(0, shotDistToGoalYards - 18) * 0.010;
+    const onTargetChance = clamp(0.49 - shotDistToGoal * 0.010 - distanceOnTargetPenalty - anglePenalty * 0.18 - pressure * 0.050 + carrier.ratings.shooting * 0.12, 0.08, 0.66);
     const onTarget = context.forceOnTarget || this.rng.next() < onTargetChance;
     teamStats.shots += 1;
     carrier.stats.shots += 1;
     carrier.stats.touches += 1;
-    const style = context.style || (distToGoal < 10 ? "placed" : pressure > 1.4 ? "first_time" : "driven");
+    const style = context.style || (shotDistToGoal < 10 ? "placed" : pressure > 1.4 ? "first_time" : "driven");
     const decision = {
       seq: ++this.shotSeq,
       decisionType: "SIMPLE_V1",
@@ -1275,8 +1913,10 @@ export class SimpleMatchModel {
       role: carrier.role,
       style,
       shouldShoot: true,
-      distToGoal: +distToGoal.toFixed(2),
-      distToGoalYards: +((distToGoal / FIELD_W) * 120).toFixed(1),
+      distToGoal: +shotDistToGoal.toFixed(2),
+      distToGoalYards: +shotDistToGoalYards.toFixed(1),
+      carrierDistToGoal: +distToGoal.toFixed(2),
+      carrierBallGap: +carrierBallGap.toFixed(2),
       closePressure: +pressure.toFixed(2),
       anglePenalty: +anglePenalty.toFixed(2),
       onTargetChance: +onTargetChance.toFixed(2),
@@ -1287,8 +1927,13 @@ export class SimpleMatchModel {
     };
     this.shotDecisions.push(decision);
     this.lastShotTelemetry = decision;
-    const shotOrigin = { x: carrier.pos.x, z: carrier.pos.z };
-    const shotTarget = this.shotTarget(carrier.team, onTarget, anglePenalty);
+    const naturalWoodworkAllowed = !context.reason?.includes("FORCED");
+    const woodwork = !onTarget
+      && !context.forceGoal
+      && !context.forceSave
+      && (context.forceWoodwork || (naturalWoodworkAllowed && this.shouldHitWoodwork(shotDistToGoalYards, anglePenalty, pressure)));
+    const woodworkTarget = woodwork ? this.woodworkTarget(carrier.team, context.forceWoodworkPart) : null;
+    const shotTarget = woodworkTarget || this.shotTarget(carrier.team, onTarget, anglePenalty);
 
     this.recordEvent("SHOT", carrier.team, carrier, {
       ...decision,
@@ -1296,8 +1941,24 @@ export class SimpleMatchModel {
     });
     this.addLiveEvent(carrier.team, "SHOT", `${carrier.label} ${style}`);
 
+    if (woodwork) {
+      const woodworkMeta = {
+        shooter: carrier.name,
+        framePart: woodworkTarget?.framePart || "crossbar",
+        shotOrigin: { x: +shotOrigin.x.toFixed(2), z: +shotOrigin.z.toFixed(2) },
+        shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+        distToGoalYards: +shotDistToGoalYards.toFixed(1),
+        resolutionReason: context.reason || "WOODWORK_MISS",
+      };
+      this.recordEvent("WOODWORK", carrier.team, carrier, woodworkMeta);
+      this.addLiveEvent(carrier.team, "WOODWORK", `${carrier.label} ${woodworkMeta.framePart}`, woodworkMeta);
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95);
+      this.possession = null;
+      return null;
+    }
+
     if (!onTarget) {
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(distToGoal / 34, 0.8, 1.45)), 1.4);
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4);
       this.possession = null;
       return null;
     }
@@ -1306,7 +1967,7 @@ export class SimpleMatchModel {
     carrier.stats.shotsOnTarget += 1;
     this.recordEvent("SHOT_ON_TARGET", carrier.team, carrier, decision);
     const keeperQuality = keeper?.ratings.keeper ?? 0.62;
-    const distToGoalYards = (distToGoal / FIELD_W) * 120;
+    const distToGoalYards = shotDistToGoalYards;
     const maxGoalDistanceYards = this.maxGoalDistanceYards(carrier.role, context);
     const invalidGoalGeometry = distToGoalYards > maxGoalDistanceYards;
     Object.assign(decision, {
@@ -1315,7 +1976,7 @@ export class SimpleMatchModel {
     });
     const baseGoalChance = invalidGoalGeometry
       ? 0
-      : clamp(0.55 - keeperQuality * 0.23 - distToGoal * 0.0040 - anglePenalty * 0.10 - pressure * 0.026 + carrier.ratings.shooting * 0.17, 0.05, 0.58);
+      : clamp(0.37 - keeperQuality * 0.21 - shotDistToGoal * 0.0055 - Math.max(0, shotDistToGoalYards - 12) * 0.006 - anglePenalty * 0.12 - pressure * 0.030 + carrier.ratings.shooting * 0.11, 0.025, 0.34);
     const forcedGoal = !!context.forceGoal && !invalidGoalGeometry;
     const goalChance = forcedGoal ? 1 : Math.max(baseGoalChance, invalidGoalGeometry ? 0 : context.minGoalChance ?? 0);
     const goal = context.forceSave || invalidGoalGeometry ? false : forcedGoal || this.rng.next() < goalChance;
@@ -1342,7 +2003,7 @@ export class SimpleMatchModel {
       });
       this.addLiveEvent(defendingTeam, "SAVE", keeper ? keeper.label : "GK", saveMeta);
       if (dist2(shotOrigin, saveTarget) / FIELD_SCALE_PER_YARD >= 3) {
-        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(distToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined);
+        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined);
       } else {
         this.ball.pos.x = saveTarget.x;
         this.ball.pos.y = 0.18;
@@ -1354,6 +2015,7 @@ export class SimpleMatchModel {
 
     teamStats.score += 1;
     carrier.stats.goals += 1;
+    const netTarget = this.goalNetTarget(carrier.team, shotTarget);
     const goalRow = {
       team: carrier.team,
       playerName: carrier.name,
@@ -1362,21 +2024,39 @@ export class SimpleMatchModel {
       role: carrier.role,
       matchMinute: getMatchMinute(this.msm),
       elapsedInHalf: this.msm.clock.elapsedInHalf,
-      distToGoal,
+      distToGoal: shotDistToGoal,
       distToGoalYards: +distToGoalYards.toFixed(1),
+      carrierDistToGoal: +distToGoal.toFixed(2),
+      carrierBallGap: +carrierBallGap.toFixed(2),
       maxGoalDistanceYards,
       invalidGoalGeometry,
       resolutionReason: context.reason || "NORMAL_SHOT",
       goalChance,
+      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+      netTarget: { x: +netTarget.x.toFixed(2), z: +netTarget.z.toFixed(2) },
       shotBacked: true,
       ...context.details,
     };
     this.goalLog.push(goalRow);
     this.recordEvent("GOAL", carrier.team, carrier, goalRow);
-    this.addLiveEvent(carrier.team, "GOAL", `${carrier.name} ${goalRow.matchMinute}'`);
-    this.startBallFlight("shot", shotOrigin, shotTarget, this.flightDuration(clamp(distToGoal / 34, 0.75, 1.4)), 1.0);
+    this.addLiveEvent(carrier.team, "GOAL", `${carrier.name} ${goalRow.matchMinute}'`, {
+      shotOrigin: { x: +shotOrigin.x.toFixed(2), z: +shotOrigin.z.toFixed(2) },
+      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+      netTarget: { x: +netTarget.x.toFixed(2), y: this.ballGroundY(), z: +netTarget.z.toFixed(2) },
+    });
+    this.goalNetSettleRemaining = 0;
+    this.goalKickoffSetupInstalled = false;
+    this.startBallFlight("shot", shotOrigin, netTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.4)), 1.0);
     this.possession = null;
     return { scoringTeam: teamSide(carrier.team) };
+  }
+
+  private shotOriginForCarrier(carrier: SimplePlayer): Vec2 {
+    const visibleBall = { x: this.ball.pos.x, z: this.ball.pos.z };
+    if (!this.ballFlight && this.possession?.id === carrier.id && dist2(visibleBall, carrier.pos) <= 2.15) {
+      return visibleBall;
+    }
+    return { x: carrier.pos.x, z: carrier.pos.z };
   }
 
   private resolveTackleChance(carrier: SimplePlayer, pressure: number): GoalEvent | null {
@@ -1387,15 +2067,158 @@ export class SimpleMatchModel {
     if (!tackler) return null;
     this.possession = tackler;
     this.rememberTouch(tackler);
-    this.team(tackler.team).tacklesWon += 1;
-    tackler.stats.tackles += 1;
-    this.addLiveEvent(tackler.team, "TACKLE", `${tackler.label} won it`);
+    this.recordTackle(tackler, carrier, pressure, "PRESSURE_TACKLE");
     this.recordEvent("TURNOVER", tackler.team, tackler, {
       carrier: carrier.name,
       outcome: "tackle",
       pressure,
     });
     return null;
+  }
+
+  private resolvePressureDuel(carrier: SimplePlayer, pressure: number): boolean {
+    if (carrier.role === "GK" || pressure < 0.25) return false;
+    const defender = this.nearestOpponent(carrier, otherTeam(carrier.team));
+    if (!defender) return false;
+    const foulChance = clamp((pressure - 0.20) * 0.075 + (1 - defender.ratings.defense) * 0.012, 0.010, 0.110);
+    if (this.rng.next() < foulChance) {
+      this.resolveFoul(defender, carrier, pressure, "PRESSURE_FOUL");
+      return true;
+    }
+    const tackleChance = clamp((pressure - 0.25) * 0.100 + defender.ratings.defense * 0.020, 0.015, 0.160);
+    if (this.rng.next() >= tackleChance) return false;
+    this.possession = defender;
+    this.rememberTouch(defender);
+    this.recordTackle(defender, carrier, pressure, "PRESSURE_DUEL");
+    this.recordEvent("TURNOVER", defender.team, defender, {
+      carrier: carrier.name,
+      outcome: "tackle",
+      pressure,
+      reason: "PRESSURE_DUEL",
+    });
+    return true;
+  }
+
+  private recordTackle(tackler: SimplePlayer, carrier: SimplePlayer | null | undefined, pressure: number, reason: string) {
+    this.team(tackler.team).tacklesWon += 1;
+    tackler.stats.tackles += 1;
+    tackler.stats.touches += 1;
+    this.addLiveEvent(tackler.team, "TACKLE", `${tackler.label} won it`, {
+      playerId: tackler.id,
+      playerName: tackler.name,
+      carrier: carrier?.name || null,
+      pressure: +pressure.toFixed(2),
+      reason,
+    });
+    this.recordEvent("TACKLE", tackler.team, tackler, {
+      tackler: tackler.name,
+      carrier: carrier?.name || null,
+      pressure: +pressure.toFixed(2),
+      reason,
+    });
+  }
+
+  private recordFoul(committer: SimplePlayer, fouled: SimplePlayer, pressure: number, reason: string) {
+    this.team(committer.team).fouls += 1;
+    committer.stats.fouls += 1;
+    fouled.stats.fouled += 1;
+    this.addLiveEvent(committer.team, "FOUL", `${committer.label} foul`, {
+      playerId: committer.id,
+      playerName: committer.name,
+      fouledPlayerId: fouled.id,
+      fouledPlayerName: fouled.name,
+      pressure: +pressure.toFixed(2),
+      reason,
+    });
+    this.recordEvent("FOUL", committer.team, committer, {
+      committer: committer.name,
+      fouled: fouled.name,
+      pressure: +pressure.toFixed(2),
+      reason,
+    });
+  }
+
+  private resolveFoul(committer: SimplePlayer, fouled: SimplePlayer, pressure: number, reason: string) {
+    this.recordFoul(committer, fouled, pressure, reason);
+    if (this.isPenaltyFoul(committer, fouled)) {
+      this.stagePenaltyRestart(fouled.team, committer.team, committer.id, fouled.id);
+      return;
+    }
+    this.stageFreeKickRestart(fouled.team, fouled.pos, committer.team, committer.id);
+  }
+
+  private isPenaltyFoul(committer: SimplePlayer, fouled: SimplePlayer) {
+    if (committer.team === fouled.team) return false;
+    const defendingLeft = this.attackSign(committer.team) > 0;
+    return isInPenaltyArea(committer.pos, defendingLeft) && isInPenaltyArea(fouled.pos, defendingLeft);
+  }
+
+  private stagePenaltyRestart(restartTeam: SimpleTeamCode, lastTouchTeam: SimpleTeamCode | null, lastTouchPlayerId: string | null, fouledPlayerId: string | null) {
+    const attackSign = this.attackSign(restartTeam);
+    const spot = this.penaltySpotForAttack(attackSign);
+    const restartSide = teamSide(restartTeam);
+    this.pendingBallOutEvent = {
+      restartType: "penalty",
+      restartTeam: restartSide,
+    };
+    this.pendingBallOutContext = {
+      restartType: "penalty",
+      restartTeam,
+      spot,
+      lastTouchTeam,
+      lastTouchPlayerId,
+      crossedLine: "infraction",
+      fouledPlayerId,
+    };
+    this.possession = null;
+    this.ballFlight = null;
+    this.lastCompletedPass = null;
+    this.ball.pos = { x: spot.x, y: this.ballGroundY(), z: spot.z };
+    this.ball.vel = { x: 0, z: 0 };
+    this.actionTimer = Math.max(this.actionTimer, 0.75);
+    if (this.msm.state.kind === "live_play") {
+      this.msm.state = { kind: "ball_out", restartType: "penalty", restartTeam: restartSide };
+      this.msm.restartTimer = 1.8;
+      this.installBallOutRestart(this.pendingBallOutContext);
+    }
+  }
+
+  private penaltySpotForAttack(attackSign: 1 | -1): Vec2 {
+    return {
+      x: attackSign > 0 ? RIGHT_GOAL_X - PENALTY_SPOT_DIST : LEFT_GOAL_X + PENALTY_SPOT_DIST,
+      z: 0,
+    };
+  }
+
+  private stageFreeKickRestart(restartTeam: SimpleTeamCode, spot: Vec2, lastTouchTeam: SimpleTeamCode | null, lastTouchPlayerId: string | null) {
+    const clampedSpot = clampToPlayable({
+      x: clamp(spot.x, LEFT_GOAL_X + 0.8, RIGHT_GOAL_X - 0.8),
+      z: clamp(spot.z, -FIELD_D / 2 + 0.8, FIELD_D / 2 - 0.8),
+    });
+    const restartSide = teamSide(restartTeam);
+    this.pendingBallOutEvent = {
+      restartType: "free_kick",
+      restartTeam: restartSide,
+    };
+    this.pendingBallOutContext = {
+      restartType: "free_kick",
+      restartTeam,
+      spot: clampedSpot,
+      lastTouchTeam,
+      lastTouchPlayerId,
+      crossedLine: "infraction",
+    };
+    this.possession = null;
+    this.ballFlight = null;
+    this.lastCompletedPass = null;
+    this.ball.pos = { x: clampedSpot.x, y: this.ballGroundY(), z: clampedSpot.z };
+    this.ball.vel = { x: 0, z: 0 };
+    this.actionTimer = Math.max(this.actionTimer, 0.75);
+    if (this.msm.state.kind === "live_play") {
+      this.msm.state = { kind: "ball_out", restartType: "free_kick", restartTeam: restartSide };
+      this.msm.restartTimer = 1.5;
+      this.installBallOutRestart(this.pendingBallOutContext);
+    }
   }
 
   private totalShots() {
@@ -1419,17 +2242,22 @@ export class SimpleMatchModel {
   private shouldForceFinalNoShotAttempt(dt: number) {
     if (this.totalShots() > 0) return false;
     if (this.msm.state.kind !== "live_play" || this.msm.clock.half !== 2) return false;
-    if (!this.possession || this.possession.role === "GK" || this.ballFlight) return false;
+    if (!this.possession || this.possession.role === "GK") return false;
+    if (this.ballFlight && this.msm.clock.elapsedInHalf + dt < this.msm.clock.halfDuration + this.msm.clock.stoppageTime) return false;
     const halfLimit = this.msm.clock.halfDuration + this.msm.clock.stoppageTime;
     return this.msm.clock.elapsedInHalf + dt >= halfLimit;
   }
 
   private forceNoShotAttempt(reason: string): GoalEvent | null {
-    const carrier = this.possession;
-    if (!carrier || carrier.role === "GK") return null;
+    const carrier = this.forceShotCarrier();
+    if (!carrier) return null;
+    this.possession = carrier;
+    this.ballFlight = null;
+    this.ball.pos.x = carrier.pos.x;
+    this.ball.pos.y = this.ballGroundY();
+    this.ball.pos.z = carrier.pos.z;
     const goal = goalCenterForAttack(this.attackSign(carrier.team));
     const distToGoal = dist2(carrier.pos, goal);
-    if (((distToGoal / FIELD_W) * 120) > 42) return null;
     const pressure = this.pressureOn(carrier);
     this.recordShotOpportunity(carrier, distToGoal, pressure, 1, "minimum_shot_floor", {
       reason,
@@ -1442,6 +2270,15 @@ export class SimpleMatchModel {
         forcedAtClockEnd: reason === "NO_SHOT_FINAL_WHISTLE",
       },
     });
+  }
+
+  private forceShotCarrier() {
+    if (this.possession && this.possession.role !== "GK") return this.possession;
+    const team = this.possession?.team || "A";
+    const goal = goalCenterForAttack(this.attackSign(team));
+    return this.players
+      .filter((player) => player.team === team && player.role !== "GK")
+      .sort((a, b) => dist2(a.pos, goal) - dist2(b.pos, goal))[0] || null;
   }
 
   private rebuildTeams() {
@@ -1520,8 +2357,11 @@ export class SimpleMatchModel {
       const slot = getFormationSlots(this.team(player.team).formation)[Number(player.id.split("-")[1]) || 0];
       const homePos = orientSlot(slot, this.attackSign(player.team));
       player.homePos = homePos;
-      const kickoffSeed = snapPlayers ? homePos : { x: player.pos.x, z: player.pos.z };
-      const kickoffPos = this.kickoffLegalPosition(kickoffSeed, player, player.id === this.kickoffKickerId);
+      const kickoffPos = this.kickoffLegalPosition(homePos, player, player.id === this.kickoffKickerId);
+      if (!snapPlayers) {
+        const laneOffset = player.role === "GK" ? 2.8 : 1.8;
+        kickoffPos.z = clamp(kickoffPos.z + (player.team === "A" ? laneOffset : -laneOffset), -FIELD_D / 2 + 1, FIELD_D / 2 - 1);
+      }
       player.targetPos = { ...kickoffPos };
       if (snapPlayers) {
         player.pos.x = kickoffPos.x;
@@ -1611,7 +2451,7 @@ export class SimpleMatchModel {
     kicker.stats.passes += 1;
     kicker.stats.passesCompleted += 1;
     this.possession = receiver;
-    this.startBallFlight("pass", origin, receiver.pos, this.flightDuration(clamp(distance / 24, 0.55, 0.9)), 0.45, receiver);
+    const flightSeconds = this.startBallFlight("pass", origin, receiver.pos, this.flightDuration(clamp(distance / 24, 0.55, 0.9)), 0.45, receiver);
     this.addLiveEvent(team, "KICKOFF", `${kicker.label} to ${receiver.label}`);
     const decision = {
       team,
@@ -1643,7 +2483,7 @@ export class SimpleMatchModel {
       progress,
     }));
     this.rememberCompletedPass(kicker, receiver);
-    this.actionTimer = 0.45;
+    this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
     this.kickoffShapeReleaseRemaining = KICKOFF_SHAPE_RELEASE_SECONDS;
     this.kickoffTeam = null;
     this.kickoffKickerId = null;
@@ -1690,9 +2530,22 @@ export class SimpleMatchModel {
     if (!detected) return;
     const context = this.buildBallOutContext(detected, this.lastBallPos, current);
     if (!context) return;
+    const goalLineOut = context.crossedLine === "left_goal_line" || context.crossedLine === "right_goal_line";
+    if (goalLineOut && this.ballFlight) return;
+    if (goalLineOut) {
+      this.visibleBallOutPending = { event: detected, context, holdSeconds: 0.45 };
+      this.possession = null;
+      this.ball.vel = { x: 0, z: 0 };
+      this.addBallOutLog(detected, context);
+      return;
+    }
     this.truncateActiveFlightAtOutOfPlay(context.spot);
     this.pendingBallOutEvent = detected;
     this.pendingBallOutContext = context;
+    this.addBallOutLog(detected, context);
+  }
+
+  private addBallOutLog(detected: BallOutEvent, context: BallOutRestartContext) {
     this.ballOutLog.push({
       type: detected.restartType,
       team: context.restartTeam,
@@ -1779,9 +2632,18 @@ export class SimpleMatchModel {
     if (restart.restartType === "corner") stats.corners += 1;
     if (restart.restartType === "throw_in") stats.throwIns += 1;
     if (restart.restartType === "goal_kick") stats.goalKicks += 1;
+    if (restart.restartType === "free_kick") stats.freeKicks += 1;
+    if (restart.restartType === "penalty") {
+      stats.penaltiesAwarded += 1;
+      stats.penaltyXg += 0.78;
+    }
+    const presentationKind = restart.restartType === "corner" ? "corner_kick" : restart.restartType;
+    const presentationSeconds = restart.restartType === "corner" ? 2.0 : restart.restartType === "throw_in" ? 1.9 : restart.restartType === "penalty" ? 2.2 : 1.8;
     const setupMeta = {
       phase: "setup",
       restartType: restart.restartType,
+      presentationKind,
+      presentationSeconds,
       takerId: taker?.id || null,
       takerName: taker?.name || null,
       spot: { ...restart.spot },
@@ -1801,8 +2663,17 @@ export class SimpleMatchModel {
     }
     if (restart.restartType === "goal_kick") {
       const attackSign = this.attackSign(restart.restartTeam);
-      const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + 5.2 : RIGHT_GOAL_X - 5.2;
-      return { x: ownGoalX, z: clamp(restart.spot.z * 0.12, -GOAL_MOUTH_HALF_Z, GOAL_MOUTH_HALF_Z) };
+      const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + GOAL_BOX_DEPTH * 0.65 : RIGHT_GOAL_X - GOAL_BOX_DEPTH * 0.65;
+      return { x: ownGoalX, z: clamp(restart.spot.z * 0.18, -GOAL_BOX_HALF_Z * 0.82, GOAL_BOX_HALF_Z * 0.82) };
+    }
+    if (restart.restartType === "free_kick") {
+      return {
+        x: clamp(restart.spot.x, LEFT_GOAL_X + 0.8, RIGHT_GOAL_X - 0.8),
+        z: clamp(restart.spot.z, -FIELD_D / 2 + 0.8, FIELD_D / 2 - 0.8),
+      };
+    }
+    if (restart.restartType === "penalty") {
+      return this.penaltySpotForAttack(this.attackSign(restart.restartTeam));
     }
     return { x: clamp(restart.spot.x, LEFT_GOAL_X + 0.8, RIGHT_GOAL_X - 0.8), z: restart.spot.z >= 0 ? FIELD_D / 2 - 0.25 : -FIELD_D / 2 + 0.25 };
   }
@@ -1811,12 +2682,30 @@ export class SimpleMatchModel {
     if (restart.restartType === "goal_kick") {
       return this.players.find((player) => player.team === restart.restartTeam && player.role === "GK") || null;
     }
+    if (restart.restartType === "penalty") {
+      const fouled = restart.fouledPlayerId ? this.players.find((player) => player.id === restart.fouledPlayerId) : null;
+      if (fouled && fouled.team === restart.restartTeam && fouled.role !== "GK") return fouled;
+      return this.players
+        .filter((player) => player.team === restart.restartTeam && player.role !== "GK")
+        .sort((a, b) => b.ratings.shooting - a.ratings.shooting)[0] || null;
+    }
     return this.nearestTeamPlayer(restart.restartTeam, restart.spot)
       || this.players.find((player) => player.team === restart.restartTeam && player.role !== "GK")
       || null;
   }
 
   private restartTakerTarget(restart: BallOutRestartContext): Vec2 {
+    if (restart.restartType === "goal_kick") {
+      return clampToPlayable(restart.spot);
+    }
+    if (restart.restartType === "free_kick") {
+      const attackSign = this.attackSign(restart.restartTeam);
+      return clampToPlayable({ x: restart.spot.x - attackSign * 0.45, z: restart.spot.z });
+    }
+    if (restart.restartType === "penalty") {
+      const attackSign = this.attackSign(restart.restartTeam);
+      return clampToPlayable({ x: restart.spot.x - attackSign * 0.85, z: restart.spot.z });
+    }
     const inwardZ = restart.spot.z > 0 ? -0.9 : restart.spot.z < 0 ? 0.9 : 0;
     const inwardX = restart.spot.x > RIGHT_GOAL_X - 1 ? -0.9 : restart.spot.x < LEFT_GOAL_X + 1 ? 0.9 : 0;
     return clampToPlayable({ x: restart.spot.x + inwardX, z: restart.spot.z + inwardZ });
@@ -1825,6 +2714,8 @@ export class SimpleMatchModel {
   private moveRestartPlayers(dt: number) {
     const restart = this.restartContext;
     if (!restart) return;
+    if (restart.restartType === "goal_kick") this.positionGoalKickPlayers(restart);
+    if (restart.restartType === "penalty") this.positionPenaltyPlayers(restart);
     const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
     if (taker) taker.targetPos = this.restartTakerTarget(restart);
     this.movePlayers(dt);
@@ -1832,10 +2723,86 @@ export class SimpleMatchModel {
     this.ball.vel = { x: 0, z: 0 };
   }
 
+  private goalKickDefendingLeft(restart: BallOutRestartContext) {
+    return this.attackSign(restart.restartTeam) > 0;
+  }
+
+  private positionGoalKickPlayers(restart: BallOutRestartContext) {
+    const defendingLeft = this.goalKickDefendingLeft(restart);
+    const defendingTeam = restart.restartTeam;
+    const opponentTeam = otherTeam(defendingTeam);
+    const exitX = defendingLeft ? LEFT_PENALTY_X + 0.9 : RIGHT_PENALTY_X - 0.9;
+    for (const player of this.players) {
+      if (player.team === opponentTeam && (isInPenaltyArea(player.pos, defendingLeft) || isInPenaltyArea(player.targetPos, defendingLeft))) {
+        player.targetPos = clampToPlayable({
+          x: exitX,
+          z: clamp(player.pos.z, -PENALTY_HALF_Z + 0.6, PENALTY_HALF_Z - 0.6),
+        });
+      }
+    }
+  }
+
+  private isGoalKickSetupReady(restart: BallOutRestartContext) {
+    const defendingLeft = this.goalKickDefendingLeft(restart);
+    const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
+    if (taker && dist2(taker.pos, restart.spot) > 0.75) return false;
+    return this.players
+      .filter((player) => player.team === otherTeam(restart.restartTeam))
+      .every((player) => !isInPenaltyArea(player.pos, defendingLeft) && !isInPenaltyArea(player.targetPos, defendingLeft));
+  }
+
+  private penaltyDefendingLeft(restart: BallOutRestartContext) {
+    return this.attackSign(restart.restartTeam) < 0;
+  }
+
+  private positionPenaltyPlayers(restart: BallOutRestartContext) {
+    const defendingLeft = this.penaltyDefendingLeft(restart);
+    const takerId = restart.takerId || null;
+    const defendingTeam = otherTeam(restart.restartTeam);
+    const keeper = this.players.find((player) => player.team === defendingTeam && player.role === "GK") || null;
+    const keeperLineX = defendingLeft ? LEFT_GOAL_X + 0.38 : RIGHT_GOAL_X - 0.38;
+    if (keeper) keeper.targetPos = { x: keeperLineX, z: 0 };
+    const outsideX = defendingLeft ? LEFT_PENALTY_X + 1.1 : RIGHT_PENALTY_X - 1.1;
+    for (const player of this.players) {
+      if (player.id === takerId || player.id === keeper?.id) continue;
+      if (isInPenaltyArea(player.pos, defendingLeft) || isInPenaltyArea(player.targetPos, defendingLeft) || dist2(player.pos, restart.spot) < CENTER_CIRCLE_RADIUS) {
+        const lane = ((player.shirtNumber % 6) - 2.5) * 1.65;
+        player.targetPos = clampToPlayable({
+          x: outsideX,
+          z: clamp(player.pos.z + lane, -PENALTY_HALF_Z - 2.0, PENALTY_HALF_Z + 2.0),
+        });
+      }
+    }
+  }
+
+  private isPenaltySetupReady(restart: BallOutRestartContext) {
+    const defendingLeft = this.penaltyDefendingLeft(restart);
+    const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
+    const keeper = this.players.find((player) => player.team === otherTeam(restart.restartTeam) && player.role === "GK") || null;
+    if (taker && dist2(taker.pos, this.restartTakerTarget(restart)) > 1.2) return false;
+    if (keeper) {
+      const keeperLineX = defendingLeft ? LEFT_GOAL_X + 0.38 : RIGHT_GOAL_X - 0.38;
+      if (dist2(keeper.pos, { x: keeperLineX, z: 0 }) > 1.4) return false;
+    }
+    return this.players
+      .filter((player) => player.id !== taker?.id && player.id !== keeper?.id)
+      .every((player) => !isInPenaltyArea(player.pos, defendingLeft));
+  }
+
   private executeBallOutRestart() {
     const restart = this.restartContext;
     if (!restart) return;
     const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
+    if (restart.restartType === "penalty") {
+      const goalEvent = taker ? this.executePenaltyRestart(restart, taker) : null;
+      this.restartContext = null;
+      if (goalEvent) {
+        this.msm.score[goalEvent.scoringTeam] += 1;
+        this.msm.state = { kind: "goal_scored", scoringTeam: goalEvent.scoringTeam, restartAfter: 2.0 };
+        this.msm.restartTimer = this.restartDelayGoal;
+      }
+      return;
+    }
     const receiver = this.restartReceiver(restart, taker?.id);
     if (!receiver) {
       this.restartContext = null;
@@ -1844,11 +2811,24 @@ export class SimpleMatchModel {
     this.possession = receiver;
     this.rememberTouch(receiver);
     const distance = dist2(restart.spot, receiver.pos);
-    const arcHeight = restart.restartType === "throw_in" ? 0.85 : restart.restartType === "corner" ? 0.7 : 0.22;
-    this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver);
+    const arcHeight = restart.restartType === "throw_in" ? 0.85 : restart.restartType === "corner" ? 0.7 : restart.restartType === "free_kick" ? 0.32 : 0.22;
+    const headerEligible = restart.restartType === "corner" || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
+    const flightSeconds = this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
+      aerial: restart.restartType === "corner" || restart.restartType === "throw_in",
+      headerEligible,
+      sourceAction: restart.restartType,
+      attackingTeam: restart.restartTeam,
+      passerId: taker?.id,
+      passerName: taker?.name,
+      receiverId: receiver.id,
+    });
+    const presentationKind = restart.restartType === "corner" ? "corner_kick" : restart.restartType;
+    const presentationSeconds = restart.restartType === "corner" ? 1.35 : restart.restartType === "throw_in" ? 1.15 : 0.8;
     const releaseMeta = {
       phase: "release",
       restartType: restart.restartType,
+      presentationKind,
+      presentationSeconds,
       takerId: taker?.id || null,
       takerName: taker?.name || null,
       receiverId: receiver.id,
@@ -1857,15 +2837,202 @@ export class SimpleMatchModel {
       targetPoint: { x: +receiver.pos.x.toFixed(2), z: +receiver.pos.z.toFixed(2) },
       distance: +distance.toFixed(2),
       arcHeight,
+      offsideExempt: restart.restartType === "goal_kick",
     };
     this.addLiveEvent(restart.restartTeam, this.restartAction(restart.restartType), `${taker?.label || "Restart"} to ${receiver.label}`, releaseMeta);
     this.passLog.push(this.recordEvent(this.restartAction(restart.restartType), restart.restartTeam, taker || receiver, {
       ...releaseMeta,
       target: receiver.name,
       outcome: "complete",
+      offsideExempt: restart.restartType === "goal_kick",
     }));
-    this.actionTimer = Math.max(0.35, this.nextActionDelay() * 0.5);
+    if (restart.restartType === "goal_kick" && taker?.role === "GK") {
+      const stats = this.team(restart.restartTeam);
+      stats.gkDistributions += 1;
+      stats.gkDistCompleted += 1;
+      this.lastKeeperKickTelemetry = {
+        seq: ++this.keeperSeq,
+        team: restart.restartTeam,
+        keeper: taker.name,
+        style: "goal_kick",
+        completed: true,
+        distance: +distance.toFixed(2),
+        target: receiver.name,
+      };
+    }
+    this.deferActionAfterReception(flightSeconds, this.visibleReceptionHoldSeconds());
     this.restartContext = null;
+  }
+
+  private executePenaltyRestart(restart: BallOutRestartContext, taker: SimplePlayer): GoalEvent | null {
+    const attacking = this.team(restart.restartTeam);
+    const defendingTeam = otherTeam(restart.restartTeam);
+    const defending = this.team(defendingTeam);
+    const keeper = this.players.find((player) => player.team === defendingTeam && player.role === "GK") || null;
+    const spot = this.penaltySpotForAttack(this.attackSign(restart.restartTeam));
+    const goal = goalCenterForAttack(this.attackSign(restart.restartTeam));
+    const targetZ = this.rng.range(-GOAL_MOUTH_HALF_Z * 0.82, GOAL_MOUTH_HALF_Z * 0.82);
+    const shotTarget = { x: goal.x, z: targetZ };
+    const keeperQuality = keeper?.ratings.keeper ?? 0.62;
+    const missChance = clamp(0.115 - taker.ratings.shooting * 0.045, 0.055, 0.115);
+    const saveChance = clamp(0.165 + keeperQuality * 0.075 - taker.ratings.shooting * 0.050, 0.115, 0.225);
+    const roll = this.rng.next();
+    const missed = roll < missChance;
+    const saved = !missed && roll < missChance + saveChance;
+    const scored = !missed && !saved;
+    const xg = 0.78;
+    const distance = dist2(spot, goal);
+    const distanceYards = (distance / FIELD_W) * 120;
+    const decision = {
+      seq: ++this.shotSeq,
+      decisionType: "PENALTY_KICK",
+      team: taker.team,
+      shooter: taker.name,
+      role: taker.role,
+      style: "penalty",
+      shouldShoot: true,
+      distToGoal: +distance.toFixed(2),
+      distToGoalYards: +distanceYards.toFixed(1),
+      carrierDistToGoal: +distance.toFixed(2),
+      carrierBallGap: 0,
+      closePressure: 0,
+      anglePenalty: 0,
+      onTargetChance: +(1 - missChance).toFixed(2),
+      goalChance: +(1 - missChance - saveChance).toFixed(2),
+      penaltyXg: xg,
+      elapsedInHalf: this.msm.clock.elapsedInHalf,
+      resolutionReason: "PENALTY_KICK",
+      outcome: scored ? "goal" : saved ? "saved" : "missed",
+      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+    };
+    this.shotDecisions.push(decision);
+    this.lastShotTelemetry = decision;
+    this.rememberTouch(taker);
+    attacking.penaltiesTaken += 1;
+    attacking.shots += 1;
+    taker.stats.penaltiesTaken += 1;
+    taker.stats.shots += 1;
+    taker.stats.touches += 1;
+    this.recordEvent("PENALTY", restart.restartTeam, taker, {
+      phase: "release",
+      restartType: "penalty",
+      presentationKind: "penalty",
+      presentationSeconds: 0.9,
+      takerId: taker.id,
+      takerName: taker.name,
+      spot: { ...spot },
+      targetPoint: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+      outcome: decision.outcome,
+      penaltyXg: xg,
+    });
+    this.addLiveEvent(restart.restartTeam, "PENALTY", `${taker.label} penalty`, {
+      phase: "release",
+      restartType: "penalty",
+      presentationKind: "penalty",
+      presentationSeconds: 0.9,
+      takerId: taker.id,
+      takerName: taker.name,
+      spot: { ...spot },
+      outcome: decision.outcome,
+    });
+    this.recordEvent("SHOT", restart.restartTeam, taker, {
+      ...decision,
+      onTarget: !missed,
+    });
+    this.addLiveEvent(restart.restartTeam, "SHOT", `${taker.label} penalty`);
+
+    if (missed) {
+      attacking.penaltiesMissed += 1;
+      const missSide = targetZ < 0 ? -1 : 1;
+      const missTarget = {
+        x: goal.x + this.attackSign(restart.restartTeam) * this.rng.range(0.7, 1.5),
+        z: missSide * (GOAL_MOUTH_HALF_Z + this.rng.range(0.55, 1.7)),
+      };
+      this.startBallFlight("miss", spot, missTarget, this.flightDuration(0.9), 0.42, undefined, {
+        sourceAction: "penalty",
+        attackingTeam: restart.restartTeam,
+        passerId: taker.id,
+        passerName: taker.name,
+      });
+      this.possession = null;
+      return null;
+    }
+
+    attacking.shotsOnTarget += 1;
+    taker.stats.shotsOnTarget += 1;
+    this.recordEvent("SHOT_ON_TARGET", restart.restartTeam, taker, decision);
+
+    if (saved) {
+      attacking.penaltiesSaved += 1;
+      defending.saves += 1;
+      if (keeper) keeper.stats.saves += 1;
+      const saveTarget = keeper?.pos || { x: goal.x - this.attackSign(restart.restartTeam) * 0.55, z: 0 };
+      const diveDirection = this.keeperDiveDirection(keeper || undefined, shotTarget);
+      const saveMeta = {
+        shooter: taker.name,
+        keeper: keeper?.name || "Keeper",
+        diveDirection,
+        shotOrigin: { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) },
+        shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+        saveTarget: { x: +saveTarget.x.toFixed(2), z: +saveTarget.z.toFixed(2) },
+        resolutionReason: "PENALTY_KICK",
+      };
+      this.recordEvent("SAVE", defendingTeam, keeper || taker, saveMeta);
+      this.addLiveEvent(defendingTeam, "SAVE", keeper ? keeper.label : "GK", saveMeta);
+      this.startBallFlight("save", spot, saveTarget, this.flightDuration(0.65), 0.55, keeper || undefined, {
+        sourceAction: "penalty",
+        attackingTeam: restart.restartTeam,
+        passerId: taker.id,
+        passerName: taker.name,
+      });
+      this.installKeeperPossession(defendingTeam);
+      return null;
+    }
+
+    attacking.penaltiesScored += 1;
+    taker.stats.penaltiesScored += 1;
+    attacking.score += 1;
+    taker.stats.goals += 1;
+    const netTarget = this.goalNetTarget(restart.restartTeam, shotTarget);
+    const goalRow = {
+      team: restart.restartTeam,
+      playerName: taker.name,
+      scorer: taker.name,
+      shirtNumber: taker.shirtNumber,
+      role: taker.role,
+      matchMinute: getMatchMinute(this.msm),
+      elapsedInHalf: this.msm.clock.elapsedInHalf,
+      distToGoal: distance,
+      distToGoalYards: +distanceYards.toFixed(1),
+      carrierDistToGoal: +distance.toFixed(2),
+      carrierBallGap: 0,
+      maxGoalDistanceYards: 12,
+      invalidGoalGeometry: false,
+      resolutionReason: "PENALTY_KICK",
+      goalChance: +(1 - missChance - saveChance).toFixed(2),
+      penaltyXg: xg,
+      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+      netTarget: { x: +netTarget.x.toFixed(2), z: +netTarget.z.toFixed(2) },
+      shotBacked: true,
+    };
+    this.goalLog.push(goalRow);
+    this.recordEvent("GOAL", restart.restartTeam, taker, goalRow);
+    this.addLiveEvent(restart.restartTeam, "GOAL", `${taker.name} ${goalRow.matchMinute}'`, {
+      shotOrigin: { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) },
+      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+      netTarget: { x: +netTarget.x.toFixed(2), y: this.ballGroundY(), z: +netTarget.z.toFixed(2) },
+      resolutionReason: "PENALTY_KICK",
+    });
+    this.goalNetSettleRemaining = 0;
+    this.goalKickoffSetupInstalled = false;
+    this.startBallFlight("shot", spot, netTarget, this.flightDuration(0.65), 0.65, undefined, {
+      sourceAction: "penalty",
+      attackingTeam: restart.restartTeam,
+      passerId: taker.id,
+      passerName: taker.name,
+    });
+    this.possession = null;
+    return { scoringTeam: teamSide(restart.restartTeam) };
   }
 
   private restartReceiver(restart: BallOutRestartContext, takerId?: string) {
@@ -1886,6 +3053,7 @@ export class SimpleMatchModel {
     if (type === "throw_in") return "THROW_IN";
     if (type === "goal_kick") return "GOAL_KICK";
     if (type === "corner") return "CORNER";
+    if (type === "penalty") return "PENALTY";
     return "FREE_KICK";
   }
 
@@ -1897,7 +3065,7 @@ export class SimpleMatchModel {
     this.addLiveEvent(team, "GK", "keeper possession");
   }
 
-  private startBallFlight(kind: BallFlightKind, from: Vec2, to: Vec2, duration: number, arc: number, followPlayer?: SimplePlayer) {
+  private startBallFlight(kind: BallFlightKind, from: Vec2, to: Vec2, duration: number, arc: number, followPlayer?: SimplePlayer, options: BallFlightOptions = {}) {
     const start = this.ballFlight ? { x: this.ball.pos.x, z: this.ball.pos.z } : { ...from };
     const target = { x: to.x, z: to.z };
     const distanceUnits = dist2(start, target);
@@ -1911,11 +3079,19 @@ export class SimpleMatchModel {
     const speedUnitsPerSecond = distanceUnits / safeDuration;
     const speedYardsPerSecond = distanceYards / safeDuration;
     const flightArc = this.ballFlightArc(kind, distanceYards, arc);
+    const headerEligible = !!options.headerEligible && (flightArc >= HEADER_MIN_ARC || kind === "restart");
     this.ballFlight = {
       kind,
       from: start,
       to: target,
       followPlayerId: followPlayer?.id,
+      aerial: !!options.aerial || headerEligible,
+      headerEligible,
+      sourceAction: options.sourceAction,
+      attackingTeam: options.attackingTeam,
+      passerId: options.passerId,
+      passerName: options.passerName,
+      receiverId: options.receiverId || followPlayer?.id,
       elapsed: 0,
       duration: safeDuration,
       arc: flightArc,
@@ -1937,6 +3113,13 @@ export class SimpleMatchModel {
       to: { ...target },
       followPlayerId: followPlayer?.id,
       followPlayerName: followPlayer?.name,
+      aerial: !!options.aerial || headerEligible,
+      headerEligible,
+      sourceAction: options.sourceAction,
+      attackingTeam: options.attackingTeam,
+      passerId: options.passerId,
+      passerName: options.passerName,
+      receiverId: options.receiverId || followPlayer?.id,
       arc: +flightArc.toFixed(3),
     });
     if (this.ballFlightTelemetry.length > 2400) this.ballFlightTelemetry.shift();
@@ -1946,6 +3129,15 @@ export class SimpleMatchModel {
     this.ball.vel = distanceUnits > 0.001
       ? { x: ((target.x - start.x) / distanceUnits) * speedUnitsPerSecond, z: ((target.z - start.z) / distanceUnits) * speedUnitsPerSecond }
       : { x: 0, z: 0 };
+    return safeDuration;
+  }
+
+  private deferActionAfterReception(flightSeconds: number, settleSeconds: number) {
+    this.actionTimer = Math.max(this.actionTimer, flightSeconds + settleSeconds);
+  }
+
+  private visibleReceptionHoldSeconds() {
+    return this.rng.range(VISIBLE_RECEPTION_HOLD_MIN_SECONDS, VISIBLE_RECEPTION_HOLD_MAX_SECONDS);
   }
 
   private ballGroundY() {
@@ -1969,13 +3161,13 @@ export class SimpleMatchModel {
 
   private nextActionDelay() {
     const tempo = this.team(this.possession?.team || "A").tuning.tempo;
-    const baseDelay = clamp(5.7 - tempo * 1.4 + this.rng.range(-0.9, 1.4), 3.35, 7.4);
-    return clamp(baseDelay / this.productionCompression(), 0.03, 8.5);
+    const baseDelay = clamp(5.25 - tempo * 1.4 + this.rng.range(-0.9, 1.4), 3.10, 7.2);
+    return clamp((baseDelay * BALL_HOLD_TIME_MULTIPLIER) / this.productionCompression(), 0.03, 8.5);
   }
 
   private productionCompression() {
-    const halfDuration = Math.max(1, this.msm.clock.halfDuration);
-    return clamp(1 + 8.00 * (2700 / halfDuration - 1), 1, 64);
+    const halfDuration = Math.max(1, this.runtimeHalfDuration);
+    return clamp(1 + 8.40 * (2700 / halfDuration - 1), 1, 96);
   }
 
   private flightDuration(baseDuration: number) {
@@ -2008,6 +3200,7 @@ export class SimpleMatchModel {
 
   private auditFlightLanding(flight: BallFlightState) {
     if (flight.kind !== "pass" && flight.kind !== "interception" && flight.kind !== "save") return;
+    if (flight.sourceAction === "header_clearance") return;
     const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
     const nearest = this.nearestPlayerTo(ball);
     if (!flight.followPlayerId) {
@@ -2076,7 +3269,36 @@ export class SimpleMatchModel {
     }
     const missSide = this.rng.next() < 0.5 ? -1 : 1;
     const missZ = missSide * (GOAL_MOUTH_HALF_Z + this.rng.range(0.8, 4.2 + anglePenalty * 2));
-    return { x: goal.x + this.attackSign(team) * this.rng.range(-0.7, 1.4), z: missZ };
+    return { x: goal.x + this.attackSign(team) * this.rng.range(0.6, 1.8), z: missZ };
+  }
+
+  private shouldHitWoodwork(distToGoalYards: number, anglePenalty: number, pressure: number) {
+    if (distToGoalYards > 28 || anglePenalty > 0.62 || pressure > 1.8) return false;
+    const chance = clamp(0.025 + (28 - distToGoalYards) * 0.0014 - anglePenalty * 0.018, 0.008, 0.055);
+    return this.rng.next() < chance;
+  }
+
+  private woodworkTarget(team: SimpleTeamCode, forcedPart?: "crossbar" | "post"): Vec2 & { framePart: "crossbar" | "post" } {
+    const attackSign = this.attackSign(team);
+    const goal = goalCenterForAttack(attackSign);
+    const framePart: "crossbar" | "post" = forcedPart || (this.rng.next() < 0.68 ? "crossbar" : "post");
+    const side = this.rng.next() < 0.5 ? -1 : 1;
+    const outsidePostZ = side * (GOAL_MOUTH_HALF_Z + this.rng.range(0.04, 0.18));
+    return {
+      x: goal.x + attackSign * this.rng.range(0.35, 0.95),
+      z: outsidePostZ,
+      framePart,
+    };
+  }
+
+  private goalNetTarget(team: SimpleTeamCode, mouthTarget: Vec2): Vec2 {
+    const attackSign = this.attackSign(team);
+    const goal = goalCenterForAttack(attackSign);
+    const halfWidth = Math.max(0.6, GOAL_MOUTH_HALF_Z - 0.12);
+    return {
+      x: goal.x + attackSign * GOAL_FLOOR_DEPTH * 0.75,
+      z: clamp(mouthTarget.z * 0.5, -halfWidth * 0.6, halfWidth * 0.6),
+    };
   }
 
   private keeperDiveDirection(keeper: SimplePlayer | undefined, shotTarget: Vec2): KeeperDiveDirection {
@@ -2103,7 +3325,7 @@ export class SimpleMatchModel {
         const roleBonus = target.role === "ST" || target.role === "W" || target.role === "AM" ? 1.6 : 0;
         const progressWeight = progress >= 0 ? 0.45 : 0.18;
         const backPenalty = progress < -2 ? Math.abs(progress) * 0.75 : 0;
-        const score = separation * 1.2 + progress * progressWeight - d * 0.45 + roleBonus - backPenalty + this.rng.range(-0.5, 0.5);
+        const score = separation * 1.2 + progress * progressWeight - d * 0.58 + roleBonus - backPenalty + this.rng.range(-0.5, 0.5);
         if (score > bestScore) {
           bestScore = score;
           best = target;
@@ -2111,7 +3333,35 @@ export class SimpleMatchModel {
       }
       return best;
     };
-    return choose(12.5) || choose(16.5) || choose(24) || choose(32) || choose(42) || choose(32, true) || choose(42, true);
+    const chooseOffside = (maxDistance: number) => {
+      let best: SimplePlayer | null = null;
+      let bestScore = -Infinity;
+      for (const target of own) {
+        const d = dist2(carrier.pos, target.pos);
+        if (d < 8 || d > maxDistance) continue;
+        const offside = this.offsideInfraction(carrier, target, carrier.pos);
+        if (!offside) continue;
+        const progress = (target.pos.x - carrier.pos.x) * attackSign;
+        const roleBonus = target.role === "ST" || target.role === "W" || target.role === "AM" ? 2.2 : 0;
+        const score = progress * 0.34 + roleBonus - d * 0.22 + offside.margin * 0.8;
+        if (score > bestScore) {
+          bestScore = score;
+          best = target;
+        }
+      }
+      return best;
+    };
+    const canSelectOffsideTarget = this.elapsedTotal >= this.offsideTargetSelectionLockedUntil;
+    if (canSelectOffsideTarget && this.rng.next() < 0.25) {
+      const offsideTarget = chooseOffside(55);
+      if (offsideTarget) return offsideTarget;
+    }
+    return choose(9.5)
+      || choose(13.5)
+      || choose(19)
+      || choose(28)
+      || choose(42)
+      || (canSelectOffsideTarget ? choose(28, true) || choose(42, true) : null);
   }
 
   private completedPassPairKey(a: SimplePlayer, b: SimplePlayer) {
@@ -2150,31 +3400,48 @@ export class SimpleMatchModel {
   private shootUrge(carrier: SimplePlayer, distToGoal: number, pressure: number) {
     if (carrier.role === "GK" || carrier.role === "CB" || carrier.role === "FB") return 0.004;
     const role = carrier.role === "ST" ? 0.012 : carrier.role === "W" || carrier.role === "AM" ? 0.008 : 0.004;
-    const distance = distToGoal < 8 ? 0.090 : distToGoal < 14 ? 0.058 : distToGoal < 22 ? 0.028 : distToGoal < 29 ? 0.008 : 0.001;
+    const distYards = (distToGoal / FIELD_W) * 120;
+    const distance = distToGoal < 8 ? 0.090 : distToGoal < 14 ? 0.058 : distToGoal < 22 ? 0.018 : distToGoal < 29 ? 0.003 : 0;
     const centrality = clamp(1 - Math.abs(carrier.pos.z) / (FIELD_D * 0.42), 0, 1);
     const pressureBoost = Math.min(0.008, pressure * 0.0020);
     const attackBoost = (this.team(carrier.team).tuning.attack - 0.5) * 0.007;
-    const centralBoost = centrality * 0.012;
-    return clamp((role + distance + pressureBoost + attackBoost + centralBoost) * this.shotSelectionScale(), 0.001, 0.12);
+    const centralBoost = distYards <= 24 ? centrality * 0.010 : centrality * 0.003;
+    const longRangeBrake = distYards > 30 ? 0.22 : distYards > 24 ? 0.45 : 1;
+    return clamp((role + distance + pressureBoost + attackBoost + centralBoost) * this.shotSelectionScale() * longRangeBrake, 0.001, 0.11);
   }
 
   private distanceShotChance(carrier: SimplePlayer, distToGoal: number, pressure: number, forwardX: number) {
     if (!["ST", "W", "AM", "CM"].includes(carrier.role)) return 0;
     if (forwardX < 8) return 0;
     const distYards = (distToGoal / FIELD_W) * 120;
-    if (distYards < 20 || distYards > 36) return 0;
+    if (distYards < 20 || distYards > 30) return 0;
     const centrality = clamp(1 - Math.abs(carrier.pos.z) / (FIELD_D * 0.38), 0, 1);
-    if (centrality < 0.22) return 0;
-    const roleBase = carrier.role === "ST" ? 0.045 : carrier.role === "AM" ? 0.040 : carrier.role === "W" ? 0.030 : 0.020;
-    const sweetSpot = clamp(1 - Math.abs(distYards - 27) / 11, 0, 1);
-    const centralBoost = centrality * 0.020;
-    const attackBoost = (this.team(carrier.team).tuning.attack - 0.5) * 0.012;
-    const pressureBoost = clamp(pressure * 0.012, 0, 0.020);
-    return clamp((roleBase + sweetSpot * 0.025 + centralBoost + attackBoost + pressureBoost) * this.shotSelectionScale(), 0, 0.08);
+    if (centrality < 0.32) return 0;
+    const roleBase = carrier.role === "ST" ? 0.018 : carrier.role === "AM" ? 0.016 : carrier.role === "W" ? 0.011 : 0.007;
+    const sweetSpot = clamp(1 - Math.abs(distYards - 24) / 7, 0, 1);
+    const centralBoost = centrality * 0.008;
+    const attackBoost = (this.team(carrier.team).tuning.attack - 0.5) * 0.004;
+    const pressureBoost = clamp(pressure * 0.004, 0, 0.007);
+    return clamp((roleBase + sweetSpot * 0.010 + centralBoost + attackBoost + pressureBoost) * this.shotSelectionScale(), 0, 0.035);
+  }
+
+  private isInAttackingPenaltyArea(carrier: SimplePlayer) {
+    return isInPenaltyArea(carrier.pos, this.attackSign(carrier.team) < 0);
+  }
+
+  private penaltyAreaShotChance(carrier: SimplePlayer, distToGoal: number, pressure: number) {
+    if (carrier.role === "GK") return 0;
+    const roleBase = carrier.role === "ST" ? 0.82
+      : carrier.role === "W" || carrier.role === "AM" ? 0.74
+        : carrier.role === "CM" || carrier.role === "DM" ? 0.68
+          : 0.58;
+    const distanceBoost = distToGoal < 8 ? 0.06 : distToGoal < 12 ? 0.03 : 0;
+    const pressureBoost = clamp(pressure * 0.025, 0, 0.06);
+    return clamp(roleBase + distanceBoost + pressureBoost, 0.58, 0.88);
   }
 
   private shotSelectionScale() {
-    return 2.50;
+    return 1.70;
   }
 
   private maxGoalDistanceYards(role: SimpleRole, context: ShotResolutionContext) {
@@ -2341,13 +3608,23 @@ export class SimpleMatchModel {
       shots: effective.shots,
       shotsOnTarget: effective.shotsOnTarget,
       saves: stats.saves,
+      headers: stats.headers,
+      headerShots: stats.headerShots,
+      headerClearances: stats.headerClearances,
       tackles: stats.tacklesWon,
-      clearances: 0,
-      fouls: 0,
+      clearances: stats.clearances,
+      fouls: stats.fouls,
       offsides: stats.offsides,
+      penaltiesAwarded: stats.penaltiesAwarded,
+      penaltiesTaken: stats.penaltiesTaken,
+      penaltiesScored: stats.penaltiesScored,
+      penaltiesSaved: stats.penaltiesSaved,
+      penaltiesMissed: stats.penaltiesMissed,
+      penaltyXg: +stats.penaltyXg.toFixed(2),
       corners: stats.corners,
       throwIns: stats.throwIns,
       goalKicks: stats.goalKicks,
+      freeKicks: stats.freeKicks,
       gkDistributions: stats.gkDistributions,
       gkDistCompleted: stats.gkDistCompleted,
       possession,
@@ -2371,13 +3648,18 @@ export class SimpleMatchModel {
         shots: player.stats.shots,
         shotsOnTarget: player.stats.shotsOnTarget,
         goals: player.stats.goals,
+        headers: player.stats.headers,
+        headerShots: player.stats.headerShots,
+        headerClearances: player.stats.headerClearances,
         tackles: player.stats.tackles,
         interceptions: player.stats.interceptions,
-        clearances: 0,
+        clearances: player.stats.headerClearances,
         recoveries: player.stats.interceptions + player.stats.saves,
         turnovers: Math.max(0, player.stats.passes - player.stats.passesCompleted),
-        fouls: 0,
-        fouled: 0,
+        fouls: player.stats.fouls,
+        fouled: player.stats.fouled,
+        penaltiesTaken: player.stats.penaltiesTaken,
+        penaltiesScored: player.stats.penaltiesScored,
         distance: +player.stats.distance.toFixed(2),
       };
     }
@@ -2388,12 +3670,25 @@ export class SimpleMatchModel {
       shots: effective.shots,
       shotsOnTarget: effective.shotsOnTarget,
       saves: stats.saves,
+      headers: stats.headers,
+      headerShots: stats.headerShots,
+      headerClearances: stats.headerClearances,
+      clearances: stats.clearances,
       passes: stats.passes,
       passesCompleted: stats.passesCompleted,
+      tackles: stats.tacklesWon,
+      fouls: stats.fouls,
       offsides: stats.offsides,
+      penaltiesAwarded: stats.penaltiesAwarded,
+      penaltiesTaken: stats.penaltiesTaken,
+      penaltiesScored: stats.penaltiesScored,
+      penaltiesSaved: stats.penaltiesSaved,
+      penaltiesMissed: stats.penaltiesMissed,
+      penaltyXg: +stats.penaltyXg.toFixed(2),
       corners: stats.corners,
       throwIns: stats.throwIns,
       goalKicks: stats.goalKicks,
+      freeKicks: stats.freeKicks,
       roleStats,
       passNetwork: this.passLog.filter((e) => e.team === team).slice(-200),
     };

@@ -24,6 +24,7 @@ test('V37 watched fixture classifies slow browser clock separately from match ti
     null,
   );
   assert.equal(getFixtureElapsedSimSeconds({ half: 2, elapsedInHalf: 12 }, 300), 312);
+  assert.equal(getFixtureElapsedSimSeconds({ half: 1, elapsedInHalf: 900, halfDuration: 2700, runtimeHalfDuration: 300, matchClockScale: 9 }, 300), 100);
 });
 
 test('V38 slow watched fixture clock is not terminal while it is still progressing', () => {

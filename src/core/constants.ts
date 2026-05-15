@@ -44,7 +44,7 @@ export const BALL_RADIUS = 0.2;
 export const BALL_GROUND_Y = 0.15;
 
 export const BASE_RUN_SPEED = 5.0;
-export const PLAYER_ACCELERATION = 2.7;
+export const PLAYER_ACCELERATION = 3.0;
 export const SPRINT_MULTIPLIER = 1.35;
 export const JOG_MULTIPLIER = 0.55;
 export const WALK_MULTIPLIER = 0.3;

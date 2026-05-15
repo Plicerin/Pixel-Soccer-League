@@ -10,8 +10,11 @@ interface TeamStats {
   tackles: number;
   clearances: number;
   fouls: number;
+  penaltiesAwarded: number;
+  penaltiesScored: number;
   corners: number;
   throwIns: number;
+  goalKicks: number;
   gkDistributions: number;
   gkDistCompleted: number;
   possession: number;
@@ -65,8 +68,11 @@ const STAT_ROWS: { key: keyof TeamStats; label: string }[] = [
   { key: 'tackles', label: 'Tackles Won' },
   { key: 'clearances', label: 'Clearances' },
   { key: 'fouls', label: 'Fouls' },
+  { key: 'penaltiesAwarded', label: 'Penalties' },
+  { key: 'penaltiesScored', label: 'Penalty Goals' },
   { key: 'corners', label: 'Corners' },
   { key: 'throwIns', label: 'Throw-Ins' },
+  { key: 'goalKicks', label: 'Goal Kicks' },
   { key: 'gkDistCompleted', label: 'GK Dist (Comp/Att)' },
 ];
 

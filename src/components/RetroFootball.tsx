@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { ChevronDown, Pause, Play } from 'lucide-react';
 import { initGame } from '../gameEngine';
 import FrameViewer from './FrameViewer';
 import AnimationInspector from './AnimationInspector';
 import MatchHistoryDashboard from './MatchHistoryDashboard';
 import LiveTelemetry from './LiveTelemetry';
-import TuningLab from './TuningLab';
 import SeasonHub from './SeasonHub';
 import {
   buildDriftDashboard,
@@ -25,6 +24,17 @@ import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
 import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
+import {
+  DEFAULT_AWAY_TEAM,
+  DEFAULT_HOME_TEAM,
+  getWorldCupTeamFlagAsset,
+  getWorldCupTeamFlag,
+  PLAYABLE_WORLD_TEAM_KITS,
+  PLAYABLE_WORLD_TEAM_NAMES,
+  resolvePlayableTeamKits,
+  WORLD_CUP_2026_TEAM_NAMES,
+} from '../teamCatalog.js';
+import { randomWorldCup2026GroupFixture } from '../worldCup2026Schedule.js';
 
 const AGGRESSION_SCALE: Record<AggressivenessKey, number> = {
   POSSESSION: 35,
@@ -77,38 +87,8 @@ function applyPracticePlay(
   gameRef.current?.activatePracticePlay?.(routes, play.template);
 }
 
-const MLS_TEAM_OPTIONS = [
-  'Atlanta United',  // keep list unchanged – just adding color map below it
-  'Austin FC',
-  'Charlotte FC',
-  'Chicago Fire',
-  'FC Cincinnati',
-  'Colorado Rapids',
-  'Columbus Crew',
-  'DC United',
-  'FC Dallas',
-  'Houston Dynamo',
-  'Inter Miami',
-  'LA Galaxy',
-  'LAFC',
-  'Minnesota United',
-  'CF Montreal',
-  'Nashville SC',
-  'New England Revolution',
-  'New York City FC',
-  'New York Red Bulls',
-  'Orlando City',
-  'Philadelphia Union',
-  'Portland Timbers',
-  'Real Salt Lake',
-  'San Diego FC',
-  'San Jose Earthquakes',
-  'Seattle Sounders',
-  'Sporting Kansas City',
-  'St. Louis City SC',
-  'Toronto FC',
-  'Vancouver Whitecaps',
-];
+const BASE_TEAM_OPTIONS = WORLD_CUP_2026_TEAM_NAMES;
+const EASTER_EGG_TEAM_OPTIONS = ['Italy 1982', 'West Germany 1982'];
 
 const SOCCER_FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'];
 
@@ -118,41 +98,27 @@ const CPU_SHOT_TUNING_PRESETS = {
   POSSESSION: { aimErrorRad: 0.11, pressureError: 0.06 },
 } as const;
 
-// Official MLS primary (shirt) and secondary (pants) brand colors
-const MLS_TEAM_KITS: Record<string, { home: { shirt: number; pants: number }; away: { shirt: number; pants: number } }> = {
-  'Atlanta United':          { home: { shirt: 0xC41230, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xC41230 } },
-  'Austin FC':               { home: { shirt: 0x00B140, pants: 0x000000 }, away: { shirt: 0xFFFFFF, pants: 0x00B140 } },
-  'Charlotte FC':            { home: { shirt: 0x1A85C8, pants: 0xCCCCCC }, away: { shirt: 0xFFFFFF, pants: 0x1A85C8 } },
-  'Chicago Fire':            { home: { shirt: 0xC50505, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0xC50505 } },
-  'FC Cincinnati':           { home: { shirt: 0xF4811F, pants: 0x263C7E }, away: { shirt: 0xFFFFFF, pants: 0x263C7E } },
-  'Colorado Rapids':         { home: { shirt: 0x94092E, pants: 0x0086C8 }, away: { shirt: 0xFFFFFF, pants: 0x94092E } },
-  'Columbus Crew':           { home: { shirt: 0xFEDD00, pants: 0x000000 }, away: { shirt: 0x000000, pants: 0xFEDD00 } },
-  'DC United':               { home: { shirt: 0xEF3E42, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xEF3E42 } },
-  'FC Dallas':               { home: { shirt: 0xBF0D3E, pants: 0x002F65 }, away: { shirt: 0xFFFFFF, pants: 0xBF0D3E } },
-  'Houston Dynamo':          { home: { shirt: 0xF4851A, pants: 0x0A2240 }, away: { shirt: 0xFFFFFF, pants: 0xF4851A } },
-  'Inter Miami':             { home: { shirt: 0xF52B8F, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xF52B8F } },
-  'LA Galaxy':               { home: { shirt: 0x00245D, pants: 0xFAD141 }, away: { shirt: 0xFFFFFF, pants: 0x00245D } },
-  'LAFC':                    { home: { shirt: 0x000000, pants: 0xC39E6D }, away: { shirt: 0xFFFFFF, pants: 0x000000 } },
-  'Minnesota United':        { home: { shirt: 0x231F20, pants: 0x8FCFED }, away: { shirt: 0xFFFFFF, pants: 0x231F20 } },
-  'CF Montreal':             { home: { shirt: 0x0B2A6B, pants: 0x0A9FDB }, away: { shirt: 0xFFFFFF, pants: 0x0B2A6B } },
-  'Nashville SC':            { home: { shirt: 0xECE83A, pants: 0x1A2F5D }, away: { shirt: 0x1A2F5D, pants: 0xECE83A } },
-  'New England Revolution':  { home: { shirt: 0x003087, pants: 0xCE0E2D }, away: { shirt: 0xFFFFFF, pants: 0x003087 } },
-  'New York City FC':        { home: { shirt: 0x6CADDF, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0x6CADDF } },
-  'New York Red Bulls':      { home: { shirt: 0xED1C24, pants: 0x23235B }, away: { shirt: 0xFFFFFF, pants: 0xED1C24 } },
-  'Orlando City':            { home: { shirt: 0x633492, pants: 0xFFC224 }, away: { shirt: 0xFFFFFF, pants: 0x633492 } },
-  'Philadelphia Union':      { home: { shirt: 0x072B61, pants: 0xB19F72 }, away: { shirt: 0xFFFFFF, pants: 0x072B61 } },
-  'Portland Timbers':        { home: { shirt: 0x004812, pants: 0xFBEC51 }, away: { shirt: 0xFFFFFF, pants: 0x004812 } },
-  'Real Salt Lake':          { home: { shirt: 0xB22222, pants: 0x013A81 }, away: { shirt: 0xFFFFFF, pants: 0xB22222 } },
-  'San Diego FC':            { home: { shirt: 0x003087, pants: 0xC8A951 }, away: { shirt: 0xFFFFFF, pants: 0x003087 } },
-  'San Jose Earthquakes':    { home: { shirt: 0x0D4DA1, pants: 0x000000 }, away: { shirt: 0xFFFFFF, pants: 0x0D4DA1 } },
-  'Seattle Sounders':        { home: { shirt: 0x5D9732, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0x5D9732 } },
-  'Sporting Kansas City':    { home: { shirt: 0x002B5C, pants: 0x99D9E0 }, away: { shirt: 0xFFFFFF, pants: 0x002B5C } },
-  'St. Louis City SC':       { home: { shirt: 0xC8102E, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0xC8102E } },
-  'Toronto FC':              { home: { shirt: 0xB81137, pants: 0x313233 }, away: { shirt: 0xFFFFFF, pants: 0xB81137 } },
-  'Vancouver Whitecaps':     { home: { shirt: 0x0B63A0, pants: 0xFFFFFF }, away: { shirt: 0xFFFFFF, pants: 0x0B63A0 } },
-};
+const MLS_TEAM_KITS = PLAYABLE_WORLD_TEAM_KITS as Record<string, { home: { shirt: number; pants: number }; away: { shirt: number; pants: number } }>;
+const FALLBACK_TEAM_KIT = MLS_TEAM_KITS[DEFAULT_HOME_TEAM] ?? Object.values(MLS_TEAM_KITS)[0];
+const MLS_TEAM_NAMES = PLAYABLE_WORLD_TEAM_NAMES;
+type CpuMatchup = { a: string; b: string };
 
-const MLS_TEAM_NAMES = Object.keys(MLS_TEAM_KITS);
+function randomCpuMatchup(): CpuMatchup {
+  const fixture = randomWorldCup2026GroupFixture();
+  if (fixture) {
+    return {
+      a: fixture.homeTeam,
+      b: fixture.awayTeam,
+    };
+  }
+  const homeIndex = Math.floor(Math.random() * MLS_TEAM_NAMES.length);
+  let awayIndex = Math.floor(Math.random() * Math.max(1, MLS_TEAM_NAMES.length - 1));
+  if (awayIndex >= homeIndex) awayIndex += 1;
+  return {
+    a: MLS_TEAM_NAMES[homeIndex],
+    b: MLS_TEAM_NAMES[awayIndex % MLS_TEAM_NAMES.length],
+  };
+}
 
 function getTeamColor(teamName: string): string {
   const kit = MLS_TEAM_KITS[teamName];
@@ -161,38 +127,42 @@ function getTeamColor(teamName: string): string {
   return `#${hex.toString(16).padStart(6, '0')}`;
 }
 
-const MLS_TEAM_LOGOS: Record<string, string> = {
-  'Atlanta United':          '/assets/logos/atlanta-united.png',
-  'Austin FC':               '/assets/logos/austin-fc.png',
-  'Charlotte FC':            '/assets/logos/charlotte-fc.png',
-  'Chicago Fire':            '/assets/logos/chicago-fire.png',
-  'FC Cincinnati':           '/assets/logos/fc-cincinnati.png',
-  'Colorado Rapids':         '/assets/logos/colorado-rapids.png',
-  'Columbus Crew':           '/assets/logos/columbus-crew.png',
-  'DC United':               '/assets/logos/dc-united.png',
-  'FC Dallas':               '/assets/logos/fc-dallas.png',
-  'Houston Dynamo':          '/assets/logos/houston-dynamo.png',
-  'Inter Miami':             '/assets/logos/inter-miami.png',
-  'LA Galaxy':               '/assets/logos/la-galaxy.png',
-  'LAFC':                    '/assets/logos/lafc.png',
-  'Minnesota United':        '/assets/logos/minnesota-united.png',
-  'CF Montreal':             '/assets/logos/cf-montreal.png',
-  'Nashville SC':            '/assets/logos/nashville-sc.png',
-  'New England Revolution':  '/assets/logos/new-england-revolution.png',
-  'New York City FC':        '/assets/logos/new-york-city-fc.png',
-  'New York Red Bulls':      '/assets/logos/new-york-red-bulls.png',
-  'Orlando City':            '/assets/logos/orlando-city.png',
-  'Philadelphia Union':      '/assets/logos/philadelphia-union.png',
-  'Portland Timbers':        '/assets/logos/portland-timbers.png',
-  'Real Salt Lake':          '/assets/logos/real-salt-lake.png',
-  'San Diego FC':            '/assets/logos/san-diego-fc.png',
-  'San Jose Earthquakes':    '/assets/logos/san-jose-earthquakes.png',
-  'Seattle Sounders':        '/assets/logos/seattle-sounders.png',
-  'Sporting Kansas City':    '/assets/logos/sporting-kc.png',
-  'St. Louis City SC':       '/assets/logos/st-louis-city.png',
-  'Toronto FC':              '/assets/logos/toronto-fc.png',
-  'Vancouver Whitecaps':     '/assets/logos/vancouver-whitecaps.png',
-};
+function getResolvedMatchKits(teamAName: string, teamBName: string, teamAKit: 'home' | 'away', teamBKit: 'home' | 'away') {
+  return resolvePlayableTeamKits(teamAName, teamBName, teamAKit, teamBKit) as {
+    homeKey: 'home' | 'away';
+    awayKey: 'home' | 'away';
+    home: { shirt: number; pants: number };
+    away: { shirt: number; pants: number };
+  };
+}
+
+const MLS_TEAM_LOGOS: Record<string, string> = {};
+
+function ScoreboardFlag({ teamName }: { teamName: string }) {
+  const flag = getWorldCupTeamFlag(teamName);
+  const flagAsset = getWorldCupTeamFlagAsset(teamName);
+  return (
+    <div
+      className="relative h-9 w-11 sm:h-10 sm:w-12 shrink-0 overflow-hidden rounded-[3px] border border-black/15 bg-white grid place-items-center text-[25px] sm:text-[28px] leading-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]"
+      aria-label={`${teamName} flag`}
+      title={`${teamName} flag`}
+    >
+      <span className="leading-none">{flag || shortTeamName(teamName).slice(0, 3)}</span>
+      {flagAsset && (
+        <img
+          src={flagAsset}
+          alt={`${teamName} flag`}
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 /** Pre-Match Setup Screen Component */
 interface PreMatchSetupScreenProps {
@@ -221,6 +191,7 @@ interface PreMatchSetupScreenProps {
   onRunWatchedFixture: () => void;
   watchedFixtureRunning: boolean;
   watchedFixtureMessage: string;
+  teamOptions: string[];
   onClose: () => void;
 }
 
@@ -250,6 +221,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onRunWatchedFixture,
   watchedFixtureRunning,
   watchedFixtureMessage,
+  teamOptions,
   onClose,
 }) => {
   const aggressivenessOptions = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
@@ -280,7 +252,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
     onHomeChange,
   }) => {
     const teamColor = getTeamColor(name);
-    const kit = MLS_TEAM_KITS[name] ?? MLS_TEAM_KITS['Inter Miami'];
+    const kit = MLS_TEAM_KITS[name] ?? FALLBACK_TEAM_KIT;
     const selectedKit = kitIndex === 0 ? kit.home : kit.away;
     const shirtColor = `#${selectedKit.shirt.toString(16).padStart(6, '0')}`;
     const pantsColor = `#${selectedKit.pants.toString(16).padStart(6, '0')}`;
@@ -292,7 +264,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
           <CustomDropdown
             value={name}
             onChange={onNameChange}
-            options={MLS_TEAM_NAMES}
+            options={teamOptions}
             className="flex-1"
           />
           {onHomeChange && (
@@ -571,6 +543,99 @@ const CustomDropdown = <T extends string>({
   );
 };
 
+function MenuTeamSelect({
+  label,
+  value,
+  focused,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  focused: boolean;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const flag = getWorldCupTeamFlag(value);
+  const flagAsset = getWorldCupTeamFlagAsset(value);
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="text-center text-[13px] font-black uppercase leading-none text-white" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.75)' }}>
+        {label}
+      </div>
+      <div className={`relative h-14 rounded-md border bg-zinc-950/90 shadow-[0_0_0_2px_rgba(0,0,0,0.7),inset_0_0_22px_rgba(255,255,255,0.05)] ${focused ? 'border-white ring-2 ring-lime-300/70' : 'border-white/70'}`}>
+        <div className="pointer-events-none absolute left-4 top-1/2 z-[2] grid h-7 w-10 -translate-y-1/2 place-items-center overflow-hidden rounded-[2px] border border-white/40 bg-white text-[22px] leading-none">
+          <span>{flag || shortTeamName(value).slice(0, 2)}</span>
+          {flagAsset && (
+            <img
+              src={flagAsset}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+        </div>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-full w-full appearance-none rounded-md bg-transparent pl-[72px] pr-12 text-[18px] font-black uppercase leading-none text-white outline-none"
+          style={{ textShadow: '0 2px 0 rgba(0,0,0,0.8)' }}
+        >
+          {options.map((team) => (
+            <option key={`${label}-${team}`} value={team}>
+              {team}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-7 w-7 -translate-y-1/2 text-white" strokeWidth={3} />
+      </div>
+    </div>
+  );
+}
+
+function MenuModeButton({
+  children,
+  focused,
+  tone = 'white',
+  onClick,
+}: {
+  children: React.ReactNode;
+  focused: boolean;
+  tone?: 'white' | 'muted' | 'amber' | 'green';
+  onClick: () => void;
+}) {
+  const toneClass =
+    tone === 'amber'
+      ? focused
+        ? 'border-amber-300 bg-amber-500/25 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.28)]'
+        : 'border-amber-400 text-amber-300 hover:bg-amber-500/15'
+      : tone === 'green'
+        ? focused
+          ? 'border-lime-300 bg-lime-500/20 text-lime-300 shadow-[0_0_24px_rgba(132,204,22,0.28)]'
+          : 'border-lime-500 text-lime-400 hover:bg-lime-500/15'
+        : tone === 'muted'
+          ? focused
+            ? 'border-slate-300 bg-slate-500/20 text-slate-200'
+            : 'border-white/35 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+          : focused
+            ? 'border-white bg-white/15 text-white shadow-[0_0_24px_rgba(255,255,255,0.22)]'
+            : 'border-white/80 text-white hover:bg-white/10';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`h-[58px] w-full rounded-md border-2 bg-zinc-950/86 text-[19px] font-black uppercase leading-none transition-colors shadow-[0_0_0_2px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.14),inset_0_-10px_22px_rgba(255,255,255,0.04)] ${toneClass}`}
+      style={{ textShadow: '0 3px 0 rgba(0,0,0,0.85)' }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function formatScoreboardClock(snapshot: any) {
   if (!snapshot) return '00:00';
   const elapsed = Math.max(0, Number(snapshot.elapsedInHalf) || 0);
@@ -615,8 +680,12 @@ const RetroFootball: React.FC = () => {
   const [stadiumCamTiltShiftEnabled, setStadiumCamTiltShiftEnabled] = useState(true);
   const [teamAUniform, setTeamAUniform] = useState(0);
   const [teamBUniform, setTeamBUniform] = useState(0);
-  const [teamAName, setTeamAName] = useState('LA Galaxy');
-  const [teamBName, setTeamBName] = useState('LAFC');
+  const [teamAName, setTeamAName] = useState(DEFAULT_HOME_TEAM);
+  const [teamBName, setTeamBName] = useState(DEFAULT_AWAY_TEAM);
+  const teamANameRef = useRef(DEFAULT_HOME_TEAM);
+  const teamBNameRef = useRef(DEFAULT_AWAY_TEAM);
+  const activeMatchTeamsRef = useRef<{ a: string; b: string } | null>(null);
+  const [easterEggUnlocked, setEasterEggUnlocked] = useState(false);
   const [teamAFormation, setTeamAFormation] = useState('3-4-3');
   const [teamBFormation, setTeamBFormation] = useState('3-4-3');
   const [teamAAggressiveness, setTeamAAggressiveness] = useState<AggressivenessKey>('BALANCED');
@@ -692,10 +761,6 @@ const RetroFootball: React.FC = () => {
   const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('AGGRESSIVE');
   const [showPracticeComplete, setShowPracticeComplete] = useState(false);
   const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [ifpEvents, setIfpEvents] = useState<any[]>([]);
-  const [latestIfpFlash, setLatestIfpFlash] = useState<any>(null);
-  const latestIfpFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ifpSeenCountRef = useRef(0);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -706,6 +771,7 @@ const RetroFootball: React.FC = () => {
   const [isFullTime, setIsFullTime] = useState(false);
   const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(null);
   const fullTimeReturnArmedRef = useRef(false);
+  const fullTimeCapturedRef = useRef(false);
   const prevIsLive = useRef(false);
 
   // ── Season mode state ─────────────────────────────────────────
@@ -718,6 +784,7 @@ const RetroFootball: React.FC = () => {
   const menuFocusRef = useRef(2);
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
   const menuGpStickCooldown = useRef(0);
+  const easterEggSequenceRef = useRef('');
   const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => void>(() => {});
   const handleRealDataReplayStartRef = useRef<() => void>(() => {});
   const setSeasonModeActiveRef = useRef(setSeasonModeActive);
@@ -726,8 +793,9 @@ const RetroFootball: React.FC = () => {
   useEffect(() => { menuFocusRef.current = menuFocusIndex; }, [menuFocusIndex]);
 
   const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
-  const MENU_ITEM_COUNT = 8; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Replay, 6=Season, 7=Practice
-  const showScoreboard = !showSplash && !isFullTime && !!matchSnapshot && matchSnapshot.phase !== 'PRE_MATCH';
+  const teamOptions = easterEggUnlocked ? [...BASE_TEAM_OPTIONS, ...EASTER_EGG_TEAM_OPTIONS] : BASE_TEAM_OPTIONS;
+  const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=World Cup, 6=Practice
+  const showScoreboard = hasActiveMatchSession && !showSplash && !isFullTime && !!matchSnapshot && matchSnapshot.phase !== 'PRE_MATCH';
   const scoreboardTeamA = matchSnapshot?.teamAName || teamAName;
   const scoreboardTeamB = matchSnapshot?.teamBName || teamBName;
 
@@ -742,6 +810,33 @@ const RetroFootball: React.FC = () => {
       sessionStorage.removeItem('psl_fullTimeScore');
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!startMenuVisible || showSplash || easterEggUnlocked) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!/^[0-9]$/.test(event.key)) return;
+      easterEggSequenceRef.current = `${easterEggSequenceRef.current}${event.key}`.slice(-4);
+      if (easterEggSequenceRef.current === '1982') {
+        setEasterEggUnlocked(true);
+        setTeamAName('Italy 1982');
+        setTeamBName('West Germany 1982');
+        setTeamAKit('home');
+        setTeamBKit('home');
+        setMenuFocusIndex(5);
+        easterEggSequenceRef.current = '';
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [startMenuVisible, showSplash, easterEggUnlocked]);
+
+  useEffect(() => {
+    teamANameRef.current = teamAName;
+  }, [teamAName]);
+
+  useEffect(() => {
+    teamBNameRef.current = teamBName;
+  }, [teamBName]);
 
   // ── Splash screen dismiss handler ──
   useEffect(() => {
@@ -828,26 +923,26 @@ const RetroFootball: React.FC = () => {
           if (stickX > 0.5 || dpadRight) {
             if (fi === 0) {
               setTeamAName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx + 1) % teamOptions.length];
               });
             } else if (fi === 1) {
               setTeamBName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx + 1) % teamOptions.length];
               });
             }
             menuGpStickCooldown.current = now + 180;
           } else if (stickX < -0.5 || dpadLeft) {
             if (fi === 0) {
               setTeamAName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx - 1 + teamOptions.length) % teamOptions.length];
               });
             } else if (fi === 1) {
               setTeamBName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx - 1 + teamOptions.length) % teamOptions.length];
               });
             }
             menuGpStickCooldown.current = now + 180;
@@ -860,12 +955,10 @@ const RetroFootball: React.FC = () => {
             if (fi === 2) handleKickOffRef.current('1p');
             else if (fi === 3) handleKickOffRef.current('2p');
             else if (fi === 4) {
-              const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-              handleKickOffRef.current('cpu', { a: shuffled[0], b: shuffled[1] });
+              handleKickOffRef.current('cpu', randomCpuMatchup());
             }
-            else if (fi === 5) handleRealDataReplayStartRef.current();
-            else if (fi === 6) setSeasonModeActiveRef.current(true);
-            else if (fi === 7) setShowPracticeSetup(true);
+            else if (fi === 5) setSeasonModeActiveRef.current(true);
+            else if (fi === 6) setShowPracticeSetup(true);
             return fi;
           });
         }
@@ -881,7 +974,7 @@ const RetroFootball: React.FC = () => {
     };
     rafId = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(rafId);
-  }, [startMenuVisible]);
+  }, [startMenuVisible, easterEggUnlocked]);
 
   const hasActiveMatchSessionRef = useRef(false);
   const showSplashRef = useRef(showSplash);
@@ -921,6 +1014,47 @@ const RetroFootball: React.FC = () => {
   }, [hasActiveMatchSession, showSplash]);
 
   useEffect(() => {
+    const captureFullTime = (snapshot: any, runPostFullTimeWork = false) => {
+      if (!snapshot || smokeTestActiveRef.current || fullTimeCapturedRef.current) return;
+      fullTimeCapturedRef.current = true;
+      setIsFullTime(true);
+      setHasActiveMatchSession(true);
+      setAllowMainMenu(false);
+      setSessionMenuLock(true);
+      const teamA = snapshot.teamAName || activeMatchTeamsRef.current?.a || teamANameRef.current;
+      const teamB = snapshot.teamBName || activeMatchTeamsRef.current?.b || teamBNameRef.current;
+      const ftScore = {
+        scoreA: snapshot.scoreA,
+        scoreB: snapshot.scoreB,
+        teamA,
+        teamB,
+        shotsA: snapshot.shotsA,
+        shotsB: snapshot.shotsB,
+        sogA: snapshot.shotsOnTargetA,
+        sogB: snapshot.shotsOnTargetB,
+        savesA: snapshot.savesA,
+        savesB: snapshot.savesB,
+        headersA: snapshot.headersA,
+        headersB: snapshot.headersB,
+        goals: snapshot.goalLog || [],
+        colorA: getTeamColor(teamA),
+        colorB: getTeamColor(teamB),
+      };
+      setFullTimeScore(ftScore);
+      try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore)); } catch {}
+      gameRef.current?.setMenuVisible?.(false);
+      gameRef.current?.setScoreBugVisible?.(false);
+      if (runPostFullTimeWork) {
+        mirrorMatchSummary();
+        // AUTOMATION: Seed baselines and auto-apply recommendations
+        import('../telemetry/mls2025-baselines').then(m =>
+          m.seedMLS2025Baselines && m.seedMLS2025Baselines()
+        ).then(() =>
+          generateDriftRecommendations({ thresholdPct: 10 })
+        );
+      }
+    };
+
     const interval = setInterval(() => {
       if (gameRef.current) {
         const currentIsLive = gameRef.current.getIsLive();
@@ -928,32 +1062,8 @@ const RetroFootball: React.FC = () => {
         setIsPaused(!!gameRef.current.getPaused?.());
         if (snapshot) setMatchSnapshot(snapshot);
 
-        if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
-          setIsFullTime(true);
-          setHasActiveMatchSession(true);
-          setAllowMainMenu(false);
-          setSessionMenuLock(true);
-          const ftScore = {
-            scoreA: snapshot.scoreA,
-            scoreB: snapshot.scoreB,
-            teamA: snapshot.teamAName || teamAName,
-            teamB: snapshot.teamBName || teamBName,
-            shotsA: snapshot.shotsA,
-            shotsB: snapshot.shotsB,
-            sogA: snapshot.shotsOnTargetA,
-            sogB: snapshot.shotsOnTargetB,
-            savesA: snapshot.savesA,
-            savesB: snapshot.savesB,
-            headersA: snapshot.headersA,
-            headersB: snapshot.headersB,
-            goals: snapshot.goalLog || [],
-            colorA: getTeamColor(snapshot.teamAName || teamAName),
-            colorB: getTeamColor(snapshot.teamBName || teamBName),
-          };
-          setFullTimeScore(ftScore);
-          try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore)); } catch {}
-          gameRef.current?.setMenuVisible?.(false);
-          gameRef.current?.setScoreBugVisible?.(false);
+        if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current && !prevMatchSnapshotRef.current) {
+          captureFullTime(snapshot);
         }
 
         if (snapshot && prevMatchSnapshotRef.current) {
@@ -970,35 +1080,7 @@ const RetroFootball: React.FC = () => {
               to: { phase: snapshot.phase, half: snapshot.half },
             });
             if (snapshot.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
-              setIsFullTime(true);
-              const ftScore2 = {
-                scoreA: snapshot.scoreA,
-                scoreB: snapshot.scoreB,
-                teamA: snapshot.teamAName || teamAName,
-                teamB: snapshot.teamBName || teamBName,
-                shotsA: snapshot.shotsA,
-                shotsB: snapshot.shotsB,
-                sogA: snapshot.shotsOnTargetA,
-                sogB: snapshot.shotsOnTargetB,
-                savesA: snapshot.savesA,
-                savesB: snapshot.savesB,
-                headersA: snapshot.headersA,
-                headersB: snapshot.headersB,
-                goals: snapshot.goalLog || [],
-                colorA: getTeamColor(snapshot.teamAName || teamAName),
-                colorB: getTeamColor(snapshot.teamBName || teamBName),
-              };
-              setFullTimeScore(ftScore2);
-              try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore2)); } catch {}
-              gameRef.current?.setMenuVisible?.(false);
-              gameRef.current?.setScoreBugVisible?.(false);
-              mirrorMatchSummary();
-                // AUTOMATION: Seed baselines and auto-apply recommendations
-                import('../telemetry/mls2025-baselines').then(m =>
-                  m.seedMLS2025Baselines && m.seedMLS2025Baselines()
-                ).then(() =>
-                  generateDriftRecommendations({ thresholdPct: 10 })
-                );
+              captureFullTime(snapshot, true);
             }
           }
           const prevShotSeq = prev.lastShotTelemetry?.seq ?? 0;
@@ -1244,8 +1326,9 @@ const RetroFootball: React.FC = () => {
       if (useNewArchitecture) {
         gameRef.current?.setShowOrchTelemetry?.(true);
       }
-      const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-      const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+      const resolvedKits = getResolvedMatchKits(teamAName, teamBName, teamAKit, teamBKit);
+      const kitA = resolvedKits.home;
+      const kitB = resolvedKits.away;
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
       gameRef.current?.setTeamNames?.(teamAName, teamBName);
       gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[teamAName] ?? '', MLS_TEAM_LOGOS[teamBName] ?? '');
@@ -1313,6 +1396,8 @@ const RetroFootball: React.FC = () => {
         // Always clear full-time overlay and UI latches
         setIsLive(false);
         setIsFullTime(false);
+        fullTimeCapturedRef.current = false;
+        activeMatchTeamsRef.current = null;
         try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
         setFullTimeScore(null);
         prevIsLive.current = false;
@@ -1378,8 +1463,9 @@ const RetroFootball: React.FC = () => {
   }, [teamAName, teamBName, teamAFormation, teamBFormation]);
 
   useEffect(() => {
-    const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(teamAName, teamBName, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
     gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
     gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
   }, [teamAName, teamBName, teamAKit, teamBKit]);
@@ -1441,15 +1527,19 @@ const RetroFootball: React.FC = () => {
     const isCpu = mode === 'cpu';
     const isTesting = mode === 'test';
     const isPractice = mode === 'practice';
-    const nextTeamAName = overrideTeams?.a ?? teamAName;
-    const nextTeamBName = overrideTeams?.b ?? teamBName;
-    if (overrideTeams) {
-      setTeamAName(overrideTeams.a);
-      setTeamBName(overrideTeams.b);
+    const kickoffTeams = overrideTeams ?? (isCpu ? randomCpuMatchup() : { a: teamAName, b: teamBName });
+    const nextTeamAName = kickoffTeams.a;
+    const nextTeamBName = kickoffTeams.b;
+    activeMatchTeamsRef.current = { a: nextTeamAName, b: nextTeamBName };
+    fullTimeCapturedRef.current = false;
+    if (overrideTeams || isCpu) {
+      setTeamAName(nextTeamAName);
+      setTeamBName(nextTeamBName);
     }
 
-    const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(nextTeamAName, nextTeamBName, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
     gameRef.current?.setTeamNames?.(nextTeamAName, nextTeamBName);
     gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[nextTeamAName] ?? '', MLS_TEAM_LOGOS[nextTeamBName] ?? '');
     gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
@@ -1520,6 +1610,9 @@ const RetroFootball: React.FC = () => {
 
   const handlePreMatchSetupStart = () => {
     setShowPreMatchSetup(false);
+    const kickoffTeams = randomCpuMatchup();
+    setTeamAName(kickoffTeams.a);
+    setTeamBName(kickoffTeams.b);
     // Apply aggressiveness presets to the CPU shot tuning
     const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
     const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
@@ -1527,7 +1620,7 @@ const RetroFootball: React.FC = () => {
     applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     // Start the match with CPU vs CPU mode
-    handleKickOff('cpu', { a: teamAName, b: teamBName });
+    handleKickOff('cpu', kickoffTeams);
   };
 
   const handleRealDataReplayStart = () => {
@@ -1547,6 +1640,8 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setRealDataReplayMode?.(true);
     setIsFullTime(false);
     setFullTimeScore(null);
+    fullTimeCapturedRef.current = false;
+    activeMatchTeamsRef.current = { a: teamANameRef.current, b: teamBNameRef.current };
   };
 
   const handleRunWatchedFixture = async () => {
@@ -1557,12 +1652,24 @@ const RetroFootball: React.FC = () => {
       return;
     }
 
+    const fixtureTeams = randomCpuMatchup();
+    activeMatchTeamsRef.current = { a: fixtureTeams.a, b: fixtureTeams.b };
+    fullTimeCapturedRef.current = false;
     setShowPreMatchSetup(false);
+    setTeamAName(fixtureTeams.a);
+    setTeamBName(fixtureTeams.b);
     setWatchedFixtureRunning(true);
-    setWatchedFixtureMessage(`Watching ${teamAName} vs ${teamBName}`);
+    setWatchedFixtureMessage(`Watching ${fixtureTeams.a} vs ${fixtureTeams.b}`);
 
     const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
     const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
+    const resolvedKits = getResolvedMatchKits(fixtureTeams.a, fixtureTeams.b, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
+    gameRef.current?.setTeamNames?.(fixtureTeams.a, fixtureTeams.b);
+    gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[fixtureTeams.a] ?? '', MLS_TEAM_LOGOS[fixtureTeams.b] ?? '');
+    gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
+    gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
     applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
@@ -1591,8 +1698,8 @@ const RetroFootball: React.FC = () => {
       const fixtureHalfSeconds = halfLengthMinutes * 60;
       const fixtureSpeedMul = computeWatchedFixtureSpeedMul(fixtureHalfSeconds);
       const result = await runner({
-        homeTeam: teamAName,
-        awayTeam: teamBName,
+        homeTeam: fixtureTeams.a,
+        awayTeam: fixtureTeams.b,
         formationA: teamAFormation,
         formationB: teamBFormation,
         halfSeconds: fixtureHalfSeconds,
@@ -1620,9 +1727,9 @@ const RetroFootball: React.FC = () => {
   };
 
   const handlePreMatchSetupRandomize = () => {
-    const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-    setTeamAName(shuffled[0]);
-    setTeamBName(shuffled[1]);
+    const matchup = randomCpuMatchup();
+    setTeamAName(matchup.a);
+    setTeamBName(matchup.b);
     setTeamAFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
     setTeamBFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
     setTeamAAggressiveness(Object.keys(PRACTICE_AGGRESSIVENESS)[Math.floor(Math.random() * 3)] as AggressivenessKey);
@@ -1644,8 +1751,9 @@ const RetroFootball: React.FC = () => {
 
     const nextTeamAName = teamAName;
     const nextTeamBName = teamBName;
-    const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(nextTeamAName, nextTeamBName, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
 
     if (showSplash) {
       gameRef.current?.setTeamNames?.(nextTeamAName, nextTeamBName);
@@ -1748,7 +1856,7 @@ const RetroFootball: React.FC = () => {
           <div>TAK: {p.stats.tackle.toFixed(2)}</div>
         </div>
         <div className="border-t border-white/10 pt-2 text-[10px]">
-          <div className="text-white/50 uppercase tracking-wide mb-1">MLS 2025 Team Modifier</div>
+          <div className="text-white/50 uppercase tracking-wide mb-1">Team Modifier</div>
           {p.mls2025 ? (
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white/75">
               <div>Quality PPG: {(p.mls2025.quality.ppg * 100).toFixed(0)}%</div>
@@ -1807,42 +1915,6 @@ const RetroFootball: React.FC = () => {
     if (!isOptionsOpen || activeTab !== 'STATS') return;
     refreshDriftDashboard();
   }, [isOptionsOpen, activeTab, driftThresholdPct]);
-
-  // Poll ISOLATED_FORWARD_PASS events during CPU vs CPU
-  useEffect(() => {
-    if (gameMode !== 'cpu' || !hasActiveMatchSession) return;
-    // Reset for this game session — clear both React state and window arrays
-    (window as any).ISOLATED_FORWARD_PASS_EVENTS = [];
-    (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS = [];
-    (window as any)._ISOLATED_FORWARD_PASS_TOTAL = 0;
-    ifpSeenCountRef.current = 0;
-    setIfpEvents([]);
-    setLatestIfpFlash(null);
-    const id = window.setInterval(() => {
-      const resolved: any[] = (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS ?? [];
-      const pending: any[] = (window as any).ISOLATED_FORWARD_PASS_EVENTS ?? [];
-      // Flash on newly resolved events
-      if (resolved.length > ifpSeenCountRef.current) {
-        const latest = resolved[resolved.length - 1];
-        if (latest) {
-          if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
-          setLatestIfpFlash({ ...latest });
-          latestIfpFlashTimerRef.current = setTimeout(() => setLatestIfpFlash(null), 3500);
-        }
-        ifpSeenCountRef.current = resolved.length;
-      }
-      // Log shows resolved + any still-pending (newest first, max 8)
-      const all = [
-        ...resolved.map(e => ({ ...e })),
-        ...pending.filter(e => e.outcome === 'PENDING').map(e => ({ ...e })),
-      ];
-      setIfpEvents(all.slice(-8).reverse());
-    }, 300);
-    return () => {
-      window.clearInterval(id);
-      if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
-    };
-  }, [gameMode, hasActiveMatchSession]);
 
   // Poll telemetry counts while the floating window is open
   useEffect(() => {
@@ -2067,8 +2139,6 @@ const RetroFootball: React.FC = () => {
       {showScoreboard && (() => {
         const colorA = getTeamColor(scoreboardTeamA);
         const colorB = getTeamColor(scoreboardTeamB);
-        const logoA = MLS_TEAM_LOGOS[scoreboardTeamA] ?? '';
-        const logoB = MLS_TEAM_LOGOS[scoreboardTeamB] ?? '';
         const phase = scoreboardPhaseLabel(matchSnapshot);
         const oldPhaseLabel = phase === '1H' ? '1ST HALF' : phase === '2H' ? '2ND HALF' : phase;
         return (
@@ -2087,13 +2157,7 @@ const RetroFootball: React.FC = () => {
                   <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamA}</div>
                   <div className="sm:hidden text-[13px] font-extrabold uppercase leading-tight text-black">{shortTeamName(scoreboardTeamA)}</div>
                 </div>
-                {logoA ? (
-                  <img src={logoA} alt="" className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 object-contain" />
-                ) : (
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded bg-black/5 grid place-items-center text-[10px] font-black uppercase text-black/65">
-                    {shortTeamName(scoreboardTeamA).slice(0, 3)}
-                  </div>
-                )}
+                <ScoreboardFlag teamName={scoreboardTeamA} />
                 <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
                   {matchSnapshot?.scoreA ?? 0}
                 </div>
@@ -2110,13 +2174,7 @@ const RetroFootball: React.FC = () => {
                 <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
                   {matchSnapshot?.scoreB ?? 0}
                 </div>
-                {logoB ? (
-                  <img src={logoB} alt="" className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 object-contain" />
-                ) : (
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded bg-black/5 grid place-items-center text-[10px] font-black uppercase text-black/65">
-                    {shortTeamName(scoreboardTeamB).slice(0, 3)}
-                  </div>
-                )}
+                <ScoreboardFlag teamName={scoreboardTeamB} />
                 <div className="min-w-0 text-left">
                   <div className="text-[9px] sm:text-[10px] leading-none uppercase tracking-[0.12em] text-black/55">Away</div>
                   <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamB}</div>
@@ -2152,9 +2210,9 @@ const RetroFootball: React.FC = () => {
             {/* Logo */}
             <div style={{ animation: 'splashFadeIn 0.6s ease-out 0.5s both' }}>
               <img
-                src="/assets/pixel-soccer-league.webp"
+                src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-80 drop-shadow-[0_4px_20px_rgba(34,197,94,0.3)]"
+                className="w-[40rem] max-w-[92vw] drop-shadow-[0_4px_20px_rgba(34,197,94,0.3)]"
               />
             </div>
 
@@ -2192,108 +2250,75 @@ const RetroFootball: React.FC = () => {
       )}
       {/* Mode Select Screen */}
       {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
-            {/* Title */}
-            <div className="flex flex-col items-center">
+        <div className="absolute inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,197,94,0.12),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72)_82%)]" />
+          <div className="absolute inset-x-0 bottom-[12%] h-[2px] bg-lime-400/80 shadow-[0_0_26px_8px_rgba(132,204,22,0.55)]" />
+          <div className="relative z-[2] flex h-full w-full items-center justify-center px-6 py-8">
+            <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-5">
               <img
-                src="/assets/pixel-soccer-league.webp"
+                src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-72 drop-shadow-lg"
+                className="w-[36rem] max-w-[78vw] drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
               />
-            </div>
 
-            {/* Team selectors */}
-            <div className="w-full flex flex-col gap-3">
-              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 0 ? 'ring-2 ring-white/60' : ''}`}>
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Home</span>
-                <select
+              <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+                <MenuTeamSelect
+                  label="Home"
                   value={teamAName}
-                  onChange={(e) => setTeamAName(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-white/20 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-white/50"
-                >
-                  {MLS_TEAM_OPTIONS.map((team) => (
-                    <option key={`ms-a-${team}`} value={team}>{team}</option>
-                  ))}
-                </select>
-                {menuFocusIndex === 0 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
-              </div>
-              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 1 ? 'ring-2 ring-white/60' : ''}`}>
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Away</span>
-                <select
+                  focused={menuFocusIndex === 0}
+                  options={teamOptions}
+                  onChange={setTeamAName}
+                />
+                <MenuTeamSelect
+                  label="Away"
                   value={teamBName}
-                  onChange={(e) => setTeamBName(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-white/20 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-white/50"
-                >
-                  {MLS_TEAM_OPTIONS.map((team) => (
-                    <option key={`ms-b-${team}`} value={team}>{team}</option>
-                  ))}
-                </select>
-                {menuFocusIndex === 1 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
+                  focused={menuFocusIndex === 1}
+                  options={teamOptions}
+                  onChange={setTeamBName}
+                />
               </div>
-            </div>
 
-            {/* Mode buttons */}
-            <div className="w-full flex flex-col gap-3">
-              <p className="text-white/30 text-[9px] uppercase tracking-widest text-center">Select Mode</p>
-              <button
-                onClick={() => handleKickOff('1p')}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 2 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
-                }`}
-              >
-                1 Player vs CPU
-              </button>
-              <button
-                onClick={() => handleKickOff('2p')}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 3 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
-                }`}
-              >
-                2 Players — Hot Seat
-              </button>
-              <button
-                onClick={() => {
-                  const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-                  setTeamAName(shuffled[0]);
-                  setTeamBName(shuffled[1]);
-                  setShowPreMatchSetup(true);
-                }}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 4 ? 'bg-white/80 text-black border-white' : 'border-white/20 text-white/50 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                CPU vs CPU
-              </button>
-              <button
-                onClick={handleRealDataReplayStart}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 5 ? 'bg-cyan-400/80 text-black border-cyan-300' : 'border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/15 hover:text-cyan-100'
-                }`}
-              >
-                Real Data Replay
-              </button>
-              <div className="border-t border-white/10 pt-3 flex flex-col gap-3">
-                <button
-                  onClick={() => setSeasonModeActive(true)}
-                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 6 ? 'bg-amber-500/40 text-amber-200 border-amber-400' : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
-                  }`}
+              {easterEggUnlocked && (
+                <div className="rounded border border-amber-300/60 bg-amber-500/15 px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.18em] text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.18)]">
+                  1982 Final Unlocked
+                </div>
+              )}
+
+              <div className="mt-2 text-center text-[16px] font-black uppercase leading-none text-white" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.85)' }}>
+                Select Mode
+              </div>
+
+              <div className="flex w-full flex-col gap-3">
+                <MenuModeButton focused={menuFocusIndex === 2} onClick={() => handleKickOff('1p')}>
+                  1 Player vs CPU
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 3} onClick={() => handleKickOff('2p')}>
+                  2 Players - Hot Seat
+                </MenuModeButton>
+                <MenuModeButton
+                  focused={menuFocusIndex === 4}
+                  tone="muted"
+                  onClick={() => {
+                    const matchup = randomCpuMatchup();
+                    setTeamAName(matchup.a);
+                    setTeamBName(matchup.b);
+                    setShowPreMatchSetup(true);
+                  }}
                 >
-                  Season Mode
-                </button>
-                <button
-                  onClick={() => setShowPracticeSetup(true)}
-                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 7 ? 'bg-emerald-500/40 text-emerald-200 border-emerald-400' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
-                  }`}
-                >
+                  CPU vs CPU
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 5} tone="amber" onClick={() => setSeasonModeActive(true)}>
+                  World Cup Mode
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 6} tone="green" onClick={() => setShowPracticeSetup(true)}>
                   Practice
-                </button>
+                </MenuModeButton>
               </div>
-            </div>
 
-            <p className="text-white/20 text-[9px] uppercase tracking-widest">Press [ESC] in-game for options</p>
+              <p className="mt-8 text-center text-[11px] font-black uppercase leading-none text-lime-300/70" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.9)' }}>
+                Press [ESC] in-game for options
+              </p>
+            </div>
           </div>
         </div>
 
@@ -2309,12 +2334,15 @@ const RetroFootball: React.FC = () => {
             seasonReturnRef.current = true;
             // Brief timeout to let team name state propagate before kickoff
             setTimeout(() => {
-              const kitA = (MLS_TEAM_KITS[home] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-              const kitB = (MLS_TEAM_KITS[away] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+              const resolvedKits = getResolvedMatchKits(home, away, teamAKit, teamBKit);
+              const kitA = resolvedKits.home;
+              const kitB = resolvedKits.away;
               gameRef.current?.setTeamNames?.(home, away);
               gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[home] ?? '', MLS_TEAM_LOGOS[away] ?? '');
               gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
               gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+              activeMatchTeamsRef.current = { a: home, b: away };
+              fullTimeCapturedRef.current = false;
               setGameMode('1p');
               setHasActiveMatchSession(true);
               setAllowMainMenu(false);
@@ -2356,7 +2384,7 @@ const RetroFootball: React.FC = () => {
                 onChange={(e) => setTeamAName(e.target.value)}
                 className="bg-zinc-800 border border-white/20 text-white text-xs rounded px-2 py-2 focus:outline-none focus:border-emerald-400"
               >
-                {MLS_TEAM_OPTIONS.map((team) => (
+                {teamOptions.map((team) => (
                   <option key={team} value={team}>{team}</option>
                 ))}
               </select>
@@ -2420,63 +2448,6 @@ const RetroFootball: React.FC = () => {
           <div className="px-8 py-3 bg-emerald-500 text-white text-sm font-bold rounded-full tracking-[0.2em] uppercase shadow-2xl border border-emerald-300/60 animate-pulse">
             Play Set
           </div>
-        </div>
-      )}
-
-      {/* Isolated Forward Pass Overlay — CPU vs CPU only */}
-      {gameMode === 'cpu' && hasActiveMatchSession && (
-        <div className="absolute top-16 left-4 z-40 pointer-events-none flex flex-col gap-1.5 w-60">
-          {/* Always-visible header */}
-          <div className="bg-black/70 border border-orange-500/40 rounded-lg px-3 py-2">
-            <div className="flex items-center justify-between">
-              <span className="text-orange-300 text-[9px] font-bold uppercase tracking-widest">Isolated Fwd Pass</span>
-              <span className="text-orange-200 text-[9px] tabular-nums">
-                {(window as any)._ISOLATED_FORWARD_PASS_TOTAL ?? 0} total
-              </span>
-            </div>
-            {ifpEvents.length === 0 && (
-              <div className="text-white/30 text-[8px] mt-1">Listening for events…</div>
-            )}
-          </div>
-
-          {/* Flash badge for latest resolved event */}
-          {latestIfpFlash && (() => {
-            const outcomeColor =
-              latestIfpFlash.outcome === 'INTERCEPTED' ? 'bg-red-600/90 border-red-400'
-              : latestIfpFlash.outcome === 'SELF_CAUGHT' ? 'bg-amber-500/90 border-amber-300'
-              : 'bg-emerald-600/90 border-emerald-400';
-            return (
-              <div className={`px-3 py-2 ${outcomeColor} border text-white text-[10px] font-bold rounded-lg shadow-xl animate-pulse`}>
-                <div>{latestIfpFlash.carrierName} ({latestIfpFlash.carrierRole})</div>
-                <div className="opacity-80 text-[9px]">→ {latestIfpFlash.passTargetName}</div>
-                <div className="mt-1 text-[9px] font-normal opacity-90">
-                  {latestIfpFlash.outcome}
-                  {latestIfpFlash.shotPossible ? ' · shot was on' : ' · no shot geom'}
-                  {' · '}P={latestIfpFlash.closePressure}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Log of last 8 events */}
-          {ifpEvents.length > 0 && (
-            <div className="bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 flex flex-col gap-0.5">
-              {ifpEvents.map((ev, i) => {
-                const dot =
-                  ev.outcome === 'INTERCEPTED' ? 'bg-red-400'
-                  : ev.outcome === 'SELF_CAUGHT' ? 'bg-amber-400'
-                  : ev.outcome === 'COMPLETED' ? 'bg-emerald-400'
-                  : 'bg-white/20';
-                return (
-                  <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/70">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-                    <span className="truncate">{ev.carrierName} ({ev.carrierRole})</span>
-                    <span className="shrink-0 text-white/40">{ev.outcome ?? '…'}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 
@@ -2693,6 +2664,8 @@ const RetroFootball: React.FC = () => {
 
                 setIsFullTime(false);
                 setFullTimeScore(null);
+                fullTimeCapturedRef.current = false;
+                activeMatchTeamsRef.current = null;
                 try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
                 setAllowMainMenu(!seasonModeActive);
                 setSessionMenuLock(false);
@@ -2922,7 +2895,7 @@ const RetroFootball: React.FC = () => {
 
                 <div className="flex flex-col gap-4">
                   <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">MLS Teams</h3>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">World Teams</h3>
                     <div className="flex flex-col gap-2">
                       <label className="text-white/60 text-[9px] uppercase">Home</label>
                       <select
@@ -2930,7 +2903,7 @@ const RetroFootball: React.FC = () => {
                         onChange={(e) => setTeamAName(e.target.value)}
                         className="bg-zinc-800 border border-white/20 text-white text-[10px] rounded px-2 py-1"
                       >
-                        {MLS_TEAM_OPTIONS.map((team) => (
+                        {teamOptions.map((team) => (
                           <option key={`a-${team}`} value={team}>{team}</option>
                         ))}
                       </select>
@@ -2950,7 +2923,7 @@ const RetroFootball: React.FC = () => {
                         onChange={(e) => setTeamBName(e.target.value)}
                         className="bg-zinc-800 border border-white/20 text-white text-[10px] rounded px-2 py-1"
                       >
-                        {MLS_TEAM_OPTIONS.map((team) => (
+                        {teamOptions.map((team) => (
                           <option key={`b-${team}`} value={team}>{team}</option>
                         ))}
                       </select>
@@ -3233,19 +3206,6 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
 
-      {/* Press ESC Hint */}
-      {!isOptionsOpen && (
-        <div className="absolute top-4 left-4 flex flex-col gap-4 pointer-events-none">
-          <div className="bg-black/40 px-3 py-1.5 rounded border border-white/10 backdrop-blur-sm ml-[0px]">
-            <p className="text-white/40 text-[9px] uppercase tracking-widest">Press [ESC] for Options</p>
-          </div>
-          
-          <div className="pointer-events-auto ml-[0px]">
-            <TuningLab gameRef={gameRef} />
-          </div>
-        </div>
-      )}
-
       {/* Bottom-right toggle buttons */}
       {!showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
@@ -3269,7 +3229,7 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
 
-      {!showSplash && watchedFixtureMessage && (
+      {!showSplash && !hasActiveMatchSession && watchedFixtureMessage && (
         <div
           data-psl-watched-fixture-status="compact"
           className="absolute bottom-4 left-4 z-30 max-w-[min(360px,calc(100vw-32px))] px-4 py-2 bg-black/75 border border-emerald-400/40 rounded-lg backdrop-blur-sm pointer-events-none"
@@ -3515,6 +3475,7 @@ const RetroFootball: React.FC = () => {
           onRunWatchedFixture={handleRunWatchedFixture}
           watchedFixtureRunning={watchedFixtureRunning}
           watchedFixtureMessage={watchedFixtureMessage}
+          teamOptions={teamOptions}
           onClose={() => setShowPreMatchSetup(false)}
         />
       )}

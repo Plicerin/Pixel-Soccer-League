@@ -220,6 +220,13 @@ export const PLAYER_BACK_IDLE_COMPOSED = PLAYER_BACK_IDLE_PATTERNS.map(base =>
 
 const PLAYER_VOXEL_SIZE = 0.0665;
 const PLAYER_SPRITE_CENTER_Y = PLAYER_VOXEL_SIZE * 5.25; // lowered so feet sit at ground level (group.y=0.15)
+const CORNER_SETUP_PRESENTATION_SECONDS = 2.0;
+const CORNER_RELEASE_PRESENTATION_SECONDS = 1.35;
+const CORNER_RUNUP_DISTANCE = 1.15;
+const CORNER_OUTSIDE_TOUCHLINE_OFFSET = 0.82;
+const THROW_IN_SETUP_PRESENTATION_SECONDS = 1.9;
+const THROW_IN_RELEASE_PRESENTATION_SECONDS = 1.15;
+const THROW_IN_OUTSIDE_TOUCHLINE_OFFSET = 0.58;
 
 export function buildPlayerFrame(pattern: string[], palette: { shirt: THREE.Material; pants: THREE.Material; hair: THREE.Material; visor: THREE.Material }) {
   const group = new THREE.Group();
@@ -384,8 +391,27 @@ export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
 type SpriteFacingMode = 'side' | 'front' | 'back';
 type KeeperDiveDirection = 'left' | 'right' | 'up' | 'down';
 type KeeperReaction = { ttl: number; duration: number; zLean: number; direction: KeeperDiveDirection };
-type RestartPresentationType = 'throw_in' | 'corner' | 'goal_kick';
+type HeaderReaction = { ttl: number; duration: number; kind: 'shot' | 'clearance'; direction: 1 | -1 };
+type RestartPresentationType = 'throw_in' | 'corner' | 'goal_kick' | 'free_kick' | 'penalty' | 'drop_kick';
 type RestartPresentationPhase = 'setup' | 'release';
+type SoundBufferKey =
+  | 'whistle'
+  | 'kick'
+  | 'shot'
+  | 'catch'
+  | 'crowd'
+  | 'crowdGoal'
+  | 'splashMusic'
+  | 'welcome'
+  | 'kickoff'
+  | 'corner'
+  | 'throw'
+  | 'goal'
+  | 'offside'
+  | 'foul'
+  | 'penalty'
+  | 'out'
+  | 'post';
 type RestartPresentation = {
   type: RestartPresentationType;
   phase: RestartPresentationPhase;
@@ -417,6 +443,26 @@ type PlayerVisual = {
   breathOffset: number;
 };
 
+const SOUND_ASSETS: Record<SoundBufferKey, string> = {
+  whistle: '/whistle.mp3',
+  kick: '/kick.mp3',
+  shot: '/shot.mp3',
+  catch: '/soft-body-impact.mp3',
+  crowd: '/crowd.mp3',
+  crowdGoal: '/applause.wav',
+  splashMusic: '/Pixel Soccer League.mp3',
+  welcome: '/welcome.mp3',
+  kickoff: '/kickoff.mp3',
+  corner: '/corner.mp3',
+  throw: '/throw.mp3',
+  goal: '/announcer_goal.mp3',
+  offside: '/offisides.mp3',
+  foul: '/foul.mp3',
+  penalty: '/penalty.mp3',
+  out: '/out.mp3',
+  post: '/donk.mp3',
+};
+
 class SimpleGameEngine {
   readonly model = new SimpleMatchModel();
   private readonly scene = new THREE.Scene();
@@ -431,6 +477,7 @@ class SimpleGameEngine {
   private readonly ballTrailPoints: THREE.Vector3[] = [];
   private readonly eventCues: Array<{ mesh: THREE.Object3D; ttl: number }> = [];
   private readonly keeperReactions = new Map<string, KeeperReaction>();
+  private readonly headerReactions = new Map<string, HeaderReaction>();
   private activeRestartPresentation: RestartPresentation | null = null;
   private readonly cameraFocusSmoothed = new THREE.Vector3();
   private readonly cameraLerpPosition = new THREE.Vector3();
@@ -467,6 +514,7 @@ class SimpleGameEngine {
   }> = [];
   private goalSwellUntil = 0;
   private waveStartTime = 0;
+  private pendingGoalNetImpact: { target: THREE.Vector3; force: number; ttl: number } | null = null;
   private readonly clock = new THREE.Clock();
   private disposed = false;
   private frameCount = 0;
@@ -480,6 +528,32 @@ class SimpleGameEngine {
   private scoreBugVisible = false;
   private lastScoreBugText = '';
   private paused = false;
+  private readonly miniMapWidth = 322;
+  private readonly miniMapHeight = 203;
+  private readonly miniMapPitchCanvas: HTMLCanvasElement;
+  private readonly miniMapOverlayCanvas: HTMLCanvasElement;
+  private readonly miniMapToggleBtn: HTMLButtonElement;
+  private readonly miniMapHomePanel: HTMLDivElement;
+  private readonly miniMapAwayPanel: HTMLDivElement;
+  private readonly miniMapBallTrail: Array<{ x: number; y: number }> = [];
+  private lastMiniMapDrawMs = 0;
+  private showMiniMap = true;
+  private menuVisible = true;
+  private splashSceneMode = false;
+  private audioCtx: AudioContext | null = null;
+  private audioMasterGain: GainNode | null = null;
+  private audioPreloadStarted = false;
+  private readonly audioBuffers: Partial<Record<SoundBufferKey, AudioBuffer>> = {};
+  private readonly crowdLoop: {
+    source: AudioBufferSourceNode | null;
+    gain: GainNode | null;
+    shouldPlay: boolean;
+    baseVolume: number;
+    ambientFrac: number;
+  } = { source: null, gain: null, shouldPlay: false, baseVolume: 0.6, ambientFrac: 0.75 };
+  private readonly splashMusic: { source: AudioBufferSourceNode | null; gain: GainNode | null } = { source: null, gain: null };
+  private splashMusicRequested = false;
+  private splashWelcomePlayed = false;
 
   constructor(private readonly container: HTMLElement) {
     this.scene.background = new THREE.Color(0x87ceeb);
@@ -498,6 +572,14 @@ class SimpleGameEngine {
     this.container.appendChild(this.renderer.domElement);
     this.scoreBugEl = this.createScoreBug();
     this.container.appendChild(this.scoreBugEl);
+    const miniMap = this.createMiniMap();
+    this.miniMapPitchCanvas = miniMap.pitchCanvas;
+    this.miniMapOverlayCanvas = miniMap.overlayCanvas;
+    this.miniMapToggleBtn = miniMap.toggleButton;
+    this.miniMapHomePanel = miniMap.homePanel;
+    this.miniMapAwayPanel = miniMap.awayPanel;
+    this.drawMiniMapPitch();
+    this.applyMiniMapVisibility();
 
     this.addLights();
     this.addField();
@@ -517,15 +599,21 @@ class SimpleGameEngine {
   resetMatch = () => {
     this.paused = false;
     this.model.resetMatch();
+    this.miniMapBallTrail.length = 0;
     this.syncPlayerMeshes();
     this.resetVisualCues();
+    this.applyMiniMapVisibility();
     this.onReset?.();
   };
 
   startKickoffPresentation = (_fromUi = true) => {
     this.paused = false;
+    this.miniMapBallTrail.length = 0;
+    this.splashMusicStop();
+    this.startCrowdLoop();
     this.model.startMatch();
     this.updateScoreBug();
+    this.applyMiniMapVisibility();
   };
 
   setTeamNames = (a: string, b: string) => {
@@ -593,15 +681,40 @@ class SimpleGameEngine {
     this.disposed = true;
     window.removeEventListener('resize', this.resize);
     this.resetVisualCues();
+    this.stopAllAudio();
     this.renderer.dispose();
     this.container.removeChild(this.scoreBugEl);
+    this.container.removeChild(this.miniMapPitchCanvas);
+    this.container.removeChild(this.miniMapOverlayCanvas);
+    this.container.removeChild(this.miniMapToggleBtn);
+    this.container.removeChild(this.miniMapHomePanel);
+    this.container.removeChild(this.miniMapAwayPanel);
     this.container.removeChild(this.renderer.domElement);
   };
 
-  splashMusicStart = () => {};
-  splashMusicStop = () => {};
-  setSplashSceneMode = (_active: boolean) => {};
-  setMenuVisible = (_visible: boolean) => {};
+  splashMusicStart = () => {
+    const ctx = this.ensureAudioContext();
+    if (!ctx) return;
+    this.splashMusicRequested = true;
+    this.splashWelcomePlayed = false;
+    void ctx.resume().catch(() => {});
+    this.playLoop('splashMusic', this.splashMusic, 0.5);
+    window.setTimeout(() => {
+      if (this.splashMusicRequested) this.playSplashWelcomeOnce();
+    }, 900);
+  };
+  splashMusicStop = () => {
+    this.splashMusicRequested = false;
+    this.stopLoop(this.splashMusic, 0.45);
+  };
+  setSplashSceneMode = (active: boolean) => {
+    this.splashSceneMode = !!active;
+    this.applyMiniMapVisibility();
+  };
+  setMenuVisible = (visible: boolean) => {
+    this.menuVisible = !!visible;
+    this.applyMiniMapVisibility();
+  };
   setScoreBugVisible = (visible: boolean) => {
     this.scoreBugVisible = !!visible;
     this.updateScoreBug();
@@ -621,7 +734,14 @@ class SimpleGameEngine {
   setCoachAggression = (_value: number) => {};
   setDefenseAggression = (_value: number) => {};
   setTeamLogos = (_a: string, _b: string) => {};
-  setCrowdVolume = (_value: number) => {};
+  setCrowdVolume = (value: number) => {
+    this.crowdLoop.baseVolume = THREE.MathUtils.clamp(Number(value) || 0, 0, 1);
+    if (this.crowdLoop.gain && this.audioCtx) {
+      this.crowdLoop.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+      this.crowdLoop.gain.gain.setValueAtTime(this.crowdLoop.gain.gain.value, this.audioCtx.currentTime);
+      this.crowdLoop.gain.gain.linearRampToValueAtTime(this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac, this.audioCtx.currentTime + 0.15);
+    }
+  };
   setStadiumCamTiltShift = (_enabled: boolean) => {};
   drawPracticeRoutes = (_routes: unknown) => {};
   clearPracticeRoutes = () => {};
@@ -631,6 +751,240 @@ class SimpleGameEngine {
   };
   deactivatePracticePlay = () => {};
   resetAndStartPracticePlay = () => this.startKickoffPresentation(true);
+
+  private ensureAudioContext() {
+    if (this.disposed) return null;
+    if (!this.audioCtx) {
+      const AudioCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) return null;
+      this.audioCtx = new AudioCtor();
+      this.audioMasterGain = this.audioCtx.createGain();
+      this.audioMasterGain.gain.value = 0.62;
+      this.audioMasterGain.connect(this.audioCtx.destination);
+      this.audioCtx.addEventListener('statechange', () => {
+        if (this.audioCtx?.state === 'running' && this.crowdLoop.shouldPlay && !this.crowdLoop.source) {
+          this.startCrowdLoop();
+        }
+      });
+    }
+    this.preloadAudio();
+    return this.audioCtx;
+  }
+
+  private preloadAudio() {
+    if (this.audioPreloadStarted || !this.audioCtx) return;
+    this.audioPreloadStarted = true;
+    for (const [key, url] of Object.entries(SOUND_ASSETS) as Array<[SoundBufferKey, string]>) {
+      void fetch(url)
+        .then((response) => response.arrayBuffer())
+        .then((buffer) => this.audioCtx?.decodeAudioData(buffer))
+        .then((decoded) => {
+          if (!decoded) return;
+          this.audioBuffers[key] = decoded;
+          if (key === 'crowd' && this.crowdLoop.shouldPlay) this.startCrowdLoop();
+          if (key === 'splashMusic' && this.splashMusicRequested) this.playLoop('splashMusic', this.splashMusic, 0.5);
+          if (key === 'welcome' && this.splashMusicRequested) this.playSplashWelcomeOnce();
+        })
+        .catch(() => {});
+    }
+  }
+
+  private audioDestination() {
+    const ctx = this.ensureAudioContext();
+    if (!ctx || !this.audioMasterGain) return null;
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
+    return { ctx, destination: this.audioMasterGain };
+  }
+
+  private gameplayAudioEnabled() {
+    return !this.disposed && !this.splashSceneMode && !this.paused;
+  }
+
+  private playBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.35) {
+    const audio = this.audioDestination();
+    const buffer = this.audioBuffers[key];
+    if (!audio || !buffer) return false;
+    const source = audio.ctx.createBufferSource();
+    const gain = audio.ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(volume, audio.ctx.currentTime);
+    if (fadeSeconds > 0) {
+      gain.gain.linearRampToValueAtTime(0, audio.ctx.currentTime + fadeSeconds);
+    }
+    source.connect(gain);
+    gain.connect(audio.destination);
+    source.start();
+    if (fadeSeconds > 0) source.stop(audio.ctx.currentTime + fadeSeconds + 0.1);
+    source.onended = () => {
+      try { source.disconnect(); gain.disconnect(); } catch {}
+    };
+    return true;
+  }
+
+  private playTone(freq: number, type: OscillatorType, duration: number, volume = 0.05) {
+    const audio = this.audioDestination();
+    if (!audio) return;
+    const osc = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audio.ctx.currentTime);
+    gain.gain.setValueAtTime(volume, audio.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audio.ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start();
+    osc.stop(audio.ctx.currentTime + duration);
+    osc.onended = () => {
+      try { osc.disconnect(); gain.disconnect(); } catch {}
+    };
+  }
+
+  private playGameplayBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.35, fallback?: () => void) {
+    if (!this.gameplayAudioEnabled()) return;
+    if (!this.playBuffer(key, volume, fadeSeconds)) fallback?.();
+  }
+
+  private playLoop(key: SoundBufferKey, loop: { source: AudioBufferSourceNode | null; gain: GainNode | null }, volume: number) {
+    const audio = this.audioDestination();
+    const buffer = this.audioBuffers[key];
+    if (!audio || !buffer || loop.source) return;
+    const source = audio.ctx.createBufferSource();
+    const gain = audio.ctx.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    gain.gain.setValueAtTime(0, audio.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, audio.ctx.currentTime + 1.0);
+    source.connect(gain);
+    gain.connect(audio.destination);
+    source.start();
+    loop.source = source;
+    loop.gain = gain;
+    source.onended = () => {
+      if (loop.source === source) {
+        loop.source = null;
+        loop.gain = null;
+      }
+    };
+  }
+
+  private stopLoop(loop: { source: AudioBufferSourceNode | null; gain: GainNode | null }, fadeSeconds = 1.0) {
+    if (!loop.source || !loop.gain || !this.audioCtx) return;
+    const source = loop.source;
+    const gain = loop.gain;
+    loop.source = null;
+    loop.gain = null;
+    gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, this.audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + fadeSeconds);
+    window.setTimeout(() => {
+      try { source.stop(); source.disconnect(); gain.disconnect(); } catch {}
+    }, Math.ceil((fadeSeconds + 0.1) * 1000));
+  }
+
+  private startCrowdLoop() {
+    if (!this.gameplayAudioEnabled()) return;
+    this.crowdLoop.shouldPlay = true;
+    this.playLoop('crowd', this.crowdLoop, this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac);
+  }
+
+  private stopCrowdLoop() {
+    this.crowdLoop.shouldPlay = false;
+    this.stopLoop(this.crowdLoop, 1.4);
+  }
+
+  private playSplashWelcomeOnce() {
+    if (this.splashWelcomePlayed) return;
+    this.splashWelcomePlayed = true;
+    this.playBuffer('welcome', 0.48);
+  }
+
+  private stopAllAudio() {
+    this.stopCrowdLoop();
+    this.stopLoop(this.splashMusic, 0.1);
+    if (this.audioCtx && this.audioCtx.state !== 'closed') {
+      void this.audioCtx.close().catch(() => {});
+    }
+    this.audioCtx = null;
+    this.audioMasterGain = null;
+  }
+
+  private playSoundForLiveEvent(event: { action: string; meta?: Record<string, unknown> }) {
+    if (!this.gameplayAudioEnabled()) return;
+    switch (event.action) {
+      case 'KICKOFF':
+        this.playGameplayBuffer('kickoff', 0.42, 0.8, () => this.playTone(880, 'sine', 0.12, 0.04));
+        this.playGameplayBuffer('whistle', 0.22, 0.5);
+        this.startCrowdLoop();
+        break;
+      case 'PASS':
+      case 'LIVE':
+        this.playGameplayBuffer('kick', 0.22, 0.25, () => this.playTone(400, 'sine', 0.18, 0.04));
+        break;
+      case 'SHOT':
+        this.playGameplayBuffer('shot', 0.34, 0.32, () => this.playGameplayBuffer('kick', 0.32, 0.28));
+        break;
+      case 'WOODWORK':
+      case 'POST':
+      case 'CROSSBAR':
+        this.playGameplayBuffer('post', 0.48, 0.65, () => this.playTone(180, 'square', 0.08, 0.05));
+        break;
+      case 'GOAL':
+        this.playGameplayBuffer('goal', 0.55, 1.4);
+        this.playGameplayBuffer('crowdGoal', 0.62, 2.2);
+        break;
+      case 'SAVE':
+      case 'SMOTHER':
+      case 'GK':
+        this.playGameplayBuffer('catch', 0.28, 0.28, () => this.playTone(200, 'triangle', 0.1, 0.06));
+        break;
+      case 'TACKLE':
+      case 'TURNOVER':
+        this.playTone(220, 'sawtooth', 0.12, 0.07);
+        break;
+      case 'THROW':
+      case 'THROW_IN':
+        if (event.action === 'THROW' || event.meta?.phase === 'setup') {
+          this.playGameplayBuffer('throw', 0.36, 0.6, () => this.playTone(400, 'sine', 0.18, 0.04));
+        }
+        break;
+      case 'CORNER':
+        if (event.meta?.phase === 'setup') this.playGameplayBuffer('corner', 0.38, 0.8);
+        else this.playGameplayBuffer('kick', 0.28, 0.3);
+        break;
+      case 'GOAL_KICK':
+        if (event.meta?.phase !== 'setup') this.playGameplayBuffer('kick', 0.3, 0.35);
+        break;
+      case 'DROP_KICK':
+        this.playGameplayBuffer('kick', 0.34, 0.35);
+        break;
+      case 'FREE_KICK':
+        if (event.meta?.phase !== 'setup') this.playGameplayBuffer('kick', 0.3, 0.35);
+        break;
+      case 'PENALTY':
+        if (event.meta?.phase === 'setup') {
+          this.playGameplayBuffer('whistle', 0.24, 0.5);
+          this.playGameplayBuffer('penalty', 0.44, 0.9);
+        } else {
+          this.playGameplayBuffer('shot', 0.34, 0.34, () => this.playGameplayBuffer('kick', 0.3, 0.28));
+        }
+        break;
+      case 'OFFSIDE':
+        this.playGameplayBuffer('whistle', 0.24, 0.5);
+        this.playGameplayBuffer('offside', 0.42, 0.9);
+        break;
+      case 'FOUL':
+        this.playGameplayBuffer('whistle', 0.24, 0.5);
+        this.playGameplayBuffer('foul', 0.42, 0.9);
+        break;
+      case 'HALF':
+      case 'FULL':
+        this.playGameplayBuffer('whistle', 0.26, 0.5);
+        if (event.action === 'FULL') this.stopCrowdLoop();
+        break;
+      default:
+        break;
+    }
+  }
 
   private addLights() {
     const amb = new THREE.AmbientLight(0xffffff, 0.5);
@@ -1318,12 +1672,16 @@ class SimpleGameEngine {
       const reactionActive = !!keeperReaction && keeperReaction.ttl > 0;
       const reactionProgress = reactionActive ? 1 - keeperReaction.ttl / keeperReaction.duration : 0;
       const reactionZ = reactionActive ? keeperReaction.zLean * Math.sin(reactionProgress * Math.PI) * 1.6 : 0;
+      const headerReaction = this.headerReactions.get(player.id) || null;
+      const headerActive = !!headerReaction && headerReaction.ttl > 0;
+      const headerProgress = headerActive ? 1 - headerReaction.ttl / headerReaction.duration : 0;
+      const headerLift = headerActive ? Math.sin(headerProgress * Math.PI) * 0.28 : 0;
       const restartPose = this.activeRestartPresentation?.takerId === player.id ? this.activeRestartPresentation : null;
-      const restartDisplay = restartPose ? this.restartPresentationPosition(restartPose) : null;
-      visual.mesh.position.set(restartDisplay?.x ?? player.pos.x, 0.15, restartDisplay?.z ?? player.pos.z + reactionZ);
-      const scale = (player.role === 'GK' ? 1.08 : 1) * (reactionActive ? 1.16 : 1);
+      const restartDisplay = restartPose ? this.restartPresentationPlayerPosition(restartPose) : null;
+      visual.mesh.position.set(restartDisplay?.x ?? player.pos.x, 0.15 + headerLift, restartDisplay?.z ?? player.pos.z + reactionZ);
+      const scale = (player.role === 'GK' ? 1.08 : 1) * (reactionActive ? 1.16 : 1) * (headerActive ? 1.08 : 1);
       visual.mesh.scale.setScalar(scale);
-      this.updatePlayerSprite(visual, player, dt, keeperReaction, restartPose);
+      this.updatePlayerSprite(visual, player, dt, keeperReaction, restartPose, headerReaction);
     }
     const ballY = Math.max(BALL_GROUND_Y, this.model.ball.pos.y);
     const restartBall = this.restartPresentationBallPosition();
@@ -1335,6 +1693,7 @@ class SimpleGameEngine {
     this.ballShadowMesh.position.set(restartBall?.x ?? this.model.ball.pos.x, 0.02, restartBall?.z ?? this.model.ball.pos.z);
     this.ballShadowMesh.scale.set(shadowScale, shadowScale, 1);
     this.ballShadowMaterial.opacity = THREE.MathUtils.clamp(0.36 - height * 0.05, 0.1, 0.38);
+    this.updatePendingGoalNetImpact(dt);
     this.updateBallTrail();
   }
 
@@ -1344,17 +1703,34 @@ class SimpleGameEngine {
     dt: number,
     keeperReaction?: KeeperReaction | null,
     restartPose?: RestartPresentation | null,
+    headerReaction?: HeaderReaction | null,
   ) {
-    if (restartPose?.type === 'throw_in' && restartPose.phase === 'setup') {
+    if (restartPose?.type === 'throw_in') {
       this.updateThrowInSprite(visual, restartPose);
       return;
     }
-    if (restartPose?.type === 'corner' && restartPose.phase === 'setup') {
+    if (restartPose?.type === 'corner') {
       this.updateCornerKickSprite(visual, restartPose);
+      return;
+    }
+    if (restartPose?.type === 'goal_kick' || restartPose?.type === 'drop_kick') {
+      this.updateGoalKickSprite(visual, restartPose);
+      return;
+    }
+    if (restartPose?.type === 'free_kick') {
+      this.updateGoalKickSprite(visual, restartPose);
+      return;
+    }
+    if (restartPose?.type === 'penalty') {
+      this.updateGoalKickSprite(visual, restartPose);
       return;
     }
     if (player.role === 'GK' && keeperReaction && keeperReaction.ttl > 0) {
       this.updateKeeperDiveSprite(visual, keeperReaction);
+      return;
+    }
+    if (headerReaction && headerReaction.ttl > 0) {
+      this.updateHeaderSprite(visual, headerReaction);
       return;
     }
     const vx = player.vel.x;
@@ -1430,38 +1806,164 @@ class SimpleGameEngine {
     return visual.diveDownFrames;
   }
 
+  private updateHeaderSprite(visual: PlayerVisual, reaction: HeaderReaction) {
+    visual.allFrames.forEach((frame) => { frame.visible = false; });
+    const frames = visual.idleFrames.length ? visual.idleFrames : visual.runFrames;
+    const duration = Math.max(0.1, reaction.duration);
+    const progress = THREE.MathUtils.clamp(1 - reaction.ttl / duration, 0, 0.999);
+    const snap = Math.sin(progress * Math.PI);
+    const frameIndex = Math.min(frames.length - 1, Math.floor(progress * Math.max(1, frames.length)));
+    visual.facingMode = 'side';
+    visual.state = 'IDLE';
+    visual.dir = reaction.direction;
+    visual.frame = frameIndex;
+    visual.animTimer = 0;
+    frames.forEach((frame, i) => { frame.visible = i === frameIndex; });
+    const lean = reaction.kind === 'shot' ? 0.46 : 0.34;
+    visual.spriteGroup.rotation.set(0, 0, -reaction.direction * lean * snap);
+    visual.spriteGroup.position.set(0.04 * reaction.direction * snap, PLAYER_SPRITE_CENTER_Y + 0.12 * snap, 0);
+    visual.spriteGroup.scale.set(reaction.direction * (1 + snap * 0.12), 1 - snap * 0.06, 1);
+  }
+
   private updateThrowInSprite(visual: PlayerVisual, restart: RestartPresentation) {
     visual.allFrames.forEach((frame) => { frame.visible = false; });
     const facingMode: SpriteFacingMode = restart.spot.z > 0 ? 'back' : 'front';
     const frames = facingMode === 'back' ? visual.backIdleFrames : visual.frontIdleFrames;
-    const frameIndex = Math.min(1, Math.max(0, frames.length - 1));
+    const progress = this.restartPresentationProgress(restart);
+    const frameIndex = restart.phase === 'release'
+      ? Math.min(frames.length - 1, Math.floor(progress * Math.max(1, frames.length)))
+      : Math.min(1, Math.max(0, frames.length - 1));
+    const throwT = restart.phase === 'release' ? Math.sin(progress * Math.PI) : 0;
+    const reachT = restart.phase === 'release' ? THREE.MathUtils.smoothstep(progress, 0.08, 0.48) : 0;
+    const windup = restart.phase === 'setup' ? Math.sin(progress * Math.PI * 2) : 0;
     visual.facingMode = facingMode;
     visual.state = 'IDLE';
     visual.frame = frameIndex;
     visual.animTimer = 0;
     frames.forEach((frame, i) => { frame.visible = i === frameIndex; });
-    visual.spriteGroup.rotation.set(0, 0, 0);
-    visual.spriteGroup.position.set(0, PLAYER_SPRITE_CENTER_Y + 0.08, 0);
-    visual.spriteGroup.scale.set(1, 1.04, 1);
+    visual.spriteGroup.rotation.set(-throwT * 0.34, 0, (restart.spot.z > 0 ? -1 : 1) * reachT * 0.16);
+    visual.spriteGroup.position.set(0, PLAYER_SPRITE_CENTER_Y + 0.14 + windup * 0.045 - throwT * 0.10, 0);
+    visual.spriteGroup.scale.set(1 + throwT * 0.08, 1.14 - throwT * 0.18, 1);
   }
 
   private updateCornerKickSprite(visual: PlayerVisual, restart: RestartPresentation) {
     visual.allFrames.forEach((frame) => { frame.visible = false; });
-    const frames = visual.idleFrames;
+    const progress = this.restartPresentationProgress(restart);
+    const frames = restart.phase === 'release' && visual.runFrames.length ? visual.runFrames : visual.idleFrames;
+    const frameIndex = restart.phase === 'release'
+      ? Math.min(frames.length - 1, Math.floor(progress * Math.max(1, frames.length)))
+      : 0;
+    const plantT = restart.phase === 'release' ? THREE.MathUtils.smoothstep(progress, 0.12, 0.55) : 0;
+    const kickWindow = restart.phase === 'release' ? THREE.MathUtils.clamp((progress - 0.38) / 0.62, 0, 1) : 0;
+    const kickT = Math.sin(kickWindow * Math.PI);
+    const setupBounce = restart.phase === 'setup' ? Math.sin(progress * Math.PI * 2) * 0.035 : 0;
+    const runupOffset = restart.phase === 'setup' ? setupBounce : -plantT * 0.14 - kickT * 0.18;
     visual.facingMode = 'side';
     visual.state = 'IDLE';
     visual.dir = restart.spot.x < 0 ? 1 : -1;
-    visual.frame = 0;
+    visual.frame = frameIndex;
     visual.animTimer = 0;
-    frames.forEach((frame, i) => { frame.visible = i === 0; });
-    visual.spriteGroup.rotation.set(0, 0, 0);
-    visual.spriteGroup.position.set(0, PLAYER_SPRITE_CENTER_Y, 0);
-    visual.spriteGroup.scale.set(visual.dir, 1, 1);
+    frames.forEach((frame, i) => { frame.visible = i === frameIndex; });
+    visual.spriteGroup.rotation.set(0, 0, -visual.dir * (plantT * 0.18 + kickT * 0.52));
+    visual.spriteGroup.position.set(runupOffset * visual.dir, PLAYER_SPRITE_CENTER_Y + kickT * 0.055, 0);
+    visual.spriteGroup.scale.set(visual.dir * (1 + kickT * 0.2), 1 - kickT * 0.1, 1);
+  }
+
+  private updateGoalKickSprite(visual: PlayerVisual, restart: RestartPresentation) {
+    visual.allFrames.forEach((frame) => { frame.visible = false; });
+    const progress = this.restartPresentationProgress(restart);
+    const frames = restart.phase === 'release' && visual.runFrames.length ? visual.runFrames : visual.idleFrames;
+    const frameIndex = restart.phase === 'release'
+      ? Math.min(frames.length - 1, Math.floor(progress * Math.max(1, frames.length)))
+      : 0;
+    const kickT = restart.phase === 'release' ? Math.sin(progress * Math.PI) : 0;
+    const windup = restart.phase === 'setup' ? Math.sin(progress * Math.PI * 2) * 0.04 : -kickT * 0.16;
+    visual.facingMode = 'side';
+    visual.state = 'IDLE';
+    visual.dir = restart.spot.x < 0 ? 1 : -1;
+    visual.frame = frameIndex;
+    visual.animTimer = 0;
+    frames.forEach((frame, i) => { frame.visible = i === frameIndex; });
+    visual.spriteGroup.rotation.set(0, 0, -visual.dir * kickT * 0.28);
+    visual.spriteGroup.position.set(windup * visual.dir, PLAYER_SPRITE_CENTER_Y + kickT * 0.03, 0);
+    visual.spriteGroup.scale.set(visual.dir * (1 + kickT * 0.1), 1 - kickT * 0.05, 1);
+  }
+
+  private restartPresentationProgress(restart: RestartPresentation) {
+    const duration = Math.max(0.001, restart.duration);
+    return THREE.MathUtils.clamp(1 - restart.ttl / duration, 0, 1);
+  }
+
+  private restartPresentationPlayerPosition(restart: RestartPresentation) {
+    const base = this.restartPresentationPosition(restart);
+    if (restart.type === 'throw_in') return this.throwInPresentationPlayerPosition(restart);
+    if (restart.type === 'corner') return this.cornerPresentationPlayerPosition(restart);
+    return base;
+  }
+
+  private throwInPresentationPlayerPosition(restart: RestartPresentation) {
+    const base = this.restartPresentationPosition(restart);
+    const progress = this.restartPresentationProgress(restart);
+    const outsideZ = restart.spot.z >= 0 ? 1 : -1;
+    const inwardZ = -outsideZ;
+    if (restart.phase === 'setup') {
+      const rock = Math.sin(progress * Math.PI * 2) * 0.06;
+      return {
+        x: base.x + rock * 0.25,
+        z: base.z + outsideZ * Math.abs(rock),
+      };
+    }
+    const plantT = THREE.MathUtils.smoothstep(progress, 0, 0.52);
+    const followT = THREE.MathUtils.smoothstep(progress, 0.48, 1);
+    const plant = {
+      x: base.x,
+      z: THREE.MathUtils.lerp(base.z + outsideZ * 0.16, base.z, plantT),
+    };
+    return {
+      x: plant.x,
+      z: THREE.MathUtils.lerp(plant.z, restart.spot.z + inwardZ * 0.18, followT),
+    };
+  }
+
+  private cornerPresentationPlayerPosition(restart: RestartPresentation) {
+    const progress = this.restartPresentationProgress(restart);
+    const kickDirX = restart.spot.x < 0 ? 1 : -1;
+    const outsideZ = restart.spot.z >= 0 ? 1 : -1;
+    const inwardZ = -outsideZ;
+    const strike = {
+      x: restart.spot.x - kickDirX * 0.08,
+      z: restart.spot.z + outsideZ * CORNER_OUTSIDE_TOUCHLINE_OFFSET,
+    };
+    const runup = {
+      x: strike.x - kickDirX * CORNER_RUNUP_DISTANCE,
+      z: strike.z + outsideZ * 0.26,
+    };
+    const follow = {
+      x: restart.spot.x + kickDirX * 0.34,
+      z: restart.spot.z + inwardZ * 0.24,
+    };
+    if (restart.phase === 'setup') {
+      const setupPulse = Math.sin(progress * Math.PI * 2) * 0.07;
+      return {
+        x: runup.x + kickDirX * setupPulse,
+        z: runup.z - outsideZ * Math.abs(setupPulse) * 0.35,
+      };
+    }
+    const drive = THREE.MathUtils.smoothstep(progress, 0, 0.68);
+    const followT = THREE.MathUtils.smoothstep(progress, 0.58, 1);
+    const plant = {
+      x: THREE.MathUtils.lerp(runup.x, strike.x, drive),
+      z: THREE.MathUtils.lerp(runup.z, strike.z, drive),
+    };
+    return {
+      x: THREE.MathUtils.lerp(plant.x, follow.x, followT),
+      z: THREE.MathUtils.lerp(plant.z, follow.z, followT),
+    };
   }
 
   private restartPresentationPosition(restart: RestartPresentation) {
     if (restart.type !== 'throw_in') return restart.spot;
-    const outsideZ = restart.spot.z >= 0 ? FIELD_D / 2 + 0.45 : -FIELD_D / 2 - 0.45;
+    const outsideZ = restart.spot.z >= 0 ? FIELD_D / 2 + THROW_IN_OUTSIDE_TOUCHLINE_OFFSET : -FIELD_D / 2 - THROW_IN_OUTSIDE_TOUCHLINE_OFFSET;
     return { x: restart.spot.x, z: outsideZ };
   }
 
@@ -1471,6 +1973,10 @@ class SimpleGameEngine {
     const pos = this.restartPresentationPosition(restart);
     if (restart.type === 'throw_in') return { x: pos.x, y: 1.1, z: pos.z };
     if (restart.type === 'corner') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
+    if (restart.type === 'goal_kick') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
+    if (restart.type === 'free_kick') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
+    if (restart.type === 'penalty') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
+    if (restart.type === 'drop_kick') return { x: pos.x, y: BALL_GROUND_Y + 0.48, z: pos.z };
     return null;
   }
 
@@ -1489,12 +1995,24 @@ class SimpleGameEngine {
     }
   }
 
+  private updatePendingGoalNetImpact(dt: number) {
+    const pending = this.pendingGoalNetImpact;
+    if (!pending) return;
+    pending.ttl -= dt;
+    const arrived = this.ballGroup.position.distanceTo(pending.target) <= 0.55;
+    if (!arrived && pending.ttl > 0) return;
+    this.addGoalNetImpact(pending.target, pending.force);
+    this.pendingGoalNetImpact = null;
+  }
+
   private resetVisualCues() {
     this.processedLiveEvents = 0;
     this.ballTrailPoints.length = 0;
     this.ballTrail.visible = false;
     this.keeperReactions.clear();
+    this.headerReactions.clear();
     this.activeRestartPresentation = null;
+    this.pendingGoalNetImpact = null;
     for (const cue of this.eventCues.splice(0)) {
       this.scene.remove(cue.mesh);
       if (cue.mesh instanceof THREE.Mesh) {
@@ -1509,17 +2027,44 @@ class SimpleGameEngine {
     while (this.processedLiveEvents < events.length) {
       const event = events[this.processedLiveEvents++];
       if (!event) continue;
+      this.playSoundForLiveEvent(event);
       if (event.action === 'PASS') this.spawnEventCue(0x63f7ff, 0.45, 0.7);
       if (event.action === 'SHOT') this.spawnEventCue(0xfff06a, 0.7, 0.85);
+      if (event.action === 'HEADER_SHOT' || event.action === 'HEADER_CLEARANCE') {
+        this.spawnEventCue(event.action === 'HEADER_SHOT' ? 0xfff06a : 0xffb46a, 0.72, 0.82);
+        const playerId = typeof event.meta?.playerId === 'string' ? event.meta.playerId : '';
+        const player = this.model.players.find((p) => p.id === playerId);
+        if (player) {
+          const direction = player.team === 'A' ? 1 : -1;
+          const duration = event.action === 'HEADER_SHOT' ? 0.55 : 0.45;
+          this.headerReactions.set(player.id, {
+            ttl: duration,
+            duration,
+            kind: event.action === 'HEADER_SHOT' ? 'shot' : 'clearance',
+            direction,
+          });
+        }
+      }
       if (event.action === 'GOAL') {
         this.spawnEventCue(0x7dff6a, 1.05, 1.25);
         this.goalSwellUntil = this.clock.elapsedTime + 3.5;
         this.waveStartTime = this.clock.elapsedTime;
-        this.addGoalNetImpact(this.ballGroup.position.clone(), 0.72);
+        const netTarget = event.meta?.netTarget as { x?: number; y?: number; z?: number } | undefined;
+        if (Number.isFinite(netTarget?.x) && Number.isFinite(netTarget?.z)) {
+          this.pendingGoalNetImpact = {
+            target: new THREE.Vector3(
+              Number(netTarget?.x),
+              Number.isFinite(netTarget?.y) ? Number(netTarget?.y) : BALL_GROUND_Y,
+              Number(netTarget?.z),
+            ),
+            force: 0.72,
+            ttl: 1.8,
+          };
+        }
       }
       if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0xff6b6b, 0.55, 0.75);
-      if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK') {
-        const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : 0xd8f7ff;
+      if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'DROP_KICK') {
+        const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' ? 0xffffff : 0xd8f7ff;
         this.spawnEventCue(color, event.action === 'CORNER' ? 0.8 : 0.62, 0.78);
         this.updateRestartPresentationFromEvent(event);
       }
@@ -1558,6 +2103,10 @@ class SimpleGameEngine {
       reaction.ttl -= dt;
       if (reaction.ttl <= 0) this.keeperReactions.delete(team);
     }
+    for (const [playerId, reaction] of this.headerReactions) {
+      reaction.ttl -= dt;
+      if (reaction.ttl <= 0) this.headerReactions.delete(playerId);
+    }
     if (this.activeRestartPresentation) {
       this.activeRestartPresentation.ttl -= dt;
       if (this.activeRestartPresentation.ttl <= 0) this.activeRestartPresentation = null;
@@ -1569,12 +2118,24 @@ class SimpleGameEngine {
     const phase = event.meta?.phase === 'release' ? 'release' : 'setup';
     const spot = this.pointFromMeta(event.meta?.spot);
     if (!type || !spot) return;
-    const duration = phase === 'setup' ? 1.8 : 0.8;
+    const fallbackTaker = this.activeRestartPresentation?.type === type ? this.activeRestartPresentation.takerId : null;
+    const metaDuration = Number(event.meta?.presentationSeconds);
+    const duration = Number.isFinite(metaDuration) && metaDuration > 0
+      ? metaDuration
+      : type === 'corner' && phase === 'setup'
+      ? CORNER_SETUP_PRESENTATION_SECONDS
+      : type === 'corner' && phase === 'release'
+        ? CORNER_RELEASE_PRESENTATION_SECONDS
+        : type === 'throw_in' && phase === 'setup'
+          ? THROW_IN_SETUP_PRESENTATION_SECONDS
+          : type === 'throw_in' && phase === 'release'
+            ? THROW_IN_RELEASE_PRESENTATION_SECONDS
+            : phase === 'setup' ? 1.8 : 0.8;
     this.activeRestartPresentation = {
       type,
       phase,
       team: event.team || '',
-      takerId: typeof event.meta?.takerId === 'string' ? event.meta.takerId : null,
+      takerId: typeof event.meta?.takerId === 'string' ? event.meta.takerId : fallbackTaker,
       spot,
       ttl: duration,
       duration,
@@ -1583,10 +2144,13 @@ class SimpleGameEngine {
 
   private restartTypeFromEvent(event: { action: string; meta?: Record<string, unknown> }): RestartPresentationType | null {
     const rawType = event.meta?.restartType;
-    if (rawType === 'throw_in' || rawType === 'corner' || rawType === 'goal_kick') return rawType;
+    if (rawType === 'throw_in' || rawType === 'corner' || rawType === 'goal_kick' || rawType === 'free_kick' || rawType === 'penalty' || rawType === 'drop_kick') return rawType;
     if (event.action === 'THROW_IN') return 'throw_in';
     if (event.action === 'CORNER') return 'corner';
     if (event.action === 'GOAL_KICK') return 'goal_kick';
+    if (event.action === 'FREE_KICK') return 'free_kick';
+    if (event.action === 'PENALTY') return 'penalty';
+    if (event.action === 'DROP_KICK') return 'drop_kick';
     return null;
   }
 
@@ -1610,7 +2174,7 @@ class SimpleGameEngine {
 
   private updateBroadcastCamera(dt: number) {
     const focusSource = this.model.ball;
-    const focus = new THREE.Vector3(focusSource.pos.x, 0, 0);
+    const focus = new THREE.Vector3(focusSource.pos.x, 0, focusSource.pos.z);
     if (!this.cameraFocusInitialized) {
       this.cameraFocusSmoothed.copy(focus);
       this.cameraFocusInitialized = true;
@@ -1619,6 +2183,11 @@ class SimpleGameEngine {
         this.cameraFocusSmoothed.x,
         focus.x,
         THREE.MathUtils.clamp(dt * 4.0, 0.08, 0.24),
+      );
+      this.cameraFocusSmoothed.z = THREE.MathUtils.lerp(
+        this.cameraFocusSmoothed.z,
+        focus.z,
+        THREE.MathUtils.clamp(dt * 3.0, 0.06, 0.18),
       );
     }
 
@@ -1629,10 +2198,11 @@ class SimpleGameEngine {
     }
 
     const desiredCamX = THREE.MathUtils.clamp(this.cameraFocusSmoothed.x * 0.7, -FIELD_W * 0.30, FIELD_W * 0.30);
-    this.cameraLerpPosition.set(desiredCamX, this.broadcastCameraHome.y, this.broadcastCameraHome.z);
+    const desiredPanZ = THREE.MathUtils.clamp(this.cameraFocusSmoothed.z * 0.45, -FIELD_D * 0.18, FIELD_D * 0.18);
+    this.cameraLerpPosition.set(desiredCamX, this.broadcastCameraHome.y, this.broadcastCameraHome.z + desiredPanZ);
     this.camera.position.lerp(this.cameraLerpPosition, THREE.MathUtils.clamp(dt * 4.0, 0.08, 0.28));
 
-    this.cameraLookTarget.set(this.camera.position.x, 0, 0);
+    this.cameraLookTarget.set(this.camera.position.x, 0, this.camera.position.z - this.broadcastCameraHome.z);
     this.camera.lookAt(this.cameraLookTarget);
   }
 
@@ -1690,6 +2260,259 @@ class SimpleGameEngine {
         banner.text = nextText;
         banner.sync();
       }
+    }
+  }
+
+  private createMiniMap() {
+    const pitchCanvas = document.createElement('canvas');
+    pitchCanvas.id = 'canvasPitch';
+    pitchCanvas.width = this.miniMapWidth;
+    pitchCanvas.height = this.miniMapHeight;
+    Object.assign(pitchCanvas.style, {
+      position: 'fixed',
+      bottom: '10px',
+      left: '50%',
+      transform: 'translateX(-50%) perspective(900px) rotateX(56deg)',
+      transformOrigin: 'center bottom',
+      zIndex: '20',
+      opacity: '0.6',
+      backgroundColor: '#009900',
+      border: '1px solid rgba(255,255,255,0.15)',
+      borderRadius: '6px',
+      pointerEvents: 'none',
+    });
+
+    const overlayCanvas = document.createElement('canvas');
+    overlayCanvas.id = 'canvasPitchAI';
+    overlayCanvas.width = this.miniMapWidth;
+    overlayCanvas.height = this.miniMapHeight;
+    Object.assign(overlayCanvas.style, {
+      position: 'fixed',
+      bottom: '10px',
+      left: '50%',
+      transform: 'translateX(-50%) perspective(900px) rotateX(50deg)',
+      transformOrigin: 'center bottom',
+      zIndex: '30',
+      pointerEvents: 'none',
+    });
+
+    const panelStyle = {
+      position: 'fixed',
+      bottom: '15px',
+      width: '140px',
+      padding: '6px',
+      background: 'rgba(0,0,0,0.7)',
+      border: '1px solid rgba(255,255,255,0.2)',
+      borderRadius: '4px',
+      color: 'white',
+      fontFamily: 'Consolas, Monaco, monospace',
+      fontSize: '12px',
+      zIndex: '40',
+      textAlign: 'center',
+      display: 'none',
+      pointerEvents: 'none',
+    } as const;
+
+    const homePanel = document.createElement('div');
+    homePanel.id = 'homePossessionPanel';
+    Object.assign(homePanel.style, panelStyle, { left: 'calc(50% - 310px)' });
+
+    const awayPanel = document.createElement('div');
+    awayPanel.id = 'awayPossessionPanel';
+    Object.assign(awayPanel.style, panelStyle, { left: 'calc(50% + 170px)' });
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    Object.assign(toggleButton.style, {
+      position: 'fixed',
+      right: '12px',
+      top: '46px',
+      padding: '6px 8px',
+      background: 'rgba(0,0,0,0.62)',
+      border: '1px solid rgba(255,255,255,0.15)',
+      borderRadius: '6px',
+      color: 'rgba(167,236,255,0.95)',
+      fontFamily: 'Consolas, Monaco, monospace',
+      fontSize: '11px',
+      lineHeight: '1',
+      cursor: 'pointer',
+      zIndex: '220',
+    });
+    toggleButton.addEventListener('click', () => {
+      this.showMiniMap = !this.showMiniMap;
+      this.applyMiniMapVisibility();
+    });
+
+    this.container.appendChild(pitchCanvas);
+    this.container.appendChild(overlayCanvas);
+    this.container.appendChild(homePanel);
+    this.container.appendChild(awayPanel);
+    this.container.appendChild(toggleButton);
+
+    return { pitchCanvas, overlayCanvas, homePanel, awayPanel, toggleButton };
+  }
+
+  private miniMapHidden() {
+    const phase = this.model.getMatchSnapshot().phase;
+    return this.menuVisible || this.splashSceneMode || !this.showMiniMap || phase === 'PRE_MATCH' || phase === 'FULL_TIME';
+  }
+
+  private applyMiniMapVisibility() {
+    const hidden = this.miniMapHidden();
+    this.miniMapPitchCanvas.style.display = hidden ? 'none' : 'block';
+    this.miniMapOverlayCanvas.style.display = hidden ? 'none' : 'block';
+    this.miniMapToggleBtn.style.display = (this.menuVisible || this.splashSceneMode) ? 'none' : 'block';
+    this.miniMapToggleBtn.textContent = this.showMiniMap ? 'MINIMAP ON' : 'MINIMAP OFF';
+    this.miniMapToggleBtn.style.color = this.showMiniMap ? 'rgba(167,236,255,0.95)' : 'rgba(255,255,255,0.88)';
+    if (hidden) {
+      this.miniMapHomePanel.style.display = 'none';
+      this.miniMapAwayPanel.style.display = 'none';
+    }
+  }
+
+  private worldToMiniMap(x: number, z: number) {
+    return {
+      x: ((x + FIELD_W / 2) / FIELD_W) * this.miniMapWidth,
+      y: ((z + FIELD_D / 2) / FIELD_D) * this.miniMapHeight,
+    };
+  }
+
+  private drawMiniMapPitch() {
+    const ctx = this.miniMapPitchCanvas.getContext('2d');
+    if (!ctx) return;
+    const w = this.miniMapWidth;
+    const h = this.miniMapHeight;
+    const pad = 8;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a8f35';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 2;
+
+    ctx.strokeRect(pad, pad, w - pad * 2, h - pad * 2);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, pad);
+    ctx.lineTo(w / 2, h - pad);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, h * 0.16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 2.2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+
+    const penW = w * 0.18;
+    const penH = h * 0.46;
+    const goalW = w * 0.07;
+    const goalH = h * 0.24;
+    const penY = (h - penH) / 2;
+    const goalY = (h - goalH) / 2;
+    ctx.strokeRect(pad, penY, penW, penH);
+    ctx.strokeRect(w - pad - penW, penY, penW, penH);
+    ctx.strokeRect(pad, goalY, goalW, goalH);
+    ctx.strokeRect(w - pad - goalW, goalY, goalW, goalH);
+    ctx.beginPath();
+    ctx.arc(pad + penW * 0.62, h / 2, 2.2, 0, Math.PI * 2);
+    ctx.arc(w - pad - penW * 0.62, h / 2, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private updateMiniMap() {
+    this.applyMiniMapVisibility();
+    if (this.miniMapHidden()) return;
+    const now = performance.now();
+    if (now - this.lastMiniMapDrawMs < 1000 / 30) return;
+    this.lastMiniMapDrawMs = now;
+
+    const ctx = this.miniMapOverlayCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, this.miniMapWidth, this.miniMapHeight);
+
+    const players = this.model.getPlayers();
+    for (const player of players) {
+      const pos = this.worldToMiniMap(player.pos.x, player.pos.z);
+      const radius = player.role === 'GK' ? 4.1 : 3.2;
+      const x = THREE.MathUtils.clamp(pos.x, radius, this.miniMapWidth - radius);
+      const y = THREE.MathUtils.clamp(pos.y, radius, this.miniMapHeight - radius);
+      const color = player.team === 'A'
+        ? `#${(player.role === 'GK' ? M.teamAKeeperShirt : M.teamAShirt).color.getHexString()}`
+        : `#${(player.role === 'GK' ? M.teamBKeeperShirt : M.teamBShirt).color.getHexString()}`;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.stroke();
+    }
+
+    const carrier = this.model.possession;
+    if (carrier) {
+      const pos = this.worldToMiniMap(carrier.pos.x, carrier.pos.z);
+      const x = THREE.MathUtils.clamp(pos.x, 6.4, this.miniMapWidth - 6.4);
+      const y = THREE.MathUtils.clamp(pos.y, 6.4, this.miniMapHeight - 6.4);
+      ctx.beginPath();
+      ctx.arc(x, y, 6.4, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    }
+
+    const ball = this.worldToMiniMap(this.model.ball.pos.x, this.model.ball.pos.z);
+    const lastTrail = this.miniMapBallTrail[this.miniMapBallTrail.length - 1];
+    if (!lastTrail || Math.hypot(ball.x - lastTrail.x, ball.y - lastTrail.y) > 0.7) {
+      this.miniMapBallTrail.push(ball);
+      if (this.miniMapBallTrail.length > 18) this.miniMapBallTrail.shift();
+    }
+    for (let i = 1; i < this.miniMapBallTrail.length; i++) {
+      const a = this.miniMapBallTrail[i - 1];
+      const b = this.miniMapBallTrail[i];
+      const alpha = (i / this.miniMapBallTrail.length) * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    this.updateMiniMapPossessionPanels(players);
+  }
+
+  private updateMiniMapPossessionPanels(players: SimplePlayer[]) {
+    const ball = this.model.ball.pos;
+    const panelPlayer = (team: 'A' | 'B') => {
+      if (this.model.possession?.team === team) return this.model.possession;
+      const fieldPlayers = players.filter((player) => player.team === team && player.role !== 'GK');
+      return fieldPlayers.reduce<SimplePlayer | null>((best, player) => {
+        if (!best) return player;
+        const playerGap = Math.hypot(player.pos.x - ball.x, player.pos.z - ball.z);
+        const bestGap = Math.hypot(best.pos.x - ball.x, best.pos.z - ball.z);
+        return playerGap < bestGap ? player : best;
+      }, null);
+    };
+
+    for (const { player, panel } of [
+      { player: panelPlayer('A'), panel: this.miniMapHomePanel },
+      { player: panelPlayer('B'), panel: this.miniMapAwayPanel },
+    ]) {
+      if (!player || this.miniMapHidden()) {
+        panel.style.display = 'none';
+        continue;
+      }
+      const parts = player.name.split(/\s+/).filter(Boolean);
+      const lastName = parts.at(-1) || player.name || 'Player';
+      panel.textContent = `${player.role.toUpperCase().slice(0, 2)} ${lastName}`;
+      panel.style.display = 'block';
     }
   }
 
@@ -1833,6 +2656,7 @@ class SimpleGameEngine {
     }
     this.updateMeshes(dt);
     this.updateScoreBug();
+    this.updateMiniMap();
     if (!this.paused) {
       this.processLiveEventCues(dt);
       this.updateBroadcastCamera(dt);

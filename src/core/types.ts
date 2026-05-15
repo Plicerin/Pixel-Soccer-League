@@ -18,7 +18,7 @@ export type MatchState =
   | { kind: "pre_match" }
   | { kind: "kickoff"; team: TeamSide }
   | { kind: "live_play"; half: 1 | 2; startTick: number }
-  | { kind: "ball_out"; restartType: "throw_in" | "goal_kick" | "corner" | "free_kick"; restartTeam: TeamSide }
+  | { kind: "ball_out"; restartType: "throw_in" | "goal_kick" | "corner" | "free_kick" | "penalty"; restartTeam: TeamSide }
   | { kind: "goal_scored"; scoringTeam: TeamSide; restartAfter: number }
   | { kind: "halftime" }
   | { kind: "full_time" };

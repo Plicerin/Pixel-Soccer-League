@@ -437,7 +437,7 @@ function formatEventTime(ev, metadata) {
 }
 
 function getMatchDurationInfo() {
-  const halfSeconds = Math.max(1, Number(D?.metadata?.halfDuration ?? snap?.halfDuration ?? 2700) || 2700);
+  const halfSeconds = Math.max(1, Number(D?.metadata?.runtimeHalfDuration ?? snap?.runtimeHalfDuration ?? D?.metadata?.halfDuration ?? snap?.halfDuration ?? 2700) || 2700);
   const runtimeMinutes = Math.max(1 / 60, (halfSeconds * 2) / 60);
   return {
     halfSeconds,
@@ -1081,25 +1081,7 @@ const f1 = n => Number(n || 0).toFixed(1);
 const f0 = n => Math.round(n || 0);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-const LOGO_MAP = {
-  'Atlanta United':'atlanta-united','Austin FC':'austin-fc',
-  'CF Montreal':'cf-montreal','CF Montr\u00e9al':'cf-montreal',
-  'Charlotte FC':'charlotte-fc','Chicago Fire':'chicago-fire',
-  'Colorado Rapids':'colorado-rapids','Columbus Crew':'columbus-crew',
-  'DC United':'dc-united','FC Cincinnati':'fc-cincinnati',
-  'FC Dallas':'fc-dallas','Houston Dynamo':'houston-dynamo',
-  'Inter Miami':'inter-miami','LA Galaxy':'la-galaxy','LAFC':'lafc',
-  'Minnesota United':'minnesota-united','Nashville SC':'nashville-sc',
-  'New England Revolution':'new-england-revolution',
-  'New York City FC':'new-york-city-fc','New York Red Bulls':'new-york-red-bulls',
-  'Orlando City':'orlando-city','Philadelphia Union':'philadelphia-union',
-  'Portland Timbers':'portland-timbers','Real Salt Lake':'real-salt-lake',
-  'San Diego FC':'san-diego-fc','San Jose Earthquakes':'san-jose-earthquakes',
-  'Seattle Sounders':'seattle-sounders','Sporting Kansas City':'sporting-kc',
-  'Sporting KC':'sporting-kc','St. Louis City SC':'st-louis-city',
-  'St. Louis City':'st-louis-city','Toronto FC':'toronto-fc',
-  'Vancouver Whitecaps':'vancouver-whitecaps',
-};
+const LOGO_MAP = {};
 function teamLogo(name, cls) {
   const slug = LOGO_MAP[name];
   return slug ? `<img src="assets/logos/${slug}.png" class="${cls || 'team-logo'}" alt="">` : '';

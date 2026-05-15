@@ -27,6 +27,35 @@ const ROLE_BASE: Record<SimpleRole, SimplePlayerRatings> = {
   ST: { pace: 0.70, passing: 0.58, shooting: 0.72, defense: 0.28, keeper: 0.05 },
 };
 
+const HISTORIC_FINAL_ROSTERS: Record<string, string[]> = {
+  "Italy 1982": [
+    "Dino Zoff",
+    "Gaetano Scirea",
+    "Giuseppe Bergomi",
+    "Claudio Gentile",
+    "Fulvio Collovati",
+    "Antonio Cabrini",
+    "Gabriele Oriali",
+    "Marco Tardelli",
+    "Bruno Conti",
+    "Francesco Graziani",
+    "Paolo Rossi",
+  ],
+  "West Germany 1982": [
+    "Harald Schumacher",
+    "Uli Stielike",
+    "Manfred Kaltz",
+    "Karlheinz Förster",
+    "Bernd Förster",
+    "Hans-Peter Briegel",
+    "Wolfgang Dremmler",
+    "Paul Breitner",
+    "Karl-Heinz Rummenigge",
+    "Pierre Littbarski",
+    "Klaus Fischer",
+  ],
+};
+
 function clamp01(value: number) {
   return Math.max(0.05, Math.min(0.95, value));
 }
@@ -61,6 +90,9 @@ export function getRoleRatings(role: SimpleRole, teamName: string, playerIndex: 
 }
 
 export function defaultPlayerName(teamName: string, role: SimpleRole, label: string, index: number) {
+  const historicName = HISTORIC_FINAL_ROSTERS[teamName]?.[index];
+  if (historicName) return historicName;
+
   const prefix = teamName
     .split(/\s+/)
     .filter(Boolean)

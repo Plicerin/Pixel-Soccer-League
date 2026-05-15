@@ -4,19 +4,12 @@ import path from 'node:path'
 import process from 'node:process'
 import { SimpleMatchModel } from '../src/core/simpleMatchModel.ts'
 import { FIELD_W } from '../src/core/constants.ts'
+import { WORLD_CUP_2026_TEAM_NAMES } from '../src/teamCatalog.js'
 
-const FIXTURES = [
-  ['Inter Miami', 'LA Galaxy'],
-  ['Seattle Sounders', 'San Jose Earthquakes'],
-  ['LAFC', 'Austin FC'],
-  ['Philadelphia Union', 'Toronto FC'],
-  ['Vancouver Whitecaps', 'Sporting Kansas City'],
-  ['Atlanta United', 'Nashville SC'],
-  ['Columbus Crew', 'New York Red Bulls'],
-  ['Portland Timbers', 'FC Dallas'],
-  ['Orlando City', 'New York City FC'],
-  ['Real Salt Lake', 'Houston Dynamo'],
-]
+const FIXTURES = Array.from({ length: 10 }, (_, index) => [
+  WORLD_CUP_2026_TEAM_NAMES[index * 2],
+  WORLD_CUP_2026_TEAM_NAMES[index * 2 + 1],
+])
 
 const FORMATIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3']
 
@@ -136,8 +129,20 @@ function runMatch(index, opts) {
     throwInsB: snapshot.throwInsB,
     goalKicksA: snapshot.goalKicksA,
     goalKicksB: snapshot.goalKicksB,
-    foulsA: 0,
-    foulsB: 0,
+    freeKicksA: snapshot.freeKicksA,
+    freeKicksB: snapshot.freeKicksB,
+    penaltiesAwardedA: snapshot.penaltiesAwardedA,
+    penaltiesAwardedB: snapshot.penaltiesAwardedB,
+    penaltiesScoredA: snapshot.penaltiesScoredA,
+    penaltiesScoredB: snapshot.penaltiesScoredB,
+    penaltiesSavedA: snapshot.penaltiesSavedA,
+    penaltiesSavedB: snapshot.penaltiesSavedB,
+    penaltiesMissedA: snapshot.penaltiesMissedA,
+    penaltiesMissedB: snapshot.penaltiesMissedB,
+    foulsA: snapshot.foulsA,
+    foulsB: snapshot.foulsB,
+    offsidesA: snapshot.offsidesA,
+    offsidesB: snapshot.offsidesB,
     phase: snapshot.phase,
     tuning,
   }
@@ -201,6 +206,14 @@ function summarize(results) {
     corners: round(average(results, (row) => row.cornersA + row.cornersB)),
     throwIns: round(average(results, (row) => row.throwInsA + row.throwInsB)),
     goalKicks: round(average(results, (row) => row.goalKicksA + row.goalKicksB)),
+    freeKicks: round(average(results, (row) => row.freeKicksA + row.freeKicksB)),
+    penaltiesAwarded: round(average(results, (row) => (row.penaltiesAwardedA || 0) + (row.penaltiesAwardedB || 0))),
+    penaltiesScored: round(average(results, (row) => (row.penaltiesScoredA || 0) + (row.penaltiesScoredB || 0))),
+    penaltiesSaved: round(average(results, (row) => (row.penaltiesSavedA || 0) + (row.penaltiesSavedB || 0))),
+    penaltiesMissed: round(average(results, (row) => (row.penaltiesMissedA || 0) + (row.penaltiesMissedB || 0))),
+    tackles: round(average(results, (row) => row.tacklesA + row.tacklesB)),
+    fouls: round(average(results, (row) => row.foulsA + row.foulsB)),
+    offsides: round(average(results, (row) => row.offsidesA + row.offsidesB)),
     avgPassBallSpeedMps: round(average(passFlights, (flight) => flight.speedMps || 0)),
     maxPassBallSpeedMps: round(maxOf(passFlights, (flight) => flight.speedMps || 0)),
     avgShotBallSpeedMps: round(average(shotFlights, (flight) => flight.speedMps || 0)),
@@ -225,7 +238,7 @@ function summarize(results) {
     longRangeShotPct: round(((shotDistanceBins.y24_30 + shotDistanceBins.gte30) / Math.max(1, shotDecisions.length)) * 100),
     possessionA: round(average(results, (row) => row.possA)),
     fullTimePct: round((results.filter((row) => row.phase === 'FULL_TIME').length / results.length) * 100),
-    disabledMetrics: ['fouls'],
+    disabledMetrics: [],
   }
 }
 
@@ -316,6 +329,14 @@ function buildMarkdown(report) {
     `- Corners per match: ${report.summary.corners}`,
     `- Throw-ins per match: ${report.summary.throwIns}`,
     `- Goal kicks per match: ${report.summary.goalKicks}`,
+    `- Free kicks per match: ${report.summary.freeKicks}`,
+    `- Penalties per match: ${report.summary.penaltiesAwarded} awarded | ${report.summary.penaltiesScored} scored | ${report.summary.penaltiesSaved} saved | ${report.summary.penaltiesMissed} missed`,
+    '',
+    '## Defensive Counters',
+    '',
+    `- Tackles per match: ${report.summary.tackles}`,
+    `- Fouls per match: ${report.summary.fouls}`,
+    `- Offsides per match: ${report.summary.offsides}`,
     '',
     '## Visual Reality Audit',
     '',
@@ -335,12 +356,12 @@ function buildMarkdown(report) {
     `- Shot distance bins: <12 ${report.summary.shotDistanceBins.lt12} | 12-18 ${report.summary.shotDistanceBins.y12_18} | 18-24 ${report.summary.shotDistanceBins.y18_24} | 24-30 ${report.summary.shotDistanceBins.y24_30} | 30+ ${report.summary.shotDistanceBins.gte30}`,
   )
   lines.push('', '## Match Results', '')
-  lines.push('| Match | Score | Shots | SOT | Saves | Pass % | Corners | Throw-ins | Goal kicks | Poss A |')
-  lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|')
+  lines.push('| Match | Score | Shots | SOT | Saves | Pass % | Tackles | Fouls | Offsides | Corners | Throw-ins | Goal kicks | Free kicks | Pens | Poss A |')
+  lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|')
   for (const row of report.results) {
     const passAttempts = row.passesA + row.passesB
     const passPct = round(((row.passCompA + row.passCompB) / Math.max(1, passAttempts)) * 100)
-    lines.push(`| ${row.teamA} vs ${row.teamB} | ${row.scoreA}-${row.scoreB} | ${row.shotsA + row.shotsB} | ${row.sogA + row.sogB} | ${row.savesA + row.savesB} | ${passPct} | ${row.cornersA + row.cornersB} | ${row.throwInsA + row.throwInsB} | ${row.goalKicksA + row.goalKicksB} | ${row.possA} |`)
+    lines.push(`| ${row.teamA} vs ${row.teamB} | ${row.scoreA}-${row.scoreB} | ${row.shotsA + row.shotsB} | ${row.sogA + row.sogB} | ${row.savesA + row.savesB} | ${passPct} | ${row.tacklesA + row.tacklesB} | ${row.foulsA + row.foulsB} | ${row.offsidesA + row.offsidesB} | ${row.cornersA + row.cornersB} | ${row.throwInsA + row.throwInsB} | ${row.goalKicksA + row.goalKicksB} | ${row.freeKicksA + row.freeKicksB} | ${(row.penaltiesAwardedA || 0) + (row.penaltiesAwardedB || 0)} | ${row.possA} |`)
   }
   lines.push('')
   return `${lines.join('\n')}\n`
@@ -366,7 +387,8 @@ function printSummary(report, paths) {
   console.log(`full-match expected goals ${checks.goals.expectedMin}-${checks.goals.expectedMax} | shots ${checks.shots.expectedMin}-${checks.shots.expectedMax} | SOT ${checks.shotsOnTarget.expectedMin}-${checks.shotsOnTarget.expectedMax} | passes ${checks.passes.expectedMin}-${checks.passes.expectedMax}`)
   console.log(`guard raw goals ${checks.goals.min}-${checks.goals.max} | shots ${checks.shots.min}-${checks.shots.max} | SOT ${checks.shotsOnTarget.min}-${checks.shotsOnTarget.max} | passes ${checks.passes.min}-${checks.passes.max}`)
   console.log(`passes ${s.passes} | pass completion ${s.passCompletionPct}% | possession A ${s.possessionA}% | full-time ${s.fullTimePct}%`)
-  console.log(`restarts corners ${s.corners} | throw-ins ${s.throwIns} | goal kicks ${s.goalKicks}`)
+  console.log(`defense tackles ${s.tackles} | fouls ${s.fouls} | offsides ${s.offsides}`)
+  console.log(`restarts corners ${s.corners} | throw-ins ${s.throwIns} | goal kicks ${s.goalKicks} | free kicks ${s.freeKicks} | penalties ${s.penaltiesAwarded}`)
   console.log(`ball speed pass avg/max ${s.avgPassBallSpeedMps}/${s.maxPassBallSpeedMps} m/s | shot avg/max ${s.avgShotBallSpeedMps}/${s.maxShotBallSpeedMps} m/s`)
   console.log(`visual reality violations ${s.visualRealityViolations} | empty landings ${s.emptyFlightLandings} | carrier gaps ${s.ballCarrierGapViolations} | zero-shot matches ${s.zeroShotMatches}`)
   console.log(`invalid goal geometry ${s.invalidGoalGeometry}`)

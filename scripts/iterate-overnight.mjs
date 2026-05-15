@@ -4,16 +4,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
+import { WORLD_CUP_2026_TEAM_NAMES } from '../src/teamCatalog.js'
 
-const MLS_TEAMS = [
-  'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
-  'Colorado Rapids', 'Columbus Crew', 'DC United', 'FC Dallas', 'Houston Dynamo',
-  'Inter Miami', 'LA Galaxy', 'LAFC', 'Minnesota United', 'CF Montreal',
-  'Nashville SC', 'New England Revolution', 'New York City FC', 'New York Red Bulls',
-  'Orlando City', 'Philadelphia Union', 'Portland Timbers', 'Real Salt Lake',
-  'San Diego FC', 'San Jose Earthquakes', 'Seattle Sounders', 'Sporting Kansas City',
-  'St. Louis City SC', 'Toronto FC', 'Vancouver Whitecaps',
-]
+const MLS_TEAMS = WORLD_CUP_2026_TEAM_NAMES
 
 function parseArgs(argv) {
   const options = {

@@ -7,40 +7,24 @@ import { spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { WORLD_CUP_2026_TEAM_NAMES, resolveWorldCupTeamName } from '../src/teamCatalog.js'
 
 const DEFAULT_URL = 'http://127.0.0.1:5173/'
 const FALLBACK_SERVER_PORT = 4173
 const FALLBACK_SERVER_URL = `http://127.0.0.1:${FALLBACK_SERVER_PORT}/`
 const ALLOWED_GAME_QUANTITIES = [5, 10, 20]
 
-const MLS_TEAMS = [
-  'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
-  'Colorado Rapids', 'Columbus Crew', 'DC United', 'FC Dallas', 'Houston Dynamo',
-  'Inter Miami', 'LA Galaxy', 'LAFC', 'Minnesota United', 'CF Montreal',
-  'Nashville SC', 'New England Revolution', 'New York City FC', 'New York Red Bulls',
-  'Orlando City', 'Philadelphia Union', 'Portland Timbers', 'Real Salt Lake',
-  'San Diego FC', 'San Jose Earthquakes', 'Seattle Sounders', 'Sporting Kansas City',
-  'St. Louis City SC', 'Toronto FC', 'Vancouver Whitecaps',
-]
+const MLS_TEAMS = WORLD_CUP_2026_TEAM_NAMES
 
 const FORMATIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3']
-const TEAM_ALIASES = new Map([
-  ['d.c. united', 'DC United'],
-  ['dc united', 'DC United'],
-  ['sporting kc', 'Sporting Kansas City'],
-  ['sporting kansas city', 'Sporting Kansas City'],
-  ['st. louis city sc', 'St. Louis City SC'],
-  ['st. louis city', 'St. Louis City SC'],
-  ['st. louis city sc', 'St. Louis City SC'],
-  ['montreal', 'CF Montreal'],
-])
+const TEAM_ALIASES = new Map()
 
 function printHelp() {
   console.log(`Headless CPU vs CPU soccer sim runner
 
 Usage:
   npm run sim:headless -- --games 10
-  npm run sim:match -- --home "DC United" --away "Columbus Crew"
+  npm run sim:match -- --home "United States" --away "Mexico"
 
 Options:
   --mode <name>      Run mode: tuning or smoke (default: tuning)
@@ -67,7 +51,7 @@ Options:
 
 Notes:
   - If ${DEFAULT_URL} is not reachable, the script auto-starts a Vite dev server on ${FALLBACK_SERVER_URL}.
-  - Team matchups are randomized from a shuffled pool with no duplicate fixture repeats per cycle.
+  - Team matchups are randomized from the 48-team world catalog with no duplicate fixture repeats per cycle.
   - The sim runs headless in Chrome/Edge and prints text summaries as games finish.
   - Chrome is preferred for headless GPU mode; set HEADLESS_SIM_BROWSER to override.
   - In tuning mode, keep clock speed at 1 unless you intentionally want unrealistic telemetry.
@@ -241,6 +225,8 @@ function parseArgs(argv) {
 function resolveTeamName(input) {
   if (!input) return ''
   const trimmed = input.trim()
+  const worldCupTeam = resolveWorldCupTeamName(trimmed)
+  if (worldCupTeam) return worldCupTeam
   const aliased = TEAM_ALIASES.get(trimmed.toLowerCase()) || trimmed
   const exact = MLS_TEAMS.find((team) => team.toLowerCase() === aliased.toLowerCase())
   if (exact) return exact

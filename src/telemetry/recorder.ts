@@ -34,6 +34,16 @@ type MatchSnapshotLike = {
   passesCompletedB?: number;
   foulsA?: number;
   foulsB?: number;
+  penaltiesAwardedA?: number;
+  penaltiesAwardedB?: number;
+  penaltiesScoredA?: number;
+  penaltiesScoredB?: number;
+  penaltiesSavedA?: number;
+  penaltiesSavedB?: number;
+  penaltiesMissedA?: number;
+  penaltiesMissedB?: number;
+  penaltyXgA?: number;
+  penaltyXgB?: number;
   cornersA?: number;
   cornersB?: number;
   throwInsA?: number;
@@ -374,6 +384,16 @@ export class TelemetryRecorder {
             passesCompletedB: match.passesCompletedB ?? 0,
             foulsA: match.foulsA ?? 0,
             foulsB: match.foulsB ?? 0,
+            penaltiesAwardedA: match.penaltiesAwardedA ?? 0,
+            penaltiesAwardedB: match.penaltiesAwardedB ?? 0,
+            penaltiesScoredA: match.penaltiesScoredA ?? 0,
+            penaltiesScoredB: match.penaltiesScoredB ?? 0,
+            penaltiesSavedA: match.penaltiesSavedA ?? 0,
+            penaltiesSavedB: match.penaltiesSavedB ?? 0,
+            penaltiesMissedA: match.penaltiesMissedA ?? 0,
+            penaltiesMissedB: match.penaltiesMissedB ?? 0,
+            penaltyXgA: match.penaltyXgA ?? 0,
+            penaltyXgB: match.penaltyXgB ?? 0,
             cornersA: match.cornersA ?? 0,
             cornersB: match.cornersB ?? 0,
             throwInsA: match.throwInsA ?? 0,

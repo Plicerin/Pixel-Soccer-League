@@ -5,8 +5,8 @@
  *   window.pslSmokeTest.run(10)                         // 10 games, randomize teams
  *   window.pslSmokeTest.run(5, false)                  // 5 games, same default teams
  *   window.pslSmokeTest.runFixture({                   // one fixed-fixture match in the current tab
- *     homeTeam: 'DC United',
- *     awayTeam: 'Seattle Sounders',
+ *     homeTeam: 'United States',
+ *     awayTeam: 'Mexico',
  *     halfSeconds: 120,
  *   })
  *   window.pslSmokeTest.stop()                         // abort early
@@ -18,16 +18,9 @@ import {
   getFixtureElapsedSimSeconds,
   type FixtureTimeoutReason,
 } from './fixtureTiming';
+import { DEFAULT_AWAY_TEAM, DEFAULT_HOME_TEAM, WORLD_CUP_2026_TEAM_NAMES } from './teamCatalog.js';
 
-const MLS_TEAMS = [
-  'Atlanta United', 'Austin FC', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
-  'Colorado Rapids', 'Columbus Crew', 'DC United', 'FC Dallas', 'Houston Dynamo',
-  'Inter Miami', 'LA Galaxy', 'LAFC', 'Minnesota United', 'CF Montreal',
-  'Nashville SC', 'New England Revolution', 'New York City FC', 'New York Red Bulls',
-  'Orlando City', 'Philadelphia Union', 'Portland Timbers', 'Real Salt Lake',
-  'San Diego FC', 'San Jose Earthquakes', 'Seattle Sounders', 'Sporting Kansas City',
-  'St. Louis City SC', 'Toronto FC', 'Vancouver Whitecaps',
-];
+const MLS_TEAMS = WORLD_CUP_2026_TEAM_NAMES;
 
 const FORMATIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'];
 
@@ -196,7 +189,7 @@ async function waitForPhase(phase: string, timeoutMs: number = 10_000): Promise<
 
 function normalizeFixtureOptions(input: FixtureRunOptions = {}): Required<FixtureRunOptions> {
   const [fallbackHome, fallbackAway] = input.randomizeTeams === false
-    ? ['Inter Miami', 'LA Galaxy']
+    ? [DEFAULT_HOME_TEAM, DEFAULT_AWAY_TEAM]
     : pickTwoTeams();
   return {
     homeTeam: input.homeTeam || fallbackHome,
@@ -344,8 +337,8 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
     const options = normalizeFixtureOptions({
       randomizeTeams,
       speedMul,
-      homeTeam: randomizeTeams ? undefined : 'Inter Miami',
-      awayTeam: randomizeTeams ? undefined : 'LA Galaxy',
+      homeTeam: randomizeTeams ? undefined : DEFAULT_HOME_TEAM,
+      awayTeam: randomizeTeams ? undefined : DEFAULT_AWAY_TEAM,
     });
     const { homeTeam: teamA, awayTeam: teamB, formationA: formA, formationB: formB } = options;
 
@@ -388,6 +381,10 @@ export async function runSmokeTest(numGames: number = 10, randomizeTeams: boolea
               cornersB: snap.cornersB ?? 0,
               foulsA: live?.teamA?.fouls ?? 0,
               foulsB: live?.teamB?.fouls ?? 0,
+              penaltiesAwardedA: live?.teamA?.penaltiesAwarded ?? 0,
+              penaltiesAwardedB: live?.teamB?.penaltiesAwarded ?? 0,
+              penaltiesScoredA: live?.teamA?.penaltiesScored ?? 0,
+              penaltiesScoredB: live?.teamB?.penaltiesScored ?? 0,
               throwInsA: live?.teamA?.throwIns ?? 0,
               throwInsB: live?.teamB?.throwIns ?? 0,
               headersA: snap.headersA ?? 0,

@@ -45,7 +45,8 @@ export function advanceMatchState(
   msm: MatchStateMachine,
   dt: number,
   ballOutEvent: BallOutEvent | null,
-  goalEvent: GoalEvent | null
+  goalEvent: GoalEvent | null,
+  clockDt: number = dt,
 ): MatchStateMachine {
   const next = { ...msm };
   next.clock = { ...msm.clock };
@@ -57,7 +58,7 @@ export function advanceMatchState(
       break;
 
     case "kickoff": {
-      next.clock.elapsedInHalf += dt;
+      next.clock.elapsedInHalf += clockDt;
       if (next.clock.elapsedInHalf > 0.5) {
         next.state = { kind: "live_play", half: next.clock.half, startTick: 0 };
       }
@@ -65,7 +66,7 @@ export function advanceMatchState(
     }
 
     case "live_play": {
-      next.clock.elapsedInHalf += dt;
+      next.clock.elapsedInHalf += clockDt;
 
       if (goalEvent) {
         next.score[goalEvent.scoringTeam] += 1;
@@ -96,6 +97,7 @@ export function advanceMatchState(
     }
 
     case "ball_out": {
+      next.clock.elapsedInHalf += clockDt;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         const restartTeam = next.state.restartTeam;
@@ -107,7 +109,7 @@ export function advanceMatchState(
     }
 
     case "goal_scored": {
-      next.clock.elapsedInHalf += dt;
+      next.clock.elapsedInHalf += clockDt;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         const scoringTeam = next.state.scoringTeam;
@@ -155,7 +157,7 @@ export function isDeadBall(state: MatchState): boolean {
 }
 
 export type BallOutEvent = {
-  restartType: "throw_in" | "goal_kick" | "corner" | "free_kick";
+  restartType: "throw_in" | "goal_kick" | "corner" | "free_kick" | "penalty";
   restartTeam: TeamSide;
 };
 
