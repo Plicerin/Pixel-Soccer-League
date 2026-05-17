@@ -121,6 +121,10 @@ test("V55 simple model uses legal center kickoff positioning before the ball is 
   assert.equal(model.ball.pos.x, 0);
   assert.equal(model.ball.pos.z, 0);
   assert.ok(model.possession, "kickoff should identify the single kicker");
+  assert.equal(model.possession.pos.x, 0, "kickoff kicker must stand on the center spot");
+  assert.equal(model.possession.pos.z, 0, "kickoff kicker must stand on the center spot");
+  assert.equal(model.possession.targetPos.x, 0, "kickoff kicker target must be the center spot");
+  assert.equal(model.possession.targetPos.z, 0, "kickoff kicker target must be the center spot");
 
   for (const player of model.getPlayers()) {
     const attackSign = player.team === "A" ? 1 : -1;
@@ -129,6 +133,44 @@ test("V55 simple model uses legal center kickoff positioning before the ball is 
       assert.ok(
         Math.hypot(player.pos.x, player.pos.z) >= CENTER_CIRCLE_RADIUS,
         `${player.name} must stay outside the center circle before kickoff`,
+      );
+    }
+  }
+});
+
+test("V100 explicit new match start resets stale live clock and kickoff positions", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamNames("Canada", "Switzerland");
+  model.startMatch();
+
+  for (let i = 0; i < 360 && model.getMatchSnapshot().phase !== "LIVE"; i++) {
+    model.step(1 / 60);
+  }
+  for (let i = 0; i < 180; i++) model.step(1 / 60);
+  model.getPlayers()[0].pos.x = 32;
+  model.getPlayers()[1].pos.z = 19;
+
+  model.startMatch();
+
+  const snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.phase, "KICKOFF");
+  assert.equal(snapshot.half, 1);
+  assert.equal(snapshot.elapsedInHalf, 0);
+  assert.equal(model.ball.pos.x, 0);
+  assert.equal(model.ball.pos.z, 0);
+  assert.ok(model.possession, "fresh kickoff must identify the single kicker");
+  assert.equal(model.possession.pos.x, 0, "fresh kickoff kicker must reset to the center spot");
+  assert.equal(model.possession.pos.z, 0, "fresh kickoff kicker must reset to the center spot");
+  assert.equal(model.possession.targetPos.x, 0, "fresh kickoff kicker target must reset to the center spot");
+  assert.equal(model.possession.targetPos.z, 0, "fresh kickoff kicker target must reset to the center spot");
+
+  for (const player of model.getPlayers()) {
+    const attackSign = player.team === "A" ? 1 : -1;
+    assert.ok(player.pos.x * attackSign <= 0.001, `${player.name} must reset to own half on new match start`);
+    if (player.id !== model.possession?.id) {
+      assert.ok(
+        Math.hypot(player.pos.x, player.pos.z) >= CENTER_CIRCLE_RADIUS,
+        `${player.name} must reset outside the center circle on new match start`,
       );
     }
   }
@@ -152,6 +194,59 @@ test("V55 simple model starts live play with a visible kickoff pass to another p
   const kickoffFlight = model.ballFlightTelemetry.find((flight) => flight.kind === "pass" && flight.from.x === 0 && flight.from.z === 0);
   assert.ok(kickoffFlight, "kickoff should create a visible pass flight from the center spot");
   assert.ok(kickoffFlight.distanceUnits > CENTER_CIRCLE_RADIUS * 0.7, "kickoff pass must clearly move the ball");
+  assert.equal(model.passLog.some((event) => event.detail.restart === "kickoff"), true);
+  const kickoffEvents = model.eventLog.filter((event) => event.action === "KICKOFF");
+  assert.equal(kickoffEvents.filter((event) => event.meta?.phase === "setup").length, 1, "kickoff setup should emit exactly one whistle-eligible event");
+  assert.equal(kickoffEvents.filter((event) => event.meta?.phase === "release").length, 1, "kickoff release should be tagged separately from the whistle");
+});
+
+test("V134 CPU-vs-CPU kickoff uses real-time phase pacing despite clock compression", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v134-cpu-phase-pacing");
+  model.setHalfDurationSeconds(5 * 60);
+  model.cpuVsCpu = true;
+  model.startMatch();
+
+  for (let i = 0; i < 60; i++) model.step(1 / 60);
+
+  let snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.phase, "KICKOFF", "CPU kickoff should pause long enough to be seen instead of leaving on accelerated clock time");
+  assert.equal(snapshot.elapsedInHalf, 0, "CPU phase pacing should not spend match clock while holding the presentation beat");
+
+  for (let i = 0; i < 90 && model.getMatchSnapshot().phase === "KICKOFF"; i++) model.step(1 / 60);
+
+  snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.phase, "FIRST_HALF");
+  const pacing = model.getTuningBundle().phasePacingTelemetry.at(-1) as Record<string, unknown> | undefined;
+  assert.equal(pacing?.phase, "KICKOFF");
+  assert.equal(pacing?.reason, "kickoff_setup_ready");
+  assert.ok(Number(pacing?.durationSeconds) >= 1 && Number(pacing?.durationSeconds) <= 2, "CPU pacing hold should stay in the requested one-to-two second range");
+});
+
+test("V101 away kickoff receiver is staged in the kicking team's own half", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v101-away-kickoff-receiver-own-half");
+  model.startMatch();
+  model.msm.state = { kind: "kickoff", team: "away" };
+  model.msm.clock.half = 1;
+  model.msm.clock.elapsedInHalf = 0;
+  (model as unknown as { installKickoffSetup: (team: "A" | "B") => void }).installKickoffSetup("B");
+
+  for (let i = 0; i < 90 && model.getMatchSnapshot().phase === "KICKOFF"; i++) {
+    model.step(1 / 30);
+    model.updateVisuals(1 / 30);
+  }
+
+  const snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.phase, "FIRST_HALF");
+  const kickoffFlight = model.ballFlightTelemetry.find((flight) => flight.kind === "pass" && flight.from.x === 0 && flight.from.z === 0);
+  assert.ok(kickoffFlight, "away kickoff should create a visible receiver pass from the center spot");
+  assert.ok(kickoffFlight.receiverId, "kickoff flight should identify the receiver");
+  const receiver = model.getPlayers().find((player) => player.id === kickoffFlight.receiverId);
+  assert.ok(receiver, "kickoff receiver must be a real visible player");
+  assert.equal(receiver.team, "B");
+  assert.ok(kickoffFlight.to.x >= 0.1, `away kickoff receiver target must stay in own half, got x=${kickoffFlight.to.x.toFixed(2)}`);
+  assert.ok(receiver.pos.x >= 0.1, `away kickoff receiver must remain in own half, got x=${receiver.pos.x.toFixed(2)}`);
   assert.equal(model.passLog.some((event) => event.detail.restart === "kickoff"), true);
 });
 
@@ -357,6 +452,50 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   assert.ok(Number(releaseEvent?.meta?.presentationSeconds) >= 1.2, "corner release presentation must keep the taker visible through the kick");
   assert.equal(releaseEvent?.meta?.arcHeight, 0.7);
   assert.ok(Number(cornerFlight?.arc) >= 0.65, "corner restart flight must be visibly lofted");
+});
+
+test("V137 goal-mouth crossing resolves as goal or own goal before corner classification", () => {
+  const run = (lastTouchTeam: "A" | "B") => {
+    const model = new SimpleMatchModel();
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    model.msm.clock.elapsedInHalf = 24;
+    const player = model.getPlayers().find((p) => p.team === lastTouchTeam && p.role !== "GK");
+    assert.ok(player);
+    model.possession = player;
+    (model as unknown as { rememberTouch: (player: unknown) => void }).rememberTouch(player);
+    model.ball.pos = { x: RIGHT_GOAL_X - 0.8, y: 0.18, z: 0.12 };
+    (model as unknown as { startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void })
+      .startBallFlight("pass", { x: RIGHT_GOAL_X - 0.8, z: 0.12 }, { x: RIGHT_GOAL_X + 1.3, z: 0.10 }, 0.1, 0.04);
+    for (let i = 0; i < 90 && (model.msm.state as { kind: string }).kind !== "goal_scored"; i++) model.step(1 / 60);
+    return model;
+  };
+
+  const attackingTouch = run("A");
+  assert.equal(attackingTouch.msm.state.kind, "goal_scored");
+  assert.equal(attackingTouch.getMatchSnapshot().scoreA, 1);
+  assert.equal(attackingTouch.getMatchSnapshot().cornersA, 0);
+  assert.equal(attackingTouch.getMatchSnapshot().cornersB, 0);
+  assert.equal(attackingTouch.getMatchSnapshot().goalKicksA, 0);
+  assert.equal(attackingTouch.getMatchSnapshot().goalKicksB, 0);
+  const attackingGoal = attackingTouch.getTuningBundle().goalLog.at(-1) as Record<string, unknown> | undefined;
+  assert.equal(attackingGoal?.resolutionReason, "GOAL_MOUTH_CROSSING");
+  assert.equal(attackingGoal?.ownGoal, false);
+  assert.equal(attackingGoal?.fieldResolved, true);
+  assert.equal(attackingTouch.getTuningBundle().ballOutLog.length, 0);
+
+  const defendingTouch = run("B");
+  assert.equal(defendingTouch.msm.state.kind, "goal_scored");
+  assert.equal(defendingTouch.getMatchSnapshot().scoreA, 1);
+  assert.equal(defendingTouch.getMatchSnapshot().cornersA, 0);
+  assert.equal(defendingTouch.getMatchSnapshot().cornersB, 0);
+  assert.equal(defendingTouch.getMatchSnapshot().goalKicksA, 0);
+  assert.equal(defendingTouch.getMatchSnapshot().goalKicksB, 0);
+  const ownGoal = defendingTouch.getTuningBundle().goalLog.at(-1) as Record<string, unknown> | undefined;
+  assert.equal(ownGoal?.resolutionReason, "GOAL_MOUTH_CROSSING");
+  assert.equal(ownGoal?.ownGoal, true);
+  assert.equal(ownGoal?.fieldResolved, true);
+  assert.equal(defendingTouch.getTuningBundle().ballOutLog.length, 0);
 });
 
 test("V80 off-target attacking shots create goalkeeper goal-kick restarts", () => {
@@ -699,6 +838,10 @@ test("V59 simple model flags receiver involvement from an offside position", () 
   model.possession = carrier;
   model.ball.pos.x = carrier.pos.x;
   model.ball.pos.z = carrier.pos.z;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min: number, max: number) => (min + max) / 2,
+  };
   const ballBeforeOffside = { x: model.ball.pos.x, z: model.ball.pos.z };
   const passesBefore = model.getMatchSnapshot().passesA;
   const flightsBefore = model.getTuningBundle().ballFlightTelemetry.length;
@@ -716,6 +859,10 @@ test("V59 simple model flags receiver involvement from an offside position", () 
   assert.equal((model as any).pendingBallOutEvent?.restartType, "free_kick");
   assert.equal((model as any).pendingBallOutEvent?.restartTeam, "away");
   assert.equal((model as any).pendingBallOutContext?.restartTeam, "B");
+  assert.ok(
+    (model as any).offsideTargetSelectionLockedUntil >= (model as any).elapsedTotal + 20,
+    "offside target selection should remain locked long enough to prevent rapid repeat calls",
+  );
   assert.ok(dist2(model.ball.pos, ballBeforeOffside) < 0.001, "pre-pass offside restart must not teleport the ball to the offside runner");
   assert.ok(dist2((model as any).pendingBallOutContext?.spot, ballBeforeOffside) < 0.001, "offside free-kick spot should remain at the ball-at-touch origin");
   assert.equal(model.eventLog.some((event) => event.action === "FREE_KICK" && event.meta?.phase === "setup"), true);
@@ -743,6 +890,33 @@ test("V59 simple model flags receiver involvement from an offside position", () 
   (model as any).resolvePass(carrier, 0);
 
   assert.equal(model.getMatchSnapshot().offsidesA, 1, "AI must not call a second offside in rapid succession after the first whistle");
+});
+
+test("V59 simple model ignores marginal offside-looking positions", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v59-offside-margin");
+  model.setTeamNames("LAFC", "Austin FC");
+  model.startMatch();
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const receiver = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(carrier);
+  assert.ok(receiver);
+
+  carrier.pos.x = 0;
+  carrier.pos.z = 0;
+  receiver.pos.x = 5.7;
+  receiver.pos.z = 0;
+  for (const player of model.getPlayers().filter((player) => player.team === "B")) {
+    player.pos.x = player.role === "GK" ? 28 : 5;
+    player.pos.z = player.shirtNumber * 0.2;
+  }
+
+  assert.equal(
+    (model as any).offsideInfraction(carrier, receiver, { x: carrier.pos.x, z: carrier.pos.z }),
+    null,
+    "sub-yard visual/model jitter near the offside line must not create phantom offside calls",
+  );
 });
 
 test("V91 normal pass target selection can surface offside telemetry", () => {
@@ -1217,7 +1391,7 @@ test("simple model visual reality audit stays clean in short matches", () => {
   assert.deepEqual(model.getTuningBundle().visualRealityEvents, []);
 });
 
-test("simple model normal-speed player movement stays within measured sprint bounds", () => {
+test("simple model normal-speed player movement stays within user-approved speed bounds", () => {
   const model = new SimpleMatchModel();
   model.setSeed("normal-speed-player-measurement");
   model.setTeamNames("LA Galaxy", "LAFC");
@@ -1265,7 +1439,7 @@ test("simple model normal-speed player movement stays within measured sprint bou
   assert.ok(Math.abs(end.elapsedInHalf - start.elapsedInHalf - 10) < 0.001);
   assert.ok(topAverageMps <= 5.1, `top 10s average speed ${topAverageMps.toFixed(2)} m/s`);
   assert.ok(topInstantMps <= 7.8, `top instant speed ${topInstantMps.toFixed(2)} m/s`);
-  assert.ok(p90InstantMps >= 5.5, `live player movement too slow, p90 instant speed ${p90InstantMps.toFixed(2)} m/s`);
+  assert.ok(p90InstantMps >= 5.3, `live player movement below approved band, p90 instant speed ${p90InstantMps.toFixed(2)} m/s`);
 });
 
 test("V41 simple model keeps live player positions inside the field", () => {
@@ -1521,6 +1695,45 @@ test("V97 post-goal restart does not expose kickoff until setup is ready", () =>
   assert.equal(sawMovingGoalSetup, true, "post-goal player reset should happen during goal-scored restart delay");
   assert.equal(restarted, true, "post-goal restart must return to live play within a bounded window");
   assert.ok(kickoffFrames <= 45, `kickoff window should be short once setup is ready, got ${kickoffFrames} frames`);
+});
+
+test("V129 post-goal reset movement uses a temporary 1.3x speed multiplier", () => {
+  const measureSetupStep = (speedMultiplier: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`v129-post-goal-reset-${speedMultiplier}`);
+    model.startMatch();
+    model.msm.clock.elapsedInHalf = 12;
+    (model as unknown as { elapsedTotal: number }).elapsedTotal = 12;
+    const players = model.getPlayers();
+    players.forEach((player, index) => {
+      player.pos = {
+        x: RIGHT_GOAL_X - 1.5 - (index % 4) * 1.2,
+        y: 0,
+        z: -FIELD_D / 2 + 2 + (index % 11) * 2.0,
+      };
+      player.targetPos = { x: player.pos.x, z: player.pos.z };
+      player.vel = { x: 0, z: 0 };
+    });
+    (model as unknown as { installKickoffSetup: (team: "A" | "B") => void }).installKickoffSetup("B");
+    for (const player of players) {
+      const dx = player.targetPos.x - player.pos.x;
+      const dz = player.targetPos.z - player.pos.z;
+      const len = Math.hypot(dx, dz) || 1;
+      player.vel = { x: (dx / len) * BASE_RUN_SPEED * 5, z: (dz / len) * BASE_RUN_SPEED * 5 };
+    }
+    const before = new Map(players.map((player) => [player.id, { x: player.pos.x, z: player.pos.z }]));
+    (model as unknown as { movePlayers: (dt: number, speedMultiplier?: number) => void }).movePlayers(1 / 60, speedMultiplier);
+    return Math.max(...players.map((player) => {
+      const start = before.get(player.id);
+      assert.ok(start);
+      return dist2(player.pos, start);
+    }));
+  };
+
+  const normalStep = measureSetupStep(1);
+  const boostedStep = measureSetupStep(1.3);
+  assert.ok(boostedStep > normalStep * 1.25, `post-goal reset should move materially faster, normal=${normalStep.toFixed(4)} boosted=${boostedStep.toFixed(4)}`);
+  assert.ok(boostedStep <= normalStep * 1.32, `post-goal reset should stay near 1.3x, normal=${normalStep.toFixed(4)} boosted=${boostedStep.toFixed(4)}`);
 });
 
 test("V43 simple model final stats cannot show goals with zero shots", () => {

@@ -67,6 +67,7 @@ export const TEAM_PALETTES: Record<string, PlayerPalette> = {
   keeperB: { shirt: M.teamBKeeperShirt, pants: M.teamBKeeperPants, hair: M.hairBlack, visor: M.teamBVisor },
   referee: { shirt: M.refShirt, pants: M.refPants, hair: M.hairBlack, visor: M.refVisor },
 };
+const PLAYER_HAIR_MATERIALS = [M.hairBlack, M.hairBrown, M.hairBlond];
 
 export const PLAYER_IDLE_PATTERNS = [
   // Frame 0 – neutral stand: compact, arms at sides, both feet planted
@@ -220,6 +221,7 @@ export const PLAYER_BACK_IDLE_COMPOSED = PLAYER_BACK_IDLE_PATTERNS.map(base =>
 
 const PLAYER_VOXEL_SIZE = 0.0665;
 const PLAYER_SPRITE_CENTER_Y = PLAYER_VOXEL_SIZE * 5.25; // lowered so feet sit at ground level (group.y=0.15)
+const PLAYER_VISUAL_SCALE = 1.12;
 const CORNER_SETUP_PRESENTATION_SECONDS = 2.0;
 const CORNER_RELEASE_PRESENTATION_SECONDS = 1.35;
 const CORNER_RUNUP_DISTANCE = 1.15;
@@ -391,7 +393,49 @@ export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
 type SpriteFacingMode = 'side' | 'front' | 'back';
 type KeeperDiveDirection = 'left' | 'right' | 'up' | 'down';
 type KeeperReaction = { ttl: number; duration: number; zLean: number; direction: KeeperDiveDirection };
+type WhistleAuditEvent = {
+  reason: string;
+  volume: number;
+  assetPlayed: boolean;
+  elapsed: number;
+};
+type KeeperAnimationEvent = {
+  action: 'SAVE' | 'SMOTHER';
+  team: string;
+  keeperId: string;
+  keeperName: string;
+  direction: KeeperDiveDirection;
+  duration: number;
+  sourceEventIndex: number;
+  phase: string;
+  clock: string;
+};
 type HeaderReaction = { ttl: number; duration: number; kind: 'shot' | 'clearance'; direction: 1 | -1 };
+type HeaderAnimationEvent = {
+  action: 'HEADER_SHOT' | 'HEADER_CLEARANCE';
+  team: string;
+  playerId: string;
+  playerName: string;
+  kind: 'shot' | 'clearance';
+  direction: 1 | -1;
+  duration: number;
+  sourceEventIndex: number;
+  phase: string;
+  clock: string;
+};
+type CornerPresentationEvent = {
+  action: 'CORNER';
+  team: string;
+  phase: RestartPresentationPhase;
+  requestedTakerId: string | null;
+  takerId: string | null;
+  takerName: string | null;
+  usedFallback: boolean;
+  spot: { x: number; z: number };
+  sourceEventIndex: number;
+  phaseName: string;
+  clock: string;
+};
 type RestartPresentationType = 'throw_in' | 'corner' | 'goal_kick' | 'free_kick' | 'penalty' | 'drop_kick';
 type RestartPresentationPhase = 'setup' | 'release';
 type SoundBufferKey =
@@ -400,7 +444,6 @@ type SoundBufferKey =
   | 'shot'
   | 'catch'
   | 'crowd'
-  | 'crowdGoal'
   | 'splashMusic'
   | 'welcome'
   | 'kickoff'
@@ -440,6 +483,7 @@ type PlayerVisual = {
   state: 'IDLE' | 'RUN';
   frame: number;
   animTimer: number;
+  animPhaseOffset: number;
   breathOffset: number;
 };
 
@@ -449,7 +493,6 @@ const SOUND_ASSETS: Record<SoundBufferKey, string> = {
   shot: '/shot.mp3',
   catch: '/soft-body-impact.mp3',
   crowd: '/crowd.mp3',
-  crowdGoal: '/applause.wav',
   splashMusic: '/Pixel Soccer League.mp3',
   welcome: '/welcome.mp3',
   kickoff: '/kickoff.mp3',
@@ -461,6 +504,24 @@ const SOUND_ASSETS: Record<SoundBufferKey, string> = {
   penalty: '/penalty.mp3',
   out: '/out.mp3',
   post: '/donk.mp3',
+};
+
+const markPslPerf = (name: string) => {
+  try {
+    performance.mark(name);
+    const bucket = ((window as any).pslPerf ??= { marks: {}, measures: {} });
+    bucket.marks[name] = performance.now();
+  } catch {}
+};
+
+const measurePslPerf = (name: string, start: string, end: string) => {
+  try {
+    performance.measure(name, start, end);
+    const entries = performance.getEntriesByName(name, 'measure');
+    const latest = entries[entries.length - 1];
+    const bucket = ((window as any).pslPerf ??= { marks: {}, measures: {} });
+    bucket.measures[name] = latest?.duration ?? null;
+  } catch {}
 };
 
 class SimpleGameEngine {
@@ -475,9 +536,13 @@ class SimpleGameEngine {
   private readonly ballShadowMaterial: THREE.MeshBasicMaterial;
   private readonly ballTrail: THREE.Line;
   private readonly ballTrailPoints: THREE.Vector3[] = [];
+  private shotBallTrailEnabled = true;
   private readonly eventCues: Array<{ mesh: THREE.Object3D; ttl: number }> = [];
   private readonly keeperReactions = new Map<string, KeeperReaction>();
+  private readonly keeperAnimationEvents: KeeperAnimationEvent[] = [];
   private readonly headerReactions = new Map<string, HeaderReaction>();
+  private readonly headerAnimationEvents: HeaderAnimationEvent[] = [];
+  private readonly cornerPresentationEvents: CornerPresentationEvent[] = [];
   private activeRestartPresentation: RestartPresentation | null = null;
   private readonly cameraFocusSmoothed = new THREE.Vector3();
   private readonly cameraLerpPosition = new THREE.Vector3();
@@ -524,6 +589,8 @@ class SimpleGameEngine {
   private smokeTestMode = false;
   private practiceCompleteCallback: (() => void) | null = null;
   private processedLiveEvents = 0;
+  private lastThrowInAnnouncementKey = '';
+  private lastThrowInAnnouncementAt = -Infinity;
   private readonly scoreBugEl: HTMLDivElement;
   private scoreBugVisible = false;
   private lastScoreBugText = '';
@@ -547,6 +614,10 @@ class SimpleGameEngine {
   private readonly audioBytes: Partial<Record<SoundBufferKey, ArrayBuffer>> = {};
   private readonly audioFetchPromises: Partial<Record<SoundBufferKey, Promise<ArrayBuffer>>> = {};
   private readonly audioBuffers: Partial<Record<SoundBufferKey, AudioBuffer>> = {};
+  private readonly audioDecodeStarted = new Set<SoundBufferKey>();
+  private readonly oneShotAudioLastPlayedAt: Partial<Record<SoundBufferKey, number>> = {};
+  private lastWhistleAt = -Infinity;
+  private readonly whistleAuditEvents: WhistleAuditEvent[] = [];
   private readonly crowdLoop: {
     source: AudioBufferSourceNode | null;
     gain: GainNode | null;
@@ -557,8 +628,12 @@ class SimpleGameEngine {
   private readonly splashMusic: { source: AudioBufferSourceNode | null; gain: GainNode | null } = { source: null, gain: null };
   private splashMusicRequested = false;
   private splashWelcomePlayed = false;
+  private splashWelcomeTimer: number | null = null;
+  private stadiumBuilt = false;
+  private stadiumBuildHandle: number | null = null;
 
   constructor(private readonly container: HTMLElement) {
+    markPslPerf('psl:engine:init:start');
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(0x87ceeb, 100, 300);
     this.camera.position.copy(this.broadcastCameraHome);
@@ -573,6 +648,7 @@ class SimpleGameEngine {
     this.renderer.toneMappingExposure = 1.08;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
+    markPslPerf('psl:renderer:ready');
     this.scoreBugEl = this.createScoreBug();
     this.container.appendChild(this.scoreBugEl);
     const miniMap = this.createMiniMap();
@@ -586,7 +662,8 @@ class SimpleGameEngine {
 
     this.addLights();
     this.addField();
-    this.addStadium();
+    markPslPerf('psl:field:ready');
+    this.scheduleStadiumBuild();
     const ball = this.addBall();
     this.ballGroup = ball.group;
     this.ballMesh = ball.mesh;
@@ -594,10 +671,29 @@ class SimpleGameEngine {
     this.ballShadowMaterial = ball.shadowMaterial;
     this.ballTrail = this.addBallTrail();
     this.syncPlayerMeshes();
+    markPslPerf('psl:players:ready');
     this.resize();
     window.addEventListener('resize', this.resize);
     this.animate();
-    this.preloadAudioBytes();
+    this.preloadAudioBytes(['splashMusic', 'welcome', 'whistle']);
+    markPslPerf('psl:engine:init:end');
+    measurePslPerf('psl:engine:init', 'psl:engine:init:start', 'psl:engine:init:end');
+  }
+
+  private scheduleStadiumBuild() {
+    if (this.stadiumBuilt || this.stadiumBuildHandle !== null) return;
+    const build = () => {
+      this.stadiumBuildHandle = null;
+      if (this.disposed || this.stadiumBuilt) return;
+      markPslPerf('psl:stadium:start');
+      this.addStadium();
+      this.stadiumBuilt = true;
+      this.updateBannerText();
+      markPslPerf('psl:stadium:ready');
+      measurePslPerf('psl:stadium', 'psl:stadium:start', 'psl:stadium:ready');
+    };
+    const idle = (window as any).requestIdleCallback as undefined | ((cb: () => void, options?: { timeout?: number }) => number);
+    this.stadiumBuildHandle = idle ? idle(build, { timeout: 1200 }) : window.setTimeout(build, 250);
   }
 
   resetMatch = () => {
@@ -612,8 +708,11 @@ class SimpleGameEngine {
 
   startKickoffPresentation = (_fromUi = true) => {
     this.paused = false;
+    this.menuVisible = false;
+    this.splashSceneMode = false;
     this.miniMapBallTrail.length = 0;
     this.splashMusicStop();
+    this.preloadGameplayAudio();
     this.startCrowdLoop();
     this.model.startMatch();
     this.updateScoreBug();
@@ -660,7 +759,13 @@ class SimpleGameEngine {
   getSelectedDefensePlayerStats = () => this.model.getSelectedDefensePlayerStats();
   selectRandomDefensePlayer = () => this.model.getSelectedDefensePlayerStats();
   getRenderFps = () => this.fps;
-  getTuningBundle = () => this.model.getTuningBundle();
+  getTuningBundle = () => ({
+    ...this.model.getTuningBundle(),
+    whistleAuditEvents: this.whistleAuditEvents.slice(-100),
+    keeperAnimationEvents: this.keeperAnimationEvents.slice(-100),
+    headerAnimationEvents: this.headerAnimationEvents.slice(-100),
+    cornerPresentationEvents: this.cornerPresentationEvents.slice(-100),
+  });
   getTeamAAttackSign = () => this.model.msm.clock.half === 1 ? 1 : -1;
   getPositionalDriftReport = () => [];
 
@@ -680,9 +785,19 @@ class SimpleGameEngine {
   setGroundVisible = (visible: boolean) => this.setNamedVisibility('ground', visible);
   setFieldVisible = (visible: boolean) => this.setNamedVisibility('fieldMarking', visible);
   setGrassVisible = (visible: boolean) => this.setNamedVisibility('pitch', visible);
+  setShotBallTrailEnabled = (enabled: boolean) => {
+    this.shotBallTrailEnabled = !!enabled;
+    if (!this.shotBallTrailEnabled) this.clearBallTrail();
+  };
 
   dispose = () => {
     this.disposed = true;
+    if (this.stadiumBuildHandle !== null) {
+      const cancelIdle = (window as any).cancelIdleCallback as undefined | ((handle: number) => void);
+      if (cancelIdle) cancelIdle(this.stadiumBuildHandle);
+      else window.clearTimeout(this.stadiumBuildHandle);
+      this.stadiumBuildHandle = null;
+    }
     window.removeEventListener('resize', this.resize);
     this.resetVisualCues();
     this.stopAllAudio();
@@ -703,13 +818,19 @@ class SimpleGameEngine {
     this.splashWelcomePlayed = false;
     void ctx.resume().catch(() => {});
     this.playLoop('splashMusic', this.splashMusic, 0.5);
-    window.setTimeout(() => {
-      if (this.splashMusicRequested) this.playSplashWelcomeOnce();
-    }, 900);
+    this.scheduleSplashWelcome(2000);
   };
   splashMusicStop = () => {
     this.splashMusicRequested = false;
+    this.clearSplashWelcomeTimer();
     this.stopLoop(this.splashMusic, 0.45);
+  };
+  unlockGameplayAudio = () => {
+    const ctx = this.ensureAudioContext();
+    if (!ctx) return false;
+    this.preloadAudio();
+    void ctx.resume().catch(() => {});
+    return true;
   };
   setSplashSceneMode = (active: boolean) => {
     this.splashSceneMode = !!active;
@@ -771,7 +892,7 @@ class SimpleGameEngine {
         }
       });
     }
-    this.preloadAudio();
+    this.preloadAudio(['splashMusic', 'welcome', 'whistle']);
     return this.audioCtx;
   }
 
@@ -797,12 +918,16 @@ class SimpleGameEngine {
     }
   }
 
-  private preloadAudio() {
-    if (this.audioPreloadStarted || !this.audioCtx) return;
-    this.audioPreloadStarted = true;
-    if (!this.audioBytePreloadStarted) this.preloadAudioBytes();
-    const decodeOrder: SoundBufferKey[] = ['splashMusic', 'welcome', 'crowd', ...((Object.keys(SOUND_ASSETS) as SoundBufferKey[]).filter((key) => key !== 'splashMusic' && key !== 'welcome' && key !== 'crowd'))];
+  private preloadAudio(keys?: SoundBufferKey[]) {
+    if (!this.audioCtx) return;
+    if (!keys) {
+      this.audioPreloadStarted = true;
+      if (!this.audioBytePreloadStarted) this.preloadAudioBytes();
+    }
+    const decodeOrder: SoundBufferKey[] = keys ?? ['splashMusic', 'welcome', 'crowd', ...((Object.keys(SOUND_ASSETS) as SoundBufferKey[]).filter((key) => key !== 'splashMusic' && key !== 'welcome' && key !== 'crowd'))];
     for (const key of decodeOrder) {
+      if (this.audioBuffers[key] || this.audioDecodeStarted.has(key)) continue;
+      this.audioDecodeStarted.add(key);
       const bytes = this.audioBytes[key]
         ? Promise.resolve(this.audioBytes[key] as ArrayBuffer)
         : (this.audioFetchPromises[key] ?? fetch(SOUND_ASSETS[key]).then((response) => response.arrayBuffer()));
@@ -819,10 +944,15 @@ class SimpleGameEngine {
           this.audioBuffers[key] = decoded;
           if (key === 'crowd' && this.crowdLoop.shouldPlay) this.startCrowdLoop();
           if (key === 'splashMusic' && this.splashMusicRequested) this.playLoop('splashMusic', this.splashMusic, 0.5);
-          if (key === 'welcome' && this.splashMusicRequested) this.playSplashWelcomeOnce();
+          if (key === 'welcome' && this.splashMusicRequested && !this.splashWelcomePlayed && this.splashWelcomeTimer === null) this.scheduleSplashWelcome(0);
         })
         .catch(() => {});
     }
+  }
+
+  private preloadGameplayAudio() {
+    if (!this.audioCtx || this.audioPreloadStarted) return;
+    this.preloadAudio();
   }
 
   private audioDestination() {
@@ -836,48 +966,52 @@ class SimpleGameEngine {
     return !this.disposed && !this.splashSceneMode && !this.paused;
   }
 
-  private playBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.35) {
+  private playBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.08, minIntervalSeconds = 0) {
     const audio = this.audioDestination();
     const buffer = this.audioBuffers[key];
-    if (!audio || !buffer) return false;
+    if (!audio) return false;
+    if (!buffer) {
+      this.preloadAudio([key]);
+      return false;
+    }
+    const now = audio.ctx.currentTime;
+    const lastPlayedAt = this.oneShotAudioLastPlayedAt[key] ?? -Infinity;
+    if (minIntervalSeconds > 0 && now - lastPlayedAt < minIntervalSeconds) return true;
+    this.oneShotAudioLastPlayedAt[key] = now;
     const source = audio.ctx.createBufferSource();
     const gain = audio.ctx.createGain();
     source.buffer = buffer;
-    gain.gain.setValueAtTime(volume, audio.ctx.currentTime);
-    if (fadeSeconds > 0) {
-      gain.gain.linearRampToValueAtTime(0, audio.ctx.currentTime + fadeSeconds);
+    gain.gain.setValueAtTime(volume, now);
+    const duration = Number.isFinite(buffer.duration) && buffer.duration > 0 ? buffer.duration : 0;
+    if (fadeSeconds > 0 && duration > fadeSeconds + 0.04) {
+      const fadeStart = now + Math.max(0, duration - fadeSeconds);
+      gain.gain.setValueAtTime(volume, fadeStart);
+      gain.gain.linearRampToValueAtTime(0, now + duration);
     }
     source.connect(gain);
     gain.connect(audio.destination);
-    source.start();
-    if (fadeSeconds > 0) source.stop(audio.ctx.currentTime + fadeSeconds + 0.1);
+    source.start(now);
+    if (duration > 0) source.stop(now + duration + 0.05);
     source.onended = () => {
       try { source.disconnect(); gain.disconnect(); } catch {}
     };
     return true;
   }
 
-  private playTone(freq: number, type: OscillatorType, duration: number, volume = 0.05) {
-    const audio = this.audioDestination();
-    if (!audio) return;
-    const osc = audio.ctx.createOscillator();
-    const gain = audio.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audio.ctx.currentTime);
-    gain.gain.setValueAtTime(volume, audio.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audio.ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audio.destination);
-    osc.start();
-    osc.stop(audio.ctx.currentTime + duration);
-    osc.onended = () => {
-      try { osc.disconnect(); gain.disconnect(); } catch {}
-    };
+  private playGameplayBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.08, minIntervalSeconds = 0) {
+    if (!this.gameplayAudioEnabled()) return;
+    this.playBuffer(key, volume, fadeSeconds, minIntervalSeconds);
   }
 
-  private playGameplayBuffer(key: SoundBufferKey, volume = 0.3, fadeSeconds = 0.35, fallback?: () => void) {
+  private playWhistle(volume = 0.46) {
     if (!this.gameplayAudioEnabled()) return;
-    if (!this.playBuffer(key, volume, fadeSeconds)) fallback?.();
+    const now = this.clock.elapsedTime;
+    if (now - this.lastWhistleAt < 0.55) return;
+    this.lastWhistleAt = now;
+    const boostedVolume = Math.max(volume, 0.74);
+    const assetPlayed = this.playBuffer('whistle', boostedVolume, 0.02, 0.55);
+    this.whistleAuditEvents.push({ reason: 'stoppage', volume: boostedVolume, assetPlayed, elapsed: +now.toFixed(2) });
+    while (this.whistleAuditEvents.length > 100) this.whistleAuditEvents.shift();
   }
 
   private playLoop(key: SoundBufferKey, loop: { source: AudioBufferSourceNode | null; gain: GainNode | null }, volume: number) {
@@ -920,7 +1054,21 @@ class SimpleGameEngine {
   private startCrowdLoop() {
     if (!this.gameplayAudioEnabled()) return;
     this.crowdLoop.shouldPlay = true;
+    this.preloadAudio(['crowd']);
     this.playLoop('crowd', this.crowdLoop, this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac);
+  }
+
+  private triggerGoalCrowdSwell() {
+    this.startCrowdLoop();
+    if (!this.audioCtx || !this.crowdLoop.gain) return;
+    const now = this.audioCtx.currentTime;
+    const base = THREE.MathUtils.clamp(this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac, 0, 1);
+    const boosted = THREE.MathUtils.clamp(base * 1.10, 0, 1);
+    this.crowdLoop.gain.gain.cancelScheduledValues(now);
+    this.crowdLoop.gain.gain.setValueAtTime(this.crowdLoop.gain.gain.value, now);
+    this.crowdLoop.gain.gain.linearRampToValueAtTime(boosted, now + 0.25);
+    this.crowdLoop.gain.gain.setValueAtTime(boosted, now + 8.0);
+    this.crowdLoop.gain.gain.linearRampToValueAtTime(base, now + 9.25);
   }
 
   private stopCrowdLoop() {
@@ -929,12 +1077,31 @@ class SimpleGameEngine {
   }
 
   private playSplashWelcomeOnce() {
-    if (this.splashWelcomePlayed) return;
+    if (this.splashWelcomePlayed || !this.splashMusicRequested) return;
+    if (!this.playBuffer('welcome', 0.48)) {
+      this.scheduleSplashWelcome(200);
+      return;
+    }
     this.splashWelcomePlayed = true;
-    this.playBuffer('welcome', 0.48);
+  }
+
+  private scheduleSplashWelcome(delayMs: number) {
+    if (this.splashWelcomePlayed || !this.splashMusicRequested) return;
+    this.clearSplashWelcomeTimer();
+    this.splashWelcomeTimer = window.setTimeout(() => {
+      this.splashWelcomeTimer = null;
+      this.playSplashWelcomeOnce();
+    }, delayMs);
+  }
+
+  private clearSplashWelcomeTimer() {
+    if (this.splashWelcomeTimer === null) return;
+    window.clearTimeout(this.splashWelcomeTimer);
+    this.splashWelcomeTimer = null;
   }
 
   private stopAllAudio() {
+    this.clearSplashWelcomeTimer();
     this.stopCrowdLoop();
     this.stopLoop(this.splashMusic, 0.1);
     if (this.audioCtx && this.audioCtx.state !== 'closed') {
@@ -948,78 +1115,102 @@ class SimpleGameEngine {
     if (!this.gameplayAudioEnabled()) return;
     switch (event.action) {
       case 'KICKOFF':
-        this.playGameplayBuffer('kickoff', 0.42, 0.8, () => this.playTone(880, 'sine', 0.12, 0.04));
-        this.playGameplayBuffer('whistle', 0.22, 0.5);
+        if (event.meta?.phase === 'release') {
+          this.playGameplayBuffer('kick', 0.26, 0.24);
+          break;
+        }
+        this.playGameplayBuffer('kickoff', 0.42, 0.8);
+        this.playWhistle(0.48);
         this.startCrowdLoop();
         break;
       case 'PASS':
       case 'LIVE':
-        this.playGameplayBuffer('kick', 0.22, 0.25, () => this.playTone(400, 'sine', 0.18, 0.04));
+        this.playGameplayBuffer('kick', 0.22, 0.25);
         break;
       case 'SHOT':
-        this.playGameplayBuffer('shot', 0.34, 0.32, () => this.playGameplayBuffer('kick', 0.32, 0.28));
+        this.playGameplayBuffer('shot', 0.34, 0.32);
         break;
       case 'WOODWORK':
       case 'POST':
       case 'CROSSBAR':
-        this.playGameplayBuffer('post', 0.48, 0.65, () => this.playTone(180, 'square', 0.08, 0.05));
+        this.playGameplayBuffer('post', 0.48, 0.65);
         break;
       case 'GOAL':
+        this.playWhistle(0.48);
         this.playGameplayBuffer('goal', 0.55, 1.4);
-        this.playGameplayBuffer('crowdGoal', 0.62, 2.2);
+        this.triggerGoalCrowdSwell();
         break;
       case 'SAVE':
       case 'SMOTHER':
       case 'GK':
-        this.playGameplayBuffer('catch', 0.28, 0.28, () => this.playTone(200, 'triangle', 0.1, 0.06));
+        this.playGameplayBuffer('catch', 0.28, 0.28);
         break;
       case 'TACKLE':
       case 'TURNOVER':
-        this.playTone(220, 'sawtooth', 0.12, 0.07);
+        this.playGameplayBuffer('catch', 0.30, 0.28);
         break;
       case 'THROW':
+        break;
       case 'THROW_IN':
-        if (event.action === 'THROW' || event.meta?.phase === 'setup') {
-          this.playGameplayBuffer('throw', 0.36, 0.6, () => this.playTone(400, 'sine', 0.18, 0.04));
+        if (event.meta?.phase === 'setup') {
+          this.playWhistle(0.42);
+          const key = this.restartAnnouncementKey(event);
+          if (key !== this.lastThrowInAnnouncementKey || this.clock.elapsedTime - this.lastThrowInAnnouncementAt > 4) {
+            this.lastThrowInAnnouncementKey = key;
+            this.lastThrowInAnnouncementAt = this.clock.elapsedTime;
+            this.playGameplayBuffer('throw', 0.36, 0.08, 2.5);
+          }
         }
         break;
       case 'CORNER':
-        if (event.meta?.phase === 'setup') this.playGameplayBuffer('corner', 0.38, 0.8);
+        if (event.meta?.phase === 'setup') {
+          this.playWhistle(0.42);
+          this.playGameplayBuffer('corner', 0.38, 0.8);
+        }
         else this.playGameplayBuffer('kick', 0.28, 0.3);
         break;
       case 'GOAL_KICK':
-        if (event.meta?.phase !== 'setup') this.playGameplayBuffer('kick', 0.3, 0.35);
+        if (event.meta?.phase === 'setup') this.playWhistle(0.4);
+        else this.playGameplayBuffer('kick', 0.3, 0.35);
         break;
       case 'DROP_KICK':
         this.playGameplayBuffer('kick', 0.34, 0.35);
         break;
       case 'FREE_KICK':
-        if (event.meta?.phase !== 'setup') this.playGameplayBuffer('kick', 0.3, 0.35);
+        if (event.meta?.phase === 'setup') this.playWhistle(0.44);
+        else this.playGameplayBuffer('kick', 0.3, 0.35);
         break;
       case 'PENALTY':
         if (event.meta?.phase === 'setup') {
-          this.playGameplayBuffer('whistle', 0.24, 0.5);
+          this.playWhistle(0.5);
           this.playGameplayBuffer('penalty', 0.44, 0.9);
         } else {
-          this.playGameplayBuffer('shot', 0.34, 0.34, () => this.playGameplayBuffer('kick', 0.3, 0.28));
+          this.playGameplayBuffer('shot', 0.34, 0.34);
         }
         break;
       case 'OFFSIDE':
-        this.playGameplayBuffer('whistle', 0.24, 0.5);
+        this.playWhistle(0.5);
         this.playGameplayBuffer('offside', 0.42, 0.9);
         break;
       case 'FOUL':
-        this.playGameplayBuffer('whistle', 0.24, 0.5);
+        this.playWhistle(0.5);
         this.playGameplayBuffer('foul', 0.42, 0.9);
         break;
       case 'HALF':
       case 'FULL':
-        this.playGameplayBuffer('whistle', 0.26, 0.5);
+        this.playWhistle(0.5);
         if (event.action === 'FULL') this.stopCrowdLoop();
         break;
       default:
         break;
     }
+  }
+
+  private restartAnnouncementKey(event: { team?: string; action: string; meta?: Record<string, unknown> }) {
+    const spot = this.pointFromMeta(event.meta?.spot);
+    const takerId = typeof event.meta?.takerId === 'string' ? event.meta.takerId : '';
+    const restartType = typeof event.meta?.restartType === 'string' ? event.meta.restartType : event.action;
+    return `${event.team || ''}|${restartType}|${takerId}|${spot ? `${spot.x.toFixed(1)},${spot.z.toFixed(1)}` : ''}`;
   }
 
   private addLights() {
@@ -1620,6 +1811,7 @@ class SimpleGameEngine {
   private createPlayerVisual(player: SimplePlayer): PlayerVisual {
     const isKeeper = player.role === 'GK';
     const palette = this.paletteForPlayer(player);
+    const animPhaseOffset = this.animationPhaseForPlayer(player);
     const group = new THREE.Group();
     group.position.set(player.pos.x, 0.15, player.pos.z);
     const spriteGroup = new THREE.Group();
@@ -1669,14 +1861,34 @@ class SimpleGameEngine {
       dir: player.team === 'A' ? 1 : -1,
       state: 'IDLE',
       frame: 0,
-      animTimer: 0,
-      breathOffset: Math.random() * Math.PI * 2,
+      animTimer: animPhaseOffset * 0.12,
+      animPhaseOffset,
+      breathOffset: animPhaseOffset * Math.PI * 2,
     };
   }
 
   private paletteForPlayer(player: SimplePlayer) {
-    if (player.role === 'GK') return player.team === 'A' ? TEAM_PALETTES.keeperA : TEAM_PALETTES.keeperB;
-    return player.team === 'A' ? TEAM_PALETTES.teamA : TEAM_PALETTES.teamB;
+    const base = player.role === 'GK'
+      ? player.team === 'A' ? TEAM_PALETTES.keeperA : TEAM_PALETTES.keeperB
+      : player.team === 'A' ? TEAM_PALETTES.teamA : TEAM_PALETTES.teamB;
+    return { ...base, hair: this.hairMaterialForPlayer(player) };
+  }
+
+  private hairMaterialForPlayer(player: SimplePlayer) {
+    return PLAYER_HAIR_MATERIALS[Math.abs(this.playerIdentityHash(player)) % PLAYER_HAIR_MATERIALS.length];
+  }
+
+  private animationPhaseForPlayer(player: SimplePlayer) {
+    return (Math.abs(this.playerIdentityHash(player)) % 997) / 997;
+  }
+
+  private playerIdentityHash(player: SimplePlayer) {
+    const seed = `${player.team}:${player.shirtNumber}:${player.name}:${player.role}`;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+    }
+    return hash;
   }
 
   private currentCrowdPalette(team: 'A' | 'B') {
@@ -1715,7 +1927,7 @@ class SimpleGameEngine {
       const restartPose = this.activeRestartPresentation?.takerId === player.id ? this.activeRestartPresentation : null;
       const restartDisplay = restartPose ? this.restartPresentationPlayerPosition(restartPose) : null;
       visual.mesh.position.set(restartDisplay?.x ?? player.pos.x, 0.15 + headerLift, restartDisplay?.z ?? player.pos.z + reactionZ);
-      const scale = (player.role === 'GK' ? 1.08 : 1) * (reactionActive ? 1.16 : 1) * (headerActive ? 1.08 : 1);
+      const scale = PLAYER_VISUAL_SCALE * (player.role === 'GK' ? 1.08 : 1) * (reactionActive ? 1.16 : 1) * (headerActive ? 1.08 : 1);
       visual.mesh.scale.setScalar(scale);
       this.updatePlayerSprite(visual, player, dt, keeperReaction, restartPose, headerReaction);
     }
@@ -1796,7 +2008,7 @@ class SimpleGameEngine {
     visual.animTimer += dt;
     const animThreshold = state === 'IDLE' ? 0.6 : 0.12;
     if (facingChanged || visual.animTimer > animThreshold) {
-      visual.animTimer = 0;
+      visual.animTimer = facingChanged ? visual.animPhaseOffset * animThreshold : 0;
       visual.allFrames.forEach((frame) => { frame.visible = false; });
       const frames = facingMode === 'front'
         ? (state === 'RUN' ? visual.frontRunFrames : visual.frontIdleFrames)
@@ -2017,6 +2229,10 @@ class SimpleGameEngine {
   }
 
   private updateBallTrail() {
+    if (!this.shotBallTrailEnabled || this.model.getActiveBallFlightKind() !== 'shot') {
+      this.clearBallTrail();
+      return;
+    }
     const current = this.ballGroup.position.clone();
     const previous = this.ballTrailPoints.at(-1);
     const moved = previous ? previous.distanceTo(current) > 0.08 : true;
@@ -2031,6 +2247,11 @@ class SimpleGameEngine {
     }
   }
 
+  private clearBallTrail() {
+    this.ballTrailPoints.length = 0;
+    this.ballTrail.visible = false;
+  }
+
   private updatePendingGoalNetImpact(dt: number) {
     const pending = this.pendingGoalNetImpact;
     if (!pending) return;
@@ -2043,10 +2264,15 @@ class SimpleGameEngine {
 
   private resetVisualCues() {
     this.processedLiveEvents = 0;
-    this.ballTrailPoints.length = 0;
-    this.ballTrail.visible = false;
+    this.lastThrowInAnnouncementKey = '';
+    this.lastThrowInAnnouncementAt = -Infinity;
+    this.lastWhistleAt = -Infinity;
+    this.clearBallTrail();
     this.keeperReactions.clear();
+    this.keeperAnimationEvents.length = 0;
     this.headerReactions.clear();
+    this.headerAnimationEvents.length = 0;
+    this.cornerPresentationEvents.length = 0;
     this.activeRestartPresentation = null;
     this.pendingGoalNetImpact = null;
     for (const cue of this.eventCues.splice(0)) {
@@ -2079,6 +2305,7 @@ class SimpleGameEngine {
             kind: event.action === 'HEADER_SHOT' ? 'shot' : 'clearance',
             direction,
           });
+          this.recordHeaderAnimationEvent(event, player, event.action === 'HEADER_SHOT' ? 'shot' : 'clearance', direction, duration, this.processedLiveEvents - 1);
         }
       }
       if (event.action === 'GOAL') {
@@ -2102,17 +2329,18 @@ class SimpleGameEngine {
       if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'DROP_KICK') {
         const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' ? 0xffffff : 0xd8f7ff;
         this.spawnEventCue(color, event.action === 'CORNER' ? 0.8 : 0.62, 0.78);
-        this.updateRestartPresentationFromEvent(event);
+        this.updateRestartPresentationFromEvent(event, this.processedLiveEvents - 1);
       }
       if (event.action === 'SAVE' || event.action === 'SMOTHER') {
         this.spawnEventCue(0xffffff, 0.9, 0.95);
         const team = event.team || '';
         const keeper = this.model.players.find((p) => p.team === team && p.role === 'GK');
         if (keeper) {
-          const direction = event.action === 'SAVE' ? this.keeperDiveDirectionFromEvent(event, keeper) : 'down';
+          const direction = this.keeperAnimationDirectionFromEvent(event, keeper);
           const zLean = direction === 'left' ? -1 : direction === 'right' ? 1 : Math.sign(this.model.ball.pos.z - keeper.pos.z) || 1;
           const duration = event.action === 'SAVE' ? 0.9 : 0.65;
           this.keeperReactions.set(team, { ttl: duration, duration, zLean, direction });
+          this.recordKeeperAnimationEvent(event, keeper, direction, duration, this.processedLiveEvents - 1);
         }
       }
     }
@@ -2149,12 +2377,14 @@ class SimpleGameEngine {
     }
   }
 
-  private updateRestartPresentationFromEvent(event: { team: string; action: string; meta?: Record<string, unknown> }) {
+  private updateRestartPresentationFromEvent(event: { team: string; action: string; meta?: Record<string, unknown> }, sourceEventIndex: number) {
     const type = this.restartTypeFromEvent(event);
     const phase = event.meta?.phase === 'release' ? 'release' : 'setup';
     const spot = this.pointFromMeta(event.meta?.spot);
     if (!type || !spot) return;
     const fallbackTaker = this.activeRestartPresentation?.type === type ? this.activeRestartPresentation.takerId : null;
+    const requestedTakerId = typeof event.meta?.takerId === 'string' ? event.meta.takerId : null;
+    const takerId = this.resolveRestartPresentationTakerId(type, event.team || '', spot, requestedTakerId, fallbackTaker);
     const metaDuration = Number(event.meta?.presentationSeconds);
     const duration = Number.isFinite(metaDuration) && metaDuration > 0
       ? metaDuration
@@ -2171,11 +2401,61 @@ class SimpleGameEngine {
       type,
       phase,
       team: event.team || '',
-      takerId: typeof event.meta?.takerId === 'string' ? event.meta.takerId : fallbackTaker,
+      takerId,
       spot,
       ttl: duration,
       duration,
     };
+    if (type === 'corner') this.recordCornerPresentationEvent(event, phase, spot, requestedTakerId, takerId, sourceEventIndex);
+  }
+
+  private resolveRestartPresentationTakerId(
+    type: RestartPresentationType,
+    team: string,
+    spot: { x: number; z: number },
+    requestedTakerId: string | null,
+    fallbackTakerId: string | null,
+  ) {
+    const requestedVisual = requestedTakerId ? this.playerMeshes.get(requestedTakerId) : null;
+    if (requestedVisual) return requestedTakerId;
+    const fallbackVisual = fallbackTakerId ? this.playerMeshes.get(fallbackTakerId) : null;
+    if (fallbackVisual) return fallbackTakerId;
+    if (type !== 'corner') return requestedTakerId || fallbackTakerId;
+
+    const visibleCornerTaker = this.model.players
+      .filter((player) => player.team === team && player.role !== 'GK' && this.playerMeshes.has(player.id))
+      .sort((a, b) => {
+        const da = Math.hypot(a.pos.x - spot.x, a.pos.z - spot.z);
+        const db = Math.hypot(b.pos.x - spot.x, b.pos.z - spot.z);
+        return da - db;
+      })[0];
+    return visibleCornerTaker?.id || requestedTakerId || fallbackTakerId;
+  }
+
+  private recordCornerPresentationEvent(
+    event: { team: string; action: string },
+    phase: RestartPresentationPhase,
+    spot: { x: number; z: number },
+    requestedTakerId: string | null,
+    takerId: string | null,
+    sourceEventIndex: number,
+  ) {
+    const snapshot = this.model.getMatchSnapshot();
+    const taker = takerId ? this.model.players.find((player) => player.id === takerId) || null : null;
+    this.cornerPresentationEvents.push({
+      action: 'CORNER',
+      team: event.team || '',
+      phase,
+      requestedTakerId,
+      takerId,
+      takerName: taker?.name || null,
+      usedFallback: !!requestedTakerId && requestedTakerId !== takerId,
+      spot: { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) },
+      sourceEventIndex,
+      phaseName: snapshot.phase,
+      clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
+    });
+    while (this.cornerPresentationEvents.length > 100) this.cornerPresentationEvents.shift();
   }
 
   private restartTypeFromEvent(event: { action: string; meta?: Record<string, unknown> }): RestartPresentationType | null {
@@ -2206,6 +2486,61 @@ class SimpleGameEngine {
     if (zLean < 0) return 'left';
     if (zLean > 0) return 'right';
     return 'down';
+  }
+
+  private keeperAnimationDirectionFromEvent(event: { action: string; meta?: Record<string, unknown> }, keeper: SimplePlayer): KeeperDiveDirection {
+    if (event.action === 'SAVE') return this.keeperDiveDirectionFromEvent(event, keeper);
+    const ballZ = Number.isFinite(this.model.ball.pos.z) ? this.model.ball.pos.z : keeper.pos.z;
+    const zLean = Math.sign(ballZ - keeper.pos.z);
+    if (zLean < 0) return 'left';
+    if (zLean > 0) return 'right';
+    return 'down';
+  }
+
+  private recordKeeperAnimationEvent(
+    event: { action: string },
+    keeper: SimplePlayer,
+    direction: KeeperDiveDirection,
+    duration: number,
+    sourceEventIndex: number,
+  ) {
+    const snapshot = this.model.getMatchSnapshot();
+    this.keeperAnimationEvents.push({
+      action: event.action === 'SMOTHER' ? 'SMOTHER' : 'SAVE',
+      team: keeper.team,
+      keeperId: keeper.id,
+      keeperName: keeper.name,
+      direction,
+      duration,
+      sourceEventIndex,
+      phase: snapshot.phase,
+      clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
+    });
+    while (this.keeperAnimationEvents.length > 100) this.keeperAnimationEvents.shift();
+  }
+
+  private recordHeaderAnimationEvent(
+    event: { action: string },
+    player: SimplePlayer,
+    kind: 'shot' | 'clearance',
+    direction: 1 | -1,
+    duration: number,
+    sourceEventIndex: number,
+  ) {
+    const snapshot = this.model.getMatchSnapshot();
+    this.headerAnimationEvents.push({
+      action: event.action === 'HEADER_SHOT' ? 'HEADER_SHOT' : 'HEADER_CLEARANCE',
+      team: player.team,
+      playerId: player.id,
+      playerName: player.name,
+      kind,
+      direction,
+      duration,
+      sourceEventIndex,
+      phase: snapshot.phase,
+      clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
+    });
+    while (this.headerAnimationEvents.length > 100) this.headerAnimationEvents.shift();
   }
 
   private updateBroadcastCamera(dt: number) {
@@ -2686,14 +3021,15 @@ class SimpleGameEngine {
     if (this.disposed) return;
     requestAnimationFrame(this.animate);
     const dt = Math.min(0.05, this.clock.getDelta());
-    if (!this.paused) {
+    const modelActive = !this.paused && !this.menuVisible && !this.splashSceneMode;
+    if (modelActive) {
       this.model.step(dt);
       this.model.updateVisuals(dt);
     }
     this.updateMeshes(dt);
     this.updateScoreBug();
     this.updateMiniMap();
-    if (!this.paused) {
+    if (modelActive) {
       this.processLiveEventCues(dt);
       this.updateBroadcastCamera(dt);
       this.updateCrowd(dt);
