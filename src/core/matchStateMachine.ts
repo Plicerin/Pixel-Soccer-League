@@ -47,6 +47,7 @@ export function advanceMatchState(
   ballOutEvent: BallOutEvent | null,
   goalEvent: GoalEvent | null,
   clockDt: number = dt,
+  haltAtHalftime: boolean = false,
 ): MatchStateMachine {
   const next = { ...msm };
   next.clock = { ...msm.clock };
@@ -120,6 +121,7 @@ export function advanceMatchState(
     }
 
     case "halftime": {
+      if (haltAtHalftime) break;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         next.clock.half = 2;
@@ -187,21 +189,17 @@ export function detectBallOut(
     if (!goalScored) {
       if (ballX > RIGHT_GOAL_X) {
         const attackingTeam: TeamSide = defendingLeft ? "home" : "away";
-        const restartTeam = lastTouchTeam === attackingTeam ? "away" : "home";
-        if (restartTeam !== attackingTeam) {
-          return { restartType: "goal_kick", restartTeam };
-        } else {
-          return { restartType: "corner", restartTeam: attackingTeam };
-        }
+        const defendingTeam: TeamSide = attackingTeam === "home" ? "away" : "home";
+        return lastTouchTeam === attackingTeam
+          ? { restartType: "goal_kick", restartTeam: defendingTeam }
+          : { restartType: "corner", restartTeam: attackingTeam };
       }
       if (ballX < LEFT_GOAL_X) {
         const attackingTeam: TeamSide = defendingLeft ? "away" : "home";
-        const restartTeam = lastTouchTeam === attackingTeam ? "home" : "away";
-        if (restartTeam !== attackingTeam) {
-          return { restartType: "goal_kick", restartTeam };
-        } else {
-          return { restartType: "corner", restartTeam: attackingTeam };
-        }
+        const defendingTeam: TeamSide = attackingTeam === "home" ? "away" : "home";
+        return lastTouchTeam === attackingTeam
+          ? { restartType: "goal_kick", restartTeam: defendingTeam }
+          : { restartType: "corner", restartTeam: attackingTeam };
       }
     }
   }

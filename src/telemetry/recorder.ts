@@ -834,6 +834,8 @@ export type TelemetrySessionSummary = {
   shotsOnTargetB: number;
   savesA: number;
   savesB: number;
+  headersA: number;
+  headersB: number;
   phase?: string;
   half?: 1 | 2;
   elapsedInHalf?: number;
@@ -1085,6 +1087,8 @@ function toSessionSummary(session: TelemetrySession, snapshot: MatchSnapshotRow)
     shotsOnTargetB: snapshot.shotsOnTargetB,
     savesA: snapshot.savesA,
     savesB: snapshot.savesB,
+    headersA: snapshot.headersA,
+    headersB: snapshot.headersB,
     phase: snapshot.phase,
     half: snapshot.half,
     elapsedInHalf: snapshot.elapsedInHalf,

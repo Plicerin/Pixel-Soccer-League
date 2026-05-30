@@ -180,6 +180,36 @@ test('evaluateShotDecision asks for one more pass when the shot lane is crowded'
   assert.ok(result.shootChance < 0.28);
 });
 
+test('V104 evaluateShotDecision penalizes wide angles against the real goal line', () => {
+  const baseContext = {
+    distToGoal: 14,
+    closePressure: 0,
+    inShootingLane: false,
+    inTapInZone: false,
+    insidePenaltyArea: false,
+    passTarget: null,
+    hasForwardPassOption: false,
+    hasGoalSupport: false,
+    roleProfile: { shootBias: 0.5 },
+    shotSkill: 0.5,
+    dribbleSkill: 0.5,
+    passChance: null,
+    activeAIStyle: {},
+    team: 'A' as const,
+    gameState: { shotsA: 12, shotsOnTargetA: 4, shotsB: 0, shotsOnTargetB: 0 },
+  };
+  const central = evaluateShotDecision({
+    ...baseContext,
+    carrier: makePlayer('Central Shooter', 'A', 20, 0, 'ST'),
+  });
+  const wide = evaluateShotDecision({
+    ...baseContext,
+    carrier: makePlayer('Wide Shooter', 'A', 20, 10, 'ST'),
+  });
+
+  assert.ok(wide.shootChance <= central.shootChance - 0.09);
+});
+
 test('getSimplePassTargetPoint leads a moving receiver into space', () => {
   const passer = makePlayer('Passer', 'A', 0, 0, 'CM');
   const runner = makePlayer('Runner', 'A', 10, 2, 'ST', 3.5, 0);

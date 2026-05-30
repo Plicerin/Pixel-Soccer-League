@@ -64,6 +64,30 @@ test('structured wing attack assigns readable soccer slots', () => {
   assert.equal(getStructuredAttackRole(state, secondWave), 'SECOND_WAVE');
 });
 
+test('central structured carrier uses home side hint without falsy z fallback', () => {
+  const carrier = makePlayer('Central Right Home', 'A', 7, 0, 'RM');
+  carrier.homePos.z = -10;
+  const striker = makePlayer('Striker', 'A', 8, 0, 'ST');
+  const rightWinger = makePlayer('Right Mid', 'A', 4, 12, 'RM');
+  const cutback = makePlayer('Ten', 'A', 5, 1, 'CAM');
+
+  const state = selectStructuredAttack({
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, striker, rightWinger, cutback],
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(state);
+  assert.equal(state.carrierSide, -1);
+  assert.equal(state.type, 'WING_LEFT');
+  assert.equal(getStructuredAttackRole(state, rightWinger), 'FAR_POST');
+});
+
 test('structured wing attack creates wide far-post and second-wave lanes', () => {
   const carrier = makePlayer('RM Carrier', 'A', 9, 10, 'RM');
   const farWinger = makePlayer('Left Mid', 'A', 4, -12, 'LM');
@@ -388,6 +412,61 @@ test('central combo gives a striker a nearby midfielder wall option', () => {
   assert.equal(state.type, 'CENTRAL_COMBO');
   assert.equal(getPatternRole(state, carrier), 'CARRIER');
   assert.equal(getPatternRole(state, wall), 'WALL');
+});
+
+test('pattern engine accepts plain Vec2 positions from orchestrator', () => {
+  const carrier = { name: 'Carrier', team: 'A', role: 'CM', displayRole: 'CM', pos: { x: 0, z: 0 }, homePos: { x: 0, z: 0 } };
+  const wall = { name: 'Wall', team: 'A', role: 'CAM', displayRole: 'CAM', pos: { x: 6, z: 1 }, homePos: { x: 6, z: 1 } };
+  const runner = { name: 'Runner', team: 'A', role: 'ST', displayRole: 'ST', pos: { x: 9, z: -2 }, homePos: { x: 9, z: -2 } };
+  const opponent = { name: 'Opponent', team: 'B', role: 'CB', displayRole: 'CB', pos: { x: 18, z: 8 }, homePos: { x: 18, z: 8 } };
+
+  const state = selectPattern({
+    elapsedSeconds: 10,
+    team: 'A',
+    attackSign: 1,
+    carrier,
+    teammates: [carrier, wall, runner],
+    opponents: [opponent],
+    ball: new THREE.Vector3(0, 0.15, 0),
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    justRecoveredPossession: false,
+    secondsSinceRecovery: 10,
+    lastEndByType: {},
+  });
+
+  assert.ok(state);
+  assert.notEqual(getPatternRole(state, carrier), 'NONE');
+  assert.notEqual(getPatternRole(state, wall), 'NONE');
+});
+
+test('pattern outlet target defaults missing home side deliberately for center carrier', () => {
+  const carrier = { name: 'Carrier', team: 'A', role: 'CM', displayRole: 'CM', pos: { x: 0, z: 0 } };
+  const outlet = { name: 'Outlet', team: 'A', role: 'RB', displayRole: 'RB', pos: { x: -3, z: 0 } };
+  const pattern = {
+    type: 'PATIENT_BUILDUP',
+    startedAt: 0,
+    expiresAt: 6,
+    side: 'A',
+    roles: new Map([[outlet.name, 'OUTLET']]),
+    initiatorName: carrier.name,
+    metadata: {},
+  };
+
+  const target = computePatternRoleTarget({
+    player: outlet,
+    role: 'OUTLET',
+    pattern,
+    carrier,
+    attackSign: 1,
+    fieldWidth: constants.fieldWidth,
+    fieldDepth: constants.fieldDepth,
+    penaltyDepth: constants.penaltyDepth,
+    goalMouthHalfWidth: constants.goalMouthHalfWidth,
+  });
+
+  assert.ok(target);
+  assert.equal(target.z, 8);
 });
 
 test('central combo survives its commitment window before lateral invalidation', () => {

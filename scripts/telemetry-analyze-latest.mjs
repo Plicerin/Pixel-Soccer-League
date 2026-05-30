@@ -422,13 +422,23 @@ function summarizeAttackerBoxBehavior(events) {
   }
 }
 
-function summarizeShotDecisions(shotDecisions) {
-  const forcedShots = shotDecisions.filter((decision) =>
+function isForcedShotDecision(decision) {
+  const reason = String(decision.resolutionReason || decision.reason || '').toUpperCase()
+  const selectionType = String(decision.shotSelectionType || '')
+  return !!(
     decision.forceShotNow
     || decision.atGoalLineForce
     || decision.desperationShot
-    || decision.shotSelectionType === 'forced_shot',
+    || selectionType === 'forced_shot'
+    || selectionType.includes('forced')
+    || reason.includes('FORCED_SHOT')
+    || reason.includes('NO_OUTLET_SHOT')
+    || reason.includes('NO_SHOT_')
   )
+}
+
+function summarizeShotDecisions(shotDecisions) {
+  const forcedShots = shotDecisions.filter(isForcedShotDecision)
   const selectedShots = shotDecisions.filter((decision) =>
     decision.shouldShoot
     && !forcedShots.includes(decision),
@@ -449,10 +459,7 @@ function summarizeShotDecisions(shotDecisions) {
     return zeroed || nullish
   })
   const forcedAiSimpleBrokenRows = aiSimpleBrokenRows.filter((decision) =>
-    decision.forceShotNow
-    || decision.atGoalLineForce
-    || decision.desperationShot
-    || decision.shotSelectionType === 'forced_shot',
+    isForcedShotDecision(decision),
   )
   const longRange = shotDecisions.filter((decision) => Number(decision.distToGoalYards ?? 0) >= 24)
   const pressuredLongRange = longRange.filter((decision) => Number(decision.closePressure ?? 0) >= 2)
@@ -573,14 +580,14 @@ function summarizePatterns(events) {
     const es = endsByTeam[team]
     for (let i = 0; i < ss.length; i++) {
       const s = ss[i]
-      const sElapsed = (s.half === 2 ? 150 : 0) + Number(s.t ?? 0)
+      const sElapsed = getEventElapsed(s)
       // Match: first end AFTER this start that hasn't been used.
       let eElapsed = null
       for (let j = 0; j < es.length; j++) {
         if (es[j]._used) continue
         const eSide = es[j]
         const sidesMatch = true
-        const eTime = (eSide.half === 2 ? 150 : 0) + Number(eSide.t ?? 0)
+        const eTime = getEventElapsed(eSide)
         if (sidesMatch && eTime >= sElapsed) {
           eElapsed = eTime
           es[j]._used = true
@@ -601,7 +608,7 @@ function summarizePatterns(events) {
   const goalsByActivePattern = {}
   for (const shot of shots) {
     const team = shot.team
-    const elapsed = (shot.half === 2 ? 150 : 0) + Number(shot.t ?? 0)
+    const elapsed = getEventElapsed(shot)
     if (!patternIntervals[team]) continue
     const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))
     const key = active ? active.type : 'NONE'
@@ -610,7 +617,7 @@ function summarizePatterns(events) {
   for (const goal of goals) {
     const team = goal.team
     if (!team) continue
-    const elapsed = (goal.half === 2 ? 150 : 0) + Number(goal.t ?? 0)
+    const elapsed = getEventElapsed(goal)
     if (!patternIntervals[team]) continue
     const active = patternIntervals[team].find((iv) => iv.startElapsed <= elapsed && (iv.endElapsed === null || iv.endElapsed >= elapsed))
     const key = active ? active.type : 'NONE'
@@ -676,7 +683,7 @@ function summaryPatternRoleAlignment(events) {
 function summaryCarrierTrajectories(events) {
   // Group CARRIER_TRACE by carrier name + possession "segment".
   // A new segment starts when gap between consecutive samples > 2s OR carrier name changes.
-  // For each segment >= 4 samples, compute B-line ratio = (direct distance) / (path length).
+  // For each segment >= 2 samples, compute B-line ratio = (direct distance) / (path length).
   // 1.0 = perfectly straight line. <0.7 = curved.
   const traces = events.filter((event) => event.type === 'CARRIER_TRACE')
   // Sort by half then t
@@ -689,13 +696,18 @@ function summaryCarrierTrajectories(events) {
   for (const event of traces) {
     const carrier = event.detail?.carrier || 'Unknown'
     const team = event.team
-    const elapsed = (event.half === 2 ? 150 : 0) + Number(event.t || 0)
+    const elapsed = getEventElapsed(event)
+    const segmentId = Number(event.detail?.segmentId ?? NaN)
     const x = Number(event.detail?.x ?? 0)
     const z = Number(event.detail?.z ?? 0)
-    if (!current || current.carrier !== carrier || (elapsed - current.lastElapsed) > 2) {
-      if (current && current.samples.length >= 4) segments.push(current)
+    const tagged = Number.isFinite(segmentId)
+    const startNewSegment = tagged
+      ? !current || current.segmentId !== segmentId || current.team !== team
+      : !current || current.carrier !== carrier || (elapsed - current.lastElapsed) > 2
+    if (startNewSegment) {
+      if (current && current.samples.length >= 2) segments.push(current)
       current = {
-        carrier, team,
+        carrier, team, segmentId: Number.isFinite(segmentId) ? segmentId : null,
         firstElapsed: elapsed,
         lastElapsed: elapsed,
         samples: [{ x, z, elapsed }],
@@ -710,7 +722,7 @@ function summaryCarrierTrajectories(events) {
       current.lastElapsed = elapsed
     }
   }
-  if (current && current.samples.length >= 4) segments.push(current)
+  if (current && current.samples.length >= 2) segments.push(current)
 
   const byLineRunSegments = []
   let totalSegments = 0
@@ -836,11 +848,12 @@ function summarizeDefendersInBoxAtGoal(bundle) {
   }
 }
 
-function summarizeShotBoxDefense(events) {
+function summarizeShotBoxDefense(events, bundle = null) {
   const FIELD_W = 65.6
   const PENALTY_DEPTH = 9.6
   const GOAL_MOUTH_HALF_WIDTH = 1.85
   const snapshots = events.filter((event) => event.type === 'SHOT_POSITION_SNAPSHOT')
+  const shotDecisions = Array.isArray(bundle?.shotDecisions) ? bundle.shotDecisions : []
   const stats = {
     shots: 0,
     avgDefendersInBox: 0,
@@ -851,6 +864,34 @@ function summarizeShotBoxDefense(events) {
   }
   let sumBox = 0
   let sumCorridor = 0
+  const shotDecisionDefenseRows = shotDecisions.filter((row) => Number.isFinite(Number(row.defendersInBox)))
+  if (shotDecisionDefenseRows.length > snapshots.length) {
+    for (const row of shotDecisionDefenseRows) {
+      const defendersInBox = Number(row.defendersInBox ?? 0)
+      const defendersInCorridor = Number(row.defendersInCorridor ?? 0)
+      stats.shots++
+      sumBox += defendersInBox
+      sumCorridor += defendersInCorridor
+      if (defendersInBox === 0) stats.emptyBoxShots++
+      if (defendersInCorridor === 0) stats.emptyCorridorShots++
+      if (stats.samples.length < 8) {
+        stats.samples.push({
+          t: round(Number(row.elapsedInHalf ?? row.minute ?? 0), 1),
+          team: row.team,
+          shooter: row.shooter || 'Unknown',
+          shooterRole: row.role || 'UNK',
+          ballX: round(Number(row.shotOrigin?.x ?? row.ballX ?? row.distToGoal ?? 0), 1),
+          ballZ: round(Number(row.shotOrigin?.z ?? row.ballZ ?? 0), 1),
+          defendersInBox,
+          defendersInCorridor,
+          source: 'shotDecisions',
+        })
+      }
+    }
+    stats.avgDefendersInBox = stats.shots ? round(sumBox / stats.shots) : 0
+    stats.avgDefendersInCorridor = stats.shots ? round(sumCorridor / stats.shots) : 0
+    return stats
+  }
   for (const event of snapshots) {
     const ball = event.detail?.ball
     const players = Array.isArray(event.detail?.players) ? event.detail.players : []
@@ -890,7 +931,8 @@ function summarizeShotBoxDefense(events) {
 }
 
 function getEventElapsed(event) {
-  return (event.half === 2 ? 150 : 0) + Number(event.t || 0)
+  const half = Number(event.half ?? event.detail?.half ?? 1)
+  return (half === 2 ? 150 : 0) + Number(event.t || event.detail?.t || 0)
 }
 
 function summarizeKickoffGoalCorrelation(events) {
@@ -1041,7 +1083,7 @@ function summarizeFinalThirdOverloads(events) {
     const distToGoal = Number(evt.detail?.distToGoal ?? 99)
     if (distToGoal > 22) continue
     const playerName = evt.detail?.playerName || evt.role || 'unknown'
-    const elapsed = (evt.half === 2 ? 150 : 0) + Number(evt.t || 0)
+    const elapsed = getEventElapsed(evt)
     const bucket = Math.floor(elapsed)
     const key = `${team}:${bucket}`
     let set = buckets.get(key)
@@ -1078,7 +1120,7 @@ function summarizeDangerMarking(events) {
     else {
       row.unmarked++
       row.worstSamples.push({
-        t: round((event.half === 2 ? 150 : 0) + Number(event.t || 0), 1),
+        t: round(getEventElapsed(event), 1),
         player: event.detail?.playerName || 'Unknown',
         role: event.role,
         zone: event.detail?.zone || 'UNKNOWN',
@@ -1106,7 +1148,7 @@ function summarizeMultiTouchOppHalfSequences(events) {
   // Order events by match time (half + t)
   const ordered = events
     .filter((e) => touchTypes.has(e.type))
-    .map((e) => ({ ...e, __elapsed: (e.half === 2 ? 150 : 0) + Number(e.t || 0) }))
+    .map((e) => ({ ...e, __elapsed: getEventElapsed(e) }))
     .sort((a, b) => a.__elapsed - b.__elapsed)
 
   const sequences = []
@@ -1196,11 +1238,11 @@ function summarizePatternTempo(events) {
   const intervals = []
   for (const team of ['A', 'B']) {
     for (const s of startsByTeam[team]) {
-      const sElapsed = (s.half === 2 ? 150 : 0) + Number(s.t || 0)
+      const sElapsed = getEventElapsed(s)
       let endElapsed = null
       for (const e of endsByTeam[team]) {
         if (e._used) continue
-        const eTime = (e.half === 2 ? 150 : 0) + Number(e.t || 0)
+        const eTime = getEventElapsed(e)
         if (eTime >= sElapsed) { endElapsed = eTime; e._used = true; break }
       }
       intervals.push({
@@ -1214,7 +1256,7 @@ function summarizePatternTempo(events) {
 
   const touchEvents = events
     .filter((e) => touchTypes.has(e.type))
-    .map((e) => ({ ...e, _elapsed: (e.half === 2 ? 150 : 0) + Number(e.t || 0) }))
+    .map((e) => ({ ...e, _elapsed: getEventElapsed(e) }))
     .sort((a, b) => a._elapsed - b._elapsed)
 
   for (const evt of touchEvents) {
@@ -1466,7 +1508,41 @@ function summarizeRolePositions(events) {
 }
 
 function summarizeShape(shapeSamples, teamName) {
-  const samples = Array.isArray(shapeSamples) ? shapeSamples : []
+  const rawSamples = Array.isArray(shapeSamples) ? shapeSamples : []
+  const samples = rawSamples.length && rawSamples.every((sample) => Number.isFinite(Number(sample.width)))
+    ? rawSamples
+    : (() => {
+      const byMoment = new Map()
+      for (const sample of rawSamples) {
+        const half = Number(sample.half ?? 0)
+        const t = Number(sample.t ?? 0)
+        const x = Number(sample.x ?? NaN)
+        const z = Number(sample.z ?? NaN)
+        if (!Number.isFinite(half) || !Number.isFinite(t) || !Number.isFinite(x) || !Number.isFinite(z)) continue
+        const key = `${half}:${t}`
+        if (!byMoment.has(key)) byMoment.set(key, { xs: [], zs: [], half, t })
+        const bucket = byMoment.get(key)
+        bucket.xs.push(x)
+        bucket.zs.push(z)
+      }
+      return Array.from(byMoment.values()).map((bucket) => {
+        const zs = bucket.zs
+        const xs = bucket.xs
+        const avgZ = zs.length ? zs.reduce((sum, value) => sum + value, 0) / zs.length : 0
+        const avgX = xs.length ? xs.reduce((sum, value) => sum + value, 0) / xs.length : 0
+        const compactness = zs.length
+          ? zs.reduce((sum, z, index) => sum + Math.hypot(xs[index] - avgX, z - avgZ), 0) / zs.length
+          : 0
+        return {
+          half: bucket.half,
+          t: bucket.t,
+          avgZ,
+          width: zs.length ? Math.max(...zs) - Math.min(...zs) : 0,
+          depth: xs.length ? Math.max(...xs) - Math.min(...xs) : 0,
+          compactness,
+        }
+      })
+    })()
   const centerLocked = samples.filter((sample) => Math.abs(Number(sample.avgZ ?? 0)) <= 3)
   const narrow = samples.filter((sample) => Number(sample.width ?? 0) < 18)
   const centerAndNarrow = samples.filter((sample) => Math.abs(Number(sample.avgZ ?? 0)) <= 3 && Number(sample.width ?? 0) < 18)
@@ -1493,12 +1569,12 @@ function summarizePositionOwners(events) {
     A: { samples: 0, sumAbsZ: 0, sumTargetAbsZ: 0, byOwner: {} },
     B: { samples: 0, sumAbsZ: 0, sumTargetAbsZ: 0, byOwner: {} },
   }
-  const wideRoles = new Set(['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'])
+  const wideRoles = new Set(['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB', 'W', 'FB'])
 
   for (const event of samples) {
     const team = event.team === 'B' ? 'B' : 'A'
-    const role = String(event.role || '').toUpperCase()
-    const owner = String(event.detail?.owner || 'UNKNOWN')
+    const role = String(event.detail?.label || event.detail?.owner || event.role || '').toUpperCase()
+    const owner = String(event.detail?.owner || event.detail?.label || event.role || 'UNKNOWN')
     byTeam[team][owner] = (byTeam[team][owner] || 0) + 1
     if (wideRoles.has(role)) {
       const bucket = wideByTeam[team]
@@ -1667,6 +1743,8 @@ function summarizeRestartCounts(events, passLog = [], bundle = null) {
   byTeam.B.throwIns = Number(bundleB.throwIns ?? 0)
   byTeam.A.goalKicks = Number(bundleA.goalKicks ?? 0)
   byTeam.B.goalKicks = Number(bundleB.goalKicks ?? 0)
+  byTeam.A.freeKicks = Number(bundleA.freeKicks ?? 0)
+  byTeam.B.freeKicks = Number(bundleB.freeKicks ?? 0)
   byTeam.A.penalties = Number(bundleA.penaltiesAwarded ?? 0)
   byTeam.B.penalties = Number(bundleB.penaltiesAwarded ?? 0)
 
@@ -2740,7 +2818,7 @@ function main() {
     finalThirdOverloads: summarizeFinalThirdOverloads(events),
     dangerMarking: summarizeDangerMarking(events),
     defendersInBoxAtGoal: summarizeDefendersInBoxAtGoal(bundle),
-    shotBoxDefense: summarizeShotBoxDefense(events),
+    shotBoxDefense: summarizeShotBoxDefense(events, bundle),
     kickoffGoalCorrelation: summarizeKickoffGoalCorrelation(events),
     patternTempo: summarizePatternTempo(events),
     neoPlays: summarizeNeoPlayEffectiveness(events),
@@ -2773,6 +2851,9 @@ function main() {
 export {
   summarizeKeeperEvents,
   summarizeRestartCounts,
+  summarizeShape,
+  summarizePositionOwners,
+  summaryCarrierTrajectories,
 }
 
 const isDirectRun = process.argv[1]

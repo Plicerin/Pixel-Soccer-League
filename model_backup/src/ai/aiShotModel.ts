@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FIELD_W } from '../../../src/core/constants.ts';
 
 export type AIShotDecisionContext = {
   carrier: any;
@@ -34,7 +35,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function anglePenalty(carrier: any) {
-  const goalX = carrier.team === 'A' ? 60 : -60;
+  const goalX = carrier.team === 'A' ? FIELD_W / 2 : -FIELD_W / 2;
   const angle = Math.abs(Math.atan2(carrier.pos.z, Math.abs(goalX - carrier.pos.x)));
   return angle > 0.55 ? 0.14 : 0;
 }

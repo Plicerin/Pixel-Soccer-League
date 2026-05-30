@@ -10,6 +10,8 @@ const rootDir = path.resolve(__dirname, '..');
 const nodeExec = process.execPath;
 const viteCli = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
 const wsPort = Number(process.env.WS_PORT || 8081);
+const criticalRestartDelayMs = Number(process.env.PSL_CRITICAL_RESTART_DELAY_MS || 1500);
+const criticalRestartLimit = Number(process.env.PSL_CRITICAL_RESTART_LIMIT || 8);
 const children = new Set();
 let shuttingDown = false;
 
@@ -37,7 +39,29 @@ function shutdown(exitCode = 0) {
   setTimeout(() => process.exit(exitCode), 50);
 }
 
+function scheduleCriticalRestart(label, command, args, options) {
+  const restartCount = options.restartCount || 0;
+  if (shuttingDown) return;
+  if (!options.critical || options.restart === false) {
+    shutdown(1);
+    return;
+  }
+  if (restartCount >= criticalRestartLimit) {
+    console.error(`${label} exceeded restart limit (${criticalRestartLimit}); shutting down wrapper.`);
+    shutdown(1);
+    return;
+  }
+
+  const nextCount = restartCount + 1;
+  console.error(`${label} restarting in ${criticalRestartDelayMs}ms (${nextCount}/${criticalRestartLimit}).`);
+  const timer = setTimeout(() => {
+    if (!shuttingDown) spawnManaged(label, command, args, { ...options, restartCount: nextCount });
+  }, criticalRestartDelayMs);
+  if (typeof timer.unref === 'function') timer.unref();
+}
+
 function spawnManaged(label, command, args, options = {}) {
+  let restartScheduled = false;
   const child = spawn(command, args, {
     cwd: rootDir,
     stdio: 'inherit',
@@ -47,14 +71,21 @@ function spawnManaged(label, command, args, options = {}) {
 
   child.on('error', (err) => {
     console.error(`${label} error:`, err);
-    if (options.critical) shutdown(1);
+    children.delete(child);
+    if (options.critical && !restartScheduled) {
+      restartScheduled = true;
+      scheduleCriticalRestart(label, command, args, options);
+    }
   });
 
   child.on('exit', (code, signal) => {
     children.delete(child);
     if (shuttingDown || code === 0 || signal === 'SIGTERM' || signal === 'SIGINT') return;
     console.error(`${label} exited unexpectedly${code != null ? ` with code ${code}` : ''}${signal ? ` (${signal})` : ''}.`);
-    if (options.critical) shutdown(1);
+    if (options.critical && !restartScheduled) {
+      restartScheduled = true;
+      scheduleCriticalRestart(label, command, args, options);
+    }
   });
 
   return child;

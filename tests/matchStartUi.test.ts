@@ -31,8 +31,8 @@ test('BUG-START-004 menu and splash background do not step live model or audio',
   assert.match(bugs, /BUG-START-004 \| Fixed - Awaiting User Approval \| Menu background match can keep running/, 'background match isolation bug must remain awaiting user approval');
   assert.match(spec, /V133\. Menu background isolation/, 'menu background isolation behavior must be captured in the spec');
   assert.match(spec, /B127 \| 2026-05-16 \| Splash auto-demo startup was disabled/, 'menu background root cause must be recorded');
-  assert.match(engine, /const modelActive = !this\.paused && !this\.menuVisible && !this\.splashSceneMode;/, 'render loop must gate model activity on menu/splash visibility');
-  assert.match(engine, /if \(modelActive\) \{[\s\S]*?this\.model\.step\(dt\);[\s\S]*?this\.model\.updateVisuals\(dt\);[\s\S]*?\}/, 'menu/splash render loop must not step the model');
+  assert.match(engine, /private isModelActive\(\) \{\s*return !this\.paused && !this\.menuVisible && !this\.splashSceneMode;\s*\}/, 'shared model activity gate must include pause/menu/splash visibility');
+  assert.match(engine, /const modelActive = this\.isModelActive\(\);[\s\S]*?if \(modelActive && !document\.hidden\) \{[\s\S]*?this\.advanceModel\(dt, true\);[\s\S]*?\}/, 'visible render loop must not step the model while menu/splash/paused');
   assert.match(engine, /if \(modelActive\) \{[\s\S]*?this\.processLiveEventCues\(dt\);[\s\S]*?this\.updateBroadcastCamera\(dt\);[\s\S]*?this\.updateCrowd\(dt\);/, 'menu/splash render loop must not process live-event audio or match action cues');
 });
 
@@ -168,7 +168,11 @@ test('V96 full-time overlay captures active match teams once', () => {
   assert.match(source, /const teamA = snapshot\.teamAName \|\| activeMatchTeamsRef\.current\?\.a \|\| teamANameRef\.current/, 'home final-screen team must not fall back to stale initial menu state');
   assert.match(source, /const teamB = snapshot\.teamBName \|\| activeMatchTeamsRef\.current\?\.b \|\| teamBNameRef\.current/, 'away final-screen team must not fall back to stale initial menu state');
   assert.match(source, /snapshot\?\.phase === 'FULL_TIME' && !smokeTestActiveRef\.current && !fullTimeCapturedRef\.current/, 'any uncaptured full-time snapshot must open the end screen even if the phase-change tick was missed');
-  assert.match(source, /w-\[min\(92vw,460px\)\][\s\S]*?outline: '5px solid #000'/, 'full-time panel must be wide enough and keep a 5px black outline');
+  assert.match(source, /w-\[min\(96vw,760px\)\][\s\S]*?outline: '5px solid #000'/, 'full-time panel must be wide enough and keep a 5px black outline');
+  assert.match(source, /break-words text-\[12px\][\s\S]*?\{fullTimeScore\.teamA\}/, 'home final-screen team name must wrap instead of clipping');
+  assert.match(source, /break-words text-\[12px\][\s\S]*?\{fullTimeScore\.teamB\}/, 'away final-screen team name must wrap instead of clipping');
+  assert.match(source, /aria-labelledby="full-time-title"/, 'full-time overlay must expose a labelled dialog');
+  assert.match(source, /<ScoreboardFlag teamName=\{fullTimeScore\.teamA\} \/>[\s\S]*?<ScoreboardFlag teamName=\{fullTimeScore\.teamB\} \/>/, 'full-time overlay must show real country flags for both teams');
   assert.doesNotMatch(source, /teamA:\s*snapshot\.teamAName \|\| teamAName/, 'stale home team fallback must not be used for full-time score');
   assert.doesNotMatch(source, /teamB:\s*snapshot\.teamBName \|\| teamBName/, 'stale away team fallback must not be used for full-time score');
 });
@@ -201,8 +205,8 @@ test('browser match HUD includes a real pause button wired to the engine', () =>
   assert.match(ui, /data-psl-pause-button="match"/, 'expected stable pause button marker in match HUD');
   assert.match(ui, /togglePaused\?\.\(\)/, 'pause button must call the engine pause toggle');
   assert.match(engine, /private paused = false/, 'engine must store pause state');
-  assert.match(engine, /const modelActive = !this\.paused && !this\.menuVisible && !this\.splashSceneMode;/, 'paused/menu/splash engine must stop model stepping');
-  assert.match(engine, /if \(modelActive\) \{[\s\S]*?this\.model\.step\(dt\);/, 'model stepping must be gated by modelActive');
+  assert.match(engine, /private isModelActive\(\) \{\s*return !this\.paused && !this\.menuVisible && !this\.splashSceneMode;\s*\}/, 'paused/menu/splash engine must stop model stepping');
+  assert.match(engine, /if \(modelActive && !document\.hidden\) \{[\s\S]*?this\.advanceModel\(dt, true\);/, 'visible model stepping must be gated by modelActive');
   assert.match(engine, /getPaused = \(\) => this\.paused/, 'UI needs a pause-state getter');
 });
 
@@ -232,6 +236,38 @@ test('BUG-RENDER-002 player hair color varies deterministically', () => {
   assert.match(engine, /const seed = `\$\{player\.team\}:\$\{player\.shirtNumber\}:\$\{player\.name\}:\$\{player\.role\}`/, 'hair selection must be deterministic per player identity');
   assert.match(engine, /return \{ \.\.\.base, hair: this\.hairMaterialForPlayer\(player\) \}/, 'player palette must use varied hair instead of the team default');
   assert.doesNotMatch(engine, /private paletteForPlayer\(player: SimplePlayer\) \{\s*if \(player\.role === 'GK'\) return player\.team === 'A' \? TEAM_PALETTES\.keeperA : TEAM_PALETTES\.keeperB;\s*return player\.team === 'A' \? TEAM_PALETTES\.teamA : TEAM_PALETTES\.teamB;\s*\}/, 'paletteForPlayer must not return all-black team palettes directly');
+});
+
+test('BUG-RENDER-004 kit color toggles repaint live merged voxel frames', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  const bugs = readFileSync('BUGS.md', 'utf8');
+  const spec = readFileSync('SPEC.md', 'utf8');
+  assert.match(bugs, /BUG-RENDER-004 \| Fixed - Awaiting User Approval \| Kit color toggle does not update player voxels/, 'kit color bug must be promoted and awaiting user approval');
+  assert.match(spec, /V160\. Kit color propagation/, 'kit color propagation invariant must be recorded');
+  assert.match(spec, /B156 \| 2026-05-18 \| Player frames render from baked merged-geometry vertex colors/, 'kit color root cause must be backpropagated');
+  assert.match(engine, /function materialForVoxelPart\(part: VoxelPart, palette: PlayerPalette\)/, 'voxel part material mapping must be centralized');
+  assert.match(engine, /if \(part === 'visor'\) return palette\.visor;/, 'visor voxels must use the visor material, not hair');
+  assert.doesNotMatch(engine, /part === 'visor' \? palette\.hair/, 'merged frame paths must not map visor voxels to hair');
+  assert.match(engine, /setTeamColors = \(team: 'A' \| 'B', shirt: number, pants: number\) => \{[\s\S]*?shirtMat\.color\.setHex\(shirt\);[\s\S]*?pantsMat\.color\.setHex\(pants\);[\s\S]*?this\.recolorPlayerVisual\(player\);/m, 'kit color setter must repaint live player frames after material color changes');
+  assert.match(engine, /private recolorPlayerVisual\(player: SimplePlayer\) \{[\s\S]*?visual\.allFrames\.forEach\(\(frame\) => recolorMergedVoxelFrame\(frame, palette\)\);[\s\S]*?\}/m, 'live player visual repaint helper must repaint every frame');
+  assert.match(engine, /export function recolorMergedVoxelFrame\(mesh: THREE\.Mesh, palette: PlayerPalette\) \{[\s\S]*?colorAttr\.needsUpdate = true;[\s\S]*?\}/m, 'merged voxel recolor must mark color buffers dirty');
+});
+
+test('BUG-RENDER-001 browser game renders a non-simulation referee', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  const bugs = readFileSync('BUGS.md', 'utf8');
+  const spec = readFileSync('SPEC.md', 'utf8');
+  assert.match(bugs, /BUG-RENDER-001 \| Fixed - Awaiting User Approval \| Referee missing from field/, 'referee bug must remain awaiting visual approval');
+  assert.match(spec, /V146\. Referee visual isolation/, 'referee visual behavior must be captured in the spec');
+  assert.match(spec, /B141 \| 2026-05-17 \| Referee materials and palette remained in the renderer/, 'referee root cause must be recorded');
+  assert.match(engine, /referee: \{ shirt: M\.refShirt, pants: M\.refPants, hair: M\.hairBlack, visor: M\.refVisor \}/, 'renderer must retain the referee palette');
+  assert.match(engine, /private readonly refereePlayer = \{[\s\S]*?id: 'referee'[\s\S]*?role: 'REF'[\s\S]*?\} as unknown as SimplePlayer;/, 'referee must be a renderer-only pseudo player, not part of the model roster');
+  assert.match(engine, /this\.refereeVisual = this\.createPlayerVisual\(this\.refereePlayer, TEAM_PALETTES\.referee\);/, 'engine must instantiate a visible referee sprite from the referee palette');
+  assert.match(engine, /this\.refereeVisual\.mesh\.name = 'refereeVisual';/, 'referee visual must have a stable scene name for visual probes');
+  assert.match(engine, /private updateRefereeVisual\(dt: number\)/, 'engine must update referee tracking every frame');
+  assert.match(engine, /this\.updateRefereeVisual\(dt\);/, 'referee update must run from the mesh update pass');
+  assert.match(engine, /private refereeTrackingTarget\(\)[\s\S]*?ball\.x - attackSign \* 8\.0[\s\S]*?THREE\.MathUtils\.clamp/, 'referee must track play from a bounded offset instead of overlapping the ball');
+  assert.doesNotMatch(engine, /this\.model\.players\.push\([^)]*referee/i, 'referee must not be inserted into simulation players');
 });
 
 test('BUG-RENDER-003 player animation cycles are phase-offset', () => {
@@ -378,6 +414,27 @@ test('CPU vs CPU and watched CPU use selected teams', () => {
   assert.doesNotMatch(source, /MLS_TEAM_NAMES\.slice\(\)\.sort\(\(\) => Math\.random\(\) - 0\.5\)/, 'team randomization must not rely on biased array sort shuffling');
 });
 
+test('ENH-INPUT-001 restores legacy gamepad menu and match controls', () => {
+  const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const bugs = readFileSync('BUGS.md', 'utf8');
+  const spec = readFileSync('SPEC.md', 'utf8');
+  assert.match(bugs, /ENH-INPUT-001 \| Fixed - Awaiting User Approval \| Restore old gamepad support/, 'gamepad enhancement must remain awaiting user approval');
+  assert.match(spec, /V157\. Browser gamepad controls/, 'gamepad behavior must be captured in the spec');
+  assert.match(spec, /B153 \| 2026-05-18 \| Current gamepad support only handled the main menu/, 'gamepad root cause must be recorded');
+  assert.match(source, /const gameplayGpPrev = useRef<boolean\[\]>\(new Array\(17\)\.fill\(false\)\)/, 'gameplay/pause gamepad polling must keep its own edge-detection state');
+  assert.match(source, /navigator\.getGamepads\?\.\(\)\?\.\[0\]/, 'gamepad polling must use the browser Gamepad API defensively');
+  assert.match(source, /confirmPressed = justPressed\(0\)/, 'A/Cross must be mapped as the confirm button');
+  assert.match(source, /backPressed = justPressed\(1\)/, 'B/Circle must be mapped as the back button');
+  assert.match(source, /startPressed = justPressed\(9\)/, 'Start must be mapped for pause and halftime continue');
+  assert.match(source, /showPreMatchSetupRef\.current[\s\S]*?confirmPressed[\s\S]*?handlePreMatchSetupStartRef\.current\(\)/, 'A/Cross must start the configured pre-match setup');
+  assert.match(source, /showPreMatchSetupRef\.current[\s\S]*?backPressed[\s\S]*?setShowPreMatchSetup\(false\)/, 'B/Circle must close pre-match setup');
+  assert.match(source, /halftimeAwaitingRef\.current && \(confirmPressed \|\| startPressed\)[\s\S]*?handleContinueHalftimeRef\.current\('manual'\)/, 'A/Cross or Start must continue interactive halftime');
+  assert.match(source, /else if \(startPressed\) \{[\s\S]*?handleTogglePauseRef\.current\(\);[\s\S]*?\}/, 'Start must toggle pause while already paused or live');
+  assert.match(source, /startMenuVisible = .*&& !showPreMatchSetup && !showPracticeSetup/, 'hidden main-menu gamepad input must not stay active behind setup panels');
+  assert.match(source, /if \(stickY < -0\.5 \|\| dpadUp\)[\s\S]*?else if \(stickY > 0\.5 \|\| dpadDown\)/, 'left stick or D-pad must navigate the main menu');
+  assert.match(source, /if \(stickX > 0\.5 \|\| dpadRight\)[\s\S]*?setTeamAName[\s\S]*?setTeamBName[\s\S]*?else if \(stickX < -0\.5 \|\| dpadLeft\)/, 'left stick or D-pad must cycle focused home/away team selectors');
+});
+
 test('BUG-UI-003 pre-match Home/Away and kit buttons feed kickoff assignment', () => {
   const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   assert.match(source, /type MatchKitKey = 'home' \| 'away'/, 'pre-match kit state must resolve to canonical kit keys');
@@ -522,9 +579,9 @@ test('V70 renderer gives corners a flag setup presentation', () => {
 
 test('V90 renderer has a dedicated header reaction path', () => {
   const source = readFileSync('src/gameEngine.ts', 'utf8');
-  assert.match(source, /type HeaderReaction = \{ ttl: number; duration: number; kind: 'shot' \| 'clearance'; direction: 1 \| -1 \}/, 'header reaction state must be explicit');
+  assert.match(source, /type HeaderReaction = \{ ttl: number; duration: number; kind: 'shot' \| 'clearance' \| 'touch'; direction: 1 \| -1 \}/, 'header reaction state must be explicit');
   assert.match(source, /private readonly headerReactions = new Map<string, HeaderReaction>/, 'renderer must retain header reactions by player');
-  assert.match(source, /event\.action === 'HEADER_SHOT' \|\| event\.action === 'HEADER_CLEARANCE'/, 'header live events must drive renderer cues');
+  assert.match(source, /event\.action === 'HEADER_SHOT' \|\| event\.action === 'HEADER_CLEARANCE' \|\| event\.action === 'HEADER_TOUCH'/, 'header live events must drive renderer cues');
   assert.match(source, /private updateHeaderSprite/, 'renderer must have a dedicated header sprite path');
   assert.match(source, /this\.headerReactions\.clear\(\)/, 'visual reset must clear header reactions');
 });
@@ -537,10 +594,10 @@ test('BUG-UI-006 full-time headers come from visible header animations', () => {
   assert.match(bugs, /BUG-UI-006 \| Fixed - Awaiting User Approval \| Header shown in Game Over without visible header/, 'header summary bug must remain awaiting visual approval');
   assert.match(spec, /V132\. Visible header summary/, 'visible header summary behavior must be captured in the spec');
   assert.match(spec, /B125 \| 2026-05-16 \| Full-time overlay displayed raw header counters/, 'visible header root cause must be recorded');
-  assert.match(engine, /type HeaderAnimationEvent = \{[\s\S]*?action: 'HEADER_SHOT' \| 'HEADER_CLEARANCE';[\s\S]*?playerId: string;[\s\S]*?sourceEventIndex: number;/, 'renderer must define a header animation audit row');
+  assert.match(engine, /type HeaderAnimationEvent = \{[\s\S]*?action: 'HEADER_SHOT' \| 'HEADER_CLEARANCE' \| 'HEADER_TOUCH';[\s\S]*?playerId: string;[\s\S]*?sourceEventIndex: number;/, 'renderer must define a header animation audit row');
   assert.match(engine, /private readonly headerAnimationEvents: HeaderAnimationEvent\[\] = \[\]/, 'renderer must keep a bounded header animation audit log');
   assert.match(engine, /headerAnimationEvents: this\.headerAnimationEvents\.slice\(-100\)/, 'tuning bundle must expose renderer header animation events');
-  assert.match(engine, /this\.headerReactions\.set\(player\.id,[\s\S]*?this\.recordHeaderAnimationEvent\(event, player, event\.action === 'HEADER_SHOT' \? 'shot' : 'clearance', direction, duration, this\.processedLiveEvents - 1\);/, 'header live events must both install reactions and audit telemetry rows');
+  assert.match(engine, /const kind = event\.action === 'HEADER_SHOT' \? 'shot' : event\.action === 'HEADER_CLEARANCE' \? 'clearance' : 'touch';[\s\S]*?this\.headerReactions\.set\(player\.id,[\s\S]*?this\.recordHeaderAnimationEvent\(event, player, kind, direction, duration, this\.processedLiveEvents - 1\);/, 'header live events must both install reactions and audit telemetry rows');
   assert.match(engine, /while \(this\.headerAnimationEvents\.length > 100\) this\.headerAnimationEvents\.shift\(\);/, 'header animation audit log must stay bounded');
   assert.match(ui, /const visibleHeaderEvents = Array\.isArray\(tuningBundle\?\.headerAnimationEvents\) \? tuningBundle\.headerAnimationEvents : \[\];/, 'full-time capture must read visible header animation telemetry');
   assert.match(ui, /headersA: visibleHeadersA,[\s\S]*?headersB: visibleHeadersB,/, 'full-time summary must use visible header counts');
@@ -555,10 +612,25 @@ test('V78 renderer animates throw-in and corner release phases distinctly from i
   assert.match(source, /restart\.phase === 'release' \? Math\.sin\(progress \* Math\.PI\)/, 'restart release must drive a visible movement curve');
   assert.match(source, /private throwInPresentationPlayerPosition\(restart: RestartPresentation\)/, 'throw-in taker must move through a dedicated sideline throw path');
   assert.match(source, /if \(restart\.type === 'throw_in'\) return this\.throwInPresentationPlayerPosition\(restart\)/, 'throw-ins must use a dedicated player-position path');
+  assert.match(source, /const lineZ = restart\.spot\.z \+ outsideZ \* 0\.12;/, 'throw-in release foot placement must stay outside the touchline');
   assert.match(source, /THROW_IN_RELEASE_PRESENTATION_SECONDS = 1\.15/, 'throw-in release must stay visible long enough to verify the player motion');
   assert.match(source, /restart\.phase === 'release' && visual\.runFrames\.length \? visual\.runFrames : visual\.idleFrames/, 'corner release must use run/kick frames instead of staying idle');
   assert.doesNotMatch(source, /restartPose\?\.type === 'throw_in' && restartPose\.phase === 'setup'/, 'throw-in special pose must not disappear as soon as release starts');
+  assert.doesNotMatch(source, /restart\.spot\.z \+ inwardZ \* 0\.18/, 'throw-in release must not drag the taker inside the touchline');
   assert.doesNotMatch(source, /restartPose\?\.type === 'corner' && restartPose\.phase === 'setup'/, 'corner special pose must not disappear as soon as release starts');
+});
+
+test('V159 renderer keeps penalty restart presentation from hiding penalty ball flight', () => {
+  const source = readFileSync('src/gameEngine.ts', 'utf8');
+  const spec = readFileSync('SPEC.md', 'utf8');
+  const bugs = readFileSync('BUGS.md', 'utf8');
+  assert.match(spec, /V159\. Penalty kick flight continuity/, 'penalty flight continuity must be captured in the spec');
+  assert.match(bugs, /BUG-PENALTY-001 \| Fixed - Awaiting User Approval \| Penalty kick ball disappears or teleports/, 'penalty teleport bug must remain awaiting visual approval');
+  assert.match(source, /event\.action === 'THROW_IN' \|\| event\.action === 'CORNER' \|\| event\.action === 'GOAL_KICK' \|\| event\.action === 'FREE_KICK' \|\| event\.action === 'PENALTY' \|\| event\.action === 'DROP_KICK'/, 'renderer must consume penalty setup/release presentation events');
+  assert.match(source, /if \(event\.action === 'PENALTY'\) return 'penalty';/, 'penalty events must resolve to penalty restart presentation type');
+  assert.match(source, /if \(restart\.type === 'penalty'\) return \{ x: pos\.x, y: BALL_GROUND_Y, z: pos\.z \};/, 'penalty setup may pin the setup ball at the spot');
+  assert.match(source, /if \(!restart \|\| restart\.phase !== 'setup'\) return null;/, 'penalty release must not override the live model ball flight');
+  assert.match(source, /restartPose\?\.type === 'penalty'[\s\S]*?this\.updateGoalKickSprite\(visual, restartPose\);/s, 'penalty taker must keep a visible release animation without hiding the ball');
 });
 
 test('V83 corner kicks animate the taker mesh through the run-up and kick', () => {
@@ -568,7 +640,8 @@ test('V83 corner kicks animate the taker mesh through the run-up and kick', () =
   assert.match(source, /if \(restart\.type === 'corner'\) return this\.cornerPresentationPlayerPosition\(restart\)/, 'corners must use a dedicated player-position path');
   assert.match(source, /private cornerPresentationPlayerPosition\(restart: RestartPresentation\)/, 'corner taker positioning must be isolated and testable');
   assert.match(source, /CORNER_RUNUP_DISTANCE = 1\.15/, 'corner taker must visibly run up to the ball');
-  assert.match(source, /const follow = \{[\s\S]*?restart\.spot\.x \+ kickDirX \* 0\.34[\s\S]*?restart\.spot\.z \+ inwardZ \* 0\.24[\s\S]*?\}/, 'corner taker must follow through after striking the ball');
+  assert.match(source, /const follow = \{[\s\S]*?strike\.x \+ kickDirX \* 0\.16[\s\S]*?strike\.z \+ inwardZ \* 0\.10[\s\S]*?\}/, 'corner taker follow-through must stay on the outside side of the ball');
+  assert.match(source, /const followT = THREE\.MathUtils\.smoothstep\(progress, 0\.82, 1\)/, 'corner taker must not cross the ball before the kick reads visually');
   assert.match(source, /visual\.spriteGroup\.rotation\.set\(0, 0, -visual\.dir \* \(plantT \* 0\.18 \+ kickT \* 0\.52\)\)/, 'corner kick sprite swing must be large enough to read');
   assert.match(source, /type === 'corner' && phase === 'release'[\s\S]*?CORNER_RELEASE_PRESENTATION_SECONDS/, 'corner release must stay on screen long enough to show the taker');
 });
@@ -750,6 +823,15 @@ test('V117 RetroFootball shipping UI gates debug console output', () => {
   assert.match(source, /pslDebugLog\('\[PSL-Bridge\] posting tick='/, 'repeated bridge tick logs should use the gated helper');
 });
 
+test('V162 background tabs keep the model clock advancing without rendering catch-up', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  assert.match(engine, /private startBackgroundModelLoop\(\)/, 'engine must have a background model loop');
+  assert.match(engine, /window\.setInterval\(\(\) => \{[\s\S]*?document\.hidden[\s\S]*?this\.advanceModel\(elapsed, false\);[\s\S]*?\}, 250\)/, 'hidden tabs must advance the model from wall-clock elapsed time without visual updates');
+  assert.match(engine, /private advanceModel\(dt: number, updateVisuals: boolean\)[\s\S]*?const maxChunk = 0\.05;[\s\S]*?let remaining = Math\.min\(dt, 1\.25\);/, 'background catch-up must be capped and split into normal-sized model chunks');
+  assert.match(engine, /if \(modelActive && !document\.hidden\) \{[\s\S]*?this\.advanceModel\(dt, true\);[\s\S]*?\}/, 'requestAnimationFrame must only advance model time while the document is visible');
+  assert.match(engine, /window\.clearInterval\(this\.backgroundModelTimer\)/, 'background model interval must be cleaned up on dispose');
+});
+
 test('V118 main menu and pre-match controls expose keyboard-safe focus semantics', () => {
   const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   assert.match(source, /data-psl-custom-dropdown-button=\{dataSelect\}/, 'pre-match custom dropdown buttons must expose stable data markers');
@@ -844,4 +926,38 @@ test('V52 telemetry tools keep full-match KPI thresholds for compressed runtime 
   assert.match(analyzer, /Full-match attacking volume is too low/, 'analyzer must recommend action when compressed-runtime matches underproduce full-match shots');
   assert.match(analyzer, /Full-match shot-on-target volume is too low/, 'analyzer must recommend action when completed matches underproduce full-match SOT');
   assert.match(analyzer, /Full-match pass volume is too low/, 'analyzer must recommend action when completed matches underproduce full-match passes');
+});
+
+test('V141 simple KPI guard reports per-match scoring and shot outliers', () => {
+  const simpleKpi = readFileSync('scripts/simple-model-kpi.mjs', 'utf8');
+  assert.match(simpleKpi, /maxGoalsInMatch/, 'simple KPI guard must expose max goals in any sampled match');
+  assert.match(simpleKpi, /maxShotsInMatch/, 'simple KPI guard must expose max shots in any sampled match');
+  assert.match(simpleKpi, /maxShotsOnTargetInMatch/, 'simple KPI guard must expose max SOT in any sampled match');
+});
+
+test('V169 telemetry analyzer counts simple-model forced shot reasons', () => {
+  const analyzer = readFileSync('scripts/telemetry-analyze-latest.mjs', 'utf8');
+  assert.match(analyzer, /function isForcedShotDecision\(decision\)/, 'forced shot classification must be centralized');
+  assert.match(analyzer, /selectionType\.includes\('forced'\)/, 'forced shot types must include model-specific forced selections');
+  assert.match(analyzer, /reason\.includes\('FORCED_SHOT'\)/, 'forced shot reasons must include STRIKER_PENALTY_AREA_FORCED_SHOT');
+  assert.match(analyzer, /reason\.includes\('NO_OUTLET_SHOT'\)/, 'forced shot reasons must include penalty-area no-outlet shots');
+});
+
+test('V174 telemetry analyzer falls back to shotDecisions for shot box defense', () => {
+  const analyzer = readFileSync('scripts/telemetry-analyze-latest.mjs', 'utf8');
+  assert.match(analyzer, /function summarizeShotBoxDefense\(events, bundle = null\)/, 'shot box defense summary must receive the full bundle');
+  assert.match(analyzer, /const shotDecisions = Array\.isArray\(bundle\?\.shotDecisions\)/, 'shot box defense must inspect durable shot decisions');
+  assert.match(analyzer, /shotDecisionDefenseRows\.length > snapshots\.length/, 'shot decisions must be used when snapshot events are missing or partially capped out');
+  assert.match(analyzer, /source: 'shotDecisions'/, 'fallback samples must identify shotDecision source');
+  assert.match(analyzer, /shotBoxDefense: summarizeShotBoxDefense\(events, bundle\)/, 'report builder must pass the bundle into shot box defense summary');
+});
+
+test('V179 telemetry analyzer preserves persisted free-kick restart counters', () => {
+  const analyzer = readFileSync('scripts/telemetry-analyze-latest.mjs', 'utf8');
+  assert.match(analyzer, /byTeam\.A\.freeKicks = Number\(bundleA\.freeKicks \?\? 0\)/, 'restart summary must read home free-kick counters from the persisted bundle');
+  assert.match(analyzer, /byTeam\.B\.freeKicks = Number\(bundleB\.freeKicks \?\? 0\)/, 'restart summary must read away free-kick counters from the persisted bundle');
+  assert.match(analyzer, /freeKicks: byTeam\.A\.freeKicks \+ byTeam\.B\.freeKicks/, 'reported total free kicks must use the per-team restart counters');
+  const dashboard = readFileSync('public/dashboard.html', 'utf8');
+  assert.match(dashboard, /Free kicks bar: \$\{a\.freeKicks\|\|0\} .* \$\{b\.freeKicks\|\|0\}/, 'copied match overview must include free-kick counters');
+  assert.match(dashboard, /compBar\('Free Kicks', a\.freeKicks \|\| 0, b\.freeKicks \|\| 0, 'Free Kicks'\)/, 'dashboard overview bars must render free-kick counters');
 });

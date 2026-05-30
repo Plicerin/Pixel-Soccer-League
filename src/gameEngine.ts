@@ -242,12 +242,12 @@ export function buildPlayerFrame(pattern: string[], palette: { shirt: THREE.Mate
       let mat = palette.shirt;
       let part: 'shirt' | 'pants' | 'hair' | 'visor' = 'shirt';
       if (ch === 'H') { mat = palette.hair; part = 'hair'; }
-      else if (ch === 'V') { mat = palette.hair; part = 'visor'; }
+      else if (ch === 'V') { mat = palette.visor; part = 'visor'; }
       else if (ch === 'S') { /* shirt - already default */ }
       else if (ch === 'P') { mat = palette.pants; part = 'pants'; }
       else if (ch === '1') {
         if (r < 2) { mat = palette.hair; part = 'hair'; }
-        else if (r === 2 && c > 10 && c < 15) { mat = palette.hair; part = 'visor'; }
+        else if (r === 2 && c > 10 && c < 15) { mat = palette.visor; part = 'visor'; }
         else if (r > 9) { mat = palette.pants; part = 'pants'; }
       }
       const geometry = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize * 3.0);
@@ -280,9 +280,16 @@ for (let _j = 0; _j < VERTS_PER_BOX; _j++) {
 
 type VoxelPart = 'shirt' | 'pants' | 'hair' | 'visor';
 
+function materialForVoxelPart(part: VoxelPart, palette: PlayerPalette) {
+  if (part === 'visor') return palette.visor;
+  if (part === 'hair') return palette.hair;
+  if (part === 'pants') return palette.pants;
+  return palette.shirt;
+}
+
 export function buildMergedPlayerFrame(
   pattern: string[],
-  palette: { shirt: THREE.Material; pants: THREE.Material; hair: THREE.Material; visor: THREE.Material }
+  palette: PlayerPalette
 ): THREE.Mesh {
   const voxelSize = PLAYER_VOXEL_SIZE;
   const depthSize = voxelSize * 3.0;
@@ -325,7 +332,7 @@ export function buildMergedPlayerFrame(
 
   for (let vi = 0; vi < voxelCount; vi++) {
     const part = parts[vi];
-    const mat = part === 'hair' ? palette.hair : part === 'visor' ? palette.hair : part === 'pants' ? palette.pants : palette.shirt;
+    const mat = materialForVoxelPart(part, palette);
     const baseColor = (mat as THREE.MeshStandardMaterial).color;
     const vx = xs[vi], vy = ys[vi];
     const posOff = vi * VERTS_PER_BOX * 3;
@@ -366,7 +373,7 @@ export function buildMergedPlayerFrame(
   return mesh;
 }
 
-export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
+export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: PlayerPalette) {
   const parts = mesh.userData.voxelPartMap as VoxelPart[];
   const count = mesh.userData.voxelCount as number;
   if (!parts || !count) return;
@@ -375,7 +382,7 @@ export function recolorMergedVoxelFrame(mesh: THREE.Mesh, palette: any) {
 
   for (let vi = 0; vi < count; vi++) {
     const part = parts[vi];
-    const mat = part === 'visor' ? palette.hair : part === 'hair' ? palette.hair : part === 'pants' ? palette.pants : palette.shirt;
+    const mat = materialForVoxelPart(part, palette);
     const baseColor = (mat as THREE.MeshStandardMaterial).color;
     const posOff = vi * VERTS_PER_BOX * 3;
     for (let j = 0; j < VERTS_PER_BOX; j++) {
@@ -410,13 +417,13 @@ type KeeperAnimationEvent = {
   phase: string;
   clock: string;
 };
-type HeaderReaction = { ttl: number; duration: number; kind: 'shot' | 'clearance'; direction: 1 | -1 };
+type HeaderReaction = { ttl: number; duration: number; kind: 'shot' | 'clearance' | 'touch'; direction: 1 | -1 };
 type HeaderAnimationEvent = {
-  action: 'HEADER_SHOT' | 'HEADER_CLEARANCE';
+  action: 'HEADER_SHOT' | 'HEADER_CLEARANCE' | 'HEADER_TOUCH';
   team: string;
   playerId: string;
   playerName: string;
-  kind: 'shot' | 'clearance';
+  kind: 'shot' | 'clearance' | 'touch';
   direction: 1 | -1;
   duration: number;
   sourceEventIndex: number;
@@ -530,6 +537,18 @@ class SimpleGameEngine {
   private readonly camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 600);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
   private readonly playerMeshes = new Map<string, PlayerVisual>();
+  private readonly refereePlayer = {
+    id: 'referee',
+    team: 'A',
+    role: 'REF',
+    name: 'Referee',
+    shirtNumber: 0,
+    pos: { x: 0, z: -8 },
+    vel: { x: 0, z: 0 },
+    targetPos: { x: 0, z: -8 },
+  } as unknown as SimplePlayer;
+  private readonly refereeVisual: PlayerVisual;
+  private refereeInitialized = false;
   private readonly ballGroup: THREE.Group;
   private readonly ballMesh: THREE.Mesh;
   private readonly ballShadowMesh: THREE.Mesh;
@@ -582,6 +601,8 @@ class SimpleGameEngine {
   private pendingGoalNetImpact: { target: THREE.Vector3; force: number; ttl: number } | null = null;
   private readonly clock = new THREE.Clock();
   private disposed = false;
+  private backgroundModelTimer: number | null = null;
+  private lastBackgroundModelTickMs = 0;
   private frameCount = 0;
   private fps = 60;
   private fpsTimer = 0;
@@ -664,6 +685,10 @@ class SimpleGameEngine {
     this.addField();
     markPslPerf('psl:field:ready');
     this.scheduleStadiumBuild();
+    this.refereeVisual = this.createPlayerVisual(this.refereePlayer, TEAM_PALETTES.referee);
+    this.refereeVisual.mesh.name = 'refereeVisual';
+    this.refereeVisual.mesh.visible = false;
+    this.scene.add(this.refereeVisual.mesh);
     const ball = this.addBall();
     this.ballGroup = ball.group;
     this.ballMesh = ball.mesh;
@@ -674,6 +699,7 @@ class SimpleGameEngine {
     markPslPerf('psl:players:ready');
     this.resize();
     window.addEventListener('resize', this.resize);
+    this.startBackgroundModelLoop();
     this.animate();
     this.preloadAudioBytes(['splashMusic', 'welcome', 'whistle']);
     markPslPerf('psl:engine:init:end');
@@ -699,6 +725,7 @@ class SimpleGameEngine {
   resetMatch = () => {
     this.paused = false;
     this.model.resetMatch();
+    this.refereeInitialized = false;
     this.miniMapBallTrail.length = 0;
     this.syncPlayerMeshes();
     this.resetVisualCues();
@@ -714,6 +741,7 @@ class SimpleGameEngine {
     this.splashMusicStop();
     this.preloadGameplayAudio();
     this.startCrowdLoop();
+    this.model.setInteractiveHalftime(true);
     this.model.startMatch();
     this.updateScoreBug();
     this.applyMiniMapVisibility();
@@ -732,6 +760,15 @@ class SimpleGameEngine {
 
   setHalfDurationSeconds = (seconds: number) => this.model.setHalfDurationSeconds(seconds);
   setCpuVsCpu = (enabled: boolean) => { this.model.cpuVsCpu = !!enabled; };
+  setInteractiveHalftime = (enabled: boolean) => this.model.setInteractiveHalftime(enabled);
+  continueFromHalftime = (mode: 'manual' | 'auto_cpu' = 'manual') => {
+    const continued = this.model.continueFromHalftime(mode);
+    if (continued) {
+      this.paused = false;
+      this.updateScoreBug();
+    }
+    return continued;
+  };
   setSeriesSpeedMul = (value: number) => this.model.setSeriesSpeedMul(value);
   setRestartDelays = (goalDelay: number, halfDelay: number) => this.model.setRestartDelays(goalDelay, halfDelay);
   setPaused = (paused: boolean) => {
@@ -775,8 +812,7 @@ class SimpleGameEngine {
     shirtMat.color.setHex(shirt);
     pantsMat.color.setHex(pants);
     for (const player of this.model.players.filter((p) => p.team === team)) {
-      const visual = this.playerMeshes.get(player.id);
-      visual?.allFrames.forEach((frame) => recolorMergedVoxelFrame(frame, this.paletteForPlayer(player)));
+      this.recolorPlayerVisual(player);
     }
     this.refreshCrowdColors();
   };
@@ -792,6 +828,10 @@ class SimpleGameEngine {
 
   dispose = () => {
     this.disposed = true;
+    if (this.backgroundModelTimer !== null) {
+      window.clearInterval(this.backgroundModelTimer);
+      this.backgroundModelTimer = null;
+    }
     if (this.stadiumBuildHandle !== null) {
       const cancelIdle = (window as any).cancelIdleCallback as undefined | ((handle: number) => void);
       if (cancelIdle) cancelIdle(this.stadiumBuildHandle);
@@ -1808,9 +1848,9 @@ class SimpleGameEngine {
     this.updateMeshes();
   }
 
-  private createPlayerVisual(player: SimplePlayer): PlayerVisual {
+  private createPlayerVisual(player: SimplePlayer, paletteOverride?: PlayerPalette): PlayerVisual {
     const isKeeper = player.role === 'GK';
-    const palette = this.paletteForPlayer(player);
+    const palette = paletteOverride ?? this.paletteForPlayer(player);
     const animPhaseOffset = this.animationPhaseForPlayer(player);
     const group = new THREE.Group();
     group.position.set(player.pos.x, 0.15, player.pos.z);
@@ -1874,6 +1914,13 @@ class SimpleGameEngine {
     return { ...base, hair: this.hairMaterialForPlayer(player) };
   }
 
+  private recolorPlayerVisual(player: SimplePlayer) {
+    const visual = this.playerMeshes.get(player.id);
+    if (!visual) return;
+    const palette = this.paletteForPlayer(player);
+    visual.allFrames.forEach((frame) => recolorMergedVoxelFrame(frame, palette));
+  }
+
   private hairMaterialForPlayer(player: SimplePlayer) {
     return PLAYER_HAIR_MATERIALS[Math.abs(this.playerIdentityHash(player)) % PLAYER_HAIR_MATERIALS.length];
   }
@@ -1931,6 +1978,7 @@ class SimpleGameEngine {
       visual.mesh.scale.setScalar(scale);
       this.updatePlayerSprite(visual, player, dt, keeperReaction, restartPose, headerReaction);
     }
+    this.updateRefereeVisual(dt);
     const ballY = Math.max(BALL_GROUND_Y, this.model.ball.pos.y);
     const restartBall = this.restartPresentationBallPosition();
     this.ballGroup.position.set(restartBall?.x ?? this.model.ball.pos.x, restartBall?.y ?? ballY, restartBall?.z ?? this.model.ball.pos.z);
@@ -1943,6 +1991,60 @@ class SimpleGameEngine {
     this.ballShadowMaterial.opacity = THREE.MathUtils.clamp(0.36 - height * 0.05, 0.1, 0.38);
     this.updatePendingGoalNetImpact(dt);
     this.updateBallTrail();
+  }
+
+  private updateRefereeVisual(dt: number) {
+    const phase = this.model.msm.state.kind;
+    const visible = phase !== 'pre_match' && phase !== 'full_time';
+    this.refereeVisual.mesh.visible = visible;
+    if (!visible) {
+      this.refereeInitialized = false;
+      return;
+    }
+
+    const target = this.refereeTrackingTarget();
+    const current = this.refereePlayer.pos;
+    if (!this.refereeInitialized) {
+      current.x = target.x;
+      current.z = target.z;
+      this.refereeInitialized = true;
+    }
+
+    const dx = target.x - current.x;
+    const dz = target.z - current.z;
+    const dist = Math.hypot(dx, dz);
+    const maxStep = 7.4 * dt;
+    const step = dist > 0 ? Math.min(dist, maxStep) / dist : 0;
+    const nextX = current.x + dx * step;
+    const nextZ = current.z + dz * step;
+    this.refereePlayer.vel.x = dt > 0 ? (nextX - current.x) / dt : 0;
+    this.refereePlayer.vel.z = dt > 0 ? (nextZ - current.z) / dt : 0;
+    current.x = nextX;
+    current.z = nextZ;
+    this.refereePlayer.targetPos = target;
+    this.refereeVisual.mesh.position.set(current.x, 0.15, current.z);
+    this.refereeVisual.mesh.scale.setScalar(PLAYER_VISUAL_SCALE * 1.02);
+    this.updatePlayerSprite(this.refereeVisual, this.refereePlayer, dt);
+  }
+
+  private refereeTrackingTarget() {
+    const ball = this.model.ball.pos;
+    const attackSign = this.refereeAttackSign();
+    const zTowardCenter = Math.abs(ball.z) < 2 ? (ball.x >= 0 ? -1 : 1) * 5.2 : -Math.sign(ball.z) * 5.2;
+    return {
+      x: THREE.MathUtils.clamp(ball.x - attackSign * 8.0, -FIELD_W / 2 + 5, FIELD_W / 2 - 5),
+      z: THREE.MathUtils.clamp(ball.z + zTowardCenter, -FIELD_D / 2 + 5, FIELD_D / 2 - 5),
+    };
+  }
+
+  private refereeAttackSign(): 1 | -1 {
+    const carrier = this.model.possession;
+    if (carrier) {
+      const teamAFirstHalf = this.model.msm.clock.half === 1 ? 1 : -1;
+      return (carrier.team === 'A' ? teamAFirstHalf : -teamAFirstHalf) as 1 | -1;
+    }
+    if (Math.abs(this.model.ball.vel.x) > 0.05) return this.model.ball.vel.x > 0 ? 1 : -1;
+    return this.model.ball.pos.x >= 0 ? 1 : -1;
   }
 
   private updatePlayerSprite(
@@ -2153,7 +2255,7 @@ class SimpleGameEngine {
     const base = this.restartPresentationPosition(restart);
     const progress = this.restartPresentationProgress(restart);
     const outsideZ = restart.spot.z >= 0 ? 1 : -1;
-    const inwardZ = -outsideZ;
+    const lineZ = restart.spot.z + outsideZ * 0.12;
     if (restart.phase === 'setup') {
       const rock = Math.sin(progress * Math.PI * 2) * 0.06;
       return {
@@ -2165,11 +2267,11 @@ class SimpleGameEngine {
     const followT = THREE.MathUtils.smoothstep(progress, 0.48, 1);
     const plant = {
       x: base.x,
-      z: THREE.MathUtils.lerp(base.z + outsideZ * 0.16, base.z, plantT),
+      z: THREE.MathUtils.lerp(base.z + outsideZ * 0.10, lineZ, plantT),
     };
     return {
       x: plant.x,
-      z: THREE.MathUtils.lerp(plant.z, restart.spot.z + inwardZ * 0.18, followT),
+      z: THREE.MathUtils.lerp(plant.z, lineZ + outsideZ * 0.06, followT),
     };
   }
 
@@ -2187,8 +2289,8 @@ class SimpleGameEngine {
       z: strike.z + outsideZ * 0.26,
     };
     const follow = {
-      x: restart.spot.x + kickDirX * 0.34,
-      z: restart.spot.z + inwardZ * 0.24,
+      x: strike.x + kickDirX * 0.16,
+      z: strike.z + inwardZ * 0.10,
     };
     if (restart.phase === 'setup') {
       const setupPulse = Math.sin(progress * Math.PI * 2) * 0.07;
@@ -2198,7 +2300,7 @@ class SimpleGameEngine {
       };
     }
     const drive = THREE.MathUtils.smoothstep(progress, 0, 0.68);
-    const followT = THREE.MathUtils.smoothstep(progress, 0.58, 1);
+    const followT = THREE.MathUtils.smoothstep(progress, 0.82, 1);
     const plant = {
       x: THREE.MathUtils.lerp(runup.x, strike.x, drive),
       z: THREE.MathUtils.lerp(runup.z, strike.z, drive),
@@ -2292,20 +2394,21 @@ class SimpleGameEngine {
       this.playSoundForLiveEvent(event);
       if (event.action === 'PASS') this.spawnEventCue(0x63f7ff, 0.45, 0.7);
       if (event.action === 'SHOT') this.spawnEventCue(0xfff06a, 0.7, 0.85);
-      if (event.action === 'HEADER_SHOT' || event.action === 'HEADER_CLEARANCE') {
-        this.spawnEventCue(event.action === 'HEADER_SHOT' ? 0xfff06a : 0xffb46a, 0.72, 0.82);
+      if (event.action === 'HEADER_SHOT' || event.action === 'HEADER_CLEARANCE' || event.action === 'HEADER_TOUCH') {
+        this.spawnEventCue(event.action === 'HEADER_SHOT' ? 0xfff06a : event.action === 'HEADER_CLEARANCE' ? 0xffb46a : 0xffffff, 0.72, 0.82);
         const playerId = typeof event.meta?.playerId === 'string' ? event.meta.playerId : '';
         const player = this.model.players.find((p) => p.id === playerId);
         if (player) {
           const direction = player.team === 'A' ? 1 : -1;
-          const duration = event.action === 'HEADER_SHOT' ? 0.55 : 0.45;
+          const duration = event.action === 'HEADER_SHOT' ? 0.55 : event.action === 'HEADER_CLEARANCE' ? 0.45 : 0.40;
+          const kind = event.action === 'HEADER_SHOT' ? 'shot' : event.action === 'HEADER_CLEARANCE' ? 'clearance' : 'touch';
           this.headerReactions.set(player.id, {
             ttl: duration,
             duration,
-            kind: event.action === 'HEADER_SHOT' ? 'shot' : 'clearance',
+            kind,
             direction,
           });
-          this.recordHeaderAnimationEvent(event, player, event.action === 'HEADER_SHOT' ? 'shot' : 'clearance', direction, duration, this.processedLiveEvents - 1);
+          this.recordHeaderAnimationEvent(event, player, kind, direction, duration, this.processedLiveEvents - 1);
         }
       }
       if (event.action === 'GOAL') {
@@ -2326,8 +2429,8 @@ class SimpleGameEngine {
         }
       }
       if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0xff6b6b, 0.55, 0.75);
-      if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'DROP_KICK') {
-        const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' ? 0xffffff : 0xd8f7ff;
+      if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'PENALTY' || event.action === 'DROP_KICK') {
+        const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' || event.action === 'PENALTY' ? 0xffffff : 0xd8f7ff;
         this.spawnEventCue(color, event.action === 'CORNER' ? 0.8 : 0.62, 0.78);
         this.updateRestartPresentationFromEvent(event, this.processedLiveEvents - 1);
       }
@@ -2382,7 +2485,9 @@ class SimpleGameEngine {
     const phase = event.meta?.phase === 'release' ? 'release' : 'setup';
     const spot = this.pointFromMeta(event.meta?.spot);
     if (!type || !spot) return;
-    const fallbackTaker = this.activeRestartPresentation?.type === type ? this.activeRestartPresentation.takerId : null;
+    const fallbackTaker = this.activeRestartPresentation?.type === type && this.activeRestartPresentation.team === (event.team || '')
+      ? this.activeRestartPresentation.takerId
+      : null;
     const requestedTakerId = typeof event.meta?.takerId === 'string' ? event.meta.takerId : null;
     const takerId = this.resolveRestartPresentationTakerId(type, event.team || '', spot, requestedTakerId, fallbackTaker);
     const metaDuration = Number(event.meta?.presentationSeconds);
@@ -2522,14 +2627,14 @@ class SimpleGameEngine {
   private recordHeaderAnimationEvent(
     event: { action: string },
     player: SimplePlayer,
-    kind: 'shot' | 'clearance',
+    kind: 'shot' | 'clearance' | 'touch',
     direction: 1 | -1,
     duration: number,
     sourceEventIndex: number,
   ) {
     const snapshot = this.model.getMatchSnapshot();
     this.headerAnimationEvents.push({
-      action: event.action === 'HEADER_SHOT' ? 'HEADER_SHOT' : 'HEADER_CLEARANCE',
+      action: event.action === 'HEADER_SHOT' ? 'HEADER_SHOT' : event.action === 'HEADER_CLEARANCE' ? 'HEADER_CLEARANCE' : 'HEADER_TOUCH',
       team: player.team,
       playerId: player.id,
       playerName: player.name,
@@ -3017,14 +3122,42 @@ class SimpleGameEngine {
     this.renderer.setSize(width, height, false);
   };
 
+  private isModelActive() {
+    return !this.paused && !this.menuVisible && !this.splashSceneMode;
+  }
+
+  private advanceModel(dt: number, updateVisuals: boolean) {
+    if (dt <= 0) return;
+    const maxChunk = 0.05;
+    let remaining = Math.min(dt, 1.25);
+    while (remaining > 0.0001 && !this.disposed && this.isModelActive()) {
+      const stepDt = Math.min(maxChunk, remaining);
+      this.model.step(stepDt);
+      if (updateVisuals) this.model.updateVisuals(stepDt);
+      remaining -= stepDt;
+    }
+  }
+
+  private startBackgroundModelLoop() {
+    if (this.backgroundModelTimer !== null) return;
+    this.lastBackgroundModelTickMs = performance.now();
+    this.backgroundModelTimer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = Math.max(0, (now - this.lastBackgroundModelTickMs) / 1000);
+      this.lastBackgroundModelTickMs = now;
+      if (this.disposed || !document.hidden || !this.isModelActive()) return;
+      this.advanceModel(elapsed, false);
+    }, 250);
+  }
+
   private animate = () => {
     if (this.disposed) return;
     requestAnimationFrame(this.animate);
     const dt = Math.min(0.05, this.clock.getDelta());
-    const modelActive = !this.paused && !this.menuVisible && !this.splashSceneMode;
-    if (modelActive) {
-      this.model.step(dt);
-      this.model.updateVisuals(dt);
+    const modelActive = this.isModelActive();
+    if (modelActive && !document.hidden) {
+      this.lastBackgroundModelTickMs = performance.now();
+      this.advanceModel(dt, true);
     }
     this.updateMeshes(dt);
     this.updateScoreBug();

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 interface TeamStats {
   name: string;
@@ -124,6 +124,9 @@ export default function LiveTelemetry({ gameRef }: Props) {
   const { teamA, teamB, carrier, eventLog } = data;
   const shotDecisions = data.shotDecisions || [];
   const passDecisions = data.passDecisions || [];
+  const reversedEventLog = useMemo(() => [...eventLog].reverse(), [eventLog]);
+  const recentShotDecisions = useMemo(() => [...shotDecisions].reverse().slice(0, 25), [shotDecisions]);
+  const recentPassDecisions = useMemo(() => [...passDecisions].reverse().slice(0, 25), [passDecisions]);
   const director = data.possessionDirector;
 
   function copyTelemetry() {
@@ -317,7 +320,7 @@ export default function LiveTelemetry({ gameRef }: Props) {
           {eventLog.length === 0 ? (
             <div className="text-[10px] text-white/30 px-3 py-2">No events yet</div>
           ) : (
-            eventLog.slice().reverse().map((ev, i) => (
+            reversedEventLog.map((ev, i) => (
               <div key={i} className="flex items-start gap-2 px-3 py-1 border-b border-white/5 last:border-0 text-[10px]">
                 <span className="text-white/25 shrink-0 tabular-nums w-14">
                   {new Date(ev.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -343,7 +346,7 @@ export default function LiveTelemetry({ gameRef }: Props) {
             {shotDecisions.length === 0 ? (
               <div className="text-[10px] text-white/30 px-3 py-2">No shot decisions yet</div>
             ) : (
-              shotDecisions.slice().reverse().slice(0, 25).map((decision, i) => renderDecisionLine(decision, 'shot', i))
+              recentShotDecisions.map((decision, i) => renderDecisionLine(decision, 'shot', i))
             )}
           </div>
         </div>
@@ -357,7 +360,7 @@ export default function LiveTelemetry({ gameRef }: Props) {
             {passDecisions.length === 0 ? (
               <div className="text-[10px] text-white/30 px-3 py-2">No pass decisions yet</div>
             ) : (
-              passDecisions.slice().reverse().slice(0, 25).map((decision, i) => renderDecisionLine(decision, 'pass', i))
+              recentPassDecisions.map((decision, i) => renderDecisionLine(decision, 'pass', i))
             )}
           </div>
         </div>

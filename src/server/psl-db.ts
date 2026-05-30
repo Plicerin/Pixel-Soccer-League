@@ -5,6 +5,7 @@ import { filterGhostMatchRows, isGhostMatchRow } from './matchFilters';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '..', 'psl.db');
+const MATCH_HISTORY_LIMIT = 10;
 
 let _db: Database.Database | null = null;
 
@@ -114,33 +115,37 @@ export interface MatchResultRow {
 export function insertMatchResult(row: MatchResultRow): boolean {
   if (isGhostMatchRow(row)) return false;
   const db = getDb();
-  db.prepare(`
-    INSERT OR REPLACE INTO match_results (
-      session_id, timestamp, team_a_name, team_b_name,
-      team_a_formation, team_b_formation,
-      score_a, score_b, shots_a, shots_b,
-      shots_on_target_a, shots_on_target_b,
-      saves_a, saves_b, headers_a, headers_b,
-      possession_a, phase, half, elapsed_in_half, bundle_json
-    ) VALUES (
-      @session_id, @timestamp, @team_a_name, @team_b_name,
-      @team_a_formation, @team_b_formation,
-      @score_a, @score_b, @shots_a, @shots_b,
-      @shots_on_target_a, @shots_on_target_b,
-      @saves_a, @saves_b, @headers_a, @headers_b,
-      @possession_a, @phase, @half, @elapsed_in_half, @bundle_json
-    )
-  `).run(row);
+  db.transaction((match: MatchResultRow) => {
+    db.prepare(`
+      INSERT OR REPLACE INTO match_results (
+        session_id, timestamp, team_a_name, team_b_name,
+        team_a_formation, team_b_formation,
+        score_a, score_b, shots_a, shots_b,
+        shots_on_target_a, shots_on_target_b,
+        saves_a, saves_b, headers_a, headers_b,
+        possession_a, phase, half, elapsed_in_half, bundle_json
+      ) VALUES (
+        @session_id, @timestamp, @team_a_name, @team_b_name,
+        @team_a_formation, @team_b_formation,
+        @score_a, @score_b, @shots_a, @shots_b,
+        @shots_on_target_a, @shots_on_target_b,
+        @saves_a, @saves_b, @headers_a, @headers_b,
+        @possession_a, @phase, @half, @elapsed_in_half, @bundle_json
+      )
+    `).run(match);
+    pruneMatchHistoryRows(db);
+  })(row);
   return true;
 }
 
 export function getRecentMatches(limit = 50): MatchResultRow[] {
   const db = getDb();
-  const fetchLimit = Math.min(Math.max(limit * 4, limit), 800);
+  const cappedLimit = Math.min(Math.max(1, limit), MATCH_HISTORY_LIMIT);
+  const fetchLimit = Math.min(Math.max(cappedLimit * 4, cappedLimit), MATCH_HISTORY_LIMIT * 4);
   const rows = db.prepare(
     'SELECT * FROM match_results ORDER BY timestamp DESC LIMIT ?'
   ).all(fetchLimit) as MatchResultRow[];
-  return filterGhostMatchRows(rows).slice(0, limit);
+  return filterGhostMatchRows(rows).slice(0, cappedLimit);
 }
 
 export function getTelemetryEvents(sessionId: string, limit = 10000): Array<Record<string, unknown>> {
@@ -149,4 +154,32 @@ export function getTelemetryEvents(sessionId: string, limit = 10000): Array<Reco
   return db.prepare(
     'SELECT * FROM telemetry_events WHERE session_id = ? ORDER BY id DESC LIMIT ?'
   ).all(sessionId, Math.min(Math.max(1, limit), 10000)) as Array<Record<string, unknown>>;
+}
+
+export function pruneMatchHistory(limit = MATCH_HISTORY_LIMIT) {
+  const db = getDb();
+  db.transaction(() => pruneMatchHistoryRows(db, limit))();
+}
+
+function pruneMatchHistoryRows(db: Database.Database, limit = MATCH_HISTORY_LIMIT) {
+  const keep = Math.min(Math.max(1, limit), MATCH_HISTORY_LIMIT);
+  db.prepare(`
+    DELETE FROM telemetry_events
+    WHERE session_id NOT IN (
+      SELECT session_id
+      FROM match_results
+      WHERE session_id IS NOT NULL AND session_id != ''
+      ORDER BY timestamp DESC, id DESC
+      LIMIT ?
+    )
+  `).run(keep);
+  db.prepare(`
+    DELETE FROM match_results
+    WHERE id NOT IN (
+      SELECT id
+      FROM match_results
+      ORDER BY timestamp DESC, id DESC
+      LIMIT ?
+    )
+  `).run(keep);
 }

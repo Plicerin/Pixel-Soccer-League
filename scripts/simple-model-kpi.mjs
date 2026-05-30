@@ -30,6 +30,12 @@ const THRESHOLDS = {
   invalidGoalGeometry: { min: 0, max: 0, target: 0 },
   possessionA: { min: 40, max: 60, target: 50 },
   fullTimePct: { min: 100, max: 100, target: 100 },
+  corners: { min: 4, max: 14, target: 8 },
+  fouls: { min: 4, max: 24, target: 13 },
+  penaltiesAwarded: { min: 0, max: 2, target: 0.5 },
+  maxGoalsInMatch: { min: 0, max: 7, target: 4 },
+  maxShotsInMatch: { min: 0, max: 45, target: 35 },
+  maxShotsOnTargetInMatch: { min: 0, max: 20, target: 16 },
 }
 
 function parseArgs(argv) {
@@ -195,6 +201,9 @@ function summarize(results) {
   const shotsChosen = shotOpportunities.filter((row) => row.outcome === 'shot')
   const shotPasses = shotOpportunities.filter((row) => row.outcome === 'pass')
   const shotDistanceBins = summarizeShotDistanceBins(shotDecisions)
+  const forcedShotDecisions = shotDecisions.filter(isForcedShotDecision)
+  const highShotMatches = results.filter((row) => row.shotsA + row.shotsB > THRESHOLDS.shots.max)
+  const guardShotOutliers = results.filter((row) => row.shotsA + row.shotsB > THRESHOLDS.maxShotsInMatch.max)
   return {
     games: results.length,
     goals: round(average(results, (row) => row.scoreA + row.scoreB)),
@@ -233,13 +242,54 @@ function summarize(results) {
     shotOpportunities: round(shotOpportunities.length / Math.max(1, results.length)),
     shotOpportunityShotPct: round((shotsChosen.length / Math.max(1, shotOpportunities.length)) * 100),
     shotOpportunityPassPct: round((shotPasses.length / Math.max(1, shotOpportunities.length)) * 100),
+    shotDecisions: round(shotDecisions.length / Math.max(1, results.length)),
+    forcedShotSharePct: round((forcedShotDecisions.length / Math.max(1, shotDecisions.length)) * 100),
+    highShotMatches: highShotMatches.length,
+    guardShotOutliers: guardShotOutliers.length,
     shotDistanceBins,
     distanceShotDecisions: shotDecisions.filter((row) => row.shotSelectionType === 'distance_shot').length,
     longRangeShotPct: round(((shotDistanceBins.y24_30 + shotDistanceBins.gte30) / Math.max(1, shotDecisions.length)) * 100),
     possessionA: round(average(results, (row) => row.possA)),
     fullTimePct: round((results.filter((row) => row.phase === 'FULL_TIME').length / results.length) * 100),
+    maxGoalsInMatch: maxOf(results, (row) => row.scoreA + row.scoreB),
+    maxShotsInMatch: maxOf(results, (row) => row.shotsA + row.shotsB),
+    maxShotsOnTargetInMatch: maxOf(results, (row) => row.sogA + row.sogB),
     disabledMetrics: [],
   }
+}
+
+function isForcedShotDecision(decision) {
+  const reason = String(decision.resolutionReason || '')
+  const selectionType = String(decision.shotSelectionType || '')
+  return decision.forceShotNow === true
+    || selectionType === 'forced_shot'
+    || selectionType.includes('forced')
+    || reason.includes('FORCED_SHOT')
+    || reason.includes('NO_OUTLET_SHOT')
+    || reason.includes('GOALMOUTH_FINISH')
+}
+
+function topShotReason(row) {
+  const counts = new Map()
+  for (const decision of row.tuning?.shotDecisions || []) {
+    const reason = String(decision.resolutionReason || decision.shotSelectionType || 'UNKNOWN')
+    counts.set(reason, (counts.get(reason) || 0) + 1)
+  }
+  let best = ''
+  let bestCount = 0
+  for (const [reason, count] of counts.entries()) {
+    if (count > bestCount) {
+      best = reason
+      bestCount = count
+    }
+  }
+  return best ? `${best} (${bestCount})` : 'none'
+}
+
+function forcedShotShareForMatch(row) {
+  const decisions = row.tuning?.shotDecisions || []
+  if (!decisions.length) return 0
+  return round((decisions.filter(isForcedShotDecision).length / decisions.length) * 100, 1)
 }
 
 function summarizeShotDistanceBins(shotDecisions) {
@@ -351,17 +401,21 @@ function buildMarkdown(report) {
     '',
     `- Opportunities per match: ${report.summary.shotOpportunities}`,
     `- Shot/pass choice: ${report.summary.shotOpportunityShotPct}% / ${report.summary.shotOpportunityPassPct}%`,
+    `- Shot decisions per match: ${report.summary.shotDecisions}`,
+    `- Forced-shot share: ${report.summary.forcedShotSharePct}%`,
+    `- High-shot matches (> ${THRESHOLDS.shots.max}): ${report.summary.highShotMatches}/${report.summary.games}`,
+    `- Guard shot outliers (> ${THRESHOLDS.maxShotsInMatch.max}): ${report.summary.guardShotOutliers}/${report.summary.games}`,
     `- Distance-shot decisions: ${report.summary.distanceShotDecisions}`,
     `- Long-range shot share (24+ yd): ${report.summary.longRangeShotPct}%`,
     `- Shot distance bins: <12 ${report.summary.shotDistanceBins.lt12} | 12-18 ${report.summary.shotDistanceBins.y12_18} | 18-24 ${report.summary.shotDistanceBins.y18_24} | 24-30 ${report.summary.shotDistanceBins.y24_30} | 30+ ${report.summary.shotDistanceBins.gte30}`,
   )
   lines.push('', '## Match Results', '')
-  lines.push('| Match | Score | Shots | SOT | Saves | Pass % | Tackles | Fouls | Offsides | Corners | Throw-ins | Goal kicks | Free kicks | Pens | Poss A |')
-  lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|')
+  lines.push('| Match | Score | Shots | SOT | Forced % | Top Shot Reason | Saves | Pass % | Tackles | Fouls | Offsides | Corners | Throw-ins | Goal kicks | Free kicks | Pens | Poss A |')
+  lines.push('|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|')
   for (const row of report.results) {
     const passAttempts = row.passesA + row.passesB
     const passPct = round(((row.passCompA + row.passCompB) / Math.max(1, passAttempts)) * 100)
-    lines.push(`| ${row.teamA} vs ${row.teamB} | ${row.scoreA}-${row.scoreB} | ${row.shotsA + row.shotsB} | ${row.sogA + row.sogB} | ${row.savesA + row.savesB} | ${passPct} | ${row.tacklesA + row.tacklesB} | ${row.foulsA + row.foulsB} | ${row.offsidesA + row.offsidesB} | ${row.cornersA + row.cornersB} | ${row.throwInsA + row.throwInsB} | ${row.goalKicksA + row.goalKicksB} | ${row.freeKicksA + row.freeKicksB} | ${(row.penaltiesAwardedA || 0) + (row.penaltiesAwardedB || 0)} | ${row.possA} |`)
+    lines.push(`| ${row.teamA} vs ${row.teamB} | ${row.scoreA}-${row.scoreB} | ${row.shotsA + row.shotsB} | ${row.sogA + row.sogB} | ${forcedShotShareForMatch(row)} | ${topShotReason(row)} | ${row.savesA + row.savesB} | ${passPct} | ${row.tacklesA + row.tacklesB} | ${row.foulsA + row.foulsB} | ${row.offsidesA + row.offsidesB} | ${row.cornersA + row.cornersB} | ${row.throwInsA + row.throwInsB} | ${row.goalKicksA + row.goalKicksB} | ${row.freeKicksA + row.freeKicksB} | ${(row.penaltiesAwardedA || 0) + (row.penaltiesAwardedB || 0)} | ${row.possA} |`)
   }
   lines.push('')
   return `${lines.join('\n')}\n`
@@ -392,6 +446,7 @@ function printSummary(report, paths) {
   console.log(`ball speed pass avg/max ${s.avgPassBallSpeedMps}/${s.maxPassBallSpeedMps} m/s | shot avg/max ${s.avgShotBallSpeedMps}/${s.maxShotBallSpeedMps} m/s`)
   console.log(`visual reality violations ${s.visualRealityViolations} | empty landings ${s.emptyFlightLandings} | carrier gaps ${s.ballCarrierGapViolations} | zero-shot matches ${s.zeroShotMatches}`)
   console.log(`invalid goal geometry ${s.invalidGoalGeometry}`)
+  console.log(`shot diagnostics decisions ${s.shotDecisions}/match | forced ${s.forcedShotSharePct}% | high-shot matches ${s.highShotMatches}/${s.games} | guard outliers ${s.guardShotOutliers}/${s.games}`)
   console.log(`Saved JSON: ${paths.jsonPath}`)
   console.log(`Saved Markdown: ${paths.mdPath}`)
 }

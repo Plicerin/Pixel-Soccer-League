@@ -1601,10 +1601,19 @@ test('new architecture emits saves when a keeper gathers a live shot', () => {
   ball.isShot = true;
 
   const result = orchestrator.tick(0.016, 0.016);
-  const save = result.events.find((event) => event.kind === 'save');
+  const saves = result.events.filter((event) => event.kind === 'save');
+  const save = saves[0];
 
+  assert.equal(saves.length, 1, 'clean keeper claim must emit exactly one save event');
   assert.ok(save);
   assert.equal(save.keeperId, 'home-gk');
+
+  const nextResult = orchestrator.tick(0.016, 0.032);
+  assert.equal(
+    nextResult.events.filter((event) => event.kind === 'save').length,
+    0,
+    'shot-clear bookkeeping after a keeper claim must not emit a second save',
+  );
 });
 
 test('new architecture emits tackles when a defender strips the carrier', () => {

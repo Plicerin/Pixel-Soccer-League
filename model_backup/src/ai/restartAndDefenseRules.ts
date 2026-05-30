@@ -9,14 +9,14 @@ export function computeKickoffReceiverSpot(input: {
   attackDirection: 1 | -1;
   receiver: Vec2Like;
   fieldDepth: number;
-  preferredForwardMeters?: number;
+  preferredOwnHalfMeters?: number;
   preferredLateralMeters?: number;
 }): Vec2Like {
   const lateralSeed = Math.sign(input.receiver.z || 1) || 1;
-  const forward = input.preferredForwardMeters ?? 3.2;
+  const ownHalfDepth = input.preferredOwnHalfMeters ?? 3.2;
   const lateral = input.preferredLateralMeters ?? 3.4;
   return {
-    x: input.center.x + input.attackDirection * forward,
+    x: input.center.x - input.attackDirection * ownHalfDepth,
     z: clampValue(lateralSeed * lateral, -input.fieldDepth / 2 + 4.0, input.fieldDepth / 2 - 4.0),
   };
 }
@@ -30,7 +30,8 @@ export function isKickoffPassSafe(input: {
   const maxDistance = input.maxDistance ?? 8.0;
   const dxForward = (input.target.x - input.center.x) * input.attackDirection;
   const dist = Math.hypot(input.target.x - input.center.x, input.target.z - input.center.z);
-  return dxForward >= 1.0 && dist <= maxDistance && Math.abs(input.target.z - input.center.z) >= 1.25;
+  const inKickingTeamOwnHalf = dxForward <= -0.45;
+  return inKickingTeamOwnHalf && dist <= maxDistance && Math.abs(input.target.z - input.center.z) >= 1.25;
 }
 
 export type CoachDefenseSpacingRole =

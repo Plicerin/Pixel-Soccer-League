@@ -109,6 +109,10 @@ function distToOppGoal(player: any, attackSign: 1 | -1, fieldWidth: number): num
   return Math.abs(goalX - (player?.pos?.x ?? 0));
 }
 
+function distXZ(a: any, b: any): number {
+  return Math.hypot(Number(a?.x ?? 0) - Number(b?.x ?? 0), Number(a?.z ?? 0) - Number(b?.z ?? 0));
+}
+
 function getOppLastDefenderAttackX(opponents: any[], attackSign: 1 | -1): number {
   let maxAttackX = -Infinity;
   for (const opp of opponents) {
@@ -213,7 +217,7 @@ function tryWingAttack(inputs: PatternInputs): TeamPatternState | null {
   // Only trigger this pattern if the flank winger has the ball OR is close enough
   // to become the carrier soon (within ~12 units of ball).
   const wingCarrierIsCarrier = wingCarrier === carrier;
-  const wingCarrierNearBall = wingCarrier && wingCarrier.pos.distanceTo(carrier.pos) < 14;
+  const wingCarrierNearBall = wingCarrier && distXZ(wingCarrier.pos, carrier.pos) < 14;
   if (!carrierOnFlank && !wingCarrierIsCarrier && !wingCarrierNearBall) return null;
 
   const roles = new Map<string, PatternRole>();
@@ -269,7 +273,7 @@ function tryCentralCombo(inputs: PatternInputs): TeamPatternState | null {
   if (carrierAttackX < -fieldWidth * 0.08 || carrierAttackX > fieldWidth * 0.48) return null;
   if (carrierAbsZ > fieldDepth * 0.32) return null;
 
-  const pressure = opponents.filter((opp) => opp.pos.distanceTo(carrier.pos) < 6.5).length;
+  const pressure = opponents.filter((opp) => distXZ(opp.pos, carrier.pos) < 6.5).length;
   if (pressure > 6) return null;
 
   const outfield = teammates.filter((tm) => tm !== carrier && !isGK(tm));
@@ -277,18 +281,18 @@ function tryCentralCombo(inputs: PatternInputs): TeamPatternState | null {
     .filter((tm) => ['ST', 'CF', 'CAM', 'CM'].includes(roleLabelOf(tm)))
     .filter((tm) => {
       const progress = attackProgressX(tm, attackSign) - carrierAttackX;
-      const dist = tm.pos.distanceTo(carrier.pos);
+      const dist = distXZ(tm.pos, carrier.pos);
       return progress > -7.0 && progress < 11 && dist >= 2.5 && dist <= 16;
     })
     .sort((a, b) => {
       const score = (tm: any) => {
         const role = roleLabelOf(tm);
         const progress = attackProgressX(tm, attackSign) - carrierAttackX;
-        const separation = opponents.reduce((best, opp) => Math.min(best, opp.pos.distanceTo(tm.pos)), 99);
+        const separation = opponents.reduce((best, opp) => Math.min(best, distXZ(opp.pos, tm.pos)), 99);
         const roleBonus = carrierRole === 'ST' || carrierRole === 'CF'
           ? (role === 'CAM' ? 3.0 : role === 'CM' ? 2.4 : 1.8)
           : (role === 'ST' || role === 'CF' ? 3.8 : role === 'CAM' ? 2.5 : 1.6);
-        const wallDistance = tm.pos.distanceTo(carrier.pos);
+        const wallDistance = distXZ(tm.pos, carrier.pos);
         const wallDistanceFit = 1.5 - Math.abs(wallDistance - 7.0) * 0.14;
         const centralLaneFit = Math.max(0, 6.5 - Math.abs(tm.pos.z)) * 0.10;
         return roleBonus + progress * 0.22 + separation * 0.28 + wallDistanceFit + centralLaneFit - Math.abs(tm.pos.z) * 0.06;
@@ -358,7 +362,7 @@ function tryPatientBuildup(inputs: PatternInputs): TeamPatternState | null {
   // Precondition: ball is in own third or just past midfield, low immediate pressure.
   const distGoal = distToOppGoal(carrier, attackSign, fieldWidth);
   if (distGoal < fieldWidth / 2) return null; // already past midfield — use progression / wing pattern
-  const pressure = opponents.filter((opp) => opp.pos.distanceTo(carrier.pos) < 5).length;
+  const pressure = opponents.filter((opp) => distXZ(opp.pos, carrier.pos) < 5).length;
   if (pressure >= 3) return null; // under pressure, not buildup phase
 
   const roles = new Map<string, PatternRole>();
@@ -527,7 +531,8 @@ export function computePatternRoleTarget(inputs: PatternTargetInputs): PatternTa
       if (!carrier) return null;
       // Offset: opposite z from carrier so team spreads.
       const carrierZ = carrier.pos.z;
-      const offsetZ = carrierZ === 0 ? (player.homePos?.z >= 0 ? 8 : -8) : -Math.sign(carrierZ) * 10;
+      const homeZ = player.homePos?.z ?? 0;
+      const offsetZ = carrierZ === 0 ? (homeZ >= 0 ? 8 : -8) : -Math.sign(carrierZ) * 10;
       const behindX = carrier.pos.x - attackSign * 3;
       return { x: behindX, z: offsetZ, blend: 0.35 };
     }

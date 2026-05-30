@@ -112,7 +112,8 @@ export function selectStructuredAttack(inputs: StructuredAttackInputs): Structur
     || ['LM', 'RM', 'LW', 'RW', 'LB', 'RB', 'LWB', 'RWB'].includes(carrierRole);
   if (!isWideCarrier || carrierAttackX < -fieldWidth * 0.12) return null;
 
-  const carrierSide = (Math.sign(carrier.pos.z || carrier.homePos?.z || 1) || 1) as 1 | -1;
+  const zHint = carrier.pos.z !== 0 ? carrier.pos.z : (carrier.homePos?.z ?? 0);
+  const carrierSide = (Math.sign(zHint) || 1) as 1 | -1;
   const outfield = teammates.filter((tm) => tm !== carrier && !isGoalkeeper(tm));
   const used = new Set<any>([carrier]);
   const roles = new Map<string, StructuredAttackRole>();

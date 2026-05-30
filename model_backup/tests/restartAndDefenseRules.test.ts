@@ -7,7 +7,7 @@ import {
   spaceCoachGoalMouthDefensiveTarget,
 } from '../src/ai/restartAndDefenseRules.ts';
 
-test('V19 kickoff receiver is staged in a short forward lateral lane', () => {
+test('V19 kickoff receiver is staged in the kicking team own half', () => {
   const center = { x: 0, z: 0 };
   const target = computeKickoffReceiverSpot({
     center,
@@ -16,9 +16,23 @@ test('V19 kickoff receiver is staged in a short forward lateral lane', () => {
     fieldDepth: 70,
   });
 
-  assert.ok(target.x > center.x);
+  assert.ok(target.x < center.x);
   assert.ok(Math.abs(target.z) >= 3);
   assert.equal(isKickoffPassSafe({ center, target, attackDirection: 1 }), true);
+});
+
+test('V101 away kickoff receiver is not staged past halfway', () => {
+  const center = { x: 0, z: 0 };
+  const target = computeKickoffReceiverSpot({
+    center,
+    attackDirection: -1,
+    receiver: { x: 18, z: 11 },
+    fieldDepth: 70,
+  });
+
+  assert.ok(target.x > center.x);
+  assert.ok(Math.abs(target.z) >= 3);
+  assert.equal(isKickoffPassSafe({ center, target, attackDirection: -1 }), true);
 });
 
 test('V20 coach defensive cover cannot collapse into the goalmouth', () => {

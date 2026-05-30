@@ -38,7 +38,10 @@ test('BUG-RUNTIME-001 dev and preview wrappers do not leave stale helper servers
     assert.match(source, /const children = new Set\(\);/, `${file} must track child processes for coordinated shutdown`);
     assert.match(source, /function shutdown\(exitCode = 0\)/, `${file} must expose a shared shutdown path`);
     assert.match(source, /for \(const child of children\) child\.kill\('SIGTERM'\);/, `${file} must kill managed children on shutdown`);
-    assert.match(source, /options\.critical[\s\S]*?shutdown\(1\)/, `${file} must fail the wrapper if the critical game server exits`);
+    assert.match(source, /const criticalRestartLimit = Number/, `${file} must bound critical game-server restart attempts`);
+    assert.match(source, /function scheduleCriticalRestart/, `${file} must restart an unexpectedly exited critical game server`);
+    assert.match(source, /spawnManaged\(label, command, args, \{ \.\.\.options, restartCount: nextCount \}\)/, `${file} must respawn the game server child after an unexpected exit`);
+    assert.match(source, /exceeded restart limit/, `${file} must shut down only after bounded restart attempts are exhausted`);
     assert.match(source, /isPortListening\(wsPort\)/, `${file} must check for an existing WebSocket helper before spawning a duplicate`);
     assert.match(source, /WebSocket server already running on port \$\{wsPort\}; reusing it\./, `${file} must reuse an existing WebSocket helper instead of crashing on EADDRINUSE`);
     assert.match(source, /critical: true/, `${file} must mark the game server child as critical`);

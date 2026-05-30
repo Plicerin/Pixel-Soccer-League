@@ -11,6 +11,15 @@ coverage/
 match-results.json
 telemetry-batches.ndjson
 telemetry-snapshots.json
+telemetry-snapshots.ndjson
+telemetry/archive/
+telemetry/*.json
+telemetry/*.md
+telemetry/*.pid
+telemetry/*.png
+telemetry/*.jpg
+telemetry/*.jpeg
+telemetry/visual-captures/
 keeper-experience.ndjson
 shot-events.ndjson
 tmp-rl-train-log.jsonl

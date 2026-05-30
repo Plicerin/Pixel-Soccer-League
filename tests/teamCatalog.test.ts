@@ -19,6 +19,8 @@ import {
   FIFA_WORLD_CUP_2026_GROUPS,
   randomWorldCup2026GroupFixture,
 } from '../src/worldCup2026Schedule.js';
+import { getWorldTeamStartingLineup, STARTING_LINEUP_ROLES } from '../src/worldTeamRosters.js';
+import { MLS_PLAYER_RATINGS } from '../src/mlsRatings.ts';
 
 test('world team catalog contains the requested 48-team field', () => {
   assert.equal(WORLD_CUP_2026_TEAMS.length, 48);
@@ -113,4 +115,26 @@ test('FIFA World Cup 2026 group-stage fixtures use the official qualified team f
   const sampled = randomWorldCup2026GroupFixture(() => 0);
   assert.equal(sampled.homeTeam, 'Mexico');
   assert.equal(sampled.awayTeam, 'South Africa');
+});
+
+test('world teams expose synthetic country-appropriate starting lineups', () => {
+  const mlsNames = new Set(MLS_PLAYER_RATINGS.map((player) => player.name));
+  const canada = getWorldTeamStartingLineup('Canada', '4-3-3');
+  const switzerland = getWorldTeamStartingLineup('Switzerland', '3-4-3');
+
+  assert.equal(canada.length, 11);
+  assert.equal(switzerland.length, 11);
+  assert.deepEqual(canada.map((player) => player.role), STARTING_LINEUP_ROLES['4-3-3']);
+  assert.deepEqual(switzerland.map((player) => player.role), STARTING_LINEUP_ROLES['3-4-3']);
+  assert.equal(new Set(canada.map((player) => player.name)).size, 11);
+  assert.equal(canada.every((player) => player.synthetic), true);
+  assert.equal(canada.some((player) => mlsNames.has(player.name)), false, 'world lineups must not reuse MLS player names');
+  assert.equal(switzerland.some((player) => mlsNames.has(player.name)), false, 'world lineups must not reuse MLS player names');
+
+  for (const team of PLAYABLE_WORLD_TEAM_NAMES) {
+    const lineup = getWorldTeamStartingLineup(team, '4-2-3-1');
+    assert.equal(lineup.length, 11, `${team} must expose 11 starters`);
+    assert.equal(new Set(lineup.map((player) => player.number)).size, 11, `${team} must expose unique shirt numbers`);
+    assert.equal(lineup.every((player) => player.team === team), true, `${team} lineup must keep the selected team name`);
+  }
 });

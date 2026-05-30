@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
+import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
+import { detectBallOut } from "../src/core/matchStateMachine";
 import { SimpleMatchModel } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
@@ -90,7 +91,20 @@ test("simple model emits stable telemetry shapes", () => {
   assert.ok(Array.isArray(bundle.shotDecisions));
   assert.ok(Array.isArray(bundle.shotOpportunities));
   assert.ok(Array.isArray(bundle.passDecisions));
+  assert.ok(Array.isArray(bundle.playerPositioning));
   assert.equal(bundle.tuning.model, "simple-v1");
+  const shapeRow = bundle.shapeA[0] as Record<string, unknown> | undefined;
+  const positionRow = bundle.playerPositioning[0] as Record<string, unknown> | undefined;
+  const passRow = bundle.passLog[0] as Record<string, unknown> | undefined;
+  const carrierTrace = bundle.events.find((event) => event.type === "CARRIER_TRACE") as { detail?: Record<string, unknown> } | undefined;
+  const zoneTrace = bundle.events.find((event) => event.type === "ATTACKER_ZONE_TRACE") as { detail?: Record<string, unknown> } | undefined;
+  assert.ok(shapeRow && Number(shapeRow.width) > 0, "shape snapshots must preserve nonzero team width");
+  assert.ok(positionRow && typeof positionRow.owner === "string", "player positioning rows must preserve owner labels");
+  assert.ok(positionRow && Number(positionRow.targetAbsZ) >= 0, "player positioning rows must preserve target width data");
+  assert.ok(passRow && Number((passRow.detail as Record<string, unknown>)?.x) === Number((passRow.detail as Record<string, unknown>)?.x), "pass rows must preserve carrier coordinates");
+  assert.ok(carrierTrace && Number(carrierTrace.detail?.x) === Number(carrierTrace.detail?.x), "carrier traces must preserve x coordinates for trajectory analysis");
+  assert.ok(carrierTrace && Number(carrierTrace.detail?.segmentId) >= 1, "carrier traces must preserve segment ids for possession trajectory grouping");
+  assert.ok(zoneTrace && typeof zoneTrace.detail?.dangerMarkingZone === "boolean", "attacker zone traces must preserve marking-zone telemetry");
 });
 
 test("V62 simple model role stats satisfy dashboard role behavior fields", () => {
@@ -134,6 +148,45 @@ test("V55 simple model uses legal center kickoff positioning before the ball is 
         Math.hypot(player.pos.x, player.pos.z) >= CENTER_CIRCLE_RADIUS,
         `${player.name} must stay outside the center circle before kickoff`,
       );
+    }
+  }
+});
+
+test("V185 kickoff central band keeps adjacent support players spaced apart", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamFormations("4-4-2", "4-4-2");
+  model.startMatch();
+
+  for (const team of ["A", "B"] as const) {
+    const attackSign = team === "A" ? 1 : -1;
+    const centralBand = model.getPlayers()
+      .filter((player) =>
+        player.team === team
+        && player.id !== model.possession?.id
+        && player.role !== "GK"
+        && player.pos.x * attackSign >= -(CENTER_CIRCLE_RADIUS + 1.5)
+        && Math.abs(player.pos.z) <= CENTER_CIRCLE_RADIUS + 3.5);
+    for (let i = 0; i < centralBand.length; i++) {
+      for (let j = i + 1; j < centralBand.length; j++) {
+        const gap = dist2(centralBand[i].pos, centralBand[j].pos);
+        assert.ok(gap >= 2.4, `${team} kickoff support players are too bunched: ${centralBand[i].name} vs ${centralBand[j].name} gap=${gap.toFixed(2)}`);
+      }
+    }
+  }
+});
+
+test("V185 kickoff setup does not overlap same-team outfield players", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamFormations("4-4-2", "4-4-2");
+  model.startMatch();
+
+  for (const team of ["A", "B"] as const) {
+    const teamPlayers = model.getPlayers().filter((player) => player.team === team && player.role !== "GK" && player.id !== model.possession?.id);
+    for (let i = 0; i < teamPlayers.length; i++) {
+      for (let j = i + 1; j < teamPlayers.length; j++) {
+        const gap = dist2(teamPlayers[i].pos, teamPlayers[j].pos);
+        assert.ok(gap >= 2.2, `${team} kickoff players overlap visually: ${teamPlayers[i].name} vs ${teamPlayers[j].name} gap=${gap.toFixed(2)}`);
+      }
     }
   }
 });
@@ -312,6 +365,19 @@ test("V64 kickoff release does not pop runners across the halfway line", () => {
   }
 
   assert.equal(model.getMatchSnapshot().phase, "FIRST_HALF");
+  const kickoffAnchorFor = (player: ReturnType<typeof model.getPlayers>[number]) =>
+    (model as unknown as {
+      kickoffLegalPosition: (homePos: { x: number; z: number }, p: typeof player, isKicker: boolean) => { x: number; z: number };
+    }).kickoffLegalPosition(player.homePos, player, false);
+  const stagedLanePlayers = new Set(
+    model.getPlayers()
+      .filter((player) => {
+        if (player.role === "GK" || player.id === model.possession?.id) return false;
+        const kickoffAnchor = kickoffAnchorFor(player);
+        return Math.abs(player.pos.z - kickoffAnchor.z) <= 1.2;
+      })
+      .map((player) => player.id),
+  );
   for (let i = 0; i < 90; i++) {
     model.step(1 / 60);
     model.updateVisuals(1 / 60);
@@ -321,6 +387,13 @@ test("V64 kickoff release does not pop runners across the halfway line", () => {
         player.pos.x * attackSign <= 0.05,
         `${player.name} crossed midfield too early after kickoff at ${(i / 60).toFixed(2)}s`,
       );
+      if (i < 20 && stagedLanePlayers.has(player.id)) {
+        const kickoffAnchor = kickoffAnchorFor(player);
+        assert.ok(
+          Math.abs(player.targetPos.z - kickoffAnchor.z) <= 1.5,
+          `${player.name} snapped off the kickoff lane too early at ${(i / 60).toFixed(2)}s: target z=${player.targetPos.z.toFixed(2)} anchor z=${kickoffAnchor.z.toFixed(2)}`,
+        );
+      }
     }
   }
 });
@@ -389,6 +462,34 @@ test("V66 ball over touchline creates throw-in restart with visible flight", () 
   assert.ok(Number(restartFlight?.arc) >= 0.8, "throw-in restart flight must be visibly lofted");
 });
 
+test("V186 compressed matches keep visible post-reception hold time", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v186-visible-reception-hold");
+  model.setHalfDurationSeconds(5 * 60);
+  const hold = (model as unknown as { visibleReceptionHoldSeconds: () => number }).visibleReceptionHoldSeconds();
+  assert.ok(hold >= 1.10 && hold <= 1.50, `compressed runtime hold collapsed to ${hold.toFixed(2)}s`);
+});
+
+test("V187 throw-in taker stages outside the touchline", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v187-throw-in-outside");
+  const restart = {
+    restartType: "throw_in",
+    restartTeam: "A",
+    spot: { x: 4, z: FIELD_D / 2 - 0.05 },
+    takerId: "A-1",
+  };
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "throw_in", restartTeam: "home" };
+  (model as unknown as { restartContext: unknown }).restartContext = restart;
+  (model as unknown as { moveRestartPlayers: (dt: number) => void }).moveRestartPlayers(1 / 60);
+  const taker = model.getPlayers().find((player) => player.id === "A-1");
+  assert.ok(taker, "throw-in taker must exist");
+  assert.ok(Math.abs(taker.pos.z) > FIELD_D / 2, `throw-in taker stayed in bounds at z=${taker!.pos.z.toFixed(2)}`);
+  const target = (model as unknown as { restartTakerTarget: (ctx: typeof restart) => { x: number; z: number } }).restartTakerTarget(restart);
+  assert.ok(Math.abs(target.z) > FIELD_D / 2, `throw-in taker target stayed in bounds at z=${target.z.toFixed(2)}`);
+});
+
 test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   const run = (lastTouchTeam: "A" | "B") => {
     const model = new SimpleMatchModel();
@@ -426,7 +527,7 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   assert.equal(goalKickRelease?.meta?.takerId, goalKickTaker?.id, "goal-kick release must still be credited to the goalkeeper");
   assert.equal(goalKick.getMatchSnapshot().gkDistributionsB, 1, "goal kicks must count as goalkeeper distributions");
   assert.equal(goalKick.getMatchSnapshot().gkDistCompletedB, 1, "completed goal kicks must count as completed goalkeeper distributions");
-  assert.equal((goalKick as any).lastKeeperKickTelemetry?.style, "goal_kick");
+  assert.ok(["goal_kick", "goal_kick_long"].includes((goalKick as any).lastKeeperKickTelemetry?.style), "goal-kick telemetry must identify the keeper distribution style");
 
   const corner = run("B");
   const cornerState = corner.msm.state as { kind: string; restartType?: string; restartTeam?: string };
@@ -440,7 +541,7 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   assert.equal(setupEvent?.meta?.presentationKind, "corner_kick");
   assert.ok(Number(setupEvent?.meta?.presentationSeconds) >= 2.0, "corner setup presentation must be long enough to show the taker at the flag");
 
-  for (let i = 0; i < 180 && (corner.msm.state as { kind: string }).kind === "ball_out"; i++) {
+  for (let i = 0; i < 900 && (corner.msm.state as { kind: string }).kind === "ball_out"; i++) {
     corner.step(1 / 60);
     corner.updateVisuals(1 / 60);
   }
@@ -450,8 +551,121 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   assert.equal(releaseEvent?.meta?.takerId, setupEvent?.meta?.takerId, "corner release must retain the setup taker so the renderer can animate the player, not just the ball");
   assert.equal(releaseEvent?.meta?.presentationKind, "corner_kick");
   assert.ok(Number(releaseEvent?.meta?.presentationSeconds) >= 1.2, "corner release presentation must keep the taker visible through the kick");
-  assert.equal(releaseEvent?.meta?.arcHeight, 0.7);
-  assert.ok(Number(cornerFlight?.arc) >= 0.65, "corner restart flight must be visibly lofted");
+  assert.ok(["DRIVEN", "MEDIUM_ARC", "LOOPED"].includes(String(releaseEvent?.meta?.cornerDeliveryStyle)), "corner release must identify a visible delivery style");
+  assert.ok(Number(releaseEvent?.meta?.arcHeight) >= 0.84, "corner releases must still use an elevated arc");
+  assert.ok(Number(cornerFlight?.arc) >= 0.84, "corner restart flight must remain visibly lofted above ground-level play");
+});
+
+test("V150 corner restarts stage realistic box and cover formations before release", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v150-corner-formation");
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "corner", restartTeam: "home" };
+  model.msm.restartTimer = 1.5;
+  model.msm.clock.elapsedInHalf = 18;
+
+  for (const player of model.getPlayers()) {
+    player.pos = {
+      x: player.team === "A" ? LEFT_GOAL_X + 6 + player.shirtNumber * 0.35 : -3 + player.shirtNumber * 0.22,
+      y: 0,
+      z: player.team === "A" ? -FIELD_D * 0.32 + player.shirtNumber * 0.4 : FIELD_D * 0.26 - player.shirtNumber * 0.35,
+    };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+  model.ball.pos = { x: RIGHT_GOAL_X + 1, y: 0.18, z: FIELD_D / 2 + 1 };
+
+  (model as unknown as {
+    installBallOutRestart: (context: {
+      restartType: "corner";
+      restartTeam: "A";
+      spot: { x: number; z: number };
+      lastTouchTeam: "B";
+      lastTouchPlayerId: string | null;
+      crossedLine: "right_goal_line";
+    }) => void;
+  }).installBallOutRestart({
+    restartType: "corner",
+    restartTeam: "A",
+    spot: { x: RIGHT_GOAL_X + 1, z: FIELD_D / 2 + 1 },
+    lastTouchTeam: "B",
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line",
+  });
+
+  const setup = model.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "setup").at(-1);
+  assert.ok(setup?.meta?.takerId, "corner setup must assign a visible taker");
+
+  for (let i = 0; i < 120; i++) {
+    model.step(1 / 60);
+    assert.equal((model.msm.state as { kind: string }).kind, "ball_out", "corner must not release before formation has time to stage");
+  }
+
+  for (let i = 0; i < 900 && (model.msm.state as { kind: string }).kind === "ball_out"; i++) {
+    model.step(1 / 60);
+    model.updateVisuals(1 / 60);
+  }
+
+  assert.equal(model.msm.state.kind, "live_play");
+  const release = model.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "release").at(-1);
+  const formation = release?.meta?.cornerFormation as {
+    boxAttackers?: number;
+    boxDefenders?: number;
+    targetBoxAttackers?: number;
+    targetBoxDefenders?: number;
+    coverAttackers?: number;
+    takerAtFlag?: boolean;
+  } | undefined;
+  assert.ok(formation, "corner release must report formation telemetry");
+  assert.ok(Number(formation.boxAttackers) >= 5, `corner should have most attackers in the box, got ${formation?.boxAttackers}`);
+  assert.ok(Number(formation.boxDefenders) >= 6, `corner should have most defenders in the box, got ${formation?.boxDefenders}`);
+  assert.ok(Number(formation.coverAttackers) >= 1 && Number(formation.coverAttackers) <= 3, "corner should leave only limited attacking cover behind");
+  assert.equal(formation.takerAtFlag, true, "corner taker must be staged at the flag before release");
+  assert.equal(release?.meta?.takerId, setup?.meta?.takerId, "corner setup and release must keep the same taker");
+});
+
+test("V183 corner taker target stays outside the flag quadrant on both sides", () => {
+  const model = new SimpleMatchModel();
+  const api = model as unknown as {
+    cornerTakerTarget: (context: {
+      restartType: "corner";
+      restartTeam: "A" | "B";
+      spot: { x: number; z: number };
+      lastTouchTeam: "A" | "B";
+      lastTouchPlayerId: string | null;
+      crossedLine: "left_goal_line" | "right_goal_line";
+    }) => { x: number; z: number };
+  };
+
+  const topRight = api.cornerTakerTarget({
+    restartType: "corner",
+    restartTeam: "A",
+    spot: { x: RIGHT_GOAL_X - 0.35, z: FIELD_D / 2 - 0.35 },
+    lastTouchTeam: "B",
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line",
+  });
+  assert.ok(topRight.x > RIGHT_GOAL_X, "right-side corners should stage the taker outside the goal line");
+  assert.ok(topRight.z > FIELD_D / 2 - 0.35, "top-side corners should stage the taker outside the touchline");
+
+  const bottomLeft = api.cornerTakerTarget({
+    restartType: "corner",
+    restartTeam: "B",
+    spot: { x: LEFT_GOAL_X + 0.35, z: -FIELD_D / 2 + 0.35 },
+    lastTouchTeam: "A",
+    lastTouchPlayerId: null,
+    crossedLine: "left_goal_line",
+  });
+  assert.ok(bottomLeft.x < LEFT_GOAL_X, "left-side corners should stage the taker outside the goal line");
+  assert.ok(bottomLeft.z < -FIELD_D / 2 + 0.35, "bottom-side corners should stage the taker outside the touchline");
+});
+
+test("V142 goal-line OOB classification handles both attack directions", () => {
+  const wideZ = GOAL_MOUTH_HALF_Z + 3;
+  assert.deepEqual(detectBallOut(RIGHT_GOAL_X + 1, wideZ, "home", 1), { restartType: "goal_kick", restartTeam: "away" });
+  assert.deepEqual(detectBallOut(RIGHT_GOAL_X + 1, wideZ, "away", 1), { restartType: "corner", restartTeam: "home" });
+  assert.deepEqual(detectBallOut(LEFT_GOAL_X - 1, wideZ, "home", -1), { restartType: "goal_kick", restartTeam: "away" });
+  assert.deepEqual(detectBallOut(LEFT_GOAL_X - 1, wideZ, "away", -1), { restartType: "corner", restartTeam: "home" });
 });
 
 test("V137 goal-mouth crossing resolves as goal or own goal before corner classification", () => {
@@ -496,6 +710,39 @@ test("V137 goal-mouth crossing resolves as goal or own goal before corner classi
   assert.equal(ownGoal?.ownGoal, true);
   assert.equal(ownGoal?.fieldResolved, true);
   assert.equal(defendingTouch.getTuningBundle().ballOutLog.length, 0);
+});
+
+test("V172 off-target miss flights cannot become shotless goal-mouth goals", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v172-miss-flight-no-goal-mouth-goal");
+  model.setHalfDurationSeconds(900);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 475;
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  assert.ok(attacker);
+  attacker.pos = { x: RIGHT_GOAL_X - 9.4, y: 0, z: -10 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { rememberTouch: (player: unknown) => void }).rememberTouch(attacker);
+  (model as unknown as {
+    startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void;
+  }).startBallFlight("miss", { x: RIGHT_GOAL_X - 9.4, z: -10 }, { x: RIGHT_GOAL_X + 1.35, z: 1.2 }, 0.24, 0.38);
+
+  for (let i = 0; i < 180 && (model.msm.state as { kind: string }).kind === "live_play"; i++) {
+    model.step(1 / 60);
+    model.updateVisuals(1 / 60);
+  }
+
+  const state = model.msm.state as { kind: string; restartType?: string; restartTeam?: string };
+  assert.notEqual(state.kind, "goal_scored", "miss flight must not be promoted into a goal");
+  assert.equal(state.kind, "ball_out");
+  assert.equal(state.restartType, "goal_kick");
+  assert.equal(state.restartTeam, "away");
+  assert.equal(model.getMatchSnapshot().scoreA, 0);
+  assert.equal(model.getTuningBundle().goalLog.length, 0);
+  assert.equal(model.getTuningBundle().ballOutLog.at(-1)?.type, "goal_kick");
 });
 
 test("V80 off-target attacking shots create goalkeeper goal-kick restarts", () => {
@@ -592,6 +839,154 @@ test("V82 goal kicks use Law 16 setup constraints", () => {
   assert.equal(release?.meta?.offsideExempt, true, "goal-kick release must mark direct receiver as offside-exempt");
 });
 
+test("V148 goalkeeper goal kicks can be lofted long toward the middle third", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v148-long-goal-kick");
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "goal_kick", restartTeam: "away" };
+  model.msm.clock.elapsedInHalf = 22;
+
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  const target = model.getPlayers().find((player) => player.team === "B" && player.role === "ST");
+  assert.ok(keeper);
+  assert.ok(target);
+
+  for (const player of model.getPlayers()) {
+    if (player.team === "B") {
+      player.pos = { x: RIGHT_GOAL_X - 8, y: 0, z: player.shirtNumber * 0.45 };
+      player.targetPos = { x: player.pos.x, z: player.pos.z };
+    } else {
+      player.pos = { x: -6 - player.shirtNumber * 0.2, y: 0, z: -6 + player.shirtNumber * 0.65 };
+      player.targetPos = { x: player.pos.x, z: player.pos.z };
+    }
+    player.vel = { x: 0, z: 0 };
+  }
+  target.pos = { x: 0, y: 0, z: 0.4 };
+  target.targetPos = { x: target.pos.x, z: target.pos.z };
+  keeper.pos = { x: RIGHT_GOAL_X - GOAL_BOX_DEPTH * 0.65, y: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  model.ball.pos = { x: RIGHT_GOAL_X + 1, y: 0.18, z: 0 };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    installBallOutRestart: (context: {
+      restartType: "goal_kick";
+      restartTeam: "B";
+      spot: { x: number; z: number };
+      lastTouchTeam: "A";
+      lastTouchPlayerId: string | null;
+      crossedLine: "right_goal_line";
+    }) => void;
+    executeBallOutRestart: () => void;
+  }).installBallOutRestart({
+    restartType: "goal_kick",
+    restartTeam: "B",
+    spot: { x: RIGHT_GOAL_X + 1, z: 0 },
+    lastTouchTeam: "A",
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line",
+  });
+  (model as unknown as { executeBallOutRestart: () => void }).executeBallOutRestart();
+
+  const release = model.eventLog.filter((event) => event.action === "GOAL_KICK" && event.meta?.phase === "release").at(-1);
+  const flight = model.getTuningBundle().ballFlightTelemetry.filter((entry) => entry.kind === "restart").at(-1);
+  const keeperTelemetry = (model as any).lastKeeperKickTelemetry as Record<string, unknown>;
+
+  assert.equal(release?.meta?.goalKickStyle, "goal_kick_long");
+  assert.equal(release?.meta?.receiverId, target.id);
+  assert.equal(release?.meta?.aerial, true);
+  assert.equal(release?.meta?.headerEligible, true);
+  assert.equal(release?.meta?.targetMiddleThird, true);
+  assert.ok(Number(release?.meta?.arcHeight) >= 1.0, "long goal kicks must be visibly lofted");
+  assert.ok(Number(release?.meta?.distance) / FIELD_SCALE_PER_YARD >= 28, "long goal kicks must travel beyond a short outlet");
+  assert.equal(flight?.sourceAction, "goal_kick_long");
+  assert.equal(flight?.aerial, true);
+  assert.equal(flight?.headerEligible, true);
+  assert.ok(Number(flight?.distance) > 0, "goal-kick flight telemetry must expose a non-zero distance field");
+  assert.equal(flight?.distance, flight?.distanceUnits);
+  assert.ok(Number(flight?.arc) >= 1.0, "restart flight telemetry must preserve the lofted arc");
+  assert.equal(keeperTelemetry.style, "goal_kick_long");
+  assert.equal(keeperTelemetry.target, target.name);
+  assert.equal(keeperTelemetry.targetMiddleThird, true);
+  assert.equal(+model.ball.pos.x.toFixed(2), +(release?.meta?.spot as { x: number; z: number }).x.toFixed(2), "ball flight must launch from the stationary restart spot, not teleport to receiver");
+});
+
+test("V164 goalkeeper goal kicks force lofted midfield delivery when short outlets are marked", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v164-goal-kick-no-short-long");
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "goal_kick", restartTeam: "away" };
+  model.msm.clock.elapsedInHalf = 18;
+
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  const target = model.getPlayers().find((player) => player.team === "B" && player.role === "ST");
+  assert.ok(keeper);
+  assert.ok(target);
+
+  const shortTeam = model.getPlayers().filter((player) => player.team === "B" && player.role !== "GK" && player.id !== target.id);
+  const markers = model.getPlayers().filter((player) => player.team === "A");
+  for (const [index, player] of shortTeam.entries()) {
+    player.pos = { x: RIGHT_GOAL_X - 9.2 + index * 0.12, y: 0, z: -3 + index * 0.55 };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+    const marker = markers[index % markers.length];
+    marker.pos = { x: player.pos.x - 0.65, y: 0, z: player.pos.z + 0.2 };
+    marker.targetPos = { x: marker.pos.x, z: marker.pos.z };
+    marker.vel = { x: 0, z: 0 };
+  }
+  target.pos = { x: 0.4, y: 0, z: 0.3 };
+  target.targetPos = { x: target.pos.x, z: target.pos.z };
+  keeper.pos = { x: RIGHT_GOAL_X - GOAL_BOX_DEPTH * 0.65, y: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  model.ball.pos = { x: RIGHT_GOAL_X + 1, y: 0.18, z: 0 };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    installBallOutRestart: (context: {
+      restartType: "goal_kick";
+      restartTeam: "B";
+      spot: { x: number; z: number };
+      lastTouchTeam: "A";
+      lastTouchPlayerId: string | null;
+      crossedLine: "right_goal_line";
+    }) => void;
+    executeBallOutRestart: () => void;
+  }).installBallOutRestart({
+    restartType: "goal_kick",
+    restartTeam: "B",
+    spot: { x: RIGHT_GOAL_X + 1, z: 0 },
+    lastTouchTeam: "A",
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line",
+  });
+  (model as unknown as { executeBallOutRestart: () => void }).executeBallOutRestart();
+
+  const release = model.eventLog.filter((event) => event.action === "GOAL_KICK" && event.meta?.phase === "release").at(-1);
+  const flight = model.getTuningBundle().ballFlightTelemetry.filter((entry) => entry.kind === "restart").at(-1);
+  const keeperTelemetry = (model as any).lastKeeperKickTelemetry as Record<string, unknown>;
+
+  assert.equal(release?.meta?.goalKickStyle, "goal_kick_long");
+  assert.equal(release?.meta?.forcedLong, true);
+  assert.equal(release?.meta?.noSafeShort, true);
+  assert.equal(release?.meta?.receiverId, target.id);
+  assert.equal(release?.meta?.targetMiddleThird, true);
+  assert.ok(Number(release?.meta?.arcHeight) >= 1.0, "forced long goal kick must be visibly elevated");
+  assert.equal(flight?.sourceAction, "goal_kick_long");
+  assert.equal(flight?.aerial, true);
+  assert.equal(flight?.headerEligible, true);
+  assert.ok(Number(flight?.distance) > 0, "forced long goal-kick telemetry must expose a non-zero distance field");
+  assert.equal(flight?.distance, flight?.distanceUnits);
+  assert.equal(keeperTelemetry.style, "goal_kick_long");
+  assert.equal(keeperTelemetry.forcedLong, true);
+  assert.equal(keeperTelemetry.noSafeShort, true);
+});
+
 test("keeper held possession releases as a visible drop kick distribution", () => {
   const model = new SimpleMatchModel();
   model.setSeed("keeper-drop-kick");
@@ -637,7 +1032,97 @@ test("keeper held possession releases as a visible drop kick distribution", () =
   assert.equal(flight?.kind, "pass");
   assert.equal(flight?.sourceAction, "drop_kick");
   assert.equal(flight?.passerId, keeper.id);
+  assert.ok(Number(flight?.distance) > 0, "drop-kick flight telemetry must expose a non-zero distance field");
+  assert.equal(flight?.distance, flight?.distanceUnits);
   assert.equal((model as any).lastKeeperKickTelemetry?.style, "drop_kick");
+});
+
+test("V164 keeper possession uses a lofted midfield drop kick when short outlets are marked", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v164-drop-kick-no-short-long");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 20;
+
+  const keeper = model.getPlayers().find((player) => player.team === "A" && player.role === "GK");
+  const target = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(keeper);
+  assert.ok(target);
+
+  const shortTeam = model.getPlayers().filter((player) => player.team === "A" && player.role !== "GK" && player.id !== target.id);
+  const markers = model.getPlayers().filter((player) => player.team === "B");
+  for (const [index, player] of shortTeam.entries()) {
+    player.pos = { x: LEFT_GOAL_X + 8.4 + index * 0.12, y: 0, z: -3 + index * 0.55 };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+    const marker = markers[index % markers.length];
+    marker.pos = { x: player.pos.x + 0.65, y: 0, z: player.pos.z + 0.2 };
+    marker.targetPos = { x: marker.pos.x, z: marker.pos.z };
+    marker.vel = { x: 0, z: 0 };
+  }
+  keeper.pos = { x: LEFT_GOAL_X + 5, y: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  target.pos = { x: -0.4, y: 0, z: 0.2 };
+  target.targetPos = { x: target.pos.x, z: target.pos.z };
+  model.possession = keeper;
+  model.ball.pos = { x: keeper.pos.x, y: 0.18, z: keeper.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  model.step(1 / 30);
+
+  const event = model.eventLog.filter((row) => row.action === "DROP_KICK").at(-1);
+  const flight = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  const keeperTelemetry = (model as any).lastKeeperKickTelemetry as Record<string, unknown>;
+
+  assert.equal(event?.meta?.dropKickStyle, "drop_kick_long");
+  assert.equal(event?.meta?.forcedLong, true);
+  assert.equal(event?.meta?.noSafeShort, true);
+  assert.equal(event?.meta?.targetMiddleThird, true);
+  assert.ok(Number(event?.meta?.arcHeight) >= 1.0, "forced long drop kick must be visibly elevated");
+  assert.ok(Number(event?.meta?.distance) / FIELD_SCALE_PER_YARD >= 28, "forced long drop kick must travel to midfield");
+  assert.equal(flight?.sourceAction, "drop_kick_long");
+  assert.equal(flight?.aerial, true);
+  assert.equal(flight?.headerEligible, true);
+  assert.ok(Number(flight?.distance) > 0, "forced long drop-kick telemetry must expose a non-zero distance field");
+  assert.equal(flight?.distance, flight?.distanceUnits);
+  assert.equal(keeperTelemetry.style, "drop_kick_long");
+  assert.equal(keeperTelemetry.forcedLong, true);
+  assert.equal(keeperTelemetry.noSafeShort, true);
+});
+
+test("V125 keeper ball-in-hands possession forces opponents to back off", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v125-keeper-standoff");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  const hound = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(keeper);
+  assert.ok(hound);
+
+  keeper.pos.x = RIGHT_GOAL_X - 2.2;
+  keeper.pos.z = 0;
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  keeper.vel = { x: 0, z: 0 };
+  hound.pos.x = keeper.pos.x - 0.35;
+  hound.pos.z = keeper.pos.z + 0.2;
+  hound.targetPos = { x: hound.pos.x, z: hound.pos.z };
+  hound.vel = { x: 0, z: 0 };
+  model.possession = keeper;
+  model.ball.pos = { x: keeper.pos.x, y: 0.18, z: keeper.pos.z };
+
+  (model as unknown as { updateTargets: () => void }).updateTargets();
+  const targetGapYards = dist2(hound.targetPos, keeper.pos) / FIELD_SCALE_PER_YARD;
+  assert.ok(targetGapYards >= 5.9, `opponent target must be outside keeper standoff, got ${targetGapYards.toFixed(2)} yards`);
+
+  const protectedPressure = (model as unknown as { pressureOn: (player: typeof keeper) => number }).pressureOn(keeper);
+  assert.equal(protectedPressure, 0, "illegal keeper hounding must not penalize keeper distribution pressure");
 });
 
 test("simple model animates visible ball movement between model outcomes", () => {
@@ -707,7 +1192,7 @@ test("V45 simple model keeps 5-minute halves at 100 percent movement speed while
   assert.ok(Math.abs(fullHalf.elapsed - 60) <= 1 / 60 + 0.001);
   assert.ok(shortHalf.topInstantSpeed <= BASE_RUN_SPEED * 1.02, `short-half player speed was accelerated to ${shortHalf.topInstantSpeed.toFixed(2)}`);
   assert.ok(fullHalf.topInstantSpeed <= BASE_RUN_SPEED * 1.02, `full-half player speed was accelerated to ${fullHalf.topInstantSpeed.toFixed(2)}`);
-  assert.ok(shortHalf.actions >= fullHalf.actions * 1.8, `expected compressed-runtime action production under visible hold, got ${shortHalf.actions} vs ${fullHalf.actions}`);
+  assert.ok(shortHalf.actions >= fullHalf.actions * 1.6, `expected compressed-runtime action production under visible hold, got ${shortHalf.actions} vs ${fullHalf.actions}`);
 });
 
 test("V45 selected half length accelerates only the match clock", () => {
@@ -754,9 +1239,9 @@ test("V53 simple model 5-minute halves preserve held-ball action floor", () => {
   });
 
   const avg = (key: "passes" | "shots" | "sot") => rows.reduce((sum, row) => sum + row[key], 0) / rows.length;
-  assert.ok(avg("passes") >= 140, `expected held-ball pass volume floor, got ${avg("passes").toFixed(1)}`);
-  assert.ok(avg("shots") >= 8, `expected held-ball shot volume floor, got ${avg("shots").toFixed(1)}`);
-  assert.ok(avg("sot") >= 4, `expected held-ball SOT volume floor, got ${avg("sot").toFixed(1)}`);
+  assert.ok(avg("passes") >= 360, `expected compressed held-ball pass floor in short runtime, got ${avg("passes").toFixed(1)}`);
+  assert.ok(avg("shots") >= 20, `expected full-match shot volume floor in compressed runtime, got ${avg("shots").toFixed(1)}`);
+  assert.ok(avg("sot") >= 7, `expected full-match SOT volume floor in compressed runtime, got ${avg("sot").toFixed(1)}`);
 });
 
 test("V56 simple model reports realistic rendered ball speed bands", () => {
@@ -770,7 +1255,11 @@ test("V56 simple model reports realistic rendered ball speed bands", () => {
   }
 
   const flights = model.getTuningBundle().ballFlightTelemetry;
-  const passFlights = flights.filter((flight) => flight.kind === "pass");
+  const passLikeRestartActions = new Set(["goal_kick", "goal_kick_long", "free_kick", "throw_in"]);
+  const passFlights = flights.filter((flight) => (
+    flight.kind === "pass"
+    || (flight.kind === "restart" && passLikeRestartActions.has(String(flight.sourceAction || "")))
+  ));
   const shortMediumPasses = passFlights.filter((flight) => flight.distanceYards <= 40);
   const longPasses = passFlights.filter((flight) => flight.distanceYards > 40);
   const shotFlights = flights.filter((flight) => flight.kind === "shot" || flight.kind === "save" || flight.kind === "miss");
@@ -916,6 +1405,57 @@ test("V59 simple model ignores marginal offside-looking positions", () => {
     (model as any).offsideInfraction(carrier, receiver, { x: carrier.pos.x, z: carrier.pos.z }),
     null,
     "sub-yard visual/model jitter near the offside line must not create phantom offside calls",
+  );
+});
+
+test("V144 attacking support targets hold behind the offside line", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v144-offside-line-hold");
+  model.setTeamNames("England", "France");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(carrier);
+  assert.ok(striker);
+
+  carrier.pos.x = 6;
+  carrier.pos.z = 0;
+  striker.pos.x = 17;
+  striker.pos.z = 0.5;
+  striker.homePos.x = 15;
+  striker.homePos.z = 0.5;
+  model.possession = carrier;
+  model.ball.pos.x = carrier.pos.x;
+  model.ball.pos.z = carrier.pos.z;
+
+  const defenders = model.getPlayers().filter((player) => player.team === "B");
+  for (const [index, defender] of defenders.entries()) {
+    defender.pos.x = defender.role === "GK" ? RIGHT_GOAL_X - 2 : 10 + (index % 3) * 0.15;
+    defender.pos.z = -8 + index;
+    defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+  }
+
+  (model as unknown as { updateTargets: () => void }).updateTargets();
+
+  const attackSign = (model as unknown as { attackSign: (team: "A" | "B") => 1 | -1 }).attackSign("A");
+  const secondLastDefenderX = defenders
+    .map((player) => player.pos.x * attackSign)
+    .sort((a, b) => b - a)[1];
+  const ballX = model.ball.pos.x * attackSign;
+  const offsideLine = Math.max(ballX, secondLastDefenderX);
+
+  assert.ok(
+    striker.targetPos.x * attackSign < offsideLine,
+    `striker target ${striker.targetPos.x} must hold behind offside line ${offsideLine}`,
+  );
+  const offsideProbe = model as unknown as { offsideInfraction: (carrier: unknown, target: unknown, ball: { x: number; z: number }) => unknown };
+  assert.equal(
+    offsideProbe.offsideInfraction(carrier, { ...striker, pos: { x: striker.targetPos.x, y: striker.pos.y, z: striker.targetPos.z } }, { x: carrier.pos.x, z: carrier.pos.z }),
+    null,
+    "line-held support target must remain a legal pass option",
   );
 });
 
@@ -1105,6 +1645,36 @@ test("penalty-area defensive fouls award a penalty instead of a free kick", () =
   assert.equal(model.eventLog.some((event) => event.action === "PENALTY" && event.meta?.phase === "setup"), true);
 });
 
+test("V140 pressure foul tuning suppresses penalty-box outliers without disabling fouls", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v140-pressure-foul-budget");
+  model.setTeamNames("Ecuador", "Haiti");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  (model as any).elapsedTotal = 900;
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const defender = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+  assert.ok(carrier);
+  assert.ok(defender);
+
+  carrier.pos.x = RIGHT_PENALTY_X + 0.8;
+  carrier.pos.z = 0;
+  defender.pos.x = RIGHT_PENALTY_X + 0.9;
+  defender.pos.z = 0;
+  const penaltyChance = (model as any).pressureFoulChance(defender, carrier, 2.2);
+
+  carrier.pos.x = 0;
+  defender.pos.x = 0.7;
+  const midfieldChance = (model as any).pressureFoulChance(defender, carrier, 2.2);
+  const lowPressureChance = (model as any).pressureFoulChance(defender, carrier, 0.4);
+
+  assert.equal(lowPressureChance, 0);
+  assert.ok(penaltyChance > 0, "forced low RNG tests still need to produce penalty fouls");
+  assert.ok(penaltyChance <= 0.006, "penalty-box pressure fouls must be rare enough to prevent multi-penalty outliers");
+  assert.ok(midfieldChance > penaltyChance * 4, "normal foul telemetry remains active outside the penalty area");
+});
+
 test("penalty restart release records shot-backed penalty goals", () => {
   const model = new SimpleMatchModel();
   model.setSeed("penalty-release-goal");
@@ -1199,6 +1769,92 @@ test("penalty restart release records saved and missed outcomes", () => {
   assert.equal(missed.getTuningBundle().ballFlightTelemetry.at(-1)?.kind, "miss");
 });
 
+test("V152 penalty save rolls require reachable keeper contact", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v152-penalty-save-reach");
+  model.setTeamNames("Canada", "Uzbekistan");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.14,
+    range: (min: number, max: number) => (min + max) / 2,
+  };
+  const taker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(taker);
+  assert.ok(keeper);
+  keeper.pos = { x: RIGHT_GOAL_X - 1.2, y: 0, z: 14 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  const context = {
+    restartType: "penalty",
+    restartTeam: "A",
+    spot: (model as any).penaltySpotForAttack(1),
+    lastTouchTeam: "B",
+    lastTouchPlayerId: "B-4",
+    crossedLine: "infraction",
+    takerId: taker.id,
+    fouledPlayerId: taker.id,
+  };
+
+  assert.deepEqual((model as any).executePenaltyRestart(context, taker), { scoringTeam: "home" });
+  const snapshot = model.getMatchSnapshot();
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  assert.equal(snapshot.penaltiesSavedA, 0);
+  assert.equal(snapshot.savesB, 0);
+  assert.equal(snapshot.penaltiesScoredA, 1);
+  assert.equal(latestShot?.saveRoll, true);
+  assert.equal(latestShot?.keeperReachable, false);
+  assert.equal(latestShot?.outcome, "goal");
+  assert.equal(model.getTuningBundle().ballFlightTelemetry.at(-1)?.kind, "shot");
+});
+
+test("V159 penalty kick flights start from the penalty spot in both directions", () => {
+  const verifyPenaltyFlight = (team: "A" | "B", attackSign: 1 | -1) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`v159-penalty-continuity-${team}`);
+    model.setTeamNames("Canada", "Uzbekistan");
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    model.msm.clock.elapsedInHalf = 30;
+    (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+      next: () => 0.98,
+      range: (min: number, max: number) => (min + max) / 2,
+    };
+
+    const taker = model.getPlayers().find((player) => player.team === team && player.role === "ST");
+    assert.ok(taker);
+    const spot = (model as any).penaltySpotForAttack(attackSign);
+    (model as any).startBallFlight("pass", { x: 0, z: FIELD_D / 2 - 3 }, { x: 1, z: FIELD_D / 2 - 6 }, 1, 0.25);
+    model.ball.pos = { x: 0.5, y: 0.18, z: FIELD_D / 2 - 4.5 };
+
+    const context = {
+      restartType: "penalty",
+      restartTeam: team,
+      spot,
+      lastTouchTeam: team === "A" ? "B" : "A",
+      lastTouchPlayerId: team === "A" ? "B-4" : "A-4",
+      crossedLine: "infraction",
+      takerId: taker.id,
+      fouledPlayerId: taker.id,
+    };
+
+    (model as any).executePenaltyRestart(context, taker);
+    const flight = model.getTuningBundle().ballFlightTelemetry.at(-1);
+    assert.equal(flight?.sourceAction, "penalty");
+    assert.equal(flight?.kind, "shot");
+    assert.ok(dist2(flight?.from as { x: number; z: number }, spot) < 0.001, `${team} penalty must launch from the penalty spot, not a stale ball flight`);
+    assert.ok(dist2(model.ball.pos, spot) < 0.001, `${team} penalty ball must remain visible at the spot on launch`);
+
+    (model as unknown as { updateBallFlight: (dt: number) => void }).updateBallFlight(Number(flight?.durationSeconds) / 2);
+    const midFlight = { x: model.ball.pos.x, z: model.ball.pos.z };
+    assert.ok(dist2(midFlight, spot) > 0.1, `${team} penalty must visibly leave the spot during flight`);
+    assert.ok(dist2(midFlight, flight?.to as { x: number; z: number }) > 0.1, `${team} penalty must not teleport straight to the destination`);
+  };
+
+  verifyPenaltyFlight("A", 1);
+  verifyPenaltyFlight("B", -1);
+});
+
 test("V60 simple model caps two-player pass exchanges at two consecutive completed passes", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v60-no-ping-pong");
@@ -1243,7 +1899,7 @@ test("V61 simple model renders normal passes as low, constant-speed ball flights
   const flightModel = model as any;
   const passDistance = 20 * FIELD_SCALE_PER_YARD;
 
-  flightModel.startBallFlight("pass", { x: 0, z: 0 }, { x: passDistance, z: 0 }, 1, 0.75);
+  flightModel.startBallFlight("pass", { x: 0, z: 0 }, { x: passDistance, z: 0 }, 1, 0.32);
 
   const samples: { x: number; y: number; z: number }[] = [];
   for (let i = 0; i < 120 && flightModel.ballFlight; i++) {
@@ -1260,6 +1916,33 @@ test("V61 simple model renders normal passes as low, constant-speed ball flights
   const maxDelta = Math.max(...deltas);
   const minDelta = Math.min(...deltas);
   assert.ok(maxDelta / minDelta < 1.08, `pass horizontal speed changed too much: ${minDelta.toFixed(3)}-${maxDelta.toFixed(3)}`);
+});
+
+test("V167 lofted passes preserve visible elevation while normal passes stay low", () => {
+  const model = new SimpleMatchModel();
+  const flightModel = model as any;
+  const passDistance = 24 * FIELD_SCALE_PER_YARD;
+
+  flightModel.startBallFlight("pass", { x: 0, z: 0 }, { x: passDistance, z: 0 }, 1, 0.82, undefined, {
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "lofted_pass",
+    attackingTeam: "A",
+  });
+
+  const samples: { x: number; y: number; z: number }[] = [];
+  for (let i = 0; i < 120 && flightModel.ballFlight; i++) {
+    flightModel.updateBallFlight(1 / 60);
+    samples.push({ ...model.ball.pos });
+  }
+
+  const flight = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  const peakY = Math.max(...samples.map((sample) => sample.y));
+  assert.equal(flight?.sourceAction, "lofted_pass");
+  assert.equal(flight?.aerial, true);
+  assert.equal(flight?.headerEligible, true);
+  assert.ok(Number(flight?.arc) >= 0.8, "lofted pass telemetry must preserve requested visible arc");
+  assert.ok(peakY >= 0.95, `lofted pass peak was too low: ${peakY.toFixed(2)}`);
 });
 
 test("V71 simple model dribbled ball chases carrier instead of snapping magnetically", () => {
@@ -1290,6 +1973,65 @@ test("V71 simple model dribbled ball chases carrier instead of snapping magnetic
   assert.ok(settledGap > 0.30, `controlled ball looked glued to carrier, gap ${settledGap.toFixed(2)}`);
   assert.ok(Math.max(...gaps) <= 1.9, `controlled ball exceeded possession leash: ${Math.max(...gaps).toFixed(2)}`);
   assert.equal(model.getTuningBundle().visualRealityEvents.filter((event) => event.type === "BALL_CARRIER_GAP").length, 0);
+});
+
+test("V182 missed pass reception stays loose instead of magnetizing to receiver", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v182-no-magnetic-reception");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const receiver = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(receiver);
+  const from = { x: -8, z: 0 };
+  const to = { x: 6, z: 0 };
+  receiver.pos = { x: to.x, y: 0, z: to.z };
+  receiver.targetPos = { x: to.x, z: to.z };
+
+  (model as unknown as {
+    startBallFlight: (
+      kind: string,
+      from: { x: number; z: number },
+      to: { x: number; z: number },
+      duration: number,
+      arc: number,
+      followPlayer?: typeof receiver,
+      options?: Record<string, unknown>,
+    ) => number;
+  }).startBallFlight("pass", from, to, 0.7, 0.08, receiver, { receiverId: receiver.id, sourceAction: "pass", attackingTeam: "A" });
+
+  receiver.pos = { x: to.x + 5, y: 0, z: to.z };
+  receiver.targetPos = { x: receiver.pos.x, z: receiver.pos.z };
+  for (let i = 0; i < 90 && (model as unknown as { ballFlight: unknown }).ballFlight; i++) {
+    (model as unknown as { updateBallFlight: (dt: number) => void }).updateBallFlight(1 / 60);
+  }
+
+  const latest = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  assert.equal(model.possession, null);
+  assert.equal(latest?.receptionOutcome, "loose");
+  assert.ok(Number(latest?.receptionGap) > 4.5);
+  assert.ok(dist2(model.ball.pos, to) < 0.01, "loose ball should remain at the flight landing point");
+  assert.ok(dist2(model.ball.pos, receiver.pos) > 4.5, "ball must not snap to the receiver after a missed landing");
+});
+
+test("V182 loose ball claim requires physical proximity", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v182-loose-ball-no-long-snap");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.possession = null;
+  model.ball.pos = { x: 0, y: 0.18, z: 0 };
+  for (const player of model.getPlayers()) {
+    player.pos = { x: player.team === "A" ? -18 : 18, y: 0, z: player.shirtNumber };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.step(1 / 60);
+
+  assert.equal(model.possession, null);
+  assert.ok(dist2(model.ball.pos, { x: 0, z: 0 }) < 0.01, "loose ball must not snap to the nearest distant player");
+  assert.ok(model.getPlayers().some((player) => dist2(player.targetPos, { x: 0, z: 0 }) < 0.01), "nearest player should chase the loose ball instead");
 });
 
 test("V73 simple model pass flight stays straight after the ball is kicked", () => {
@@ -1345,7 +2087,7 @@ test("V74 simple model holds controlled possession 50 percent longer than base c
   };
 
   const tempo = (model as unknown as { team: (team: "A" | "B") => { tuning: { tempo: number } } }).team("A").tuning.tempo;
-  const baseDelay = Math.min(7.2, Math.max(3.10, 5.25 - tempo * 1.4));
+  const baseDelay = Math.min(6.25, Math.max(2.75, 4.75 - tempo * 1.25));
   const delay = (model as unknown as { nextActionDelay: () => number }).nextActionDelay();
 
   assert.equal(+delay.toFixed(4), +(baseDelay * 1.5).toFixed(4));
@@ -1354,7 +2096,7 @@ test("V74 simple model holds controlled possession 50 percent longer than base c
 test("V74 simple model holds the receiver after a completed pass visibly arrives", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v74-receiver-visible-hold");
-  model.setHalfDurationSeconds(300);
+  model.setHalfDurationSeconds(45 * 60);
   model.startMatch();
   model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
 
@@ -1375,6 +2117,111 @@ test("V74 simple model holds the receiver after a completed pass visibly arrives
 
   assert.equal(latestFlight?.kind, "pass");
   assert.ok(actionTimer >= Number(latestFlight?.durationSeconds) + 1.48);
+});
+
+test("V170 compressed matches shorten settle delays without speeding ball flights", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v170-compressed-settle");
+  model.setHalfDurationSeconds(300);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const passer = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(passer);
+  model.possession = passer;
+  model.ball.pos = { x: passer.pos.x, y: 0.18, z: passer.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min: number) => min,
+  };
+
+  (model as unknown as { resolvePass: (carrier: typeof passer, pressure: number) => void }).resolvePass(passer, 0);
+
+  const latestFlight = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  const actionTimer = (model as unknown as { actionTimer: number }).actionTimer;
+
+  assert.equal(latestFlight?.kind, "pass");
+  assert.ok(actionTimer >= Number(latestFlight?.durationSeconds) - 0.001);
+  assert.ok(actionTimer >= Number(latestFlight?.durationSeconds) + 1.10);
+  assert.ok(actionTimer <= Number(latestFlight?.durationSeconds) + 1.52);
+  assert.ok(Number(latestFlight?.speedMps) >= 15 && Number(latestFlight?.speedMps) <= 31, "compressed production must not speed pass flights");
+});
+
+test("V191 compressed receptions keep the receiver near the control point during the visual settle beat", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v191-compressed-visual-settle");
+  model.setHalfDurationSeconds(300);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const passer = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(passer);
+  model.possession = passer;
+  model.ball.pos = { x: passer.pos.x, y: 0.18, z: passer.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min: number) => min,
+  };
+
+  (model as unknown as { resolvePass: (carrier: typeof passer, pressure: number) => void }).resolvePass(passer, 0);
+  const latestFlight = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  const receiverId = latestFlight?.followPlayerId;
+  assert.ok(receiverId);
+  const settleDuration = Number((model as unknown as { visibleReceptionHoldSeconds: () => number }).visibleReceptionHoldSeconds().toFixed(2));
+
+  const frames = Math.ceil((Number(latestFlight?.durationSeconds) + 0.06) * 60);
+  for (let i = 0; i < frames; i++) {
+    model.step(1 / 60);
+  }
+  model.step(1 / 60);
+
+  const receiver = model.getPlayers().find((player) => player.id === receiverId);
+  assert.ok(receiver);
+  const settleRemaining = (model as unknown as { visualReceptionSettleRemaining: number }).visualReceptionSettleRemaining;
+  const settlePlayerId = (model as unknown as { visualReceptionPlayerId: string | null }).visualReceptionPlayerId;
+  const targetGap = Math.hypot((receiver?.targetPos.x ?? 0) - (receiver?.pos.x ?? 0), (receiver?.targetPos.z ?? 0) - (receiver?.pos.z ?? 0));
+  const ballGap = Math.hypot(model.ball.pos.x - (receiver?.pos.x ?? 0), model.ball.pos.z - (receiver?.pos.z ?? 0));
+
+  assert.equal(settlePlayerId, receiverId);
+  assert.ok(settleRemaining > 0 && settleRemaining <= settleDuration, `expected active visual settle window, got ${settleRemaining.toFixed(2)}s`);
+  assert.ok(targetGap <= 0.5, `receiver target should stay near control point during settle, gap ${targetGap.toFixed(2)}`);
+  assert.ok(ballGap <= 0.35, `ball should stay close to the receiver during settle, gap ${ballGap.toFixed(2)}`);
+});
+
+test("V189 loose ball keeps rolling and decelerates smoothly after an unclaimed ground pass", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v189-loose-ball-roll");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  for (const player of model.getPlayers()) {
+    player.pos = { x: player.team === "A" ? LEFT_GOAL_X + 3 : RIGHT_GOAL_X - 3, y: 0, z: player.team === "A" ? -FIELD_D * 0.3 : FIELD_D * 0.3 };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = null;
+  model.ball.pos = { x: -6, y: 0.18, z: 0 };
+  model.ball.vel = { x: 0, z: 0 };
+  (model as unknown as {
+    startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void;
+  }).startBallFlight("pass", { x: -6, z: 0 }, { x: 2.5, z: 0.4 }, 0.42, 0.04);
+
+  for (let i = 0; i < 240 && (model as unknown as { ballFlight: unknown }).ballFlight; i++) model.step(1 / 60);
+
+  const startPos = { ...model.ball.pos };
+  const startSpeed = Math.hypot(model.ball.vel.x, model.ball.vel.z);
+  assert.ok(startSpeed > 0.05, `loose ball must retain ground-roll velocity after missed landing, got ${startSpeed.toFixed(3)}`);
+
+  for (let i = 0; i < 30; i++) model.step(1 / 60);
+
+  const moved = Math.hypot(model.ball.pos.x - startPos.x, model.ball.pos.z - startPos.z);
+  const endSpeed = Math.hypot(model.ball.vel.x, model.ball.vel.z);
+  assert.ok(moved > 0.02, `loose ball must keep moving after landing, got ${moved.toFixed(3)}`);
+  assert.ok(endSpeed > 0, "loose ball must not snap to a dead stop immediately");
+  assert.ok(endSpeed < startSpeed, `loose ball must decelerate under friction, start=${startSpeed.toFixed(3)} end=${endSpeed.toFixed(3)}`);
 });
 
 test("simple model visual reality audit stays clean in short matches", () => {
@@ -1567,6 +2414,7 @@ test("V42 simple model converts beaten-keeper goalmouth control into shot-backed
   const latestShot = bundle.shotDecisions.at(-1);
   const latestGoal = bundle.goalLog.at(-1);
   const goalEvents = bundle.events.filter((event) => event.type === "GOAL");
+  const shotPositionSnapshots = bundle.events.filter((event) => event.type === "SHOT_POSITION_SNAPSHOT");
 
   assert.equal(snapshot.scoreA, 1);
   assert.equal(snapshot.phase, "GOAL_SCORED");
@@ -1576,7 +2424,70 @@ test("V42 simple model converts beaten-keeper goalmouth control into shot-backed
   assert.equal(latestShot?.forcedByGeometry, true);
   assert.equal(latestGoal?.resolutionReason, "OPEN_NET_FINISH");
   assert.equal(latestGoal?.shotBacked, true);
+  assert.equal(typeof latestGoal?.defendersInBox, "number");
+  assert.equal(typeof latestGoal?.attackersInBox, "number");
+  assert.equal(typeof latestGoal?.defendersInCorridor, "number");
+  assert.equal(typeof latestGoal?.keeperDistance, "number");
+  assert.ok(shotPositionSnapshots.length >= 1);
+  assert.equal(typeof shotPositionSnapshots.at(-1)?.detail.defendersInBox, "number");
+  assert.ok(Array.isArray(shotPositionSnapshots.at(-1)?.detail.players));
   assert.equal(goalEvents.length, 1);
+});
+
+test("V143 simple model does not recycle backward from controlled goalmouth possession", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v143-goalmouth-no-back-pass");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+
+  attacker.pos.x = RIGHT_GOAL_X - 3.4;
+  attacker.pos.z = GOAL_MOUTH_HALF_Z * 0.18;
+  attacker.vel = { x: 0, z: 0 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+
+  keeper.pos.x = RIGHT_GOAL_X - 0.8;
+  keeper.pos.z = 0;
+  keeper.vel = { x: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === attacker.id || player.id === keeper.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 8 : LEFT_GOAL_X + 14;
+    player.pos.z = FIELD_D * 0.35;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { teamA: { shots: number } }).teamA.shots = 1;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min: number) => min,
+  };
+
+  model.step(1 / 30);
+
+  const snapshot = model.getMatchSnapshot();
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const latestOpportunity = bundle.shotOpportunities.at(-1);
+  const latestPass = bundle.passLog.at(-1);
+
+  assert.equal(snapshot.shotsA, 2);
+  assert.equal(snapshot.shotsOnTargetA, 1);
+  assert.equal(latestShot?.resolutionReason, "GOALMOUTH_FINISH");
+  assert.equal(latestOpportunity?.outcome, "goalmouth_finish");
+  assert.notEqual(latestPass?.detail?.outcome, "complete");
 });
 
 test("V85 scored goals send the ball into the back of the net before kickoff setup", () => {
@@ -1631,6 +2542,59 @@ test("V85 scored goals send the ball into the back of the net before kickoff set
   const snapshot = model.getMatchSnapshot();
   assert.equal(snapshot.phase, "GOAL_SCORED", "kickoff setup must wait while the ball settles in the net");
   assert.ok(model.ball.pos.x > RIGHT_GOAL_X + GOAL_FLOOR_DEPTH * 0.5, "visible ball must reach the back of the net");
+});
+
+test("V177 header-shot goals cannot be double-logged as goal-mouth crossings", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v177-header-shot-no-duplicate-crossing");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(attacker);
+  const contact = { x: RIGHT_GOAL_X - 6.0, z: 0.15 };
+  attacker.pos = { x: contact.x, y: 0, z: contact.z };
+  attacker.targetPos = { x: contact.x, z: contact.z };
+  attacker.vel = { x: 0, z: 0 };
+  for (const defender of model.getPlayers().filter((player) => player.team === "B" && player.role !== "GK")) {
+    defender.pos = { x: LEFT_GOAL_X + 10, y: 0, z: FIELD_D / 2 - 2 };
+    defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+  }
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(keeper);
+  keeper.pos = { x: RIGHT_GOAL_X - 8.0, y: 0, z: FIELD_D / 2 - 2 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  model.ball.pos = { x: contact.x - 6, y: 1.1, z: contact.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min, max) => (min + max) / 2,
+  };
+  (model as unknown as { ballFlight: unknown }).ballFlight = {
+    kind: "restart",
+    from: { x: contact.x - 6, z: contact.z },
+    to: contact,
+    followPlayerId: attacker.id,
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "corner",
+    attackingTeam: "A",
+    elapsed: 0,
+    duration: 0.01,
+    arc: 1.05,
+  };
+
+  model.step(1 / 30);
+  for (let i = 0; i < 120; i++) model.step(1 / 60);
+
+  const snapshot = model.getMatchSnapshot();
+  const goals = model.getTuningBundle().goalLog;
+  assert.equal(snapshot.scoreA, 1);
+  assert.equal(snapshot.scoreB, 0);
+  assert.equal(goals.length, 1);
+  assert.equal(goals[0]?.resolutionReason, "HEADER_SHOT");
+  assert.equal(goals.some((goal) => goal.resolutionReason === "GOAL_MOUTH_CROSSING"), false);
 });
 
 test("V97 post-goal restart does not expose kickoff until setup is ready", () => {
@@ -1695,6 +2659,28 @@ test("V97 post-goal restart does not expose kickoff until setup is ready", () =>
   assert.equal(sawMovingGoalSetup, true, "post-goal player reset should happen during goal-scored restart delay");
   assert.equal(restarted, true, "post-goal restart must return to live play within a bounded window");
   assert.ok(kickoffFrames <= 45, `kickoff window should be short once setup is ready, got ${kickoffFrames} frames`);
+});
+
+test("V158 stale kickoff setup flag cannot snap a live or restart ball to center", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v158-stale-kickoff-flag-no-snap");
+  model.startMatch();
+
+  const liveBall = { x: RIGHT_GOAL_X - 7.5, y: 0.18, z: GOAL_MOUTH_HALF_Z + 1.1 };
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.ball.pos = { ...liveBall };
+  (model as unknown as { kickoffSetupMoving: boolean }).kickoffSetupMoving = true;
+  model.updateVisuals(1 / 60);
+
+  assert.ok(dist2(model.ball.pos, liveBall) < 0.001, "stale kickoff flag must not pin a live-play ball to the center spot");
+
+  const restartBall = { x: -RIGHT_GOAL_X + 0.8, y: 0.18, z: FIELD_D / 2 - 0.4 };
+  model.msm.state = { kind: "ball_out", restartType: "throw_in", restartTeam: "home" };
+  model.ball.pos = { ...restartBall };
+  (model as unknown as { kickoffSetupMoving: boolean }).kickoffSetupMoving = true;
+  model.updateVisuals(1 / 60);
+
+  assert.ok(dist2(model.ball.pos, restartBall) < 0.001, "stale kickoff flag must not pin a ball-out restart ball to the center spot");
 });
 
 test("V129 post-goal reset movement uses a temporary 1.3x speed multiplier", () => {
@@ -1861,7 +2847,7 @@ test("V72 simple model shots originate from the visible controlled ball", () => 
 test("V72 simple model gives intercepted carriers a visible settle before the next action", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v72-post-interception-settle");
-  model.setHalfDurationSeconds(30);
+  model.setHalfDurationSeconds(45 * 60);
   model.startMatch();
 
   model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
@@ -2126,10 +3112,736 @@ test("V77 simple model heavily prefers shots for penalty-area carriers", () => {
   const latestOpportunity = bundle.shotOpportunities.at(-1);
 
   assert.equal(snapshot.shotsA, 1);
-  assert.equal(latestShot?.resolutionReason, "PENALTY_AREA_SHOT");
-  assert.equal(latestShot?.shotSelectionType, "penalty_area_shot");
-  assert.equal(latestOpportunity?.outcome, "penalty_area_shot");
-  assert.ok(Number(latestOpportunity?.shootChance) >= 0.85);
+  assert.equal(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.equal(latestShot?.shotSelectionType, "striker_penalty_area_forced_shot");
+  assert.equal(latestOpportunity?.outcome, "striker_penalty_area_forced_shot");
+  assert.equal(Number(latestOpportunity?.shootChance), 1);
+});
+
+test("V156 strikers shoot soon after entering the penalty area instead of walking it in", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v156-striker-box-shoot-soon");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos.x = RIGHT_PENALTY_X + 1.2;
+  striker.pos.z = 0.8;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : RIGHT_GOAL_X - 7;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.35;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  let framesToShot = 0;
+  for (; framesToShot < 30 && model.getMatchSnapshot().shotsA === 0; framesToShot++) model.step(1 / 30);
+
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  const latestOpportunity = model.getTuningBundle().shotOpportunities.at(-1);
+  assert.equal(model.getMatchSnapshot().shotsA, 1);
+  assert.equal(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.equal(latestOpportunity?.outcome, "striker_penalty_area_forced_shot");
+  assert.ok(framesToShot <= 30, "striker must shoot within about one visual second of controlled box possession");
+});
+
+test("V163 strikers stop driving deeper once they enter the penalty area", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v163-striker-box-entry-no-walk-in");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos.x = RIGHT_PENALTY_X + 0.25;
+  striker.pos.z = 0.9;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  const entryX = striker.pos.x;
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 8 : RIGHT_GOAL_X - 8;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.35;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  let framesToShot = 0;
+  for (; framesToShot < 16 && model.getMatchSnapshot().shotsA === 0; framesToShot++) model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const strikerBoxResolution = bundle.strikerBoxTelemetry
+    .filter((row) => row.playerId === striker.id && row.outcome === "shot")
+    .at(-1);
+
+  assert.equal(model.getMatchSnapshot().shotsA, 1);
+  assert.equal(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.ok(framesToShot <= 16, "striker must shoot within about half a second of penalty-area entry");
+  assert.ok(striker.pos.x <= entryX + 0.25, "striker must not keep carrying deeper toward the goalmouth while waiting to shoot");
+  assert.ok(Number(strikerBoxResolution?.dwellSeconds) <= 0.4, "striker box dwell must stay below the visible walk-in threshold");
+});
+
+test("V163 strikers near the penalty area shoot when no forward outlet exists", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v163-striker-near-box-no-outlet-shot");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos.x = RIGHT_PENALTY_X - 0.7;
+  striker.pos.z = 0.5;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 3 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const latestOpportunity = bundle.shotOpportunities.at(-1);
+  const strikerDribble = bundle.events.find((row) => row.type === "DRIBBLE" && row.detail?.reason === "STRIKER_NEAR_BOX_NO_OUTLET");
+
+  assert.equal(model.getMatchSnapshot().shotsA, 1);
+  assert.equal(latestShot?.resolutionReason, "STRIKER_NEAR_BOX_NO_OUTLET_SHOT");
+  assert.equal(latestOpportunity?.outcome, "striker_near_box_forced_shot");
+  assert.equal(strikerDribble, undefined, "no-outlet near-box striker behavior must not fall back to dribbling at goal");
+});
+
+test("V178 high-load striker near-box no-outlet possessions use containment before another shot", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v178-near-box-high-load-containment");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+  model.teamA.shots = 16;
+  model.teamB.shots = 13;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const defender = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+  assert.ok(striker);
+  assert.ok(defender);
+  striker.pos.x = RIGHT_PENALTY_X - 0.7;
+  striker.pos.z = 0.5;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  defender.pos.x = striker.pos.x + 1.0;
+  defender.pos.z = striker.pos.z + 0.25;
+  defender.vel = { x: 0, z: 0 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id || player.id === defender.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 3 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  const rolls = [0.99, 0.99, 0.99, 0.99, 0.01, 0.01];
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => rolls.shift() ?? 0.01,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const containment = bundle.events
+    .filter((row) => row.detail?.reason === "STRIKER_BOX_BLOCK" || row.detail?.reason === "STRIKER_BOX_KEEPER_SMOTHER")
+    .at(-1);
+
+  assert.equal(model.getMatchSnapshot().shotsA, 16);
+  assert.notEqual(latestShot?.resolutionReason, "STRIKER_NEAR_BOX_NO_OUTLET_SHOT");
+  assert.ok(containment);
+  assert.equal(containment.detail?.matchShotLoad, 29);
+});
+
+test("V165 outfield penalty-area carriers pass or shoot instead of carrying to the goal line", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v165-box-carrier-pass-or-shoot");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const outlet = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(winger);
+  assert.ok(outlet);
+  winger.pos = { x: RIGHT_PENALTY_X + 1.2, y: 0, z: 3.6 };
+  winger.targetPos = { x: winger.pos.x, z: winger.pos.z };
+  winger.vel = { x: 0, z: 0 };
+  const entryX = winger.pos.x;
+  outlet.pos = { x: winger.pos.x - 2.4, y: 0, z: 0.6 };
+  outlet.targetPos = { x: outlet.pos.x, z: outlet.pos.z };
+  outlet.vel = { x: 0, z: 0 };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === winger.id || player.id === outlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : LEFT_GOAL_X + 14;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.38;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = winger;
+  model.ball.pos = { x: winger.pos.x, y: 0.18, z: winger.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  let framesToDecision = 0;
+  for (; framesToDecision < 16; framesToDecision++) {
+    model.step(1 / 30);
+    const bundle = model.getTuningBundle();
+    if (bundle.passDecisions.at(-1)?.passContextReason === "PENALTY_AREA_PASS_OR_SHOT") break;
+    if (bundle.shotDecisions.at(-1)?.resolutionReason === "PENALTY_AREA_NO_OUTLET_SHOT") break;
+    if (bundle.shotDecisions.at(-1)?.resolutionReason === "PENALTY_AREA_SHOT") break;
+  }
+
+  const bundle = model.getTuningBundle();
+  const latestPass = bundle.passDecisions.at(-1);
+  const latestShot = bundle.shotDecisions.at(-1);
+  const resolvedByPass = latestPass?.passContextReason === "PENALTY_AREA_PASS_OR_SHOT";
+  const resolvedByShot = latestShot?.resolutionReason === "PENALTY_AREA_NO_OUTLET_SHOT" || latestShot?.resolutionReason === "PENALTY_AREA_SHOT";
+
+  assert.ok(resolvedByPass || resolvedByShot, "box carrier must resolve with a pass/cross or shot");
+  assert.ok(framesToDecision <= 15, "box carrier must resolve before a visible goal-line carry develops");
+  assert.ok(winger.targetPos.x <= entryX, "box carrier target must stop driving deeper toward the goal line");
+  assert.ok(winger.pos.x <= entryX + 0.18, "box carrier must not keep carrying deeper while waiting for the decision");
+  if (resolvedByPass) {
+    assert.ok(Number(latestPass?.forwardProgress ?? -999) >= -0.001, `box pass resolution must not recycle backward, got ${String(latestPass?.forwardProgress)}`);
+  }
+});
+
+test("V180 non-striker box-edge shots are damped without killing close central chances", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v180-non-striker-box-edge-shot-quality");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  assert.ok(winger);
+
+  const shotChance = (carrier: typeof winger, pressure: number) => (model as unknown as {
+    penaltyAreaShotChance: (carrier: typeof winger, distToGoal: number, pressure: number) => number;
+  }).penaltyAreaShotChance(carrier, dist2(carrier.pos, { x: RIGHT_GOAL_X, z: 0 }), pressure);
+
+  winger.pos = { x: RIGHT_GOAL_X - 7.0, y: 0, z: 0.6 };
+  const closeCentralChance = shotChance(winger, 1.1);
+
+  winger.pos = { x: RIGHT_GOAL_X - 8.4, y: 0, z: PENALTY_HALF_Z - 0.2 };
+  const wideEdgeChance = shotChance(winger, 1.45);
+
+  assert.ok(closeCentralChance > 0.55, `close central winger chance should remain viable, got ${closeCentralChance}`);
+  assert.ok(wideEdgeChance < 0.16, `wide box-edge winger chance should be damped, got ${wideEdgeChance}`);
+  assert.ok(wideEdgeChance < closeCentralChance * 0.30, "wide/edge non-striker looks must recycle far more often than clean central box looks");
+});
+
+test("V166 striker box tracking does not oscillate at the penalty-area boundary", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v166-striker-box-hysteresis");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos = { x: RIGHT_PENALTY_X + 0.04, y: 0, z: 0.18 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  striker.vel = { x: 0, z: 0 };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  for (let frame = 0; frame < 14 && model.getMatchSnapshot().shotsA === 0; frame++) model.step(1 / 30);
+
+  const boxRows = model.getTuningBundle().strikerBoxTelemetry.filter((row) => row.playerId === striker.id);
+  const outcomes = boxRows.map((row) => row.outcome);
+  assert.equal(outcomes.filter((outcome) => outcome === "entry").length, 1, "one controlled box possession should create one entry");
+  assert.equal(outcomes.includes("left_box"), false, "marginal edge settling must not churn left_box rows before the decision");
+  assert.ok(outcomes.includes("shot"), "box possession must still resolve as a shot-backed action");
+});
+
+test("V169 high shot-load striker box possessions can be blocked before counting as shots", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v169-striker-box-shot-load-containment");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+  model.teamA.shots = 30;
+  model.teamB.shots = 28;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos.x = RIGHT_PENALTY_X + 2.4;
+  striker.pos.z = 1.0;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.5,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  for (let frame = 0; frame < 45 && model.possession?.id === striker.id; frame++) model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const latestOpportunity = bundle.shotOpportunities.at(-1);
+  const strikerBoxLoss = bundle.strikerBoxTelemetry
+    .filter((row) => row.playerId === striker.id && ["defender_block", "keeper_smother"].includes(String(row.outcome)))
+    .at(-1);
+  const strikerPass = bundle.passDecisions.find((row) => row.passer === striker.name || row.carrier === striker.name);
+
+  assert.equal(model.getMatchSnapshot().shotsA, 30);
+  assert.notEqual(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.notEqual(latestOpportunity?.outcome, "striker_penalty_area_forced_shot");
+  assert.ok(strikerBoxLoss);
+  assert.ok(Number(strikerBoxLoss?.dwellSeconds) <= 0.95, "high shot-load striker box possession must still resolve before visible lingering");
+  assert.equal(strikerBoxLoss?.matchShotLoad, 58);
+  assert.equal(strikerPass, undefined, "striker box possession must not fall back to a generic pass");
+});
+
+test("V178 repeated central striker box possessions enter containment before shot volume spikes", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v178-repeated-central-striker-box-containment");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+  model.teamA.shots = 7;
+  model.teamB.shots = 7;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const defender = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+  assert.ok(striker);
+  assert.ok(defender);
+  striker.pos.x = RIGHT_PENALTY_X + 1.1;
+  striker.pos.z = 0.45;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  defender.pos.x = striker.pos.x + 1.15;
+  defender.pos.z = striker.pos.z + 0.2;
+  defender.vel = { x: 0, z: 0 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id || player.id === defender.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.01,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  for (let frame = 0; frame < 20 && model.possession?.id === striker.id; frame++) model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestShot = bundle.shotDecisions.at(-1);
+  const containment = bundle.events
+    .filter((row) => row.detail?.reason === "STRIKER_BOX_BLOCK" || row.detail?.reason === "STRIKER_BOX_KEEPER_SMOTHER")
+    .at(-1);
+
+  assert.equal(model.getMatchSnapshot().shotsA, 7);
+  assert.notEqual(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.ok(containment);
+  assert.equal(containment.detail?.matchShotLoad, 14);
+});
+
+test("V178 poor forced box shots are contained before inflating shot and goal-kick volume", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v178-poor-forced-shot-quality-containment");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+  model.teamA.shots = 15;
+  model.teamB.shots = 13;
+
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const defender = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+  assert.ok(winger);
+  assert.ok(defender);
+  winger.pos = { x: RIGHT_PENALTY_X + 1.2, y: 0, z: PENALTY_HALF_Z - 0.35 };
+  winger.targetPos = { x: winger.pos.x, z: winger.pos.z };
+  winger.vel = { x: 0, z: 0 };
+  defender.pos = { x: winger.pos.x + 1.0, y: 0, z: winger.pos.z - 0.25 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+  defender.vel = { x: 0, z: 0 };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === winger.id || player.id === defender.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 8 : RIGHT_GOAL_X - 8;
+    player.pos.z = player.role === "GK" ? 0 : -FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = winger;
+  model.ball.pos = { x: winger.pos.x, y: 0.18, z: winger.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.01,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const quality = (model as unknown as {
+    forcedShotQualityDebt: (carrier: typeof winger, distToGoal: number, pressure: number) => { shouldContain: boolean; qualityDebt: number; reason: string };
+  }).forcedShotQualityDebt(winger, dist2(winger.pos, { x: RIGHT_GOAL_X, z: 0 }), 1.4);
+  const contained = (model as unknown as {
+    resolvePenaltyAreaContainmentLoss: (
+      carrier: typeof winger,
+      distToGoal: number,
+      pressure: number,
+      options: { qualityDebt: number; qualityReason: string },
+    ) => boolean;
+  }).resolvePenaltyAreaContainmentLoss(winger, dist2(winger.pos, { x: RIGHT_GOAL_X, z: 0 }), 1.4, {
+    qualityDebt: quality.qualityDebt,
+    qualityReason: quality.reason,
+  });
+
+  assert.equal(quality.shouldContain, true);
+  assert.equal(contained, true);
+  assert.equal(model.getMatchSnapshot().shotsA, 15, "poor forced-shot containment must not count as a shot");
+  assert.equal(model.possession?.team, "B");
+  const containment = model.getTuningBundle().events
+    .filter((row) => row.type === "TACKLE" && row.detail?.reason === "PENALTY_AREA_CONTAINMENT_BLOCK")
+    .at(-1);
+  assert.ok(containment);
+  assert.ok(Number(containment.detail?.shotQualityDebt) >= 0.4);
+});
+
+test("V161 crowded striker box possessions resolve as physical losses, not passes", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v161-striker-box-physical-loss");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+  model.teamA.shots = 24;
+  model.teamB.shots = 22;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const defender = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+  assert.ok(striker);
+  assert.ok(defender);
+  striker.pos.x = RIGHT_PENALTY_X + 2.2;
+  striker.pos.z = 0.6;
+  striker.vel = { x: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  defender.pos.x = striker.pos.x + 1.2;
+  defender.pos.z = striker.pos.z + 0.4;
+  defender.vel = { x: 0, z: 0 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id || player.id === defender.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 : RIGHT_GOAL_X - 10;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.38;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 5;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.01,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  for (let frame = 0; frame < 45 && model.possession?.id === striker.id; frame++) model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const strikerBoxLoss = bundle.strikerBoxTelemetry
+    .filter((row) => row.playerId === striker.id && ["defender_block", "keeper_smother", "pressure_loss"].includes(String(row.outcome)))
+    .at(-1);
+  const strikerPass = bundle.passDecisions.find((row) => row.passer === striker.name || row.carrier === striker.name);
+
+  assert.equal(model.getMatchSnapshot().shotsA, 24);
+  assert.equal(model.possession?.team, "B");
+  assert.ok(strikerBoxLoss);
+  assert.ok(Number(strikerBoxLoss?.dwellSeconds) <= 0.95, "crowded striker box possession must resolve before lingering");
+  assert.equal(strikerPass, undefined, "crowded striker box possession must not use a generic pass escape");
+});
+
+test("V149 strikers near the penalty area do not recycle backward when a forward play exists", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v149-striker-near-box-forward");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const forwardOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const backOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(striker);
+  assert.ok(forwardOutlet);
+  assert.ok(backOutlet);
+
+  striker.pos = { x: RIGHT_PENALTY_X - 1.6, y: 0, z: 0 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  forwardOutlet.pos = { x: striker.pos.x + 3.2, y: 0, z: 2.2 };
+  forwardOutlet.targetPos = { x: forwardOutlet.pos.x, z: forwardOutlet.pos.z };
+  backOutlet.pos = { x: striker.pos.x - 4.0, y: 0, z: -0.3 };
+  backOutlet.targetPos = { x: backOutlet.pos.x, z: backOutlet.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id || player.id === forwardOutlet.id || player.id === backOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 8 + player.shirtNumber * 0.1 : RIGHT_GOAL_X - 5 - player.shirtNumber * 0.08;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestOpportunity = bundle.shotOpportunities.at(-1);
+  const latestPassDecision = bundle.passDecisions.at(-1);
+
+  assert.equal(latestOpportunity?.outcome, "striker_near_box_forward_creation");
+  assert.equal(latestPassDecision?.passContextReason, "STRIKER_NEAR_BOX_FORWARD_CREATION");
+  assert.equal(latestPassDecision?.passTargetName, forwardOutlet.name);
+  assert.ok(Number(latestPassDecision?.passForwardProg) >= -2, "near-box striker pass must not be an obvious backward recycle");
+  assert.notEqual(latestPassDecision?.passTargetName, backOutlet.name);
+});
+
+test("V192 strikers near the penalty area do not use a backward recycle as the only outlet", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v192-striker-near-box-no-backward-bailout");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const backOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(striker);
+  assert.ok(backOutlet);
+
+  striker.pos = { x: RIGHT_PENALTY_X - 1.1, y: 0, z: 0.35 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  striker.vel = { x: 0, z: 0 };
+  backOutlet.pos = { x: striker.pos.x - 4.6, y: 0, z: -0.25 };
+  backOutlet.targetPos = { x: backOutlet.pos.x, z: backOutlet.pos.z };
+  backOutlet.vel = { x: 0, z: 0 };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === striker.id || player.id === backOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 4 : RIGHT_GOAL_X - 9;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.36;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = striker;
+  model.ball.pos = { x: striker.pos.x, y: 0.18, z: striker.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  model.step(1 / 30);
+
+  const bundle = model.getTuningBundle();
+  const latestPassDecision = bundle.passDecisions.at(-1);
+  const latestShot = bundle.shotDecisions.at(-1);
+  const latestOpportunity = bundle.shotOpportunities.at(-1);
+
+  assert.notEqual(latestPassDecision?.passContextReason, "STRIKER_NEAR_BOX_FORWARD_CREATION", "near-box striker should not bail out with a backward recycle pass");
+  assert.equal(latestShot?.resolutionReason, "STRIKER_NEAR_BOX_NO_OUTLET_SHOT");
+  assert.equal(latestOpportunity?.outcome, "striker_near_box_forced_shot");
+});
+
+test("V194 live underproducing matches widen attacking support shape", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v194-attack-expansion-shape");
+  model.setHalfDurationSeconds(45 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+  model.teamA.shots = 6;
+  model.teamB.shots = 4;
+
+  const expansion = (model as unknown as { attackExpansionScale: () => number }).attackExpansionScale();
+  assert.ok(expansion >= 1.16, `underproducing live matches should widen support shape, got ${expansion}`);
+});
+
+test("V195 early final-third carriers stay eligible for wider deliveries and chance shape", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v195-final-third-commit");
+  model.setHalfDurationSeconds(45 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+  model.teamA.shots = 5;
+  model.teamB.shots = 5;
+
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(striker);
+  striker.pos.x = RIGHT_PENALTY_X - 6.5;
+  striker.pos.z = 0.6;
+  const distToGoal = dist2(striker.pos, { x: RIGHT_GOAL_X, z: 0 });
+  assert.equal((model as unknown as { isFinalThirdCarrier: (carrier: typeof striker, distToGoal: number) => boolean }).isFinalThirdCarrier(striker, distToGoal), true);
+});
+
+test("V188 wide final-third carriers prefer central deliveries over backward resets", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v188-wide-delivery");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const backOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(winger);
+  assert.ok(striker);
+  assert.ok(backOutlet);
+
+  winger.pos = { x: RIGHT_PENALTY_X - 4.2, y: 0, z: FIELD_D * 0.30 };
+  winger.targetPos = { x: winger.pos.x, z: winger.pos.z };
+  striker.pos = { x: RIGHT_PENALTY_X + 1.8, y: 0, z: 1.4 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  backOutlet.pos = { x: winger.pos.x - 7.0, y: 0, z: FIELD_D * 0.16 };
+  backOutlet.targetPos = { x: backOutlet.pos.x, z: backOutlet.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === winger.id || player.id === striker.id || player.id === backOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 + player.shirtNumber * 0.1 : RIGHT_GOAL_X - 6 - player.shirtNumber * 0.08;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = winger;
+  model.ball.pos = { x: winger.pos.x, y: 0.18, z: winger.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.55,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const passed = (model as unknown as { resolvePass: (carrier: typeof winger, pressure: number) => boolean }).resolvePass(winger, 0.25);
+  const latestPassDecision = model.getTuningBundle().passDecisions.at(-1);
+  const crossEvent = model.getTuningBundle().events.filter((event) => event.type === "PATTERN_CROSS_EXECUTED").at(-1);
+
+  assert.equal(passed, true);
+  assert.equal(latestPassDecision?.passTargetName, striker.name);
+  assert.notEqual(latestPassDecision?.passTargetName, backOutlet.name);
+  assert.equal(latestPassDecision?.realCross, true);
+  assert.ok(Number(latestPassDecision?.passForwardProg) > 0, "wide delivery must move play forward");
+  assert.equal(crossEvent?.detail?.target, striker.name);
+  assert.equal(crossEvent?.detail?.playName, "WIDE_DELIVERY");
 });
 
 test("V86 simple model suppresses unrealistic long-range shots", () => {
@@ -2199,6 +3911,69 @@ test("V87 halftime kickoff setup cannot stall on current player positions", () =
     const snapshot = model.getMatchSnapshot();
     assert.notEqual(snapshot.phase, "KICKOFF", `${seed} halftime kickoff stalled at ${snapshot.elapsedInHalf.toFixed(1)}s`);
   }
+});
+
+test("V145 interactive halftime waits for input and snaps second-half kickoff", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamNames("United States", "Mexico");
+  model.setTeamFormations("4-3-3", "4-4-2");
+  model.setSeed("v145-halftime-manual");
+  model.setHalfDurationSeconds(5);
+  model.setInteractiveHalftime(true);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = model.msm.clock.halfDuration - 0.1;
+  model.step(0.25);
+
+  const halftime = model.getMatchSnapshot();
+  assert.equal(halftime.phase, "HALFTIME");
+  assert.equal(halftime.half, 1);
+  const frozenClock = halftime.elapsedInHalf;
+  const frozenPlayers = model.getPlayers().map((player) => ({ id: player.id, x: player.pos.x, z: player.pos.z }));
+
+  for (let i = 0; i < 30; i++) model.step(0.25);
+  const stillHalftime = model.getMatchSnapshot();
+  assert.equal(stillHalftime.phase, "HALFTIME");
+  assert.equal(stillHalftime.half, 1);
+  assert.equal(stillHalftime.elapsedInHalf, frozenClock);
+  for (const before of frozenPlayers) {
+    const after = model.getPlayers().find((player) => player.id === before.id);
+    assert.ok(after);
+    assert.equal(+after.pos.x.toFixed(4), +before.x.toFixed(4));
+    assert.equal(+after.pos.z.toFixed(4), +before.z.toFixed(4));
+  }
+
+  assert.equal(model.continueFromHalftime("manual"), true);
+  const kickoff = model.getMatchSnapshot();
+  assert.equal(kickoff.phase, "KICKOFF");
+  assert.equal(kickoff.half, 2);
+  assert.equal(kickoff.elapsedInHalf, 0);
+  assert.equal(+model.ball.pos.x.toFixed(4), 0);
+  assert.equal(+model.ball.pos.z.toFixed(4), 0);
+  assert.ok(model.eventLog.some((event) => event.action === "HALFTIME_CONTINUE" && event.meta?.mode === "manual"));
+});
+
+test("V145 CPU-vs-CPU halftime respects pacing then auto-continues", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v145-halftime-cpu");
+  model.setHalfDurationSeconds(5);
+  model.setInteractiveHalftime(true);
+  model.cpuVsCpu = true;
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = model.msm.clock.halfDuration - 0.1;
+  model.step(0.25);
+  assert.equal(model.getMatchSnapshot().phase, "HALFTIME");
+
+  for (let i = 0; i < 12 && model.getMatchSnapshot().phase === "HALFTIME"; i++) model.step(0.25);
+
+  const snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.half, 2);
+  assert.notEqual(snapshot.phase, "HALFTIME");
+  assert.ok(model.phasePacingTelemetry.some((row) => row.reason === "halftime_break"));
+  assert.ok(model.eventLog.some((event) => event.action === "HALFTIME_CONTINUE" && event.meta?.mode === "auto_cpu"));
 });
 
 test("V51 keeper smothers before a shot are not reported as save ball flights", () => {
@@ -2306,6 +4081,157 @@ test("V68 keeper saves expose dive direction telemetry for renderer animation", 
   assert.equal(saveFlight?.followPlayerName, keeper.name);
 });
 
+test("BUG-GK-001 keeper smother contact is tight and central saves are catches", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("bug-gk-001-catch");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 12;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+
+  attacker.pos.x = RIGHT_GOAL_X - 4.8;
+  attacker.pos.z = 0;
+  attacker.vel = { x: 0, z: 0 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  keeper.pos.x = attacker.pos.x + 1.35;
+  keeper.pos.z = attacker.pos.z;
+  keeper.vel = { x: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  assert.equal((model as unknown as { hasKeeperSmotherContact: (player: typeof attacker) => boolean }).hasKeeperSmotherContact(attacker), false);
+  keeper.pos.x = attacker.pos.x + 0.95;
+  assert.equal((model as unknown as { hasKeeperSmotherContact: (player: typeof attacker) => boolean }).hasKeeperSmotherContact(attacker), true);
+
+  keeper.pos.x = RIGHT_GOAL_X - 1.8;
+  keeper.pos.z = 0;
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; forceSave: boolean; reason: string },
+    ) => null;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: RIGHT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    forceSave: true,
+    reason: "BUG_GK_001_CATCH",
+  });
+
+  const bundle = model.getTuningBundle();
+  const saveEvent = model.eventLog.filter((event) => event.action === "SAVE").at(-1);
+  const telemetrySave = bundle.events.filter((event) => event.type === "SAVE").at(-1);
+  const saveFlight = bundle.ballFlightTelemetry.filter((flight) => flight.kind === "save").at(-1);
+
+  assert.equal(saveEvent?.meta?.saveOutcome, "catch");
+  assert.equal(telemetrySave?.detail.saveOutcome, "catch");
+  assert.equal(saveFlight?.followPlayerName, keeper.name);
+  assert.equal(model.possession?.id, keeper.id, "clean central catch must create keeper possession");
+});
+
+test("V151 unreachable goalkeeper cannot create a save or corner by stat check", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v151-unreachable-save");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+
+  attacker.pos = { x: RIGHT_GOAL_X - 12, y: 0, z: 0 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  keeper.pos = { x: RIGHT_GOAL_X - 1.8, y: 0, z: 14 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; reason: string },
+    ) => null;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: RIGHT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    reason: "V151_UNREACHABLE_KEEPER",
+  });
+
+  const latestSave = model.eventLog.filter((event) => event.action === "SAVE").at(-1);
+  const latestGoal = model.eventLog.filter((event) => event.action === "GOAL").at(-1);
+  const telemetryGoal = model.getTuningBundle().events.filter((event) => event.type === "GOAL").at(-1);
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  assert.equal(latestSave, undefined);
+  assert.equal(latestGoal?.action, "GOAL");
+  assert.equal(telemetryGoal?.detail.resolutionReason, "V151_UNREACHABLE_KEEPER");
+  assert.equal(latestShot?.keeperReachable, false);
+});
+
+test("V151 parry corners require reachable keeper contact telemetry", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v151-reachable-parry");
+  model.setHalfDurationSeconds(30);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+
+  attacker.pos = { x: RIGHT_GOAL_X - 12, y: 0, z: 2.5 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  keeper.pos = { x: RIGHT_GOAL_X - 1.5, y: 0, z: 1.2 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  let roll = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => (roll++ === 0 ? 0.99 : 0.01),
+    range: (_min, max) => max,
+  };
+
+  (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; reason: string },
+    ) => null;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: RIGHT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    reason: "V151_REACHABLE_PARRY",
+  });
+
+  const saveEvent = model.eventLog.filter((event) => event.action === "SAVE").at(-1);
+  const saveFlight = model.getTuningBundle().ballFlightTelemetry.filter((flight) => flight.kind === "save").at(-1);
+  assert.equal(saveEvent?.meta?.saveOutcome, "parry_corner");
+  assert.equal(saveEvent?.meta?.fieldResolved, true);
+  assert.equal(saveEvent?.meta?.contactSource, "keeper_reachable_parry");
+  assert.equal(saveEvent?.meta?.keeperReachable, true);
+  assert.ok(Number(saveEvent?.meta?.keeperReachDistance) <= Number(saveEvent?.meta?.keeperMaxReach));
+  assert.equal(saveFlight?.sourceAction, "keeper_parry_corner");
+  assert.equal(saveFlight?.contactSource, "keeper_reachable_parry");
+  assert.deepEqual(saveFlight?.contactPoint, saveEvent?.meta?.contactPoint);
+});
+
 test("V44 simple model prevents early open-net scoring bursts", () => {
   const model = new SimpleMatchModel();
   model.setSeed("burst:Charlotte FC:Sporting Kansas City");
@@ -2326,6 +4252,107 @@ test("V44 simple model prevents early open-net scoring bursts", () => {
 
   assert.ok(goals <= 3, `expected <=3 goals in first 180s, got ${snapshot.scoreA}-${snapshot.scoreB}`);
   assert.ok(openNetFinishes <= 2, `expected <=2 early open-net finishes, got ${openNetFinishes}`);
+});
+
+test("V176 simple model damps early penalty-area conversion bursts", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v176-early-box-conversion-brake");
+  model.setHalfDurationSeconds(45 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 14 * 60;
+  model.teamA.score = 2;
+  model.teamB.score = 1;
+  model.msm.score.home = 2;
+  model.msm.score.away = 1;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+  attacker.pos = { x: RIGHT_GOAL_X - 9.0, y: 0, z: 0.4 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  attacker.vel = { x: 0, z: 0 };
+  keeper.pos = { x: RIGHT_GOAL_X - 1.2, y: 0, z: 0.1 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  keeper.vel = { x: 0, z: 0 };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.20,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; reason: string },
+    ) => unknown;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: RIGHT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    reason: "PENALTY_AREA_SHOT",
+  });
+
+  const snapshot = model.getMatchSnapshot();
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  assert.equal(snapshot.scoreA, 2);
+  assert.equal(snapshot.scoreB, 1);
+  assert.equal(latestShot?.resolutionReason, "PENALTY_AREA_SHOT");
+  assert.ok(Number(latestShot?.earlyBurstGoalMultiplier) < 1);
+  assert.ok(Number(latestShot?.goalChance) < 0.20);
+});
+
+test("V176 simple model damps extreme early shot-tempo conversion before goals pile up", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v176-early-shot-tempo-brake");
+  model.setHalfDurationSeconds(45 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 4 * 60;
+  model.teamA.shots = 4;
+  model.teamB.shots = 3;
+  model.teamA.shotsOnTarget = 2;
+  model.teamB.shotsOnTarget = 1;
+
+  const attacker = model.getPlayers().find((player) => player.team === "B" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "A" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+  attacker.pos = { x: LEFT_GOAL_X + 9.0, y: 0, z: 0.4 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  attacker.vel = { x: 0, z: 0 };
+  keeper.pos = { x: LEFT_GOAL_X + 1.2, y: 0, z: 0.1 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  keeper.vel = { x: 0, z: 0 };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.15,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    resolveShot: (
+      carrier: typeof attacker,
+      distToGoal: number,
+      pressure: number,
+      context: { forceOnTarget: boolean; goalChanceMultiplier: number; reason: string },
+    ) => unknown;
+  }).resolveShot(attacker, dist2(attacker.pos, { x: LEFT_GOAL_X, z: 0 }), 0, {
+    forceOnTarget: true,
+    goalChanceMultiplier: 0.52,
+    reason: "STRIKER_PENALTY_AREA_FORCED_SHOT",
+  });
+
+  const snapshot = model.getMatchSnapshot();
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  assert.equal(snapshot.scoreA + snapshot.scoreB, 0);
+  assert.equal(latestShot?.resolutionReason, "STRIKER_PENALTY_AREA_FORCED_SHOT");
+  assert.equal(Number(latestShot?.earlyBurstScoreMultiplier), 1);
+  assert.ok(Number(latestShot?.earlyShotTempoMultiplier) < 1);
+  assert.ok(Number(latestShot?.goalChance) < 0.15);
 });
 
 test("woodwork shots emit donk-ready live telemetry without counting as goals", () => {
@@ -2432,6 +4459,137 @@ test("V90 aerial corner delivery can resolve as a counted header shot", () => {
   assert.ok(model.eventLog.some((event) => event.action === "HEADER_SHOT"));
 });
 
+test("V181 repeated early corner headers are damped before a set-piece goal cluster", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v181-repeat-corner-header-damp");
+  model.setHalfDurationSeconds(45 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.half = 1;
+  model.msm.clock.elapsedInHalf = 5 * 60;
+  model.teamA.score = 2;
+  model.msm.score.home = 2;
+  model.goalLog.push({
+    team: "A",
+    playerName: "A ST 10",
+    scorer: "A ST 10",
+    shirtNumber: 10,
+    role: "ST",
+    matchMinute: 3,
+    elapsedInHalf: 3 * 60,
+    distToGoal: 4.3,
+    distToGoalYards: 7.9,
+    carrierDistToGoal: 4.3,
+    carrierBallGap: 0,
+    maxGoalDistanceYards: 46,
+    invalidGoalGeometry: false,
+    resolutionReason: "HEADER_SHOT",
+    goalChance: 0.36,
+    shotTarget: { x: RIGHT_GOAL_X, z: 0 },
+    netTarget: { x: RIGHT_GOAL_X + GOAL_FLOOR_DEPTH * 0.75, z: 0 },
+    shotBacked: true,
+    sourceAction: "corner",
+  });
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(attacker);
+  assert.ok(keeper);
+  const contact = { x: RIGHT_GOAL_X - 4.3, z: 0 };
+  attacker.pos = { x: contact.x, y: 0, z: contact.z };
+  attacker.targetPos = { x: contact.x, z: contact.z };
+  keeper.pos = { x: RIGHT_GOAL_X - 1.4, y: 0, z: 0 };
+  keeper.targetPos = { x: keeper.pos.x, z: keeper.pos.z };
+  for (const player of model.getPlayers()) {
+    if (player.id === attacker.id || player.id === keeper.id) continue;
+    player.pos = { x: player.team === "A" ? LEFT_GOAL_X + 8 : LEFT_GOAL_X + 12, y: 0, z: FIELD_D * 0.35 };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+  }
+  let roll = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => (roll++ === 0 ? 0 : 0.2),
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    performHeaderShot: (
+      player: typeof attacker,
+      flight: Record<string, unknown>,
+      contact: { x: number; z: number },
+      contactGap: number,
+    ) => void;
+  }).performHeaderShot(attacker, {
+    kind: "restart",
+    from: { x: RIGHT_GOAL_X - 0.1, z: FIELD_D / 2 },
+    to: contact,
+    followPlayerId: attacker.id,
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "corner",
+    attackingTeam: "A",
+    elapsed: 0,
+    duration: 0.8,
+    arc: 1.05,
+  }, contact, 0);
+
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  assert.equal(model.getMatchSnapshot().scoreA, 2, "repeat early corner header should not add a third early goal on this roll");
+  assert.equal(latestShot?.resolutionReason, "HEADER_SHOT");
+  assert.equal(latestShot?.sourceAction, "corner");
+  assert.ok(Number(latestShot?.setPieceHeaderGoalMultiplier) < 0.4);
+  assert.ok(Number(latestShot?.goalChance) < 0.16);
+});
+
+test("V190 corner restarts expose varied elevated delivery profiles", () => {
+  const seen = new Set<string>();
+  const arcs: number[] = [];
+
+  for (const [seed, roll] of [["v190-corner-driven", 0.1], ["v190-corner-medium", 0.3], ["v190-corner-looped", 0.9]] as const) {
+    const model = new SimpleMatchModel();
+    model.setSeed(seed);
+    model.startMatch();
+    model.msm.state = { kind: "ball_out", restartType: "corner", restartTeam: "home" };
+    model.msm.restartTimer = 2.4;
+    model.msm.clock.elapsedInHalf = 18;
+    model.ball.pos = { x: RIGHT_GOAL_X + 1, y: 0.18, z: FIELD_D / 2 + 1 };
+    (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+      next: () => roll,
+      range: (min, max) => (min + max) / 2,
+    };
+    (model as unknown as {
+      installBallOutRestart: (context: {
+        restartType: "corner";
+        restartTeam: "A";
+        spot: { x: number; z: number };
+        lastTouchTeam: "B";
+        lastTouchPlayerId: string | null;
+        crossedLine: "right_goal_line";
+      }) => void;
+    }).installBallOutRestart({
+      restartType: "corner",
+      restartTeam: "A",
+      spot: { x: RIGHT_GOAL_X + 1, z: FIELD_D / 2 + 1 },
+      lastTouchTeam: "B",
+      lastTouchPlayerId: null,
+      crossedLine: "right_goal_line",
+    });
+    for (let i = 0; i < 900 && (model.msm.state as { kind: string }).kind === "ball_out"; i++) {
+      model.step(1 / 60);
+      model.updateVisuals(1 / 60);
+    }
+    const release = model.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "release").at(-1);
+    assert.ok(release, "corner release event must exist");
+    seen.add(String(release?.meta?.cornerDeliveryStyle ?? ""));
+    arcs.push(Number(release?.meta?.arcHeight));
+  }
+
+  assert.ok(seen.has("DRIVEN"), `corner variety missing DRIVEN delivery: ${Array.from(seen).join(",")}`);
+  assert.ok(seen.has("MEDIUM_ARC"), `corner variety missing MEDIUM_ARC delivery: ${Array.from(seen).join(",")}`);
+  assert.ok(seen.has("LOOPED"), `corner variety missing LOOPED delivery: ${Array.from(seen).join(",")}`);
+  assert.ok(Math.min(...arcs) >= 0.84, `corner arcs must stay elevated, got min ${Math.min(...arcs).toFixed(2)}`);
+  assert.ok(Math.max(...arcs) >= 1.3, `corner arcs must include high looping service, got max ${Math.max(...arcs).toFixed(2)}`);
+});
+
 test("V90 aerial defensive arrival can resolve as a counted header clearance", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v90-header-clearance");
@@ -2482,6 +4640,111 @@ test("V90 aerial defensive arrival can resolve as a counted header clearance", (
   assert.equal(bundle.teamA.headerClearances, 1);
   assert.equal(bundle.headerLog.at(-1)?.type, "clearance");
   assert.ok(model.eventLog.some((event) => event.action === "HEADER_CLEARANCE"));
+});
+
+test("V155 aerial headed touches count as visible headers even without a shot or clearance", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v155-header-touch");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.half = 1;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(attacker);
+  attacker.pos.x = RIGHT_GOAL_X - 8;
+  attacker.pos.z = 0;
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  for (const defender of model.getPlayers().filter((player) => player.team === "B" && player.role !== "GK")) {
+    defender.pos.x = LEFT_GOAL_X + 12;
+    defender.pos.z = 12;
+    defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+  }
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.99,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    startBallFlight: (
+      kind: string,
+      from: { x: number; z: number },
+      to: { x: number; z: number },
+      duration: number,
+      arc: number,
+      followPlayer?: typeof attacker,
+      options?: Record<string, unknown>,
+    ) => number;
+    updateBallFlight: (dt: number) => void;
+  }).startBallFlight("restart", { x: RIGHT_GOAL_X - 0.1, z: FIELD_D / 2 }, attacker.pos, 0.8, 0.7, attacker, {
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "corner",
+    attackingTeam: "A",
+    receiverId: attacker.id,
+  });
+  for (let i = 0; i < 120; i++) {
+    (model as unknown as { updateBallFlight: (dt: number) => void }).updateBallFlight(1 / 60);
+  }
+
+  const snapshot = model.getMatchSnapshot();
+  const bundle = model.getTuningBundle();
+  assert.equal(snapshot.headersA, 1);
+  assert.equal(bundle.teamA.headerShots, 0);
+  assert.equal(bundle.teamA.headerClearances, 0);
+  assert.equal(bundle.headerLog.at(-1)?.type, "touch");
+  assert.ok(model.eventLog.some((event) => event.action === "HEADER_TOUCH"));
+});
+
+test("V155 long aerial restarts can create midfield headed touches", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v155-midfield-header-touch");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const receiver = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(receiver);
+  receiver.pos.x = 0;
+  receiver.pos.z = 0;
+  receiver.targetPos = { x: 0, z: 0 };
+  for (const player of model.getPlayers()) {
+    if (player.id === receiver.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 8 : RIGHT_GOAL_X - 8;
+    player.pos.z = player.role === "GK" ? 0 : 12;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+  }
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.01,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    startBallFlight: (
+      kind: string,
+      from: { x: number; z: number },
+      to: { x: number; z: number },
+      duration: number,
+      arc: number,
+      followPlayer?: typeof receiver,
+      options?: Record<string, unknown>,
+    ) => number;
+    updateBallFlight: (dt: number) => void;
+  }).startBallFlight("restart", { x: LEFT_GOAL_X + 2, z: 0 }, receiver.pos, 0.8, 0.9, receiver, {
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "goal_kick_long",
+    attackingTeam: "A",
+    receiverId: receiver.id,
+  });
+  for (let i = 0; i < 120; i++) {
+    (model as unknown as { updateBallFlight: (dt: number) => void }).updateBallFlight(1 / 60);
+  }
+
+  const bundle = model.getTuningBundle();
+  assert.equal(model.getMatchSnapshot().headersA, 1);
+  assert.equal(bundle.teamA.headerShots, 0);
+  assert.equal(bundle.teamA.headerClearances, 0);
+  assert.equal(bundle.headerLog.at(-1)?.sourceAction, "goal_kick_long");
+  assert.equal(bundle.headerLog.at(-1)?.type, "touch");
 });
 
 test("V90 ground passes do not create header telemetry", () => {

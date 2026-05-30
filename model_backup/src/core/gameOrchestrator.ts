@@ -248,13 +248,13 @@ export function createGameOrchestrator(
       }));
   }
 
-  function buildRawBall(): RawBallState {
+  function buildRawBall(dt: number): RawBallState {
     return {
       x: ball.pos.x,
       z: ball.pos.z,
       y: ball.pos.y,
-      prevX: ball.pos.x - ball.vel.x * 0.016,
-      prevZ: ball.pos.z - ball.vel.z * 0.016,
+      prevX: ball.pos.x - ball.vel.x * dt,
+      prevZ: ball.pos.z - ball.vel.z * dt,
       velY: ball.vel.y,
       ownerPlayerId: ball.ownerPlayerId,
       ownerTeam: ball.ownerTeam,
@@ -262,14 +262,14 @@ export function createGameOrchestrator(
     };
   }
 
-  function buildBelief(): MatchBelief {
+  function buildBelief(dt: number): MatchBelief {
     const matchMinute = (msm.clock.elapsedInHalf / msm.clock.halfDuration) * 45;
     const scoreDiff = msm.score.home - msm.score.away;
     return buildMatchBelief(
       buildRawPlayers("home"),
       buildRawPlayers("away"),
-      buildRawBall(),
-      0.016,
+      buildRawBall(dt),
+      dt,
       matchMinute,
       scoreDiff,
       homeAttackSign,
@@ -280,6 +280,7 @@ export function createGameOrchestrator(
     p: OrchestratorPlayer,
     belief: MatchBelief,
     blackboard: TacticalBlackboard,
+    dt: number,
   ): PlayerIntent | null {
     const playerBelief = belief.homePlayers.find(bp => bp.id === p.id)
       ?? belief.awayPlayers.find(bp => bp.id === p.id);
@@ -290,7 +291,7 @@ export function createGameOrchestrator(
 
     if (p.isGK) {
       const gkCtrl = ctrl as PlayerControllerState;
-      const result = tickGKController(gkCtrl, playerBelief, belief, blackboard, 0.016);
+      const result = tickGKController(gkCtrl, playerBelief, belief, blackboard, dt);
       if (result) {
         playerControllers.set(p.id, result.newState);
         return result.intent;
@@ -587,7 +588,7 @@ export function createGameOrchestrator(
       pendingBallCommand = null;
     }
 
-    const belief = buildBelief();
+    const belief = buildBelief(dt);
 
     const homePossession = belief.ball.ownerTeam === "home";
     const awayPossession = belief.ball.ownerTeam === "away";
@@ -602,7 +603,7 @@ export function createGameOrchestrator(
 
     for (const p of players) {
       const blackboard = p.team === "home" ? homeTactical.blackboard : awayTactical.blackboard;
-      let intent = tickPlayerAI(p, belief, blackboard);
+      let intent = tickPlayerAI(p, belief, blackboard, dt);
       if (elapsed <= kickoffProtectionUntil) {
         const protectedTarget = kickoffProtectionTargets.get(p.id);
         if (protectedTarget) {
@@ -723,6 +724,7 @@ export function createGameOrchestrator(
       speed: p.speed,
       dribbling: p.ratings.dribbling,
       defending: p.ratings.defending,
+      defensiveAwareness: p.ratings.defensiveAwareness,
       standingTackle: p.ratings.standingTackle,
       reactions: p.ratings.reactions,
       strength: p.ratings.strength,

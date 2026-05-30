@@ -1,8 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Press+Start+2P&family=Roboto+Mono:wght@700&display=swap');
-@import "tailwindcss";
-@source "../src";
-@source not "../telemetry";
-@source not "../dist";
+@import "tailwindcss" source(none);
+@source ".";
+@source "../index.html";
+
+select option,
+select optgroup {
+  color: #ffffff;
+  background: #111111;
+  text-shadow: none;
+}
 
 @theme {
   --font-mono: "Press Start 2P", ui-monospace, SFMono-Regular, monospace;

@@ -155,6 +155,15 @@ export function isSimpleOffsideTarget(
   return (target.pos.x - offsideLine) * attackSign > 0.35;
 }
 
+function getSimpleOffsideRiskBuffer(player: SimpleOffensePlayer) {
+  const role = getRoleLabel(player);
+  if (role === 'ST' || role === 'CF') return 0.0;
+  if (role === 'CAM' || role === 'LM' || role === 'RM') return 0.25;
+  if (role === 'CM' || role === 'DM') return 0.45;
+  if (role === 'CB' || role === 'LB' || role === 'RB') return 0.65;
+  return 0.35;
+}
+
 export function chooseSimplePassTarget(
   carrier: SimpleOffensePlayer,
   teammates: SimpleOffensePlayer[],
@@ -240,7 +249,8 @@ export function chooseSimplePassTarget(
       && laneTraffic < 1.4;
     const offside = isSimpleOffsideTarget(carrier, teammate, opponents, attackSign);
 
-    if (offside && progress > 1.5) continue;
+    const offsideRiskBuffer = getSimpleOffsideRiskBuffer(teammate);
+    if (offside && progress > offsideRiskBuffer) continue;
     if (directLaneBlocker) continue;
 
     const roleBonus =
@@ -316,7 +326,8 @@ export function chooseSimplePassTarget(
         && laneProfile.frontBlockerT > 0.14
         && laneProfile.frontBlockerT < 0.84;
       if (directLaneBlocker) return false;
-      if (isSimpleOffsideTarget(carrier, teammate, opponents, attackSign) && progress > 1.5) return false;
+      const offsideRiskBuffer = getSimpleOffsideRiskBuffer(teammate);
+      if (isSimpleOffsideTarget(carrier, teammate, opponents, attackSign) && progress > offsideRiskBuffer) return false;
       if (progress < -8 && carrierPressure < 5) return false;
       return true;
     })

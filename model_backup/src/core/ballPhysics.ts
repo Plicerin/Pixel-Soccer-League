@@ -94,6 +94,7 @@ export type PlayerContactInfo = {
   speed: number;
   dribbling: number;
   defending?: number;
+  defensiveAwareness?: number;
   standingTackle?: number;
   reactions?: number;
   strength?: number;
@@ -586,9 +587,10 @@ function findCarrierDispossessor(
     if (closingAngle < 0.05 && d > 0.72) continue;
 
     const tackleSkill = (
-      (challenger.defending ?? 60) * 0.42 +
-      (challenger.standingTackle ?? challenger.defending ?? 60) * 0.38 +
-      (challenger.strength ?? 60) * 0.20
+      (challenger.standingTackle ?? challenger.defending ?? 60) * 0.44 +
+      (challenger.defending ?? 60) * 0.30 +
+      (challenger.defensiveAwareness ?? challenger.defending ?? 60) * 0.18 +
+      (challenger.strength ?? 60) * 0.08
     ) / 100;
     const holderControl = (
       holder.dribbling * 0.6 +

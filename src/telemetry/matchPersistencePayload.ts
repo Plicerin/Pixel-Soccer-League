@@ -8,6 +8,10 @@ export function buildMatchResultPayload(input: {
   const snapshot = input.snapshot || {};
   const a = bundle.teamA || {};
   const b = bundle.teamB || {};
+  const visibleHeaderEvents = Array.isArray(bundle.headerAnimationEvents) ? bundle.headerAnimationEvents : [];
+  const visibleHeadersA = visibleHeaderEvents.filter((event: any) => event?.team === 'A').length;
+  const visibleHeadersB = visibleHeaderEvents.filter((event: any) => event?.team === 'B').length;
+  const hasVisibleHeaderAudit = visibleHeaderEvents.length > 0;
   return {
     session_id: snapshot.sessionId || input.fallbackSessionId,
     timestamp: input.timestamp ?? Date.now(),
@@ -23,8 +27,8 @@ export function buildMatchResultPayload(input: {
     shots_on_target_b: b.shotsOnTarget ?? 0,
     saves_a: a.saves ?? 0,
     saves_b: b.saves ?? 0,
-    headers_a: 0,
-    headers_b: 0,
+    headers_a: hasVisibleHeaderAudit ? visibleHeadersA : a.headers ?? snapshot.headersA ?? 0,
+    headers_b: hasVisibleHeaderAudit ? visibleHeadersB : b.headers ?? snapshot.headersB ?? 0,
     possession_a: a.possession ?? 50,
     phase: 'FULL_TIME',
     half: 2,
