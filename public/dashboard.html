@@ -317,68 +317,56 @@ input[type="file"]{display:none}
 
 <script>
 
-// ══════ WEBSOCKET CLIENT FOR LIVE UPDATES ══════
-// WebSocket client for live updates from ws-server.js
+// ══════ OPTIONAL WEBSOCKET CLIENT FOR LIVE UPDATES ══════
+// Default transport is BroadcastChannel. WebSocket is opt-in via ?transport=ws.
 (function() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('transport') !== 'ws') return;
   const WS_URL = `ws://${location.hostname || 'localhost'}:8081`;
   let ws;
   let reconnectTimeout = null;
+  let reconnectDelayMs = 2000;
   function connectWS() {
     ws = new WebSocket(WS_URL);
     ws.onopen = () => {
       console.log('[PSL-Dashboard] WebSocket connected:', WS_URL);
+      reconnectDelayMs = 2000;
       document.getElementById('liveDot').style.display = '';
       document.getElementById('statusText').textContent = 'Live connection established';
     };
     ws.onmessage = (event) => {
-      // Debug: log raw message size and content type
       try {
-        const rawLen = event.data?.length || 0;
-        console.log('[PSL-Debug] WS message received. Size:', rawLen, 'bytes');
-        // Try to parse JSON
         const msg = JSON.parse(event.data);
-        console.log('[PSL-Debug] Parsed message type:', msg.type, 'Keys:', Object.keys(msg));
-        // Optionally log a sample of the payload
-        if (msg.type === 'tuning') {
-          console.log('[PSL-Debug] Tuning bundle keys:', Object.keys(msg.bundle || {}));
-          if (msg.bundle) {
-            console.log('[PSL-Debug] TeamA:', msg.bundle.teamA?.name, 'score:', msg.bundle.teamA?.score, '| TeamB:', msg.bundle.teamB?.name, 'score:', msg.bundle.teamB?.score);
-          }
-        }
-        // Expecting { type: 'tuning', ...payload } or { type: 'event', ... }
         if (msg.type === 'tuning' && shouldAcceptLivePayload(msg)) {
           if (!_historyModeActive) setDFromPayload(msg);
         } else if (msg.type === 'event' && (msg.event || msg.snapshot?.event)) {
-          try {
-            const liveEv = { ...(msg.event || msg.snapshot.event) };
-            if (D && Array.isArray(D.events)) {
-              D.events.push(liveEv);
-            } else if (D) {
-              D.events = [liveEv];
-            } else {
-              D = { events: [liveEv] };
-            }
-            liveEv.minute = liveEv.minute ?? getEventMinute(liveEv, D.metadata);
-            renderEventList();
-            renderTimeline();
-            console.log('[PSL-Dashboard] Live event appended:', liveEv);
-          } catch (err) {
-            console.warn('[PSL-Dashboard] Failed to append live event', err, msg.event);
+          const liveEv = { ...(msg.event || msg.snapshot.event) };
+          if (D && Array.isArray(D.events)) {
+            D.events.push(liveEv);
+          } else if (D) {
+            D.events = [liveEv];
+          } else {
+            D = { events: [liveEv] };
           }
+          liveEv.minute = liveEv.minute ?? getEventMinute(liveEv, D.metadata);
+          renderEventList();
+          renderTimeline();
         }
-      } catch (e) {
-        console.warn('[PSL-Dashboard] WebSocket message error:', e, 'Raw event:', event.data?.slice?.(0, 200));
-      }
+      } catch {}
     };
     ws.onclose = () => {
-      console.warn('[PSL-Dashboard] WebSocket closed. Reconnecting in 2s...');
       document.getElementById('liveDot').style.display = 'none';
-      document.getElementById('statusText').textContent = 'Reconnecting to live server...';
-      if (!reconnectTimeout) reconnectTimeout = setTimeout(connectWS, 2000);
+      document.getElementById('statusText').textContent = 'WebSocket disconnected; retrying...';
+      if (!reconnectTimeout) {
+        reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = null;
+          connectWS();
+        }, reconnectDelayMs);
+        reconnectDelayMs = Math.min(reconnectDelayMs * 2, 15000);
+      }
     };
-    ws.onerror = (err) => {
-      console.error('[PSL-Dashboard] WebSocket error:', err);
-      ws.close();
+    ws.onerror = () => {
+      try { ws.close(); } catch {}
     };
   }
   connectWS();
@@ -444,7 +432,7 @@ function getMatchDurationInfo() {
     halfMinutes: halfSeconds / 60,
     runtimeMinutes,
     matchMinutes: 90,
-    durationFactor: 1,
+    durationFactor: runtimeMinutes / 90,
   };
 }
 
@@ -453,20 +441,23 @@ function fmtRate(value, digits = 1) {
   return n.toFixed(digits);
 }
 
-const FULL_MATCH_EXPECTED_RAW = {
+const RUNTIME_BASE_EXPECTED_RAW = {
   goals: { min: 2.0, max: 4.0, target: 2.8 },
   xg: { min: 2.0, max: 4.0, target: 2.8 },
   shots: { min: 20, max: 35, target: 26 },
   shotsOnTarget: { min: 7, max: 16, target: 9.5 },
-  passes: { min: 450, max: 750, target: 585 },
+  passes: { min: 900, max: 954, target: 927 },
+  completedPasses: { min: 729, max: 756, target: 742.5 },
 };
 
 function expectedRawRange(metric) {
-  const base = FULL_MATCH_EXPECTED_RAW[metric] || { min: 0, max: 0, target: 0 };
+  const duration = getMatchDurationInfo();
+  const factor = Math.max(1 / 90, Number(duration?.durationFactor) || 1);
+  const base = RUNTIME_BASE_EXPECTED_RAW[metric] || { min: 0, max: 0, target: 0 };
   return {
-    min: base.min,
-    max: base.max,
-    target: base.target,
+    min: base.min * factor,
+    max: base.max * factor,
+    target: base.target * factor,
   };
 }
 
@@ -489,6 +480,7 @@ function getRawKpiTotals() {
     shots,
     shotsOnTarget,
     passes,
+    completedPasses: passCompletions,
     saves: Number(a.saves || 0) + Number(b.saves || 0),
     passCompletionPct: passes ? (passCompletions / passes) * 100 : 0,
     shotDecisions: Array.isArray(D.shotDecisions) ? D.shotDecisions.length : 0,
@@ -505,6 +497,7 @@ function getRawKpiRows() {
     buildRawKpiRow('goals', 'Goals', totals.goals),
     buildRawKpiRow('shots', 'Shots', totals.shots, totals.zeroShotFullTime),
     buildRawKpiRow('shotsOnTarget', 'On Target', totals.shotsOnTarget, totals.zeroShotFullTime),
+    buildRawKpiRow('completedPasses', 'Completed Passes', totals.completedPasses),
     buildRawKpiRow('passes', 'Passes', totals.passes),
   ];
 }
@@ -573,15 +566,16 @@ function copySection(key) {
     const transB = (D.transitions||[]).filter(t=>t.team==='B').length;
     text = [
       `MATCH OVERVIEW — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
-      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated match: 90 min`,
-      `Full-match expected raw totals: goals ${fmtExpectedRange('goals')} | shots ${fmtExpectedRange('shots')} | SOT ${fmtExpectedRange('shotsOnTarget')} | passes ${fmtExpectedRange('passes')}`,
+      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated clock: 90 min`,
+      `Runtime-scaled expected raw totals: goals ${fmtExpectedRange('goals')} | shots ${fmtExpectedRange('shots')} | SOT ${fmtExpectedRange('shotsOnTarget')} | passes ${fmtExpectedRange('passes')}`,
       `xG raw: ${xgA} – ${xgB}`,
-      `xG full-match expected raw total: ${fmtExpectedRange('xg')}`,
+      `xG runtime-scaled expected raw total: ${fmtExpectedRange('xg')}`,
       `Possession: ${a.possession??50}% – ${b.possession??50}%`,
       `Shots / SOT raw: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
-      `Shots / SOT full-match expected raw totals: ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`,
+      `Shots / SOT runtime-scaled expected raw totals: ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`,
       `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
-      `Passes full-match expected raw total: ${fmtExpectedRange('passes')}`,
+      `Completed passes runtime-scaled expected raw total: ${fmtExpectedRange('completedPasses')}`,
+      `Passes runtime-scaled expected raw total: ${fmtExpectedRange('passes')}`,
       `Def Actions: ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
       `Transitions: ${transA} \u2013 ${transB}`,
       `Saves: ${a.saves} – ${b.saves}`,
@@ -1162,7 +1156,7 @@ function renderOverview() {
 
   $('overviewStats').innerHTML = [
     statCard('Runtime', `${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min`, `simulates 90 min`),
-    statCard('Full-Match KPI', `G ${fmtExpectedRange('goals')} | Sh ${fmtExpectedRange('shots')}`, `SOT ${fmtExpectedRange('shotsOnTarget')} | P ${fmtExpectedRange('passes')}`),
+    statCard('Runtime KPI', `G ${fmtExpectedRange('goals')} | Sh ${fmtExpectedRange('shots')}`, `SOT ${fmtExpectedRange('shotsOnTarget')} | P ${fmtExpectedRange('passes')}`),
     statCard('xG raw', `${xgA} — ${xgB}`, `expected total ${fmtExpectedRange('xg')}`),
     statCard('Possession', `${a.possession ?? 50}% — ${b.possession ?? 50}%`),
     statCard('Shots / SOT raw', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`, `expected totals ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`),
@@ -1200,7 +1194,7 @@ function renderKpiReport() {
   const productionWatch = rows.some(row => row.status === 'watch');
 
   $('kpiStats').innerHTML = [
-    kpiCard('Baseline Fit', `${score}/100`, 'full-match MLS raw stats', grade),
+    kpiCard('Baseline Fit', `${score}/100`, 'runtime-scaled MLS raw stats', grade),
     kpiCard('Zero-Shot Guard', totals.zeroShotFullTime ? 'FAIL' : 'PASS', totals.zeroShotFullTime ? 'full-time with 0 shots' : 'full-time floor clear', totals.zeroShotFullTime ? 'fail' : 'pass'),
     kpiCard('Production', productionFail ? 'FAIL' : productionWatch ? 'WATCH' : 'PASS', `G/Sh/SOT/P vs 90 min simulation`, productionFail ? 'fail' : productionWatch ? 'watch' : 'pass'),
     kpiCard('Shot Decisions', `${totals.shotDecisions}`, `${totals.shotOpportunities} opportunities`, totals.shotDecisions === 0 && totals.shots === 0 ? 'fail' : 'pass'),
@@ -1228,10 +1222,10 @@ function renderKpiReport() {
     flags.push({ cls: 'bad', text: `${totals.shotOpportunities} shot opportunities produced 0 shot decisions. Check goalmouth smothers, final-third pass choices, and shot urge.` });
   }
   for (const row of rows) {
-    if (row.status === 'fail') flags.push({ cls: 'bad', text: `${row.label} raw total ${fmtRate(row.value)} is outside the full-match MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
-    else if (row.status === 'watch') flags.push({ cls: 'warn', text: `${row.label} raw total ${fmtRate(row.value)} is near the edge of the full-match MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+    if (row.status === 'fail') flags.push({ cls: 'bad', text: `${row.label} raw total ${fmtRate(row.value)} is outside the runtime-scaled MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+    else if (row.status === 'watch') flags.push({ cls: 'warn', text: `${row.label} raw total ${fmtRate(row.value)} is near the edge of the runtime-scaled MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
   }
-  if (!flags.length) flags.push({ cls: 'ok', text: 'Full-match MLS raw KPI checks are currently within guardrails.' });
+  if (!flags.length) flags.push({ cls: 'ok', text: 'Runtime-scaled MLS raw KPI checks are currently within guardrails.' });
   $('kpiFlags').innerHTML = flags.map(flag => `<div class="flag ${flag.cls}"><span>${flag.text}</span></div>`).join('');
 }
 

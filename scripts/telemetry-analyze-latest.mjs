@@ -1793,7 +1793,7 @@ function compareToBaselines(bundle, teamAName, teamBName) {
   const baselineA = baselineMap.get(normalizeTeamName(teamAName).toLowerCase()) || null
   const baselineB = baselineMap.get(normalizeTeamName(teamBName).toLowerCase()) || null
   const duration = getBundleDurationInfo(bundle)
-  const scaleBaseline = (value) => round(Number(value) || 0)
+  const scaleBaseline = (value) => round((Number(value) || 0) * duration.durationFactor)
 
   const global = {
     totalGoals: {
@@ -1863,14 +1863,52 @@ function compareToBaselines(bundle, teamAName, teamBName) {
 }
 
 function getBundleDurationInfo(bundle) {
-  const halfSeconds = Math.max(1, Number(bundle?.metadata?.halfDuration ?? 2700) || 2700)
+  const runtimeHalfSeconds = Number(bundle?.metadata?.runtimeHalfDuration ?? 0)
+  const halfSeconds = Math.max(
+    1,
+    Number.isFinite(runtimeHalfSeconds) && runtimeHalfSeconds > 0
+      ? runtimeHalfSeconds
+      : Number(bundle?.metadata?.halfDuration ?? 2700) || 2700,
+  )
   const matchSeconds = halfSeconds * 2
   return {
     halfSeconds,
     matchSeconds,
     runtimeMinutes: round(matchSeconds / 60, 2),
     matchMinutes: 90,
-    durationFactor: 1,
+    durationFactor: matchSeconds / (90 * 60),
+  }
+}
+
+function getBundleRuntimeProvenance(bundle) {
+  const metadata = bundle?.metadata || {}
+  const persistenceAudit = bundle?.persistenceAudit || {}
+  const engineRuntimeToken = typeof (bundle?.engineRuntimeToken ?? metadata.engineRuntimeToken) === 'string'
+    ? (bundle.engineRuntimeToken ?? metadata.engineRuntimeToken)
+    : null
+  const engineBootedAtRaw = Number(bundle?.engineBootedAt ?? metadata.engineBootedAt)
+  const engineBootedAt = Number.isFinite(engineBootedAtRaw) && engineBootedAtRaw > 0 ? engineBootedAtRaw : null
+  const runtimeHalfDurationRaw = Number(metadata.runtimeHalfDuration)
+  const runtimeHalfDuration = Number.isFinite(runtimeHalfDurationRaw) && runtimeHalfDurationRaw > 0 ? runtimeHalfDurationRaw : null
+  const simulatedHalfDurationRaw = Number(metadata.halfDuration ?? metadata.simulatedHalfDuration)
+  const simulatedHalfDuration = Number.isFinite(simulatedHalfDurationRaw) && simulatedHalfDurationRaw > 0 ? simulatedHalfDurationRaw : null
+  const matchClockScaleRaw = Number(metadata.matchClockScale)
+  const matchClockScale = Number.isFinite(matchClockScaleRaw) && matchClockScaleRaw > 0 ? round(matchClockScaleRaw, 4) : null
+  const legacy = !engineRuntimeToken
+  return {
+    engineRuntimeToken,
+    engineBootedAt,
+    runtimeHalfDuration,
+    simulatedHalfDuration,
+    matchClockScale,
+    seriesSpeedMul: Number.isFinite(Number(metadata.seriesSpeedMul)) ? Number(metadata.seriesSpeedMul) : null,
+    restartDelayGoal: Number.isFinite(Number(metadata.restartDelayGoal)) ? Number(metadata.restartDelayGoal) : null,
+    restartDelayHalf: Number.isFinite(Number(metadata.restartDelayHalf)) ? Number(metadata.restartDelayHalf) : null,
+    cpuVsCpu: typeof metadata.cpuVsCpu === 'boolean' ? metadata.cpuVsCpu : null,
+    interactiveHalftime: typeof metadata.interactiveHalftime === 'boolean' ? metadata.interactiveHalftime : null,
+    persistenceStamped: persistenceAudit.runtimeStamped === true,
+    normalizedFromSnapshot: persistenceAudit.normalizedFromSnapshot === true,
+    legacy,
   }
 }
 
@@ -1964,8 +2002,8 @@ function summarizeKpis(report) {
     ]),
     inputs: { goals, shots, shotsOnTarget: sot, longRangeSot, corners, durationMinutes, durationFactor: round(durationFactor, 4), disabledMetrics: [...disabledMetrics] },
     target: disabledMetrics.has('corners')
-      ? `simple-v1 full-match raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}; corners disabled`
-      : `one-match MLS full-match raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}, corners ~${round(scaleTarget(8))}`,
+      ? `simple-v1 runtime-scaled raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}; corners disabled`
+      : `one-match MLS runtime-scaled raw stat fit: goals ~${round(scaleTarget(2.8))}, shots ~${round(scaleTarget(26))}, SOT ~${round(scaleTarget(9.5))}, corners ~${round(scaleTarget(8))}`,
   }
 
   const soccerStructure = simpleModelV1
@@ -2065,18 +2103,23 @@ function buildRecommendations(report) {
     Number(report.counts.passLog ?? 0),
     Number(report.match.passesA ?? 0) + Number(report.match.passesB ?? 0),
   )
+  const durationFactor = Number(report.baselines.duration?.durationFactor ?? 1) || 1
+  const runtimeShotMin = round(20 * durationFactor)
+  const runtimeShotOnTargetMin = round(7 * durationFactor)
+  const runtimePassMin = round(900 * durationFactor)
+  const runtimePassMax = round(954 * durationFactor)
 
   if (totalShots === 0) {
     recommendations.push(`Completed match has 0 shots despite ${totalPasses} pass events. Treat this as a model failure: goalmouth smothers, final-third backpasses, or low shot urge consumed all attacking production.`)
   }
-  if (totalShots > 0 && totalShots < 20) {
-    recommendations.push(`Full-match attacking volume is too low: ${totalShots} shots vs the 20-35 MLS target. Increase action cadence and shot selection; do not treat compressed runtime as a partial-match sample.`)
+  if (totalShots > 0 && totalShots < runtimeShotMin) {
+    recommendations.push(`Runtime-scaled attacking volume is too low: ${totalShots} shots vs the ${runtimeShotMin}-${round(35 * durationFactor)} MLS target for ${report.baselines.duration.runtimeMinutes} runtime minutes.`)
   }
-  if (totalShotsOnTarget < 7) {
-    recommendations.push(`Full-match shot-on-target volume is too low: ${totalShotsOnTarget} SOT vs the 7-16 MLS target. Raise credible shot frequency before accepting goalkeeper or finishing tuning.`)
+  if (totalShotsOnTarget < runtimeShotOnTargetMin) {
+    recommendations.push(`Runtime-scaled shot-on-target volume is too low: ${totalShotsOnTarget} SOT vs the ${runtimeShotOnTargetMin}-${round(16 * durationFactor)} MLS target for ${report.baselines.duration.runtimeMinutes} runtime minutes.`)
   }
-  if (totalPasses > 0 && totalPasses < 450) {
-    recommendations.push(`Full-match pass volume is too low: ${totalPasses} passes vs the 450-750 MLS target. Runtime length must not lower possession/action production KPIs.`)
+  if (totalPasses > 0 && totalPasses < runtimePassMin) {
+    recommendations.push(`Runtime-scaled pass volume is too low: ${totalPasses} passes vs the ${runtimePassMin}-${runtimePassMax} target for ${report.baselines.duration.runtimeMinutes} runtime minutes.`)
   }
   if (totalGoals === 0 && totalShots < 10) {
     recommendations.push('Scoreless output with very low shot volume is not a defensive 0-0; it is an underproduction failure. Tune shot creation first, then finishing.')
@@ -2350,6 +2393,7 @@ function formatEventBullet(event) {
 function buildMarkdownReport(report) {
   const global = report.baselines.global
   const duration = report.baselines.duration || { matchMinutes: 90, halfSeconds: 2700, durationFactor: 1 }
+  const provenance = report.match.runtimeProvenance || {}
   const teamA = report.match.teamA
   const teamB = report.match.teamB
   const lines = [
@@ -2361,6 +2405,8 @@ function buildMarkdownReport(report) {
     `- Timestamp: ${new Date(report.match.timestamp).toISOString()}`,
     `- Runtime duration: ${duration.runtimeMinutes} minutes total (${duration.halfSeconds}s halves)`,
     `- Simulated match duration: ${duration.matchMinutes} minutes`,
+    `- Runtime provenance: ${provenance.engineRuntimeToken ? `token ${provenance.engineRuntimeToken}` : 'legacy / unstamped'}${provenance.engineBootedAt ? `, booted ${new Date(provenance.engineBootedAt).toISOString()}` : ''}`,
+    `- Runtime config: scale ${provenance.matchClockScale ?? 'n/a'}, speed ${provenance.seriesSpeedMul ?? 'n/a'}, restart delays ${provenance.restartDelayGoal ?? 'n/a'}/${provenance.restartDelayHalf ?? 'n/a'}, cpuVsCpu ${provenance.cpuVsCpu ?? 'n/a'}, interactive halftime ${provenance.interactiveHalftime ?? 'n/a'}, persisted from snapshot ${provenance.normalizedFromSnapshot ? 'yes' : 'no'}`,
     `- Shots: ${report.match.shotsA}-${report.match.shotsB}`,
     `- Shots on target: ${report.match.shotsOnTargetA}-${report.match.shotsOnTargetB}`,
     ``,
@@ -2374,7 +2420,7 @@ function buildMarkdownReport(report) {
     `  - Inputs: forced shots ${report.kpis.tuningEfficiency.inputs.forcedShotSharePct}%, final-third backpasses ${report.kpis.tuningEfficiency.inputs.attackerBackpasses}, zigzag flips ${report.kpis.tuningEfficiency.inputs.zigzagFlips}, direct-blocker passes ${report.kpis.tuningEfficiency.inputs.directBlockerPasses}, broken shot rows ${report.kpis.tuningEfficiency.inputs.brokenShotRowsPct}%`,
     ``,
     `## MLS Baseline Comparison`,
-    `- Baselines below are full-match MLS raw expectations; selected runtime length does not scale KPI targets.`,
+    `- Baselines below are runtime-scaled MLS raw expectations for ${duration.runtimeMinutes} runtime minutes.`,
     `- Total goals: ${global.totalGoals.simulated} vs ${global.totalGoals.baseline} baseline (drift ${global.totalGoals.drift})`,
     `- Total shots: ${global.totalShots.simulated} vs ${global.totalShots.baseline} baseline (drift ${global.totalShots.drift})`,
     `- Total shots on target: ${global.totalShotsOnTarget.simulated} vs ${global.totalShotsOnTarget.baseline} baseline (drift ${global.totalShotsOnTarget.drift})`,
@@ -2580,10 +2626,12 @@ function printSummary(report) {
   const teamB = report.match.teamB
   const global = report.baselines.global
   const duration = report.baselines.duration || { matchMinutes: 90, halfSeconds: 2700, durationFactor: 1 }
+  const provenance = report.match.runtimeProvenance || {}
 
   const mid = report.match.matchId ? ` [${report.match.matchId}]` : ''
   console.log(`Telemetry report: ${teamA} ${report.match.score} ${teamB}${mid} | session ${report.match.sessionId}`)
-  console.log(`Runtime duration ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves); simulated match is 90 min and MLS baselines are full-match raw expectations`)
+  console.log(`Runtime duration ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves); simulated match is 90 min and MLS baselines are runtime-scaled to the selected real duration`)
+  console.log(`Runtime provenance | ${provenance.engineRuntimeToken ? `token ${provenance.engineRuntimeToken}` : 'legacy/unstamped'} | scale ${provenance.matchClockScale ?? 'n/a'} | speed ${provenance.seriesSpeedMul ?? 'n/a'} | delays ${provenance.restartDelayGoal ?? 'n/a'}/${provenance.restartDelayHalf ?? 'n/a'} | persisted ${provenance.normalizedFromSnapshot ? 'snapshot-normalized' : 'raw'}`)
   console.log(`Tuning KPIs | overall ${report.kpis.overall.score} (${report.kpis.overall.grade}) | baseline ${report.kpis.baselineFit.score} (${report.kpis.baselineFit.grade}) | structure ${report.kpis.soccerStructure.score} (${report.kpis.soccerStructure.grade}) | efficiency ${report.kpis.tuningEfficiency.score} (${report.kpis.tuningEfficiency.grade})`)
   console.log(`MLS baseline drift | goals ${global.totalGoals.drift} | shots ${global.totalShots.drift} | SOT ${global.totalShotsOnTarget.drift} | corners ${global.totalCorners.drift}`)
   console.log(`Decision telemetry | forced shots ${report.shotDecisionSummary.forcedShots}/${report.shotDecisionSummary.total} | AI_SIMPLE broken ${report.shotDecisionSummary.aiSimpleBrokenRows}/${report.shotDecisionSummary.aiSimpleDecisions} | attacker backpasses ${report.passDecisionSummary.attackerBackpassesInFinalThird} | direct blocker passes ${report.passDecisionSummary.directBlockerPassDecisions}`)
@@ -2740,6 +2788,7 @@ function main() {
   const passDecisions = Array.isArray(bundle.passDecisions) ? bundle.passDecisions : []
   const shapeA = Array.isArray(bundle.shapeA) ? bundle.shapeA : []
   const shapeB = Array.isArray(bundle.shapeB) ? bundle.shapeB : []
+  const runtimeProvenance = getBundleRuntimeProvenance(bundle)
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -2765,6 +2814,7 @@ function main() {
       shotsOnTargetB: bundle.teamB?.shotsOnTarget ?? 0,
       passesA: bundle.teamA?.passes ?? 0,
       passesB: bundle.teamB?.passes ?? 0,
+      runtimeProvenance,
     },
     counts: {
       events: events.length,
@@ -2849,6 +2899,8 @@ function main() {
 }
 
 export {
+  getBundleDurationInfo,
+  getBundleRuntimeProvenance,
   summarizeKeeperEvents,
   summarizeRestartCounts,
   summarizeShape,

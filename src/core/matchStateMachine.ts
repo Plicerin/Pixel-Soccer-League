@@ -56,12 +56,14 @@ export function advanceMatchState(
   switch (next.state.kind) {
     case "pre_match":
       next.state = { kind: "kickoff", team: "home" };
+      next.restartTimer = 0.5;
       break;
 
     case "kickoff": {
-      next.clock.elapsedInHalf += clockDt;
-      if (next.clock.elapsedInHalf > 0.5) {
+      next.restartTimer -= dt;
+      if (next.restartTimer <= 0) {
         next.state = { kind: "live_play", half: next.clock.half, startTick: 0 };
+        next.restartTimer = 0;
       }
       break;
     }
@@ -98,7 +100,6 @@ export function advanceMatchState(
     }
 
     case "ball_out": {
-      next.clock.elapsedInHalf += clockDt;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         const restartTeam = next.state.restartTeam;
@@ -110,12 +111,12 @@ export function advanceMatchState(
     }
 
     case "goal_scored": {
-      next.clock.elapsedInHalf += clockDt;
       next.restartTimer -= dt;
       if (next.restartTimer <= 0) {
         const scoringTeam = next.state.scoringTeam;
         const restartTeam: TeamSide = scoringTeam === "home" ? "away" : "home";
         next.state = { kind: "kickoff", team: restartTeam };
+        next.restartTimer = 0.5;
       }
       break;
     }
@@ -128,6 +129,7 @@ export function advanceMatchState(
         next.clock.elapsedInHalf = 0;
         next.clock.stoppageTime = 0;
         next.state = { kind: "kickoff", team: "away" };
+        next.restartTimer = 0.5;
       }
       break;
     }

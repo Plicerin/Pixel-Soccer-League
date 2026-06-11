@@ -17,7 +17,8 @@ const THRESHOLDS = {
   goals: { min: 2.0, max: 4.0, target: 2.8 },
   shots: { min: 20, max: 35, target: 26 },
   shotsOnTarget: { min: 7, max: 16, target: 9.5 },
-  passes: { min: 450, max: 750, target: 585 },
+  passes: { min: 900, max: 954, target: 927 },
+  completedPasses: { min: 729, max: 756, target: 742.5 },
   passCompletionPct: { min: 71, max: 80, target: 76 },
   avgPassBallSpeedMps: { min: 15, max: 65, target: 35 },
   maxPassBallSpeedMps: { min: 15, max: 90, target: 55 },
@@ -166,27 +167,47 @@ function round(value, digits = 2) {
 function getMatchDuration(options) {
   const halfSeconds = Math.max(5, Number(options.halfSeconds) || 2700)
   const matchSeconds = halfSeconds * 2
+  const runtimeMinutes = round(matchSeconds / 60, 2)
   return {
     halfSeconds,
     matchSeconds,
-    runtimeMinutes: round(matchSeconds / 60, 2),
+    runtimeMinutes,
     simulatedMinutes: 90,
-    durationFactor: 1,
+    durationFactor: runtimeMinutes / 90,
   }
 }
 
-function simulationThresholds() {
+const RUNTIME_SCALED_METRICS = new Set([
+  'goals',
+  'shots',
+  'shotsOnTarget',
+  'passes',
+  'completedPasses',
+  'corners',
+  'fouls',
+  'penaltiesAwarded',
+])
+
+function simulationThresholds(duration) {
+  const durationFactor = Math.max(1 / 90, Number(duration?.durationFactor) || 1)
   return Object.fromEntries(Object.entries(THRESHOLDS).map(([key, threshold]) => {
+    const scale = RUNTIME_SCALED_METRICS.has(key) ? durationFactor : 1
+    const min = round(threshold.min * scale)
+    const max = round(threshold.max * scale)
+    const target = round(threshold.target * scale)
     return [key, {
       ...threshold,
-      expectedMin: threshold.min,
-      expectedMax: threshold.max,
+      min,
+      max,
+      target,
+      expectedMin: min,
+      expectedMax: max,
       samplingPad: 0,
     }]
   }))
 }
 
-function summarize(results) {
+function summarize(results, duration = { durationFactor: 1 }) {
   const passAttempts = results.reduce((sum, row) => sum + row.passesA + row.passesB, 0)
   const passEventAttempts = results.reduce((sum, row) => sum + (row.tuning?.passLog?.length || 0), 0)
   const passAttemptsForKpi = Math.max(passAttempts, passEventAttempts)
@@ -202,8 +223,16 @@ function summarize(results) {
   const shotPasses = shotOpportunities.filter((row) => row.outcome === 'pass')
   const shotDistanceBins = summarizeShotDistanceBins(shotDecisions)
   const forcedShotDecisions = shotDecisions.filter(isForcedShotDecision)
-  const highShotMatches = results.filter((row) => row.shotsA + row.shotsB > THRESHOLDS.shots.max)
-  const guardShotOutliers = results.filter((row) => row.shotsA + row.shotsB > THRESHOLDS.maxShotsInMatch.max)
+  const fullLengthPossessionDiagnostics = results.map((row) => row.tuning?.fullLengthPossessionDiagnostics || {})
+  const averageNested = (rows, path) => round(rows.reduce((sum, row) => {
+    let current = row
+    for (const key of path) current = current?.[key]
+    return sum + (Number(current) || 0)
+  }, 0) / Math.max(1, rows.length))
+  const scaledShotMax = THRESHOLDS.shots.max * Math.max(1 / 90, Number(duration.durationFactor) || 1)
+  const scaledGuardShotMax = THRESHOLDS.maxShotsInMatch.max * Math.max(1 / 90, Number(duration.durationFactor) || 1)
+  const highShotMatches = results.filter((row) => row.shotsA + row.shotsB > scaledShotMax)
+  const guardShotOutliers = results.filter((row) => row.shotsA + row.shotsB > scaledGuardShotMax)
   return {
     games: results.length,
     goals: round(average(results, (row) => row.scoreA + row.scoreB)),
@@ -211,6 +240,7 @@ function summarize(results) {
     shotsOnTarget: round(average(results, (row) => row.sogA + row.sogB)),
     saves: round(average(results, (row) => row.savesA + row.savesB)),
     passes: round(average(results, (row) => Math.max(row.passesA + row.passesB, row.tuning?.passLog?.length || 0))),
+    completedPasses: round(average(results, (row) => row.passCompA + row.passCompB)),
     passCompletionPct: round((passCompletions / Math.max(1, passAttemptsForKpi)) * 100),
     corners: round(average(results, (row) => row.cornersA + row.cornersB)),
     throwIns: round(average(results, (row) => row.throwInsA + row.throwInsB)),
@@ -249,6 +279,21 @@ function summarize(results) {
     shotDistanceBins,
     distanceShotDecisions: shotDecisions.filter((row) => row.shotSelectionType === 'distance_shot').length,
     longRangeShotPct: round(((shotDistanceBins.y24_30 + shotDistanceBins.gte30) / Math.max(1, shotDecisions.length)) * 100),
+    noSafeOutletPassFails: round(average(fullLengthPossessionDiagnostics, (row) => row.noSafeOutletPassFails || 0)),
+    speculativePassInterceptions: round(average(fullLengthPossessionDiagnostics, (row) => row.speculativePassInterceptions || 0)),
+    nonDangerTerminalShots: round(average(fullLengthPossessionDiagnostics, (row) => row.nonDangerTerminalShots || 0)),
+    speculativeInterceptionDistanceBands: {
+      lt14: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionDistanceBands', 'lt14']),
+      y14_16: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionDistanceBands', 'y14_16']),
+      y16_18: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionDistanceBands', 'y16_18']),
+      gte18: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionDistanceBands', 'gte18']),
+    },
+    speculativeInterceptionSeparationBands: {
+      lt2_5: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionSeparationBands', 'lt2_5']),
+      y2_5_3_5: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionSeparationBands', 'y2_5_3_5']),
+      y3_5_4_5: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionSeparationBands', 'y3_5_4_5']),
+      gte4_5: averageNested(fullLengthPossessionDiagnostics, ['speculativeInterceptionSeparationBands', 'gte4_5']),
+    },
     possessionA: round(average(results, (row) => row.possA)),
     fullTimePct: round((results.filter((row) => row.phase === 'FULL_TIME').length / results.length) * 100),
     maxGoalsInMatch: maxOf(results, (row) => row.scoreA + row.scoreB),
@@ -403,11 +448,17 @@ function buildMarkdown(report) {
     `- Shot/pass choice: ${report.summary.shotOpportunityShotPct}% / ${report.summary.shotOpportunityPassPct}%`,
     `- Shot decisions per match: ${report.summary.shotDecisions}`,
     `- Forced-shot share: ${report.summary.forcedShotSharePct}%`,
-    `- High-shot matches (> ${THRESHOLDS.shots.max}): ${report.summary.highShotMatches}/${report.summary.games}`,
-    `- Guard shot outliers (> ${THRESHOLDS.maxShotsInMatch.max}): ${report.summary.guardShotOutliers}/${report.summary.games}`,
+    `- High-shot matches (> ${report.guard.checks.shots.expectedMax}): ${report.summary.highShotMatches}/${report.summary.games}`,
+    `- Guard shot outliers (> ${report.guard.checks.maxShotsInMatch.max}): ${report.summary.guardShotOutliers}/${report.summary.games}`,
     `- Distance-shot decisions: ${report.summary.distanceShotDecisions}`,
     `- Long-range shot share (24+ yd): ${report.summary.longRangeShotPct}%`,
     `- Shot distance bins: <12 ${report.summary.shotDistanceBins.lt12} | 12-18 ${report.summary.shotDistanceBins.y12_18} | 18-24 ${report.summary.shotDistanceBins.y18_24} | 24-30 ${report.summary.shotDistanceBins.y24_30} | 30+ ${report.summary.shotDistanceBins.gte30}`,
+    '',
+    '## Full-Length Possession Diagnostics',
+    '',
+    `- No-safe-outlet pass fails per match: ${report.summary.noSafeOutletPassFails}`,
+    `- Speculative pass interceptions per match: ${report.summary.speculativePassInterceptions}`,
+    `- Non-danger terminal shots per match: ${report.summary.nonDangerTerminalShots}`,
   )
   lines.push('', '## Match Results', '')
   lines.push('| Match | Score | Shots | SOT | Forced % | Top Shot Reason | Saves | Pass % | Tackles | Fouls | Offsides | Corners | Throw-ins | Goal kicks | Free kicks | Pens | Poss A |')
@@ -436,17 +487,20 @@ function printSummary(report, paths) {
   const duration = report.duration
   const checks = report.guard.checks
   console.log(`Simple model KPI: ${report.guard.passed ? 'PASS' : 'FAIL'} (${s.games} games)`)
-  console.log(`runtime length ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves) | KPI targets are full-match MLS outputs`)
+  console.log(`runtime length ${duration.runtimeMinutes} min total (${duration.halfSeconds}s halves) | KPI targets are runtime-scaled MLS outputs`)
   console.log(`goals ${s.goals} | shots ${s.shots} | SOT ${s.shotsOnTarget} | saves ${s.saves}`)
-  console.log(`full-match expected goals ${checks.goals.expectedMin}-${checks.goals.expectedMax} | shots ${checks.shots.expectedMin}-${checks.shots.expectedMax} | SOT ${checks.shotsOnTarget.expectedMin}-${checks.shotsOnTarget.expectedMax} | passes ${checks.passes.expectedMin}-${checks.passes.expectedMax}`)
-  console.log(`guard raw goals ${checks.goals.min}-${checks.goals.max} | shots ${checks.shots.min}-${checks.shots.max} | SOT ${checks.shotsOnTarget.min}-${checks.shotsOnTarget.max} | passes ${checks.passes.min}-${checks.passes.max}`)
-  console.log(`passes ${s.passes} | pass completion ${s.passCompletionPct}% | possession A ${s.possessionA}% | full-time ${s.fullTimePct}%`)
+  console.log(`runtime-scaled expected goals ${checks.goals.expectedMin}-${checks.goals.expectedMax} | shots ${checks.shots.expectedMin}-${checks.shots.expectedMax} | SOT ${checks.shotsOnTarget.expectedMin}-${checks.shotsOnTarget.expectedMax} | passes ${checks.passes.expectedMin}-${checks.passes.expectedMax} | completed passes ${checks.completedPasses.expectedMin}-${checks.completedPasses.expectedMax}`)
+  console.log(`guard raw goals ${checks.goals.min}-${checks.goals.max} | shots ${checks.shots.min}-${checks.shots.max} | SOT ${checks.shotsOnTarget.min}-${checks.shotsOnTarget.max} | passes ${checks.passes.min}-${checks.passes.max} | completed passes ${checks.completedPasses.min}-${checks.completedPasses.max}`)
+  console.log(`passes ${s.passes} | completed passes ${s.completedPasses} | pass completion ${s.passCompletionPct}% | possession A ${s.possessionA}% | full-time ${s.fullTimePct}%`)
   console.log(`defense tackles ${s.tackles} | fouls ${s.fouls} | offsides ${s.offsides}`)
   console.log(`restarts corners ${s.corners} | throw-ins ${s.throwIns} | goal kicks ${s.goalKicks} | free kicks ${s.freeKicks} | penalties ${s.penaltiesAwarded}`)
   console.log(`ball speed pass avg/max ${s.avgPassBallSpeedMps}/${s.maxPassBallSpeedMps} m/s | shot avg/max ${s.avgShotBallSpeedMps}/${s.maxShotBallSpeedMps} m/s`)
   console.log(`visual reality violations ${s.visualRealityViolations} | empty landings ${s.emptyFlightLandings} | carrier gaps ${s.ballCarrierGapViolations} | zero-shot matches ${s.zeroShotMatches}`)
   console.log(`invalid goal geometry ${s.invalidGoalGeometry}`)
   console.log(`shot diagnostics decisions ${s.shotDecisions}/match | forced ${s.forcedShotSharePct}% | high-shot matches ${s.highShotMatches}/${s.games} | guard outliers ${s.guardShotOutliers}/${s.games}`)
+  console.log(`full-length possession diagnostics no-safe-outlet ${s.noSafeOutletPassFails}/match | speculative interceptions ${s.speculativePassInterceptions}/match | non-danger terminal shots ${s.nonDangerTerminalShots}/match`)
+  console.log(`speculative interception distance bands <14 ${s.speculativeInterceptionDistanceBands.lt14}/match | 14-16 ${s.speculativeInterceptionDistanceBands.y14_16}/match | 16-18 ${s.speculativeInterceptionDistanceBands.y16_18}/match | >=18 ${s.speculativeInterceptionDistanceBands.gte18}/match`)
+  console.log(`speculative interception separation bands <2.5 ${s.speculativeInterceptionSeparationBands.lt2_5}/match | 2.5-3.5 ${s.speculativeInterceptionSeparationBands.y2_5_3_5}/match | 3.5-4.5 ${s.speculativeInterceptionSeparationBands.y3_5_4_5}/match | >=4.5 ${s.speculativeInterceptionSeparationBands.gte4_5}/match`)
   console.log(`Saved JSON: ${paths.jsonPath}`)
   console.log(`Saved Markdown: ${paths.mdPath}`)
 }
@@ -456,10 +510,10 @@ function main() {
   if (options.guard && options.guard !== 'simple-kpi') {
     throw new Error(`Unknown guard: ${options.guard}`)
   }
-  const results = Array.from({ length: options.games }, (_, index) => runMatch(index, options))
-  const summary = summarize(results)
   const duration = getMatchDuration(options)
-  const thresholds = simulationThresholds()
+  const results = Array.from({ length: options.games }, (_, index) => runMatch(index, options))
+  const summary = summarize(results, duration)
+  const thresholds = simulationThresholds(duration)
   const guard = evaluate(summary, thresholds)
   const report = {
     generatedAt: new Date().toISOString(),

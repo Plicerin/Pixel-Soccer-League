@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { summarizePositionOwners, summarizeShape, summaryCarrierTrajectories } from "../scripts/telemetry-analyze-latest.mjs";
+import {
+  getBundleDurationInfo,
+  getBundleRuntimeProvenance,
+  summarizePositionOwners,
+  summarizeShape,
+  summaryCarrierTrajectories,
+} from "../scripts/telemetry-analyze-latest.mjs";
 
 test("telemetry analyzer rebuilds shape snapshots from legacy per-player rows", () => {
   const report = summarizeShape([
@@ -39,4 +45,48 @@ test("telemetry analyzer detects carrier trajectory segments from x/z traces", (
 
   assert.equal(report.totalSegments, 1);
   assert.ok(report.avgBLineRatio > 0.9);
+});
+
+test("telemetry analyzer prefers runtime half duration over simulated half duration", () => {
+  const duration = getBundleDurationInfo({
+    metadata: {
+      halfDuration: 2700,
+      runtimeHalfDuration: 300,
+      matchClockScale: 9,
+    },
+  });
+
+  assert.equal(duration.halfSeconds, 300);
+  assert.equal(duration.runtimeMinutes, 10);
+});
+
+test("telemetry analyzer flags unstamped bundles as legacy runtime rows", () => {
+  const legacy = getBundleRuntimeProvenance({
+    metadata: {
+      runtimeHalfDuration: 300,
+      matchClockScale: 9,
+    },
+  });
+  const stamped = getBundleRuntimeProvenance({
+    metadata: {
+      runtimeHalfDuration: 300,
+      matchClockScale: 9,
+      engineRuntimeToken: "runtime-123",
+      engineBootedAt: 456,
+      seriesSpeedMul: 1,
+      restartDelayGoal: 0.8,
+      restartDelayHalf: 1.2,
+      cpuVsCpu: true,
+      interactiveHalftime: true,
+    },
+    persistenceAudit: {
+      normalizedFromSnapshot: true,
+      runtimeStamped: true,
+    },
+  });
+
+  assert.equal(legacy.legacy, true);
+  assert.equal(stamped.legacy, false);
+  assert.equal(stamped.engineRuntimeToken, "runtime-123");
+  assert.equal(stamped.normalizedFromSnapshot, true);
 });

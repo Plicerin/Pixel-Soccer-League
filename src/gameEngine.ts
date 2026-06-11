@@ -652,6 +652,8 @@ class SimpleGameEngine {
   private splashWelcomeTimer: number | null = null;
   private stadiumBuilt = false;
   private stadiumBuildHandle: number | null = null;
+  private readonly engineBootedAt = Date.now();
+  private engineRuntimeToken: string | null = null;
 
   constructor(private readonly container: HTMLElement) {
     markPslPerf('psl:engine:init:start');
@@ -680,6 +682,10 @@ class SimpleGameEngine {
     this.miniMapAwayPanel = miniMap.awayPanel;
     this.drawMiniMapPitch();
     this.applyMiniMapVisibility();
+    this.model.setRuntimeProvenance({
+      engineRuntimeToken: this.engineRuntimeToken,
+      engineBootedAt: this.engineBootedAt,
+    });
 
     this.addLights();
     this.addField();
@@ -787,8 +793,23 @@ class SimpleGameEngine {
   setAIStyle = (value: string) => { this.model.aiStyle = value; };
   setCameraMode = (value: string) => { this.model.cameraMode = value; };
   setPracticePlayCompleteCallback = (callback: () => void) => { this.practiceCompleteCallback = callback; };
+  setEngineRuntimeToken = (token: string | null) => {
+    this.engineRuntimeToken = typeof token === 'string' && token.trim() ? token : null;
+    this.model.setRuntimeProvenance({
+      engineRuntimeToken: this.engineRuntimeToken,
+      engineBootedAt: this.engineBootedAt,
+    });
+  };
 
-  getMatchSnapshot = () => this.model.getMatchSnapshot();
+  getMatchSnapshot = () => {
+    const snapshot = this.model.getMatchSnapshot();
+    return {
+      ...snapshot,
+      sessionActive: !this.splashSceneMode,
+      engineRuntimeToken: this.engineRuntimeToken,
+      engineBootedAt: this.engineBootedAt,
+    };
+  };
   getIsLive = () => this.model.getMatchSnapshot().isLive;
   getLiveTelemetry = () => this.model.getLiveTelemetry();
   getPlayers = () => this.model.getPlayers();
@@ -798,6 +819,9 @@ class SimpleGameEngine {
   getRenderFps = () => this.fps;
   getTuningBundle = () => ({
     ...this.model.getTuningBundle(),
+    sessionActive: !this.splashSceneMode,
+    engineRuntimeToken: this.engineRuntimeToken,
+    engineBootedAt: this.engineBootedAt,
     whistleAuditEvents: this.whistleAuditEvents.slice(-100),
     keeperAnimationEvents: this.keeperAnimationEvents.slice(-100),
     headerAnimationEvents: this.headerAnimationEvents.slice(-100),

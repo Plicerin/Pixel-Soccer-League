@@ -886,20 +886,21 @@ test('V62 dashboard and preview server keep completed-match telemetry complete',
   assert.match(viteConfig, /\/__db\/telemetry-events/, 'dashboard telemetry-events route must exist in server middleware');
 });
 
-test('dashboard match overview treats short runtime as a full-match simulation', () => {
+test('dashboard match overview scales KPI expectations by runtime length', () => {
   const source = readFileSync('public/dashboard.html', 'utf8');
   assert.match(source, /function getMatchDurationInfo/, 'dashboard should derive match duration from duration metadata');
   assert.match(source, /metadata\?\.runtimeHalfDuration/, 'dashboard should prefer runtime half duration over simulated half duration');
   assert.match(source, /runtimeMinutes/, 'dashboard should label selected half length as runtime, not simulated soccer duration');
-  assert.match(source, /durationFactor: 1/, 'dashboard must keep KPI expectations at full-match scale');
-  assert.match(source, /Full-match expected raw totals/, 'overview copy must include full-match raw expectations');
+  assert.match(source, /durationFactor: runtimeMinutes \/ 90/, 'dashboard must scale KPI expectations by selected runtime length');
+  assert.match(source, /Runtime-scaled expected raw totals/, 'overview copy must include runtime-scaled raw expectations');
   assert.match(source, /Shots \/ SOT raw/, 'overview must label raw shot totals');
-  assert.match(source, /Shots \/ SOT full-match expected raw totals/, 'overview copy must compare shots to full-match expectations');
-  assert.match(source, /Passes full-match expected raw total/, 'overview copy must compare passes to full-match expectations');
+  assert.match(source, /Shots \/ SOT runtime-scaled expected raw totals/, 'overview copy must compare shots to runtime-scaled expectations');
+  assert.match(source, /Completed passes runtime-scaled expected raw total/, 'overview copy must compare completed passes to runtime-scaled expectations');
+  assert.match(source, /Passes runtime-scaled expected raw total/, 'overview copy must compare passes to runtime-scaled expectations');
   assert.doesNotMatch(source, /per90|per 90/i, 'dashboard must not treat short matches as compressed 90-minute projections');
-  assert.match(source, /metric === 'shotsOnTarget' && value < expected\.min \* 0\.5/, 'dashboard must fail, not watch, extremely low full-match SOT volume');
+  assert.match(source, /metric === 'shotsOnTarget' && value < expected\.min \* 0\.5/, 'dashboard must fail, not watch, extremely low runtime-scaled SOT volume');
   assert.match(source, /statCard\('Runtime'/, 'overview cards must show runtime duration');
-  assert.match(source, /statCard\('Full-Match KPI'/, 'overview cards must show full-match KPI ranges');
+  assert.match(source, /statCard\('Runtime KPI'/, 'overview cards must show runtime KPI ranges');
 });
 
 test('dashboard reports full-match KPI status and zero-shot failures', () => {
@@ -913,19 +914,19 @@ test('dashboard reports full-match KPI status and zero-shot failures', () => {
   assert.match(source, /matchPhase: bundle\.metadata\?\.matchPhase \|\| entry\.phase/, 'history loads must preserve full-time phase for KPI guards');
 });
 
-test('V52 telemetry tools keep full-match KPI thresholds for compressed runtime matches', () => {
+test('V52 telemetry tools scale KPI thresholds by runtime length', () => {
   const simpleKpi = readFileSync('scripts/simple-model-kpi.mjs', 'utf8');
   const analyzer = readFileSync('scripts/telemetry-analyze-latest.mjs', 'utf8');
 
-  assert.match(simpleKpi, /function simulationThresholds/, 'simple KPI guard must compare against full-match thresholds');
+  assert.match(simpleKpi, /function simulationThresholds/, 'simple KPI guard must build runtime-scaled thresholds');
   assert.match(simpleKpi, /simulatedMinutes: 90/, 'simple KPI report must distinguish runtime from simulated match length');
-  assert.doesNotMatch(simpleKpi, /RATE_SCALED_THRESHOLDS|FULL_MATCH_SECONDS/, 'simple KPI guard must not scale raw stat targets by runtime length');
+  assert.match(simpleKpi, /durationFactor: runtimeMinutes \/ 90/, 'simple KPI guard must scale raw stat targets by runtime length');
   assert.match(analyzer, /function getBundleDurationInfo/, 'telemetry analyzer must derive duration from bundle metadata');
-  assert.match(analyzer, /durationFactor: 1/, 'telemetry analyzer must keep full-match baseline scale');
-  assert.match(analyzer, /full-match raw expectations/, 'telemetry output must disclose full-match baseline comparisons');
-  assert.match(analyzer, /Full-match attacking volume is too low/, 'analyzer must recommend action when compressed-runtime matches underproduce full-match shots');
-  assert.match(analyzer, /Full-match shot-on-target volume is too low/, 'analyzer must recommend action when completed matches underproduce full-match SOT');
-  assert.match(analyzer, /Full-match pass volume is too low/, 'analyzer must recommend action when completed matches underproduce full-match passes');
+  assert.match(analyzer, /durationFactor: matchSeconds \/ \(90 \* 60\)/, 'telemetry analyzer must scale baseline expectations by runtime length');
+  assert.match(analyzer, /runtime-scaled raw stat fit/, 'telemetry output must disclose runtime-scaled baseline comparisons');
+  assert.match(analyzer, /Runtime-scaled attacking volume is too low/, 'analyzer must recommend action when matches underproduce runtime-scaled shots');
+  assert.match(analyzer, /Runtime-scaled shot-on-target volume is too low/, 'analyzer must recommend action when matches underproduce runtime-scaled SOT');
+  assert.match(analyzer, /Runtime-scaled pass volume is too low/, 'analyzer must recommend action when matches underproduce runtime-scaled passes');
 });
 
 test('V141 simple KPI guard reports per-match scoring and shot outliers', () => {

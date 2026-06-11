@@ -36,6 +36,7 @@ const MatchHistoryDashboard = React.lazy(() => import('./MatchHistoryDashboard')
 const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
 const FrameViewer = React.lazy(() => import('./FrameViewer'));
 const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
+const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const AGGRESSION_SCALE: Record<AggressivenessKey, number> = {
   POSSESSION: 35,
@@ -1000,6 +1001,7 @@ function pslDebugLog(...args: unknown[]) {
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<any>(null);
+  const engineRuntimeTokenRef = useRef<string | null>(null);
   const telemetryRecorderRef = useRef<TelemetryRecorder | null>(null);
   const [gameReady, setGameReady] = useState(false);
   const [lighting, setLighting] = useState('NOON');
@@ -1616,34 +1618,35 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     let dashChannel: BroadcastChannel | null = null;
     try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
+    // Default to BroadcastChannel + fetch. The websocket relay is optional because
+    // repeated reconnect loops can stall the live browser session if port 8081 is absent.
+    const enableDashWs = (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('dashboardTransport') === 'ws' || localStorage.getItem('psl-dashboard-transport') === 'ws';
+      } catch {
+        return false;
+      }
+    })();
     let dashWs: WebSocket | null = null;
-    let dashWsReconnect: ReturnType<typeof setTimeout> | null = null;
     let dashWsStopped = false;
     const dashWsUrl = `ws://${window.location.hostname || 'localhost'}:8081`;
     const connectDashboardWs = () => {
-      if (dashWsStopped || typeof WebSocket === 'undefined') return;
+      if (!enableDashWs || dashWsStopped || typeof WebSocket === 'undefined') return;
       try {
         dashWs = new WebSocket(dashWsUrl);
         dashWs.onopen = () => pslDebugLog('[PSL-Bridge] WebSocket connected:', dashWsUrl);
         dashWs.onclose = () => {
           dashWs = null;
-          if (!dashWsStopped && !dashWsReconnect) {
-            dashWsReconnect = setTimeout(() => {
-              dashWsReconnect = null;
-              connectDashboardWs();
-            }, 2000);
-          }
         };
         dashWs.onerror = () => {
           try { dashWs?.close(); } catch {}
         };
-      } catch (err) {
-        console.warn('[PSL-Bridge] WebSocket connect failed:', err);
-      }
+      } catch {}
     };
     const sendDashboardWs = (payload: unknown) => {
-      if (dashWs?.readyState !== WebSocket.OPEN) return;
-      try { dashWs.send(JSON.stringify(payload)); } catch (err) { console.warn('[PSL-Bridge] WebSocket send failed:', err); }
+      if (!enableDashWs || dashWs?.readyState !== WebSocket.OPEN) return;
+      try { dashWs.send(JSON.stringify(payload)); } catch {}
     };
     connectDashboardWs();
     pslDebugLog('[PSL] Dashboard bridge useEffect MOUNTED');
@@ -1781,7 +1784,6 @@ const RetroFootball: React.FC = () => {
     return () => {
       clearInterval(dashInterval);
       dashWsStopped = true;
-      if (dashWsReconnect) clearTimeout(dashWsReconnect);
       try { dashWs?.close(); } catch {}
       try { dashChannel?.close(); } catch {}
     };
@@ -1790,7 +1792,17 @@ const RetroFootball: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const bootGame = async () => {
-      if (!containerRef.current || gameRef.current) return;
+      if (!containerRef.current) return;
+      if (gameRef.current && engineRuntimeTokenRef.current !== ENGINE_RUNTIME_TOKEN) {
+        telemetryRecorderRef.current?.stop?.().catch?.(() => {});
+        telemetryRecorderRef.current = null;
+        try {
+          gameRef.current.dispose?.();
+        } catch {}
+        gameRef.current = null;
+        setGameReady(false);
+      }
+      if (gameRef.current) return;
       try {
         performance.mark('psl:game-engine-import:start');
       } catch {}
@@ -1801,6 +1813,8 @@ const RetroFootball: React.FC = () => {
       } catch {}
       if (cancelled || !containerRef.current || gameRef.current) return;
       gameRef.current = initGame(containerRef.current);
+      gameRef.current?.setEngineRuntimeToken?.(ENGINE_RUNTIME_TOKEN);
+      engineRuntimeTokenRef.current = ENGINE_RUNTIME_TOKEN;
       setGameReady(true);
       (window as any).pslGame = gameRef.current;
       const urlParams = new URLSearchParams(window.location.search);
@@ -1946,7 +1960,7 @@ const RetroFootball: React.FC = () => {
       setGameReady(false);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [ENGINE_RUNTIME_TOKEN]);
 
   useEffect(() => {
     gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
@@ -2797,7 +2811,7 @@ const RetroFootball: React.FC = () => {
               <img
                 src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-[40rem] max-w-[92vw] drop-shadow-[0_4px_20px_rgba(34,197,94,0.3)]"
+                className="w-[40rem] max-w-[92vw] drop-shadow-[0_4px_14px_rgba(34,197,94,0.14)]"
               />
             </div>
 
@@ -2836,7 +2850,7 @@ const RetroFootball: React.FC = () => {
       {/* Mode Select Screen */}
       {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && !showPreMatchSetup && (
         <div className="absolute inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,197,94,0.12),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72)_82%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,197,94,0.05),rgba(34,197,94,0.02)_18%,transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72)_82%)]" />
           <div className="relative z-[2] flex h-full w-full items-center justify-center px-6 py-8">
             <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-5">
               <img

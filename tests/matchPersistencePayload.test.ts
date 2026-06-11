@@ -52,3 +52,69 @@ test('V154 full-time persistence falls back to model header totals without rende
 
   assert.deepEqual([payload.headers_a, payload.headers_b], [4, 5]);
 });
+
+test('V201 full-time persistence normalizes saved bundle team counters from terminal snapshot', () => {
+  const payload = buildMatchResultPayload({
+    bundle: {
+      metadata: {
+        runtimeHalfDuration: 300,
+        matchClockScale: 9,
+      },
+      teamA: { name: 'Portugal', score: 1, shots: 9, shotsOnTarget: 3, saves: 1, passes: 111, passesCompleted: 88, corners: 2 },
+      teamB: { name: 'Spain', score: 0, shots: 7, shotsOnTarget: 2, saves: 2, passes: 99, passesCompleted: 71, corners: 1 },
+    },
+    snapshot: {
+      sessionId: 'ft-normalize',
+      matchId: 'simple-portugal-spain',
+      elapsedInHalf: 2700,
+      timestamp: 123,
+      runtimeHalfDuration: 300,
+      matchClockScale: 9,
+      seriesSpeedMul: 1,
+      restartDelayGoal: 0.8,
+      restartDelayHalf: 1.2,
+      cpuVsCpu: true,
+      interactiveHalftime: true,
+      engineRuntimeToken: 'runtime-123',
+      engineBootedAt: 456,
+      scoreA: 2,
+      scoreB: 0,
+      shotsA: 21,
+      shotsB: 14,
+      shotsOnTargetA: 8,
+      shotsOnTargetB: 4,
+      savesA: 4,
+      savesB: 2,
+      passesA: 123,
+      passesB: 97,
+      passesCompletedA: 94,
+      passesCompletedB: 76,
+      cornersA: 2,
+      cornersB: 4,
+      possessionA: 50,
+      possessionB: 50,
+    },
+    fallbackSessionId: 'unused',
+    timestamp: 3,
+  });
+
+  const savedBundle = JSON.parse(payload.bundle_json);
+
+  assert.deepEqual([payload.score_a, payload.score_b], [2, 0]);
+  assert.deepEqual([payload.shots_a, payload.shots_b], [21, 14]);
+  assert.deepEqual([payload.shots_on_target_a, payload.shots_on_target_b], [8, 4]);
+  assert.equal(savedBundle.teamA.passes, 123);
+  assert.equal(savedBundle.teamB.passes, 97);
+  assert.equal(savedBundle.teamA.passesCompleted, 94);
+  assert.equal(savedBundle.teamB.passesCompleted, 76);
+  assert.equal(savedBundle.teamA.corners, 2);
+  assert.equal(savedBundle.teamB.corners, 4);
+  assert.equal(savedBundle.persistenceAudit.normalizedFromSnapshot, true);
+  assert.equal(savedBundle.persistenceAudit.runtimeStamped, true);
+  assert.equal(savedBundle.metadata.sessionId, 'ft-normalize');
+  assert.equal(savedBundle.metadata.matchId, 'simple-portugal-spain');
+  assert.equal(savedBundle.metadata.runtimeHalfDuration, 300);
+  assert.equal(savedBundle.metadata.matchClockScale, 9);
+  assert.equal(savedBundle.metadata.engineRuntimeToken, 'runtime-123');
+  assert.equal(savedBundle.metadata.engineBootedAt, 456);
+});

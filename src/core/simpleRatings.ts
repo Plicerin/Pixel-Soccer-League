@@ -1,4 +1,15 @@
 import { getMLS2025TeamModifiers } from "../mlsTeamStats2025";
+import {
+  FIFA_MEN_RANKINGS_2026_04_01_BY_TEAM,
+  FIFA_MEN_RANKING_NEXT_UPDATE_DATE,
+  FIFA_MEN_RANKING_SNAPSHOT_DATE,
+  FIFA_MEN_RANKING_SOURCE_URL,
+} from "../data/fifaMenRankings2026-04-01";
+import {
+  SOFIFA_NATIONAL_TEAMS_BY_TEAM,
+  SOFIFA_NATIONAL_TEAMS_SOURCE_URL,
+  SOFIFA_NATIONAL_TEAMS_STATUS,
+} from "../data/sofifaNationalTeams";
 import type { SimpleRole } from "./simpleFormations";
 
 export type SimplePlayerRatings = {
@@ -14,6 +25,36 @@ export type SimpleTeamTuning = {
   defense: number;
   tempo: number;
   possession: number;
+  strengthProfile?: TeamStrengthProfile;
+  sofifaProfile?: SofifaNationalTeamProfile;
+};
+
+export type TeamStrengthProfile = {
+  source: "neutral" | "fifa-men-2026-04-01";
+  snapshotDate: string | null;
+  nextUpdateDate: string | null;
+  sourceUrl: string | null;
+  rank: number | null;
+  points: number | null;
+  normalizedStrength: number;
+  effectScale: number;
+  active: boolean;
+};
+
+export type SofifaNationalTeamProfile = {
+  source: "pending" | "sofifa-national";
+  sourceUrl: string;
+  status: string;
+  overall: number | null;
+  attack: number | null;
+  midfield: number | null;
+  defense: number | null;
+  normalizedOverall: number | null;
+  normalizedAttack: number | null;
+  normalizedMidfield: number | null;
+  normalizedDefense: number | null;
+  effectScale: number;
+  active: boolean;
 };
 
 const ROLE_BASE: Record<SimpleRole, SimplePlayerRatings> = {
@@ -60,16 +101,99 @@ function clamp01(value: number) {
   return Math.max(0.05, Math.min(0.95, value));
 }
 
-export function getTeamTuning(teamName: string): SimpleTeamTuning {
-  const modifiers = getMLS2025TeamModifiers(teamName);
-  if (!modifiers) {
-    return { attack: 0.5, defense: 0.5, tempo: 0.5, possession: 0.5 };
+const FIFA_RANKING_EFFECT_SCALE = 0;
+const SOFIFA_EFFECT_SCALE = 0;
+
+function normalizedFifaStrength(rank: number) {
+  const clampedRank = Math.max(1, Math.min(210, rank));
+  const percentile = (211 - clampedRank) / 210;
+  return clamp01(0.2 + percentile * 0.75);
+}
+
+export function getTeamStrengthProfile(teamName: string): TeamStrengthProfile {
+  const ranking = FIFA_MEN_RANKINGS_2026_04_01_BY_TEAM.get(teamName);
+  if (!ranking) {
+    return {
+      source: "neutral",
+      snapshotDate: null,
+      nextUpdateDate: null,
+      sourceUrl: null,
+      rank: null,
+      points: null,
+      normalizedStrength: 0.5,
+      effectScale: 0,
+      active: false,
+    };
   }
   return {
-    attack: clamp01(0.5 + modifiers.attackCentered * 0.18),
-    defense: clamp01(0.5 + modifiers.defenseCentered * 0.16),
-    tempo: clamp01(0.5 + modifiers.overallCentered * 0.10 + modifiers.attackCentered * 0.06),
-    possession: clamp01(0.5 + modifiers.overallCentered * 0.08 + modifiers.defenseCentered * 0.04),
+    source: "fifa-men-2026-04-01",
+    snapshotDate: FIFA_MEN_RANKING_SNAPSHOT_DATE,
+    nextUpdateDate: FIFA_MEN_RANKING_NEXT_UPDATE_DATE,
+    sourceUrl: FIFA_MEN_RANKING_SOURCE_URL,
+    rank: ranking.rank,
+    points: ranking.points,
+    normalizedStrength: normalizedFifaStrength(ranking.rank),
+    effectScale: FIFA_RANKING_EFFECT_SCALE,
+    active: FIFA_RANKING_EFFECT_SCALE > 0,
+  };
+}
+
+function normalizeSofifaRating(value: number | null) {
+  if (!Number.isFinite(value)) return null;
+  return clamp01((Number(value) - 40) / 60);
+}
+
+export function getSofifaNationalTeamProfile(teamName: string): SofifaNationalTeamProfile {
+  const row = SOFIFA_NATIONAL_TEAMS_BY_TEAM.get(teamName);
+  if (!row) {
+    return {
+      source: "pending",
+      sourceUrl: SOFIFA_NATIONAL_TEAMS_SOURCE_URL,
+      status: SOFIFA_NATIONAL_TEAMS_STATUS,
+      overall: null,
+      attack: null,
+      midfield: null,
+      defense: null,
+      normalizedOverall: null,
+      normalizedAttack: null,
+      normalizedMidfield: null,
+      normalizedDefense: null,
+      effectScale: 0,
+      active: false,
+    };
+  }
+  return {
+    source: row.overall === null && row.attack === null && row.midfield === null && row.defense === null ? "pending" : "sofifa-national",
+    sourceUrl: SOFIFA_NATIONAL_TEAMS_SOURCE_URL,
+    status: SOFIFA_NATIONAL_TEAMS_STATUS,
+    overall: row.overall,
+    attack: row.attack,
+    midfield: row.midfield,
+    defense: row.defense,
+    normalizedOverall: normalizeSofifaRating(row.overall),
+    normalizedAttack: normalizeSofifaRating(row.attack),
+    normalizedMidfield: normalizeSofifaRating(row.midfield),
+    normalizedDefense: normalizeSofifaRating(row.defense),
+    effectScale: SOFIFA_EFFECT_SCALE,
+    active: SOFIFA_EFFECT_SCALE > 0 && row.overall !== null,
+  };
+}
+
+export function getTeamTuning(teamName: string): SimpleTeamTuning {
+  const strengthProfile = getTeamStrengthProfile(teamName);
+  const sofifaProfile = getSofifaNationalTeamProfile(teamName);
+  const modifiers = getMLS2025TeamModifiers(teamName);
+  if (!modifiers) {
+    return { attack: 0.5, defense: 0.5, tempo: 0.5, possession: 0.5, strengthProfile, sofifaProfile };
+  }
+  const strengthBias = (strengthProfile.normalizedStrength - 0.5) * strengthProfile.effectScale;
+  return {
+    attack: clamp01(0.5 + modifiers.attackCentered * 0.18 + strengthBias * 0.18),
+    defense: clamp01(0.5 + modifiers.defenseCentered * 0.16 + strengthBias * 0.16),
+    tempo: clamp01(0.5 + modifiers.overallCentered * 0.10 + modifiers.attackCentered * 0.06 + strengthBias * 0.08),
+    possession: clamp01(0.5 + modifiers.overallCentered * 0.08 + modifiers.defenseCentered * 0.04 + strengthBias * 0.08),
+    strengthProfile,
+    sofifaProfile,
   };
 }
 
