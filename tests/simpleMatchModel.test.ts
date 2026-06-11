@@ -1322,10 +1322,12 @@ test("V57 simple model does not launch a new ball action before the visible flig
   for (let i = 1; i < flights.length; i++) {
     const previous = flights[i - 1];
     const current = flights[i];
-    const previousEnd = previous.elapsedInHalf + previous.durationSeconds;
+    const previousStart = previous.elapsedWallSeconds ?? previous.elapsedInHalf;
+    const currentStart = current.elapsedWallSeconds ?? current.elapsedInHalf;
+    const previousEnd = previousStart + previous.durationSeconds;
     assert.ok(
-      current.elapsedInHalf >= previousEnd - 0.04,
-      `flight ${current.seq} started at ${current.elapsedInHalf}s before flight ${previous.seq} arrived at ${previousEnd.toFixed(2)}s`,
+      currentStart >= previousEnd - 0.04,
+      `flight ${current.seq} started at ${currentStart}s before flight ${previous.seq} arrived at ${previousEnd.toFixed(2)}s`,
     );
   }
 });
@@ -1340,7 +1342,7 @@ test("V59 simple model flags receiver involvement from an offside position", () 
     model.updateVisuals(1 / 30);
   }
 
-  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
   const receiver = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
   assert.ok(carrier);
   assert.ok(receiver);
@@ -4794,6 +4796,78 @@ test("V196 aerial cross delivery can resolve as a counted header shot", () => {
   assert.ok(model.eventLog.some((event) => event.action === "HEADER_SHOT"));
 });
 
+test("V238 compressed header shots damp goal conversion without removing the shot", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v238-compressed-header-goal-damp");
+  model.setHalfDurationSeconds(5 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.half = 1;
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(attacker);
+  attacker.pos.x = RIGHT_GOAL_X - 9;
+  attacker.pos.z = 0.4;
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  for (const defender of model.getPlayers().filter((player) => player.team === "B" && player.role !== "GK")) {
+    defender.pos.x = LEFT_GOAL_X + 12;
+    defender.pos.z = 12;
+    defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+  }
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  (model as unknown as {
+    startBallFlight: (
+      kind: string,
+      from: { x: number; z: number },
+      to: { x: number; z: number },
+      duration: number,
+      arc: number,
+      followPlayer?: unknown,
+      options?: Record<string, unknown>,
+    ) => number;
+    updateBallFlight: (dt: number) => void;
+  }).startBallFlight("pass", { x: RIGHT_GOAL_X - 18, z: FIELD_D * 0.28 }, attacker.pos, 0.8, 0.9, undefined, {
+    aerial: true,
+    headerEligible: true,
+    sourceAction: "cross",
+    attackingTeam: "A",
+    receiverId: attacker.id,
+  });
+  for (let i = 0; i < 120; i++) {
+    (model as unknown as { updateBallFlight: (dt: number) => void }).updateBallFlight(1 / 60);
+  }
+
+  const shot = model.getTuningBundle().shotDecisions.at(-1);
+  const keeper = model.getPlayers().find((player) => player.team === "B" && player.role === "GK");
+  assert.ok(keeper);
+  const saveGeometry = (model as unknown as {
+    keeperSaveGeometry: (
+      keeper: typeof keeper,
+      shotOrigin: { x: number; z: number },
+      shotTarget: { x: number; z: number },
+      shotDistToGoalYards: number,
+      pressure: number,
+      shotStyle?: string,
+    ) => { headerReachGrace?: number };
+  }).keeperSaveGeometry(
+    keeper,
+    { x: attacker.pos.x, z: attacker.pos.z },
+    { x: RIGHT_GOAL_X - 0.2, z: 0.1 },
+    22.5,
+    0.2,
+    "HEADER",
+  );
+  assert.equal(shot?.resolutionReason, "HEADER_SHOT");
+  assert.equal(shot?.sourceAction, "cross");
+  assert.equal((shot as { compressedHeaderGoalMultiplier?: number } | undefined)?.compressedHeaderGoalMultiplier, 0.72);
+  assert.ok((saveGeometry.headerReachGrace || 0) > 0);
+  assert.ok(model.getTuningBundle().teamA.shots >= 1);
+});
+
 test("V213 compressed dangerous wide cross can resolve as a first-time shot", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v213-first-time-shot-from-cross");
@@ -5091,6 +5165,38 @@ test("V202 full-length outfield cadence resolves faster in advanced zones than i
 
   assert.ok(progressionDelay < buildupDelay, `progression cadence should be quicker than buildup, got ${progressionDelay.toFixed(2)} vs ${buildupDelay.toFixed(2)}`);
   assert.ok(chanceDelay < progressionDelay, `chance cadence should be quicker than progression, got ${chanceDelay.toFixed(2)} vs ${progressionDelay.toFixed(2)}`);
+});
+
+test("V237 compressed outfield cadence stays normal-time and still resolves faster in advanced zones", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v237-compressed-cadence-by-zone");
+  model.setHalfDurationSeconds(5 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(carrier);
+  model.possession = carrier;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.5,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  carrier.pos = { x: -5, y: 0, z: 12 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  const buildupDelay = (model as unknown as { nextActionDelay: () => number }).nextActionDelay();
+
+  carrier.pos = { x: 11, y: 0, z: 11 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  const progressionDelay = (model as unknown as { nextActionDelay: () => number }).nextActionDelay();
+
+  carrier.pos = { x: 19, y: 0, z: 8 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  const chanceDelay = (model as unknown as { nextActionDelay: () => number }).nextActionDelay();
+
+  assert.ok(buildupDelay >= 5.5, `compressed buildup cadence should stay in normal-time seconds, got ${buildupDelay.toFixed(2)}`);
+  assert.ok(buildupDelay > progressionDelay, `compressed buildup should resolve slower than progression, got ${buildupDelay.toFixed(2)} vs ${progressionDelay.toFixed(2)}`);
+  assert.ok(progressionDelay > chanceDelay, `compressed progression should resolve slower than chance creation, got ${progressionDelay.toFixed(2)} vs ${chanceDelay.toFixed(2)}`);
 });
 
 test("V217 buildup carriers prefer a nearby continuation outlet over a speculative long target", () => {

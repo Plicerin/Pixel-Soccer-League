@@ -276,6 +276,7 @@ export type BallFlightTelemetry = {
   minute: number;
   half: number;
   elapsedInHalf: number;
+  elapsedWallSeconds?: number;
   distance: number;
   distanceUnits: number;
   distanceYards: number;
@@ -1383,7 +1384,7 @@ export class SimpleMatchModel {
       this.activeCarrierTraceOwnerId = null;
       this.actionTimer = Math.max(0, this.actionTimer - dt);
       this.updateBallFlight(dt);
-      if (this.pendingFlightGoalEvent) {
+      if (this.pendingFlightGoalEvent && !this.ballFlight) {
         const goalEvent = this.pendingFlightGoalEvent;
         this.pendingFlightGoalEvent = null;
         return goalEvent;
@@ -1662,7 +1663,9 @@ export class SimpleMatchModel {
       if (!passed) {
         const matchShotLoad = this.teamA.shots + this.teamB.shots;
         const forcedShotQuality = this.forcedShotQualityDebt(carrier, distToGoal, pressure);
-        if ((matchShotLoad >= 26 || forcedShotQuality.shouldContain)
+        const compressedContainment = this.productionCompression() > 1.01
+          && (matchShotLoad >= 6 || pressure >= 0.42 || forcedShotQuality.shouldContain);
+        if ((matchShotLoad >= 26 || compressedContainment || forcedShotQuality.shouldContain)
           && this.resolvePenaltyAreaContainmentLoss(carrier, distToGoal, pressure, {
             qualityDebt: forcedShotQuality.qualityDebt,
             qualityReason: forcedShotQuality.reason,
@@ -1787,11 +1790,14 @@ export class SimpleMatchModel {
         : {});
       if (!passed && (strikerNearBox || forwardDeliveryContinuation)) {
         const forcedShotQuality = this.forcedShotQualityDebt(carrier, distToGoal, pressure);
+        const compressedContainment = this.productionCompression() > 1.01
+          && !deliveryContinuation
+          && (this.teamA.shots + this.teamB.shots >= 6 || pressure >= 0.40 || forcedShotQuality.shouldContain);
         // Tuning note: this uses the existing high-load containment path for
         // near-box no-outlet shots. Revert to the plain call below if near-box
         // chance creation drops too far:
         // this.resolveStrikerBoxPhysicalLoss(carrier, distToGoal, pressure)
-        if (this.teamA.shots + this.teamB.shots > 28 && this.resolveStrikerBoxPhysicalLoss(carrier, distToGoal, pressure, {
+        if ((this.teamA.shots + this.teamB.shots > 28 || compressedContainment) && this.resolveStrikerBoxPhysicalLoss(carrier, distToGoal, pressure, {
           shotLoadContainment: true,
           qualityDebt: forcedShotQuality.qualityDebt,
           qualityReason: forcedShotQuality.reason,
@@ -2273,17 +2279,29 @@ export class SimpleMatchModel {
     const distToGoal = dist2(contact, goalCenterForAttack(this.attackSign(player.team)));
     const pressure = this.pressureOn(player);
     const headerGoalFit = this.setPieceHeaderGoalChanceMultiplier(player, flight);
+    const compressedHeaderGoalMultiplier = this.productionCompression() <= 1.01
+      ? 1
+      : this.runtimeHalfDuration <= 150
+        ? 0.62
+        : this.runtimeHalfDuration <= 300
+          ? 0.72
+          : this.runtimeHalfDuration <= 900
+            ? 0.86
+            : 1;
+    const headerGoalMultiplier = headerGoalFit.multiplier * compressedHeaderGoalMultiplier;
     const goalEvent = this.resolveShot(player, distToGoal, pressure, {
       reason: "HEADER_SHOT",
       style: "HEADER",
       minGoalChance: 0.08,
-      goalChanceMultiplier: headerGoalFit.multiplier,
+      goalChanceMultiplier: headerGoalMultiplier,
       details: {
         header: true,
         sourceAction: flight.sourceAction,
         ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
         contactGap: +contactGap.toFixed(2),
         setPieceHeaderGoalMultiplier: headerGoalFit.multiplier,
+        compressedHeaderGoalMultiplier,
+        headerGoalMultiplier,
         setPieceHeaderDampReason: headerGoalFit.reason,
         recentCornerHeaderGoals: headerGoalFit.recentCornerHeaderGoals,
         teamCornerHeaderGoals: headerGoalFit.teamCornerHeaderGoals,
@@ -3442,7 +3460,15 @@ export class SimpleMatchModel {
     const baseGoalChance = invalidGoalGeometry
       ? 0
       : clamp(0.500 - keeperQuality * 0.17 - shotDistToGoal * 0.0055 - Math.max(0, shotDistToGoalYards - 12) * 0.0055 - scoreLoadGoalPenalty - anglePenalty * 0.11 - pressure * 0.028 + carrier.ratings.shooting * 0.12, highScoreGoalFloor, 0.47);
-    const compressedGoalChanceMultiplier = this.productionCompression() <= 1.01 ? 1 : 1.12;
+    const compressedGoalChanceMultiplier = this.productionCompression() <= 1.01
+      ? 1
+      : this.runtimeHalfDuration <= 150
+        ? 0.76
+        : this.runtimeHalfDuration <= 300
+          ? 0.84
+          : this.runtimeHalfDuration <= 900
+            ? 0.96
+            : 1.08;
     const earlyBurst = this.earlyBurstGoalChanceMultiplier(matchScoreForGoal, teamStats.score, context);
     const earlyBurstGoalMultiplier = earlyBurst.multiplier;
     const lowScoreGoalMultiplier = this.lowScoreGoalChanceMultiplier(matchScoreForGoal, context);
@@ -3460,7 +3486,7 @@ export class SimpleMatchModel {
       lowScoreGoalMultiplier,
       goalChance: +goalChance.toFixed(3),
     });
-    const saveGeometry = this.keeperSaveGeometry(keeper, shotOrigin, shotTarget, shotDistToGoalYards, pressure);
+    const saveGeometry = this.keeperSaveGeometry(keeper, shotOrigin, shotTarget, shotDistToGoalYards, pressure, style);
     const shotDefenseWithKeeper = this.shotDefenseSnapshot(carrier.team, shotOrigin, carrier, saveGeometry);
     Object.assign(decision, shotDefenseWithKeeper);
     let goal = context.forceSave || invalidGoalGeometry ? false : forcedGoal || this.rng.next() < goalChance;
@@ -3769,7 +3795,14 @@ export class SimpleMatchModel {
     return this.rng.next() < chance;
   }
 
-  private keeperSaveGeometry(keeper: SimplePlayer | undefined, shotOrigin: Vec2, shotTarget: Vec2, shotDistToGoalYards: number, pressure: number) {
+  private keeperSaveGeometry(
+    keeper: SimplePlayer | undefined,
+    shotOrigin: Vec2,
+    shotTarget: Vec2,
+    shotDistToGoalYards: number,
+    pressure: number,
+    shotStyle?: string,
+  ) {
     if (!keeper) {
       return {
         reachable: false,
@@ -3782,10 +3815,16 @@ export class SimpleMatchModel {
     const reachDistance = dist2(keeper.pos, shotTarget);
     const reactionPenalty = Math.max(0, 9 - shotDistToGoalYards) * 0.055 + pressure * 0.035;
     const maxReach = (5.0 + keeperQuality * 2.2) * FIELD_SCALE_PER_YARD - reactionPenalty;
+    const headerReachGrace = shotStyle === "HEADER"
+      ? this.productionCompression() > 1.01
+        ? 0.32
+        : 0.22
+      : 0;
     return {
-      reachable: reachDistance <= maxReach,
+      reachable: reachDistance <= maxReach + headerReachGrace,
       reachDistance: +reachDistance.toFixed(2),
       maxReach: +maxReach.toFixed(2),
+      headerReachGrace: +headerReachGrace.toFixed(2),
       contactPoint: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
       shotOrigin: { x: +shotOrigin.x.toFixed(2), z: +shotOrigin.z.toFixed(2) },
     };
@@ -4008,7 +4047,14 @@ export class SimpleMatchModel {
     const halfDuration = Math.max(1, this.msm.clock.halfDuration);
     const totalElapsed = (this.msm.clock.half - 1) * halfDuration + this.msm.clock.elapsedInHalf;
     const matchProgress = clamp(totalElapsed / (halfDuration * 2), 0, 1);
-    const expectedFloor = 22 * matchProgress;
+    if (this.runtimeHalfDuration <= 300) {
+      if (matchProgress < 0.78) return false;
+      if (totalShots >= 2) return false;
+      const distYards = (distToGoal / FIELD_W) * 120;
+      return distYards <= 26 && forwardX >= 3;
+    }
+    const runtimeScale = clamp((halfDuration * 2) / (45 * 60 * 2), 0.03, 1);
+    const expectedFloor = 22 * runtimeScale * matchProgress;
     if (totalShots >= expectedFloor) return false;
     const distYards = (distToGoal / FIELD_W) * 120;
     const maxYards = matchProgress > 0.72 ? 34 : 30;
@@ -4436,6 +4482,9 @@ export class SimpleMatchModel {
     }
     const current = { x: this.ball.pos.x, z: this.ball.pos.z };
     const goalMouthCrossing = this.detectGoalMouthCrossing(this.lastBallPos, current);
+    if (goalMouthCrossing && this.pendingFlightGoalEvent && this.ballFlight?.kind === "shot") {
+      return null;
+    }
     if (goalMouthCrossing && this.ballFlight?.kind === "miss") {
       this.pendingMissGoalLineOut ||= this.buildGoalMouthMissOut(goalMouthCrossing);
       return null;
@@ -5405,6 +5454,7 @@ export class SimpleMatchModel {
   }
 
   private startBallFlight(kind: BallFlightKind, from: Vec2, to: Vec2, duration: number, arc: number, followPlayer?: SimplePlayer, options: BallFlightOptions = {}) {
+    const previousFlightTelemetry = this.ballFlight ? this.ballFlightTelemetry.at(-1) : null;
     const start = this.ballFlight ? { x: this.ball.pos.x, z: this.ball.pos.z } : { ...from };
     const target = { x: to.x, z: to.z };
     const distanceUnits = dist2(start, target);
@@ -5440,12 +5490,19 @@ export class SimpleMatchModel {
       duration: safeDuration,
       arc: flightArc,
     };
+    const launchElapsedInHalf = this.ballFlight && previousFlightTelemetry && previousFlightTelemetry.seq === this.ballFlightSeq
+      ? +(previousFlightTelemetry.elapsedInHalf + previousFlightTelemetry.durationSeconds).toFixed(2)
+      : +this.msm.clock.elapsedInHalf.toFixed(2);
+    const launchElapsedWallSeconds = this.ballFlight && previousFlightTelemetry?.elapsedWallSeconds != null && previousFlightTelemetry.seq === this.ballFlightSeq
+      ? +(previousFlightTelemetry.elapsedWallSeconds + previousFlightTelemetry.durationSeconds).toFixed(3)
+      : +this.elapsedTotal.toFixed(3);
     this.ballFlightTelemetry.push({
       seq: ++this.ballFlightSeq,
       kind,
       minute: getMatchMinute(this.msm),
       half: this.msm.clock.half,
-      elapsedInHalf: +this.msm.clock.elapsedInHalf.toFixed(2),
+      elapsedInHalf: launchElapsedInHalf,
+      elapsedWallSeconds: launchElapsedWallSeconds,
       distance: +distanceUnits.toFixed(2),
       distanceUnits: +distanceUnits.toFixed(2),
       distanceYards: +distanceYards.toFixed(1),
@@ -5532,6 +5589,9 @@ export class SimpleMatchModel {
     if (carrier && carrier.role !== "GK" && this.runtimeHalfDuration >= 1800) {
       return clamp(this.fullLengthOutfieldCadenceDelay(carrier), 0.03, 8.5);
     }
+    if (carrier && carrier.role !== "GK") {
+      return clamp(this.compressedOutfieldCadenceDelay(carrier), 0.03, 8.5);
+    }
     const tempo = this.team(this.possession?.team || "A").tuning.tempo;
     const baseDelay = clamp(4.75 - tempo * 1.25 + this.rng.range(-0.8, 1.1), 2.75, 6.25);
     return clamp((baseDelay * BALL_HOLD_TIME_MULTIPLIER * this.underproducingCadenceScale()) / this.productionCompression(), 0.03, 8.5);
@@ -5561,6 +5621,53 @@ export class SimpleMatchModel {
     const underproductionScale = this.underproducingCadenceScale();
     const base = this.rng.range(zoneWindow.min, zoneWindow.max) + roleOffset;
     return Math.max(0.42, base * tempoScale * pressureScale * underproductionScale);
+  }
+
+  private compressedOutfieldCadenceDelay(carrier: SimplePlayer) {
+    const tempo = this.team(carrier.team).tuning.tempo;
+    const distToGoal = dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team)));
+    const zone = this.zoneForDist(distToGoal);
+    const pressure = this.pressureOn(carrier);
+    const zoneWindow = zone === "BUILDUP"
+      ? { min: 4.9, max: 7.1 }
+      : zone === "PROGRESSION"
+        ? { min: 3.5, max: 5.3 }
+        : zone === "CHANCE_CREATION"
+          ? { min: 2.1, max: 3.4 }
+          : { min: 0.96, max: 1.42 };
+    const roleOffset = carrier.role === "CB" ? 0.24
+      : carrier.role === "CM" ? 0.12
+        : carrier.role === "FB" ? 0.08
+          : carrier.role === "DM" ? 0.10
+            : carrier.role === "W" ? -0.04
+              : carrier.role === "AM" ? -0.08
+                : carrier.role === "ST" ? -0.12
+                  : 0;
+    const tempoScale = lerpNumber(1.06, 0.92, tempo);
+    const pressureScale = lerpNumber(1.0, 0.82, clamp(pressure / 1.3, 0, 1));
+    const runtimeScale = this.runtimeHalfDuration <= 150
+      ? 1.18
+      : this.runtimeHalfDuration <= 300
+        ? 1.07
+        : this.runtimeHalfDuration <= 900
+          ? 1.01
+          : 1.0;
+    const compressedPassLagScale = (zone === "BUILDUP" || zone === "PROGRESSION")
+      ? this.compressedPassLagCadenceScale()
+      : 1;
+    const base = this.rng.range(zoneWindow.min, zoneWindow.max) + roleOffset;
+    return Math.max(0.48, base * tempoScale * pressureScale * runtimeScale * compressedPassLagScale);
+  }
+
+  private compressedPassLagCadenceScale() {
+    if (this.runtimeHalfDuration > 300) return 1;
+    const totalPasses = this.teamA.passes + this.teamB.passes;
+    const totalMatchSeconds = Math.max(1, this.runtimeHalfDuration * 2);
+    const progress = clamp(this.elapsedTotal / totalMatchSeconds, 0, 1);
+    if (progress >= 0.70 && totalPasses < 82) return 0.90;
+    if (progress >= 0.55 && totalPasses < 66) return 0.94;
+    if (progress >= 0.40 && totalPasses < 48) return 0.97;
+    return 1;
   }
 
   private underproducingCadenceScale() {
@@ -6350,7 +6457,13 @@ export class SimpleMatchModel {
 
   private shotSelectionScale() {
     const compression = this.productionCompression();
-    const compressedRuntimeBoost = compression <= 1.01 ? 1 : clamp(1 + (Math.sqrt(compression) - 1) * 0.09, 1, 1.45);
+    const compressedRuntimeBoost = compression <= 1.01
+      ? 1
+      : this.runtimeHalfDuration <= 150
+        ? 0.56
+        : this.runtimeHalfDuration <= 300
+          ? 0.62
+          : clamp(1 + (Math.sqrt(compression) - 1) * 0.09, 1, 1.45);
     return 1.70 * compressedRuntimeBoost;
   }
 
