@@ -27,6 +27,7 @@
     "sim:headless:10": "node scripts/headless-sim.mjs --quantity 10",
     "sim:headless:20": "node scripts/headless-sim.mjs --quantity 20",
     "telemetry:analyze": "node --import tsx scripts/telemetry-analyze-latest.mjs",
+    "telemetry:review": "node --import tsx scripts/telemetry-review.mjs",
     "movement:real": "node scripts/analyze-real-movement-profile.mjs",
     "iterate:overnight": "node scripts/iterate-overnight.mjs",
     "tuning:series": "node scripts/iterate-overnight.mjs --cycles 5 --games-per-cycle 1 --mode tuning --speed 1 --half-seconds 300",
