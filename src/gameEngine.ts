@@ -468,6 +468,7 @@ type RestartPresentation = {
   team: string;
   takerId: string | null;
   spot: { x: number; z: number };
+  takerSpot: { x: number; z: number } | null;
   ttl: number;
   duration: number;
 };
@@ -2304,7 +2305,7 @@ class SimpleGameEngine {
     const kickDirX = restart.spot.x < 0 ? 1 : -1;
     const outsideZ = restart.spot.z >= 0 ? 1 : -1;
     const inwardZ = -outsideZ;
-    const strike = {
+    const strike = restart.takerSpot || {
       x: restart.spot.x - kickDirX * 0.08,
       z: restart.spot.z + outsideZ * CORNER_OUTSIDE_TOUCHLINE_OFFSET,
     };
@@ -2316,18 +2317,22 @@ class SimpleGameEngine {
       x: strike.x + kickDirX * 0.16,
       z: strike.z + inwardZ * 0.10,
     };
+    const preload = {
+      x: strike.x - kickDirX * 0.10,
+      z: strike.z + outsideZ * 0.06,
+    };
     if (restart.phase === 'setup') {
       const setupPulse = Math.sin(progress * Math.PI * 2) * 0.07;
       return {
-        x: runup.x + kickDirX * setupPulse,
-        z: runup.z - outsideZ * Math.abs(setupPulse) * 0.35,
+        x: preload.x + kickDirX * setupPulse * 0.18,
+        z: preload.z - outsideZ * Math.abs(setupPulse) * 0.10,
       };
     }
     const drive = THREE.MathUtils.smoothstep(progress, 0, 0.68);
     const followT = THREE.MathUtils.smoothstep(progress, 0.82, 1);
     const plant = {
-      x: THREE.MathUtils.lerp(runup.x, strike.x, drive),
-      z: THREE.MathUtils.lerp(runup.z, strike.z, drive),
+      x: THREE.MathUtils.lerp(preload.x, strike.x, drive),
+      z: THREE.MathUtils.lerp(preload.z, strike.z, drive),
     };
     return {
       x: THREE.MathUtils.lerp(plant.x, follow.x, followT),
@@ -2336,6 +2341,7 @@ class SimpleGameEngine {
   }
 
   private restartPresentationPosition(restart: RestartPresentation) {
+    if ((restart.type === 'throw_in' || restart.type === 'corner') && restart.takerSpot) return restart.takerSpot;
     if (restart.type !== 'throw_in') return restart.spot;
     const outsideZ = restart.spot.z >= 0 ? FIELD_D / 2 + THROW_IN_OUTSIDE_TOUCHLINE_OFFSET : -FIELD_D / 2 - THROW_IN_OUTSIDE_TOUCHLINE_OFFSET;
     return { x: restart.spot.x, z: outsideZ };
@@ -2344,13 +2350,15 @@ class SimpleGameEngine {
   private restartPresentationBallPosition() {
     const restart = this.activeRestartPresentation;
     if (!restart || restart.phase !== 'setup') return null;
-    const pos = this.restartPresentationPosition(restart);
-    if (restart.type === 'throw_in') return { x: pos.x, y: 1.1, z: pos.z };
-    if (restart.type === 'corner') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
-    if (restart.type === 'goal_kick') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
-    if (restart.type === 'free_kick') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
-    if (restart.type === 'penalty') return { x: pos.x, y: BALL_GROUND_Y, z: pos.z };
-    if (restart.type === 'drop_kick') return { x: pos.x, y: BALL_GROUND_Y + 0.48, z: pos.z };
+    if (restart.type === 'throw_in') {
+      const takerPos = restart.takerSpot || this.restartPresentationPosition(restart);
+      return { x: takerPos.x, y: 1.1, z: takerPos.z };
+    }
+    if (restart.type === 'corner') return { x: restart.spot.x, y: BALL_GROUND_Y, z: restart.spot.z };
+    if (restart.type === 'goal_kick') return { x: restart.spot.x, y: BALL_GROUND_Y, z: restart.spot.z };
+    if (restart.type === 'free_kick') return { x: restart.spot.x, y: BALL_GROUND_Y, z: restart.spot.z };
+    if (restart.type === 'penalty') return { x: restart.spot.x, y: BALL_GROUND_Y, z: restart.spot.z };
+    if (restart.type === 'drop_kick') return { x: restart.spot.x, y: BALL_GROUND_Y + 0.48, z: restart.spot.z };
     return null;
   }
 
@@ -2508,6 +2516,7 @@ class SimpleGameEngine {
     const type = this.restartTypeFromEvent(event);
     const phase = event.meta?.phase === 'release' ? 'release' : 'setup';
     const spot = this.pointFromMeta(event.meta?.spot);
+    const takerSpot = this.pointFromMeta(event.meta?.takerSpot);
     if (!type || !spot) return;
     const fallbackTaker = this.activeRestartPresentation?.type === type && this.activeRestartPresentation.team === (event.team || '')
       ? this.activeRestartPresentation.takerId
@@ -2532,6 +2541,7 @@ class SimpleGameEngine {
       team: event.team || '',
       takerId,
       spot,
+      takerSpot,
       ttl: duration,
       duration,
     };

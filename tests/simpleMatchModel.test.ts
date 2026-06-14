@@ -518,6 +518,51 @@ test("V187 throw-in taker stages outside the touchline", () => {
   assert.ok(Math.abs(target.z) > FIELD_D / 2, `throw-in taker target stayed in bounds at z=${target.z.toFixed(2)}`);
 });
 
+test("V239 restart setup/release expose taker spot for corner and throw-in presentations", () => {
+  const throwModel = new SimpleMatchModel();
+  throwModel.setSeed("v239-throw-taker-spot");
+  throwModel.startMatch();
+  throwModel.msm.state = { kind: "ball_out", restartType: "throw_in", restartTeam: "home" };
+  const throwRestart = {
+    restartType: "throw_in" as const,
+    restartTeam: "A" as const,
+    spot: { x: 4, z: FIELD_D / 2 - 0.05 },
+    takerId: "A-1",
+    lastTouchTeam: "B" as const,
+    lastTouchPlayerId: null,
+    crossedLine: "top_touchline" as const,
+  };
+  (throwModel as unknown as { installBallOutRestart: (context: typeof throwRestart) => void }).installBallOutRestart(throwRestart);
+  const throwSetup = throwModel.eventLog.filter((event) => event.action === "THROW_IN" && event.meta?.phase === "setup").at(-1);
+  const throwTarget = (throwModel as unknown as { restartTakerTarget: (ctx: typeof throwRestart) => { x: number; z: number } }).restartTakerTarget(throwRestart);
+  assert.deepEqual(throwSetup?.meta?.takerSpot, throwTarget, "throw-in setup must expose the model taker spot");
+  for (let i = 0; i < 240 && (throwModel.msm.state as { kind: string }).kind === "ball_out"; i++) throwModel.step(1 / 60);
+  const throwRelease = throwModel.eventLog.filter((event) => event.action === "THROW_IN" && event.meta?.phase === "release").at(-1);
+  assert.deepEqual(throwRelease?.meta?.takerSpot, throwTarget, "throw-in release must keep the same taker spot");
+
+  const cornerModel = new SimpleMatchModel();
+  cornerModel.setSeed("v239-corner-taker-spot");
+  cornerModel.startMatch();
+  cornerModel.msm.state = { kind: "ball_out", restartType: "corner", restartTeam: "home" };
+  const cornerRestart = {
+    restartType: "corner" as const,
+    restartTeam: "A" as const,
+    spot: { x: RIGHT_GOAL_X + 1, z: FIELD_D / 2 + 1 },
+    takerId: "A-1",
+    lastTouchTeam: "B" as const,
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line" as const,
+  };
+  (cornerModel as unknown as { installBallOutRestart: (context: typeof cornerRestart) => void }).installBallOutRestart(cornerRestart);
+  const cornerSetup = cornerModel.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "setup").at(-1);
+  const cornerTarget = (cornerModel as unknown as { restartTakerTarget: (ctx: typeof cornerRestart) => { x: number; z: number } }).restartTakerTarget(cornerRestart);
+  assert.deepEqual(cornerSetup?.meta?.takerSpot, cornerTarget, "corner setup must expose the model taker spot");
+  assert.ok(Math.abs(Number((cornerSetup?.meta?.takerSpot as { z?: number } | undefined)?.z)) > FIELD_D / 2, "corner taker spot must stay outside the touchline");
+  for (let i = 0; i < 900 && (cornerModel.msm.state as { kind: string }).kind === "ball_out"; i++) cornerModel.step(1 / 60);
+  const cornerRelease = cornerModel.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "release").at(-1);
+  assert.deepEqual(cornerRelease?.meta?.takerSpot, cornerTarget, "corner release must keep the same taker spot");
+});
+
 test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
   const run = (lastTouchTeam: "A" | "B") => {
     const model = new SimpleMatchModel();
@@ -4846,7 +4891,7 @@ test("V238 compressed header shots damp goal conversion without removing the sho
   assert.ok(keeper);
   const saveGeometry = (model as unknown as {
     keeperSaveGeometry: (
-      keeper: typeof keeper,
+      keeper: any,
       shotOrigin: { x: number; z: number },
       shotTarget: { x: number; z: number },
       shotDistToGoalYards: number,

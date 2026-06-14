@@ -620,6 +620,16 @@ test('V78 renderer animates throw-in and corner release phases distinctly from i
   assert.doesNotMatch(source, /restartPose\?\.type === 'corner' && restartPose\.phase === 'setup'/, 'corner special pose must not disappear as soon as release starts');
 });
 
+test('V239 renderer uses model taker spot for corner and throw-in presentation while leaving the ball at the restart spot', () => {
+  const source = readFileSync('src/gameEngine.ts', 'utf8');
+  assert.match(source, /takerSpot: \{ x: number; z: number \} \| null;/, 'restart presentation state must carry an explicit taker spot');
+  assert.match(source, /const takerSpot = this\.pointFromMeta\(event\.meta\?\.takerSpot\);/, 'renderer must parse model-provided taker spots from restart events');
+  assert.match(source, /if \(\(restart\.type === 'throw_in' \|\| restart\.type === 'corner'\) && restart\.takerSpot\) return restart\.takerSpot;/, 'corner and throw-in player presentation must use the model taker spot as the source of truth');
+  assert.match(source, /const strike = restart\.takerSpot \|\| \{[\s\S]*?CORNER_OUTSIDE_TOUCHLINE_OFFSET[\s\S]*?\};/, 'corner strike position must prefer the model taker spot over recomputed geometry');
+  assert.match(source, /const preload = \{[\s\S]*?strike\.x - kickDirX \* 0\.10[\s\S]*?strike\.z \+ outsideZ \* 0\.06[\s\S]*?\};[\s\S]*?if \(restart\.phase === 'setup'\) \{[\s\S]*?x: preload\.x \+ kickDirX \* setupPulse \* 0\.18,[\s\S]*?z: preload\.z - outsideZ \* Math\.abs\(setupPulse\) \* 0\.10,/s, 'corner setup pose must hold the taker by the flag instead of backing up into an off-corner run-up');
+  assert.match(source, /if \(restart\.type === 'corner'\) return \{ x: restart\.spot\.x, y: BALL_GROUND_Y, z: restart\.spot\.z \};/, 'corner setup ball must stay at the restart spot rather than moving to the taker spot');
+});
+
 test('V159 renderer keeps penalty restart presentation from hiding penalty ball flight', () => {
   const source = readFileSync('src/gameEngine.ts', 'utf8');
   const spec = readFileSync('SPEC.md', 'utf8');
@@ -628,7 +638,7 @@ test('V159 renderer keeps penalty restart presentation from hiding penalty ball 
   assert.match(bugs, /BUG-PENALTY-001 \| Fixed - Awaiting User Approval \| Penalty kick ball disappears or teleports/, 'penalty teleport bug must remain awaiting visual approval');
   assert.match(source, /event\.action === 'THROW_IN' \|\| event\.action === 'CORNER' \|\| event\.action === 'GOAL_KICK' \|\| event\.action === 'FREE_KICK' \|\| event\.action === 'PENALTY' \|\| event\.action === 'DROP_KICK'/, 'renderer must consume penalty setup/release presentation events');
   assert.match(source, /if \(event\.action === 'PENALTY'\) return 'penalty';/, 'penalty events must resolve to penalty restart presentation type');
-  assert.match(source, /if \(restart\.type === 'penalty'\) return \{ x: pos\.x, y: BALL_GROUND_Y, z: pos\.z \};/, 'penalty setup may pin the setup ball at the spot');
+  assert.match(source, /if \(restart\.type === 'penalty'\) return \{ x: restart\.spot\.x, y: BALL_GROUND_Y, z: restart\.spot\.z \};/, 'penalty setup may pin the setup ball at the spot');
   assert.match(source, /if \(!restart \|\| restart\.phase !== 'setup'\) return null;/, 'penalty release must not override the live model ball flight');
   assert.match(source, /restartPose\?\.type === 'penalty'[\s\S]*?this\.updateGoalKickSprite\(visual, restartPose\);/s, 'penalty taker must keep a visible release animation without hiding the ball');
 });
@@ -675,7 +685,7 @@ test('V79 renderer gives goalkeeper goal kicks a visible kick presentation', () 
   const source = readFileSync('src/gameEngine.ts', 'utf8');
   assert.match(source, /restartPose\?\.type === 'goal_kick' \|\| restartPose\?\.type === 'drop_kick'[\s\S]*?this\.updateGoalKickSprite\(visual, restartPose\);/s, 'goal-kick presentation must use a dedicated keeper kick path');
   assert.match(source, /private updateGoalKickSprite\(visual: PlayerVisual, restart: RestartPresentation\)/, 'renderer must define the goal-kick sprite path');
-  assert.match(source, /restart\.type === 'goal_kick'\) return \{ x: pos\.x, y: BALL_GROUND_Y, z: pos\.z \}/, 'goal-kick setup must pin the ball on the ground at the restart spot');
+  assert.match(source, /restart\.type === 'goal_kick'\) return \{ x: restart\.spot\.x, y: BALL_GROUND_Y, z: restart\.spot\.z \}/, 'goal-kick setup must pin the ball on the ground at the restart spot');
   assert.match(source, /visual\.spriteGroup\.rotation\.set\(0, 0, -visual\.dir \* kickT \* 0\.28\)/, 'goal-kick release must visibly swing the keeper sprite');
 });
 

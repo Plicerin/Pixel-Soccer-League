@@ -4733,6 +4733,7 @@ export class SimpleMatchModel {
     }
     const presentationKind = restart.restartType === "corner" ? "corner_kick" : restart.restartType;
     const presentationSeconds = restart.restartType === "corner" ? 2.0 : restart.restartType === "throw_in" ? 1.9 : restart.restartType === "penalty" ? 2.2 : 1.8;
+    const takerSpot = taker ? this.restartTakerTarget(restart) : null;
     const setupMeta = {
       phase: "setup",
       restartType: restart.restartType,
@@ -4741,6 +4742,7 @@ export class SimpleMatchModel {
       takerId: taker?.id || null,
       takerName: taker?.name || null,
       spot: { ...restart.spot },
+      takerSpot,
       lastTouchTeam: restart.lastTouchTeam,
       crossedLine: restart.crossedLine,
     };
@@ -5074,6 +5076,7 @@ export class SimpleMatchModel {
     const presentationKind = restart.restartType === "corner" ? "corner_kick" : restart.restartType;
     const presentationSeconds = restart.restartType === "corner" ? 1.35 : restart.restartType === "throw_in" ? 1.15 : 0.8;
     const cornerFormation = restart.restartType === "corner" ? this.cornerFormationTelemetry(restart) : undefined;
+    const takerSpot = taker ? this.restartTakerTarget(restart) : null;
     const releaseMeta = {
       phase: "release",
       restartType: restart.restartType,
@@ -5081,6 +5084,7 @@ export class SimpleMatchModel {
       presentationSeconds,
       takerId: taker?.id || null,
       takerName: taker?.name || null,
+      takerSpot,
       receiverId: receiver.id,
       receiverName: receiver.name,
       spot: { ...restart.spot },
