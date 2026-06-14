@@ -23,8 +23,8 @@ test('runtime review extracts persisted hold and delivery metrics', () => {
     ],
     events: [
       { type: 'PATTERN_CROSS_EXECUTED', team: 'A', __elapsed: 10 },
-      { type: 'SHOT', team: 'A', __elapsed: 14 },
-      { type: 'GOAL', team: 'A', __elapsed: 15 },
+      { type: 'SHOT', team: 'A', __elapsed: 12 },
+      { type: 'GOAL', team: 'A', __elapsed: 12.5 },
     ],
     fullLengthPossessionDiagnostics: { speculativePassInterceptions: 6 },
   })
@@ -39,6 +39,21 @@ test('runtime review extracts persisted hold and delivery metrics', () => {
   assert.equal(row.shotProducingDeliveries, 1)
   assert.equal(row.goalProducingDeliveries, 1)
   assert.equal(row.speculativePassInterceptions, 6)
+})
+
+test('runtime review uses the real runtime half duration for second-half delivery windows', () => {
+  const row = bundleToRuntimeReviewRow({
+    metadata: { runtimeHalfDuration: 120 },
+    teamA: { score: 1, shots: 1, shotsOnTarget: 1, passes: 24, passesCompleted: 18 },
+    teamB: { score: 0, shots: 0, shotsOnTarget: 0, passes: 23, passesCompleted: 16 },
+    events: [
+      { type: 'PATTERN_CROSS_EXECUTED', team: 'A', half: 2, t: 115 },
+      { type: 'SHOT', team: 'A', half: 2, t: 116.2 },
+    ],
+  })
+
+  assert.equal(row.deliveries, 1)
+  assert.equal(row.shotProducingDeliveries, 1)
 })
 
 test('runtime review summarizes by runtime bucket', () => {
@@ -64,6 +79,13 @@ test('runtime review summarizes by runtime bucket', () => {
       ballFlightTelemetry: [{ realizedHoldSeconds: 1.1 }],
       events: [],
       fullLengthPossessionDiagnostics: { speculativePassInterceptions: 8 },
+    },
+    {
+      metadata: { runtimeHalfDuration: 150 },
+      teamA: { passes: 70, passesCompleted: 55 },
+      teamB: { passes: 68, passesCompleted: 54 },
+      ballFlightTelemetry: [{ realizedHoldSeconds: 0.9 }],
+      events: [],
     },
   ])
 

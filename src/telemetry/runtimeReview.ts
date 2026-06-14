@@ -24,8 +24,25 @@ type BundleLike = {
     type?: string
     team?: string
     __elapsed?: number
+    half?: number
+    t?: number
+    detail?: {
+      half?: number
+      t?: number
+    }
   }>
   fullLengthPossessionDiagnostics?: PossessionDiagnostics
+}
+
+type RuntimeEvent = {
+  type?: string
+  team?: string
+  half?: number
+  t?: number
+  detail?: {
+    half?: number
+    t?: number
+  }
 }
 
 export type RuntimeBucketSummary = {
@@ -55,6 +72,12 @@ export type RuntimeBucketSummary = {
     completedMin: number
     completedMax: number
   }
+}
+
+export const SUPPORTED_RUNTIME_HALF_SECONDS = [120, 300, 900, 2700] as const
+
+export function isSupportedRuntimeHalfSeconds(runtimeHalfSeconds: number) {
+  return SUPPORTED_RUNTIME_HALF_SECONDS.includes(runtimeHalfSeconds as (typeof SUPPORTED_RUNTIME_HALF_SECONDS)[number])
 }
 
 type MatchReviewRow = {
@@ -112,14 +135,32 @@ function extractRuntimeHalfSeconds(bundle: BundleLike) {
   return Number.isFinite(raw) && raw > 0 ? raw : 300
 }
 
-function extractDeliveryWindow(events: Array<{ type?: string; team?: string; __elapsed?: number }>) {
-  const deliveries = events.filter((event) => event.type === 'PATTERN_DELIVERY_EXECUTED' || event.type === 'PATTERN_CROSS_EXECUTED')
-  const shots = events.filter((event) => event.type === 'SHOT')
-  const goals = events.filter((event) => event.type === 'GOAL')
+function getEventElapsed(event: RuntimeEvent, runtimeHalfSeconds: number) {
+  const half = Number(event.half ?? event.detail?.half ?? 1)
+  return (half === 2 ? runtimeHalfSeconds : 0) + Number(event.t ?? event.detail?.t ?? 0)
+}
+
+function extractDeliveryWindow(
+  events: RuntimeEvent[],
+  runtimeHalfSeconds: number,
+  totalMatchSeconds: number,
+) {
+  const deliveries = events
+    .filter((event) => event.type === 'PATTERN_DELIVERY_EXECUTED' || event.type === 'PATTERN_CROSS_EXECUTED')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event, runtimeHalfSeconds) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const shots = events
+    .filter((event) => event.type === 'SHOT')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event, runtimeHalfSeconds) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
+  const goals = events
+    .filter((event) => event.type === 'GOAL' || event.type === 'GOAL_SCORER')
+    .map((event) => ({ ...event, __elapsed: getEventElapsed(event, runtimeHalfSeconds) }))
+    .sort((a, b) => a.__elapsed - b.__elapsed)
   let shotProducing = 0
   let goalProducing = 0
   let crosses = 0
-  const windowSeconds = 8
+  const windowSeconds = Math.max(1.5, Math.min(4, totalMatchSeconds / 240))
   for (const delivery of deliveries) {
     if (delivery.type === 'PATTERN_CROSS_EXECUTED') crosses += 1
     const start = Number(delivery.__elapsed ?? 0)
@@ -151,7 +192,7 @@ export function bundleToRuntimeReviewRow(bundle: BundleLike): MatchReviewRow {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value) && value >= 0)
     : []
-  const deliveryWindow = extractDeliveryWindow(Array.isArray(bundle.events) ? bundle.events : [])
+  const deliveryWindow = extractDeliveryWindow(Array.isArray(bundle.events) ? bundle.events : [], runtimeHalfSeconds, totalMatchSeconds)
   return {
     runtimeHalfSeconds,
     totalMatchSeconds,
@@ -172,7 +213,9 @@ export function bundleToRuntimeReviewRow(bundle: BundleLike): MatchReviewRow {
 }
 
 export function summarizeRuntimeBuckets(bundles: BundleLike[]) {
-  const rows = bundles.map(bundleToRuntimeReviewRow)
+  const rows = bundles
+    .map(bundleToRuntimeReviewRow)
+    .filter((row) => isSupportedRuntimeHalfSeconds(row.runtimeHalfSeconds))
   const grouped = new Map<number, MatchReviewRow[]>()
   for (const row of rows) {
     const bucket = grouped.get(row.runtimeHalfSeconds)

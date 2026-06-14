@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'
-import { summarizeRuntimeBuckets } from '../src/telemetry/runtimeReview.ts'
+import { bundleToRuntimeReviewRow, isSupportedRuntimeHalfSeconds, summarizeRuntimeBuckets, runtimeBucketKey } from '../src/telemetry/runtimeReview.ts'
 
 function parseArgs(argv) {
   const options = {
@@ -49,6 +49,12 @@ function markdown(report) {
   for (const row of report.buckets) {
     lines.push(`| ${row.bucketKey} | ${row.matchCount} | ${row.avgAttemptedPasses} | ${row.avgCompletedPasses} | ${row.passTargets.attemptsMin}-${row.passTargets.attemptsMax} | ${row.passTargets.completedMin}-${row.passTargets.completedMax} | ${row.avgHoldSeconds}s | ${row.medianHoldSeconds}s | ${row.oneTouchLikePct}% | ${row.avgDeliveries} | ${row.avgShotProducingDeliveries} | ${row.deliveryShotPct}% | ${row.avgSpeculativePassInterceptions} |`)
   }
+  if (report.ignoredBuckets.length) {
+    lines.push('', 'Ignored unsupported runtime buckets:')
+    for (const row of report.ignoredBuckets) {
+      lines.push(`- ${row.bucketKey}: ${row.matchCount} match(es)`)
+    }
+  }
   return `${lines.join('\n')}\n`
 }
 
@@ -75,11 +81,27 @@ function main() {
       }
     })
     .filter(Boolean)
+  const reviewRows = bundles.map(bundleToRuntimeReviewRow)
+  const ignoredBucketCounts = new Map()
+  for (const row of reviewRows) {
+    if (isSupportedRuntimeHalfSeconds(row.runtimeHalfSeconds)) continue
+    ignoredBucketCounts.set(
+      row.runtimeHalfSeconds,
+      Number(ignoredBucketCounts.get(row.runtimeHalfSeconds) || 0) + 1,
+    )
+  }
   const report = {
     generatedAt: new Date().toISOString(),
     dbPath: path.resolve(process.cwd(), options.dbPath),
     matchesScanned: bundles.length,
     buckets: summarizeRuntimeBuckets(bundles),
+    ignoredBuckets: [...ignoredBucketCounts.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([runtimeHalfSeconds, matchCount]) => ({
+        runtimeHalfSeconds,
+        bucketKey: runtimeBucketKey(runtimeHalfSeconds),
+        matchCount,
+      })),
   }
   ensureDir(options.outJson)
   ensureDir(options.outMd)
@@ -93,6 +115,9 @@ function main() {
       ` | completed ${row.avgCompletedPasses} vs ${row.passTargets.completedMin}-${row.passTargets.completedMax}` +
       ` | hold ${row.avgHoldSeconds}s median ${row.medianHoldSeconds}s | deliveries ${row.avgDeliveries} | delivery->shot ${row.deliveryShotPct}%`,
     )
+  }
+  for (const row of report.ignoredBuckets) {
+    console.log(`ignored unsupported bucket ${row.bucketKey} | matches ${row.matchCount}`)
   }
   console.log(`Saved JSON: ${path.resolve(process.cwd(), options.outJson)}`)
   console.log(`Saved Markdown: ${path.resolve(process.cwd(), options.outMd)}`)
