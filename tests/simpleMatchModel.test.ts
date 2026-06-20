@@ -3994,6 +3994,51 @@ test("V188 wide final-third carriers prefer central deliveries over backward res
   assert.equal(crossEvent?.detail?.playName, "WIDE_DELIVERY");
 });
 
+test("V242 5m non-striker final-third carriers avoid backward recycle targets when a forward outlet exists", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v242-five-minute-final-third-recycle");
+  model.setHalfDurationSeconds(300);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 18;
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const forwardOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "AM")
+    || model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const backOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "FB");
+  assert.ok(carrier);
+  assert.ok(forwardOutlet);
+  assert.ok(backOutlet);
+
+  carrier.pos = { x: RIGHT_PENALTY_X - 8.5, y: 0, z: 4.8 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  forwardOutlet.pos = { x: carrier.pos.x + 5.8, y: 0, z: 2.4 };
+  forwardOutlet.targetPos = { x: forwardOutlet.pos.x, z: forwardOutlet.pos.z };
+  backOutlet.pos = { x: carrier.pos.x - 5.4, y: 0, z: 4.1 };
+  backOutlet.targetPos = { x: backOutlet.pos.x, z: backOutlet.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === carrier.id || player.id === forwardOutlet.id || player.id === backOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 6 : RIGHT_GOAL_X - 5;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = carrier;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.5,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const target = (model as unknown as {
+    bestPassTarget: (carrier: any) => typeof forwardOutlet | null;
+  }).bestPassTarget(carrier);
+
+  assert.equal(target?.id, forwardOutlet.id);
+});
+
 test("V198 underproducing half-space carriers still choose final-third deliveries", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v198-half-space-delivery");
@@ -4181,6 +4226,49 @@ test("V86 simple model suppresses unrealistic long-range shots", () => {
   assert.equal(afterShots, beforeShots, "suppressed long-range attempts must not count as shots");
   assert.equal(latestOpportunity?.outcome, "range_recycled");
   assert.equal(latestOpportunity?.reason, "LONG_SHOT_SUPPRESSED");
+});
+
+test("V241 20-plus-yard central pressured shots get extra off-frame bias", () => {
+  const makeModel = (xOffsetYards: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`v241-long-range-off-frame-${xOffsetYards}`);
+    model.setHalfDurationSeconds(300);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+    const shooter = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+    assert.ok(shooter);
+    shooter.pos.x = RIGHT_GOAL_X - ((xOffsetYards / 120) * FIELD_W);
+    shooter.pos.z = 0;
+    shooter.targetPos = { x: shooter.pos.x, z: shooter.pos.z };
+    model.possession = shooter;
+    model.ball.pos = { x: shooter.pos.x, y: 0.18, z: shooter.pos.z };
+    (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+      next: () => 0.5,
+      range: (min, max) => (min + max) / 2,
+    };
+    return { model, shooter };
+  };
+
+  const close = makeModel(18);
+  (close.model as unknown as { resolveShot: (player: any, distToGoal: number, pressure: number, context?: any) => unknown }).resolveShot(
+    close.shooter,
+    dist2(close.shooter.pos, { x: RIGHT_GOAL_X, z: 0 }),
+    0.9,
+    { reason: "V241_CLOSE" },
+  );
+  const closeChance = Number((close.model.getTuningBundle().shotDecisions.at(-1) as any)?.onTargetChance || 0);
+
+  const longRange = makeModel(24);
+  (longRange.model as unknown as { resolveShot: (player: any, distToGoal: number, pressure: number, context?: any) => unknown }).resolveShot(
+    longRange.shooter,
+    dist2(longRange.shooter.pos, { x: RIGHT_GOAL_X, z: 0 }),
+    0.9,
+    { reason: "V241_LONG" },
+  );
+  const longChance = Number((longRange.model.getTuningBundle().shotDecisions.at(-1) as any)?.onTargetChance || 0);
+
+  assert.ok(longChance < closeChance, `20+ yard pressured central shots should be less accurate, got ${longChance.toFixed(2)} vs ${closeChance.toFixed(2)}`);
 });
 
 test("V87 halftime kickoff setup cannot stall on current player positions", () => {
@@ -5309,6 +5397,53 @@ test("V218 buildup/progression support shape steps a nearby outlet toward the ca
   const targetGap = Math.hypot(target.targetPos.x - carrier.pos.x, target.targetPos.z - carrier.pos.z);
 
   assert.ok(targetGap < homeGap - 1.2, `support outlet should step toward buildup carrier, gap only moved from ${homeGap.toFixed(2)} to ${targetGap.toFixed(2)}`);
+});
+
+test("V240 5m safe continuation passes get a small completion edge over 2m mode", () => {
+  const makeModel = (halfSeconds: number) => {
+    const model = new SimpleMatchModel();
+    model.setHalfDurationSeconds(halfSeconds);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+    const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+    const target = model.getPlayers().find((player) => player.team === "A" && player.role === "FB");
+    const marker = model.getPlayers().find((player) => player.team === "B" && player.role !== "GK");
+    assert.ok(carrier);
+    assert.ok(target);
+    assert.ok(marker);
+
+    carrier.pos = { x: -7.5, y: 0, z: 0 };
+    carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+    target.pos = { x: -1.4, y: 0, z: 3.9 };
+    target.targetPos = { x: target.pos.x, z: target.pos.z };
+    marker.pos = { x: target.pos.x + 2.8, y: 0, z: target.pos.z + 0.1 };
+    marker.targetPos = { x: marker.pos.x, z: marker.pos.z };
+
+    for (const player of model.getPlayers()) {
+      if (player.id === carrier.id || player.id === target.id || player.id === marker.id) continue;
+      player.pos = { x: player.team === "A" ? LEFT_GOAL_X + 3 : RIGHT_GOAL_X - 3, y: 0, z: FIELD_D * 0.34 };
+      player.targetPos = { x: player.pos.x, z: player.pos.z };
+    }
+
+    model.possession = carrier;
+    (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+      next: () => 0.5,
+      range: (min, max) => (min + max) / 2,
+    };
+
+    return { model, carrier };
+  };
+
+  const fiveMinute = makeModel(300);
+  (fiveMinute.model as unknown as { resolvePass: (carrier: any, pressure: number, options?: any) => boolean }).resolvePass(fiveMinute.carrier, 0.3, { reason: "V240_5M" });
+  const fiveMinuteChance = Number((fiveMinute.model.getTuningBundle().passDecisions.at(-1) as any)?.completionChanceExact || 0);
+
+  const twoMinute = makeModel(120);
+  (twoMinute.model as unknown as { resolvePass: (carrier: any, pressure: number, options?: any) => boolean }).resolvePass(twoMinute.carrier, 0.3, { reason: "V240_2M" });
+  const twoMinuteChance = Number((twoMinute.model.getTuningBundle().passDecisions.at(-1) as any)?.completionChanceExact || 0);
+
+  assert.ok(fiveMinuteChance > twoMinuteChance, `5m safe continuation pass should get a small completion edge, got ${fiveMinuteChance.toFixed(4)} vs ${twoMinuteChance.toFixed(4)}`);
 });
 
 test("V223 full-length underproducing buildup carriers prefer a nearby continuation outlet", () => {

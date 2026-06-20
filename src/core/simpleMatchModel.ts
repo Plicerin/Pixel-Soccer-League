@@ -2484,6 +2484,7 @@ export class SimpleMatchModel {
     const supportCarrierZone = possessionCarrier
       ? this.zoneForDist(dist2(possessionCarrier.pos, goalCenterForAttack(this.attackSign(possessionCarrier.team))))
       : null;
+    const fiveMinuteContinuationDamping = this.runtimeHalfDuration > 150 && this.runtimeHalfDuration <= 300;
     const compressedContinuationSupportPhase = this.productionCompression() > 1.01
       && !!possessionCarrier
       && possessionCarrier.role !== "GK"
@@ -2537,20 +2538,26 @@ export class SimpleMatchModel {
             : player.role === "CM" ? 1.6
               : player.role === "FB" ? 2.1
                 : player.role === "W" ? 2.7
-                  : player.role === "AM" ? 1.9
+                : player.role === "AM" ? 1.9
                     : player.role === "ST" ? 3.3
                       : 0.85;
           const continuationBlend = compressedContinuationSupportPhase
             ? supportCarrierZone === "BUILDUP" ? 0.20 : 0.28
             : supportCarrierZone === "BUILDUP" ? 0.20 : 0.26;
+          const supportLaneScale = fiveMinuteContinuationDamping && compressedContinuationSupportPhase ? 0.85 : 1;
+          const continuationBlendScale = fiveMinuteContinuationDamping && compressedContinuationSupportPhase ? 0.82 : 1;
           const laneSign = Math.sign(player.homePos.z || 1);
           const supportTarget = {
-            x: possessionCarrier.pos.x + attackSign * supportLane,
-            z: lerpNumber(player.homePos.z, possessionCarrier.pos.z + laneSign * Math.max(1.8, Math.abs(player.homePos.z) * 0.34), continuationBlend),
+            x: possessionCarrier.pos.x + attackSign * supportLane * supportLaneScale,
+            z: lerpNumber(
+              player.homePos.z,
+              possessionCarrier.pos.z + laneSign * Math.max(1.8, Math.abs(player.homePos.z) * 0.34),
+              continuationBlend * continuationBlendScale,
+            ),
           };
           target = {
-            x: lerpNumber(target.x, supportTarget.x, continuationBlend),
-            z: lerpNumber(target.z, supportTarget.z, continuationBlend),
+            x: lerpNumber(target.x, supportTarget.x, continuationBlend * continuationBlendScale),
+            z: lerpNumber(target.z, supportTarget.z, continuationBlend * continuationBlendScale),
           };
         }
         target = this.constrainAttackingSupportToOffsideLine(player, target, ball);
@@ -2862,6 +2869,7 @@ export class SimpleMatchModel {
     const carrierZone = this.zoneForDist(dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team))));
     const compressedContinuationCarrier = this.productionCompression() > 1.01
       && (carrierZone === "BUILDUP" || carrierZone === "PROGRESSION");
+    const fiveMinuteContinuationRecovery = this.runtimeHalfDuration === 300;
     const fullLengthContinuationCarrier = this.fullLengthContinuationOutletPhase(carrier, carrierZone);
     const wideDelivery = this.isWideFinalThirdDelivery(carrier, target, progress, targetDistToGoal);
     const drivenCross = wideDelivery && this.rng.next() < 0.42;
@@ -2876,6 +2884,14 @@ export class SimpleMatchModel {
         : fullLengthContinuationCarrier && distance <= 11.5 && progress >= -1
           ? 0.052
           : 0
+      : 0;
+    const fiveMinuteSafeCompletionBoost = !wideDelivery
+      && fiveMinuteContinuationRecovery
+      && compressedContinuationCarrier
+      && distance <= 12
+      && progress >= -1
+      && separation >= 2.6
+      ? 0.016
       : 0;
     const fullLengthMediumBandBoost = !wideDelivery
       && fullLengthContinuationCarrier
@@ -2904,6 +2920,7 @@ export class SimpleMatchModel {
         + separation * 0.018
         - Math.max(0, progress) * 0.003
         + safeSupportPassBoost
+        + fiveMinuteSafeCompletionBoost
         + fullLengthMediumBandBoost
         + fullLengthSafeMediumLongBoost
         + (fullLengthContinuationCarrier ? 0.038 : 0)
@@ -3365,10 +3382,17 @@ export class SimpleMatchModel {
     const carrierBallGap = dist2(shotOrigin, carrier.pos);
     const anglePenalty = Math.min(1, Math.abs(shotOrigin.z) / (FIELD_D * 0.42));
     const longRangeCentrality = shotDistToGoalYards > 22 ? clamp(1 - anglePenalty / 0.35, 0, 1) : 0;
+    const longRangeOffFramePenalty = shotDistToGoalYards > 20
+      ? Math.max(0, shotDistToGoalYards - 20) * 0.010
+        + (shotDistToGoalYards > 24 ? Math.max(0, shotDistToGoalYards - 24) * 0.012 : 0)
+        + clamp(1 - anglePenalty / 0.42, 0, 1) * 0.030
+        + clamp(pressure * 0.010, 0, 0.020)
+      : 0;
     const distanceOnTargetPenalty = Math.max(0, shotDistToGoalYards - 18) * 0.010
       + Math.max(0, shotDistToGoalYards - 22) * 0.007
       + longRangeCentrality * 0.025
-      + (shotDistToGoalYards > 22 ? clamp(pressure * 0.012, 0, 0.02) : 0);
+      + (shotDistToGoalYards > 22 ? clamp(pressure * 0.012, 0, 0.02) : 0)
+      + longRangeOffFramePenalty;
     const shotLoadOnTargetPenalty = Math.max(0, teamStats.shots - 18) * 0.006
       + Math.max(0, this.teamA.shots + this.teamB.shots - 36) * 0.004;
     const compressedOnTargetBoost = this.productionCompression() <= 1.01 ? 0 : 0.140;
@@ -5909,6 +5933,12 @@ export class SimpleMatchModel {
     const carrierDistToGoal = dist2(carrier.pos, goalCenterForAttack(attackSign));
     const finalThirdCarrier = this.isFinalThirdCarrier(carrier, carrierDistToGoal);
     const carrierZone = this.zoneForDist(carrierDistToGoal);
+    const fiveMinuteContinuationDamping = this.runtimeHalfDuration > 150 && this.runtimeHalfDuration <= 300;
+    const fiveMinuteFinalThirdRecycleClamp = this.runtimeHalfDuration === 300
+      && this.productionCompression() > 1.01
+      && finalThirdCarrier
+      && carrier.role !== "ST"
+      && carrier.role !== "GK";
     const compressedContinuationCarrier = this.productionCompression() > 1.01
       && (carrierZone === "BUILDUP" || carrierZone === "PROGRESSION");
     const fullLengthContinuationCarrier = this.fullLengthContinuationOutletPhase(carrier, carrierZone);
@@ -5939,6 +5969,7 @@ export class SimpleMatchModel {
               + (progress >= -0.5 ? 0.34 : 0)
               + (target.role === "CM" || target.role === "FB" || target.role === "AM" ? 0.30 : 0)
             : 0;
+        const compressedContinuationLinkScale = fiveMinuteContinuationDamping && compressedContinuationCarrier ? 0.82 : 1;
         const longSpeculativePenalty = compressedContinuationCarrier && d > 18
           ? (d - 18) * 0.28
           : fullLengthContinuationCarrier && d > 14
@@ -5955,7 +5986,15 @@ export class SimpleMatchModel {
           && progress >= 13
           ? 1.35 + Math.max(0, 4.8 - separation) * 0.42
           : 0;
-        const score = separation * 1.2 + progress * progressWeight - d * 0.58 + roleBonus + forwardBonus + closerToGoalBonus + continuationLinkBonus - backPenalty - longSpeculativePenalty - speculativeExposurePenalty - directBuildupStrikerPenalty + this.rng.range(-0.5, 0.5);
+        const fiveMinuteFinalThirdRecyclePenalty = fiveMinuteFinalThirdRecycleClamp
+          ? progress < 1.5
+            ? (1.5 - progress) * 1.04
+              + (progress < 0 ? 0.42 : 0)
+              + (targetDistToGoal >= carrierDistToGoal - 0.4 ? 0.24 : 0)
+              + (target.role === "CM" || target.role === "FB" || target.role === "CB" || target.role === "DM" ? 0.20 : 0)
+            : 0
+          : 0;
+        const score = separation * 1.2 + progress * progressWeight - d * 0.58 + roleBonus + forwardBonus + closerToGoalBonus + continuationLinkBonus * compressedContinuationLinkScale - backPenalty - longSpeculativePenalty - speculativeExposurePenalty - directBuildupStrikerPenalty - fiveMinuteFinalThirdRecyclePenalty + this.rng.range(-0.5, 0.5);
         if (score > bestScore) {
           bestScore = score;
           best = target;
