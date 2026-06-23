@@ -219,6 +219,50 @@ test("V185 kickoff setup does not overlap same-team outfield players", () => {
   }
 });
 
+test("V251 kickoff setup distributes outfielders across depth bands and half width", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamFormations("4-4-2", "4-4-2");
+  model.startMatch();
+
+  for (const team of ["A", "B"] as const) {
+    const attackSign = team === "A" ? 1 : -1;
+    const outfield = model.getPlayers()
+      .filter((player) => player.team === team && player.role !== "GK" && player.id !== model.possession?.id);
+    const depths = outfield
+      .map((player) => -player.pos.x * attackSign)
+      .sort((a, b) => a - b);
+    let bands = depths.length > 0 ? 1 : 0;
+    for (let i = 1; i < depths.length; i++) {
+      if (depths[i] - depths[i - 1] >= 2.5) bands += 1;
+    }
+    const minZ = Math.min(...outfield.map((player) => player.pos.z));
+    const maxZ = Math.max(...outfield.map((player) => player.pos.z));
+    assert.ok(depths[depths.length - 1] - depths[0] >= 18, `${team} kickoff shape is too compressed in depth`);
+    assert.ok(bands >= 4, `${team} kickoff shape must occupy several depth bands, got ${bands}`);
+    assert.ok(maxZ - minZ >= 26, `${team} kickoff shape is too narrow, span=${(maxZ - minZ).toFixed(2)}`);
+  }
+});
+
+test("V253 kickoff side lanes avoid same-flank pairing columns", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamFormations("4-4-2", "4-4-2");
+  model.startMatch();
+
+  for (const team of ["A", "B"] as const) {
+    const flankers = model.getPlayers()
+      .filter((player) =>
+        player.team === team
+        && player.role !== "GK"
+        && player.id !== model.possession?.id
+        && Math.abs(player.pos.z) >= CENTER_CIRCLE_RADIUS + 4.5)
+      .sort((a, b) => a.pos.z - b.pos.z);
+    for (let i = 1; i < flankers.length; i++) {
+      const zGap = Math.abs(flankers[i].pos.z - flankers[i - 1].pos.z);
+      assert.ok(zGap >= 4.0, `${team} kickoff lanes still bunch adjacent flank players: ${flankers[i - 1].name} vs ${flankers[i].name} gap=${zGap.toFixed(2)}`);
+    }
+  }
+});
+
 test("V100 explicit new match start resets stale live clock and kickoff positions", () => {
   const model = new SimpleMatchModel();
   model.setTeamNames("Canada", "Switzerland");
@@ -4039,6 +4083,95 @@ test("V242 5m non-striker final-third carriers avoid backward recycle targets wh
   assert.equal(target?.id, forwardOutlet.id);
 });
 
+test("V245 15m non-striker final-third carriers avoid recycle targets when a forward outlet exists", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v245-fifteen-minute-final-third-recycle");
+  model.setHalfDurationSeconds(900);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 5 * 60;
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const forwardOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "AM")
+    || model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const backOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "FB");
+  assert.ok(carrier);
+  assert.ok(forwardOutlet);
+  assert.ok(backOutlet);
+
+  carrier.pos = { x: RIGHT_PENALTY_X - 8.3, y: 0, z: 4.4 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  forwardOutlet.pos = { x: carrier.pos.x + 5.2, y: 0, z: 2.2 };
+  forwardOutlet.targetPos = { x: forwardOutlet.pos.x, z: forwardOutlet.pos.z };
+  backOutlet.pos = { x: carrier.pos.x - 5.2, y: 0, z: 4.0 };
+  backOutlet.targetPos = { x: backOutlet.pos.x, z: backOutlet.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === carrier.id || player.id === forwardOutlet.id || player.id === backOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 6 : RIGHT_GOAL_X - 5;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = carrier;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.5,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const target = (model as unknown as {
+    bestPassTarget: (carrier: any) => typeof forwardOutlet | null;
+  }).bestPassTarget(carrier);
+
+  assert.equal(target?.id, forwardOutlet.id);
+});
+
+test("V249 15m final-third clamp penalizes neutral support recycles harder than forward support", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v249-fifteen-minute-neutral-recycle");
+  model.setHalfDurationSeconds(900);
+  model.startMatch();
+
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  model.msm.clock.elapsedInHalf = 11 * 60;
+
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const forwardOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  const neutralOutlet = model.getPlayers().find((player) => player.team === "A" && player.role === "FB");
+  assert.ok(carrier);
+  assert.ok(forwardOutlet);
+  assert.ok(neutralOutlet);
+
+  carrier.pos = { x: RIGHT_PENALTY_X - 9.2, y: 0, z: 5.1 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  forwardOutlet.pos = { x: carrier.pos.x + 4.0, y: 0, z: 1.7 };
+  forwardOutlet.targetPos = { x: forwardOutlet.pos.x, z: forwardOutlet.pos.z };
+  neutralOutlet.pos = { x: carrier.pos.x + 0.2, y: 0, z: 4.8 };
+  neutralOutlet.targetPos = { x: neutralOutlet.pos.x, z: neutralOutlet.pos.z };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === carrier.id || player.id === forwardOutlet.id || player.id === neutralOutlet.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 7 : RIGHT_GOAL_X - 5;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.35;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = carrier;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => 0.5,
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const target = (model as unknown as {
+    bestPassTarget: (carrier: any) => typeof forwardOutlet | null;
+  }).bestPassTarget(carrier);
+
+  assert.equal(target?.id, forwardOutlet.id);
+});
+
 test("V198 underproducing half-space carriers still choose final-third deliveries", () => {
   const model = new SimpleMatchModel();
   model.setSeed("v198-half-space-delivery");
@@ -4269,6 +4402,80 @@ test("V241 20-plus-yard central pressured shots get extra off-frame bias", () =>
   const longChance = Number((longRange.model.getTuningBundle().shotDecisions.at(-1) as any)?.onTargetChance || 0);
 
   assert.ok(longChance < closeChance, `20+ yard pressured central shots should be less accurate, got ${longChance.toFixed(2)} vs ${closeChance.toFixed(2)}`);
+});
+
+test("V243 15m suppresses pressured outside-box long shots before they count as attempts", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v243-15m-long-shot-suppression");
+  model.setHalfDurationSeconds(900);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const shooter = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  assert.ok(shooter);
+  shooter.pos.x = RIGHT_GOAL_X - ((26 / 120) * FIELD_W);
+  shooter.pos.z = 0;
+  shooter.targetPos = { x: shooter.pos.x, z: shooter.pos.z };
+  model.possession = shooter;
+  model.ball.pos = { x: shooter.pos.x, y: 0.18, z: shooter.pos.z };
+
+  const beforeShots = model.getMatchSnapshot().shotsA + model.getMatchSnapshot().shotsB;
+  (model as unknown as {
+    resolveShot: (player: any, distToGoal: number, pressure: number, context?: any) => unknown;
+  }).resolveShot(shooter, dist2(shooter.pos, { x: RIGHT_GOAL_X, z: 0 }), 1.1, { reason: "V243_15M_SUPPRESS" });
+
+  const afterShots = model.getMatchSnapshot().shotsA + model.getMatchSnapshot().shotsB;
+  const latestOpportunity = model.getTuningBundle().shotOpportunities.at(-1);
+
+  assert.equal(afterShots, beforeShots, "suppressed 15m long shots must not count as shots");
+  assert.equal(latestOpportunity?.outcome, "range_recycled");
+  assert.equal(latestOpportunity?.reason, "FIFTEEN_MINUTE_LONG_SHOT_SUPPRESSED");
+});
+
+test("V244 15m pressured 22-yard central shots are less accurate than full-length", () => {
+  const makeModel = (halfSeconds: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`v244-15m-long-range-${halfSeconds}`);
+    model.setHalfDurationSeconds(halfSeconds);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+    const shooter = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+    assert.ok(shooter);
+    shooter.pos.x = RIGHT_GOAL_X - ((22 / 120) * FIELD_W);
+    shooter.pos.z = 0;
+    shooter.targetPos = { x: shooter.pos.x, z: shooter.pos.z };
+    model.possession = shooter;
+    model.ball.pos = { x: shooter.pos.x, y: 0.18, z: shooter.pos.z };
+    (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+      next: () => 0.5,
+      range: (min, max) => (min + max) / 2,
+    };
+    return { model, shooter };
+  };
+
+  const fifteenMinute = makeModel(900);
+  (fifteenMinute.model as unknown as { resolveShot: (player: any, distToGoal: number, pressure: number, context?: any) => unknown }).resolveShot(
+    fifteenMinute.shooter,
+    dist2(fifteenMinute.shooter.pos, { x: RIGHT_GOAL_X, z: 0 }),
+    0.9,
+    { reason: "V244_15M" },
+  );
+  const fifteenMinuteChance = Number((fifteenMinute.model.getTuningBundle().shotDecisions.at(-1) as any)?.onTargetChance || 0);
+
+  const fullLength = makeModel(2700);
+  (fullLength.model as unknown as { resolveShot: (player: any, distToGoal: number, pressure: number, context?: any) => unknown }).resolveShot(
+    fullLength.shooter,
+    dist2(fullLength.shooter.pos, { x: RIGHT_GOAL_X, z: 0 }),
+    0.9,
+    { reason: "V244_45M" },
+  );
+  const fullLengthChance = Number((fullLength.model.getTuningBundle().shotDecisions.at(-1) as any)?.onTargetChance || 0);
+
+  assert.ok(
+    fifteenMinuteChance < fullLengthChance,
+    `15m 22-yard pressured central shots should be less accurate than full-length, got ${fifteenMinuteChance.toFixed(2)} vs ${fullLengthChance.toFixed(2)}`,
+  );
 });
 
 test("V87 halftime kickoff setup cannot stall on current player positions", () => {
@@ -6051,6 +6258,62 @@ test("V220 near-box live danger pulls a second support defender into the corrido
 
   assert.ok(targetGap < homeGap - 2.0, `support fullback should also collapse toward the box lane, gap only moved from ${homeGap.toFixed(2)} to ${targetGap.toFixed(2)}`);
   assert.ok(Math.abs(fullback.targetPos.z - attacker.pos.z) < Math.abs(fullback.homePos.z - attacker.pos.z), "support fullback should narrow toward the shot corridor");
+});
+
+test("V246 15m near-box live danger pulls support midfielders tighter into the corridor", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v246-fifteen-minute-box-occupancy");
+  model.setHalfDurationSeconds(15 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const midfielder = model.getPlayers().find((player) => player.team === "B" && player.role === "CM");
+  assert.ok(attacker);
+  assert.ok(midfielder);
+
+  attacker.pos = { x: RIGHT_GOAL_X - 9.1, y: 0, z: 2.1 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+
+  midfielder.pos = { x: midfielder.homePos.x, y: 0, z: midfielder.homePos.z };
+  midfielder.targetPos = { x: midfielder.homePos.x, z: midfielder.homePos.z };
+
+  const homeGap = Math.hypot(midfielder.homePos.x - attacker.pos.x, midfielder.homePos.z - attacker.pos.z);
+  (model as unknown as { updateTargets: () => void }).updateTargets();
+  const targetGap = Math.hypot(midfielder.targetPos.x - attacker.pos.x, midfielder.targetPos.z - attacker.pos.z);
+
+  assert.ok(targetGap < homeGap - 3.0, `15m support midfielder should collapse harder toward the box lane, gap only moved from ${homeGap.toFixed(2)} to ${targetGap.toFixed(2)}`);
+  assert.ok(Math.abs(midfielder.targetPos.z - attacker.pos.z) < Math.abs(midfielder.homePos.z - attacker.pos.z), "15m support midfielder should narrow toward the shot corridor");
+});
+
+test("V247 15m near-box live danger pulls support fullbacks tighter into the corridor", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v247-fifteen-minute-box-fullback");
+  model.setHalfDurationSeconds(15 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const attacker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const fullback = model.getPlayers().find((player) => player.team === "B" && player.role === "FB");
+  assert.ok(attacker);
+  assert.ok(fullback);
+
+  attacker.pos = { x: RIGHT_GOAL_X - 9.0, y: 0, z: -2.2 };
+  attacker.targetPos = { x: attacker.pos.x, z: attacker.pos.z };
+  model.possession = attacker;
+  model.ball.pos = { x: attacker.pos.x, y: 0.18, z: attacker.pos.z };
+
+  fullback.pos = { x: fullback.homePos.x, y: 0, z: fullback.homePos.z };
+  fullback.targetPos = { x: fullback.homePos.x, z: fullback.homePos.z };
+
+  const homeGap = Math.hypot(fullback.homePos.x - attacker.pos.x, fullback.homePos.z - attacker.pos.z);
+  (model as unknown as { updateTargets: () => void }).updateTargets();
+  const targetGap = Math.hypot(fullback.targetPos.x - attacker.pos.x, fullback.targetPos.z - attacker.pos.z);
+
+  assert.ok(targetGap < homeGap - 3.0, `15m support fullback should collapse harder toward the box lane, gap only moved from ${homeGap.toFixed(2)} to ${targetGap.toFixed(2)}`);
+  assert.ok(Math.abs(fullback.targetPos.z - attacker.pos.z) < Math.abs(fullback.homePos.z - attacker.pos.z), "15m support fullback should narrow toward the shot corridor");
 });
 
 test("V181 repeated early corner headers are damped before a set-piece goal cluster", () => {

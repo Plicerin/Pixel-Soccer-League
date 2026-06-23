@@ -177,6 +177,13 @@ test('V96 full-time overlay captures active match teams once', () => {
   assert.doesNotMatch(source, /teamB:\s*snapshot\.teamBName \|\| teamBName/, 'stale away team fallback must not be used for full-time score');
 });
 
+test('V248 watched fixtures persist a fresh full-time DB row even while smoke mode suppresses the normal autosave', () => {
+  const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  assert.match(source, /const runner = \(window as any\)\.pslSmokeTest\?\.runFixture;/, 'watched fixtures must still run through the fixture runner');
+  assert.match(source, /if \(watchedSnapshot\?\.phase === 'FULL_TIME' && watchedBundle\) \{[\s\S]*?fetch\('\/__db\/match-result'/, 'watched fixture completion must explicitly persist a full-time DB row');
+  assert.match(source, /buildMatchResultPayload\(\{[\s\S]*?bundle: watchedBundle,[\s\S]*?snapshot: watchedSnapshot,[\s\S]*?fallbackSessionId: `ft-\$\{Date\.now\(\)\}`/s, 'watched fixture save must use the current full-time bundle and snapshot when building the DB payload');
+});
+
 test('browser menus use the current Pixel Soccer League logo asset', () => {
   const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   const season = readFileSync('src/components/SeasonHub.tsx', 'utf8');
@@ -222,6 +229,21 @@ test('browser game restores the legacy two-canvas minimap', () => {
   assert.match(engine, /this\.model\.possession/, 'minimap must highlight the active ball carrier');
   assert.match(engine, /this\.updateMiniMap\(\)/, 'render loop must keep the minimap live');
   assert.match(engine, /setMenuVisible = \(visible: boolean\) => \{[\s\S]*?this\.applyMiniMapVisibility\(\)/, 'menu visibility must hide/show the minimap without removing it');
+});
+
+test('V252 minimap overlay and possession panels stay inside the minimap footprint', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  assert.match(engine, /private readonly miniMapTiltTransform = 'translateX\(-50%\) perspective\(900px\) rotateX\(56deg\)';/, 'pitch and overlay must share one minimap tilt transform');
+  assert.doesNotMatch(engine, /rotateX\(50deg\)/, 'overlay canvas must not use a different tilt than the pitch canvas');
+  assert.match(engine, /private readonly miniMapPitchPad = 8;/, 'minimap projection must use the same inner pitch padding as the drawn border');
+  assert.match(engine, /x: pad \+ \(\(x \+ FIELD_W \/ 2\) \/ FIELD_W\) \* \(this\.miniMapWidth - pad \* 2\)/, 'world-to-minimap x projection must land inside the drawn pitch border');
+  assert.match(engine, /y: pad \+ \(\(z \+ FIELD_D \/ 2\) \/ FIELD_D\) \* \(this\.miniMapHeight - pad \* 2\)/, 'world-to-minimap y projection must land inside the drawn pitch border');
+  assert.match(engine, /THREE\.MathUtils\.clamp\(pos\.x, pad \+ radius, this\.miniMapWidth - pad - radius\)/, 'player dots must clamp against the inner pitch border, not the raw canvas edge');
+  assert.match(engine, /THREE\.MathUtils\.clamp\(pos\.y, pad \+ radius, this\.miniMapHeight - pad - radius\)/, 'player dots must clamp against the inner pitch border, not the raw canvas edge');
+  assert.match(engine, /private readonly miniMapPanelInset = 8;/, 'minimap panels must use an explicit inset inside the minimap width');
+  assert.match(engine, /private readonly miniMapPanelWidth = Math\.floor\(\(this\.miniMapWidth - this\.miniMapPanelInset \* 3\) \/ 2\);/, 'minimap possession panels must size from the minimap width');
+  assert.doesNotMatch(engine, /left: 'calc\(50% - 310px\)'/, 'home possession panel must not sit outside the minimap footprint');
+  assert.doesNotMatch(engine, /left: 'calc\(50% \+ 170px\)'/, 'away possession panel must not sit outside the minimap footprint');
 });
 
 test('BUG-RENDER-002 player hair color varies deterministically', () => {

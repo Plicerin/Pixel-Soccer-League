@@ -619,6 +619,10 @@ class SimpleGameEngine {
   private paused = false;
   private readonly miniMapWidth = 322;
   private readonly miniMapHeight = 203;
+  private readonly miniMapPitchPad = 8;
+  private readonly miniMapTiltTransform = 'translateX(-50%) perspective(900px) rotateX(56deg)';
+  private readonly miniMapPanelInset = 8;
+  private readonly miniMapPanelWidth = Math.floor((this.miniMapWidth - this.miniMapPanelInset * 3) / 2);
   private readonly miniMapPitchCanvas: HTMLCanvasElement;
   private readonly miniMapOverlayCanvas: HTMLCanvasElement;
   private readonly miniMapToggleBtn: HTMLButtonElement;
@@ -2774,6 +2778,11 @@ class SimpleGameEngine {
   }
 
   private createMiniMap() {
+    const panelInset = this.miniMapPanelInset;
+    const panelWidth = this.miniMapPanelWidth;
+    const halfWidth = Math.round(this.miniMapWidth / 2);
+    const awayPanelOffset = -halfWidth + panelInset * 2 + panelWidth;
+
     const pitchCanvas = document.createElement('canvas');
     pitchCanvas.id = 'canvasPitch';
     pitchCanvas.width = this.miniMapWidth;
@@ -2782,7 +2791,7 @@ class SimpleGameEngine {
       position: 'fixed',
       bottom: '10px',
       left: '50%',
-      transform: 'translateX(-50%) perspective(900px) rotateX(56deg)',
+      transform: this.miniMapTiltTransform,
       transformOrigin: 'center bottom',
       zIndex: '20',
       opacity: '0.6',
@@ -2800,7 +2809,7 @@ class SimpleGameEngine {
       position: 'fixed',
       bottom: '10px',
       left: '50%',
-      transform: 'translateX(-50%) perspective(900px) rotateX(50deg)',
+      transform: this.miniMapTiltTransform,
       transformOrigin: 'center bottom',
       zIndex: '30',
       pointerEvents: 'none',
@@ -2821,15 +2830,24 @@ class SimpleGameEngine {
       textAlign: 'center',
       display: 'none',
       pointerEvents: 'none',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     } as const;
 
     const homePanel = document.createElement('div');
     homePanel.id = 'homePossessionPanel';
-    Object.assign(homePanel.style, panelStyle, { left: 'calc(50% - 310px)' });
+    Object.assign(homePanel.style, panelStyle, {
+      width: `${panelWidth}px`,
+      left: `calc(50% - ${halfWidth - panelInset}px)`,
+    });
 
     const awayPanel = document.createElement('div');
     awayPanel.id = 'awayPossessionPanel';
-    Object.assign(awayPanel.style, panelStyle, { left: 'calc(50% + 170px)' });
+    Object.assign(awayPanel.style, panelStyle, {
+      width: `${panelWidth}px`,
+      left: `calc(50% + ${awayPanelOffset}px)`,
+    });
 
     const toggleButton = document.createElement('button');
     toggleButton.type = 'button';
@@ -2881,9 +2899,10 @@ class SimpleGameEngine {
   }
 
   private worldToMiniMap(x: number, z: number) {
+    const pad = this.miniMapPitchPad;
     return {
-      x: ((x + FIELD_W / 2) / FIELD_W) * this.miniMapWidth,
-      y: ((z + FIELD_D / 2) / FIELD_D) * this.miniMapHeight,
+      x: pad + ((x + FIELD_W / 2) / FIELD_W) * (this.miniMapWidth - pad * 2),
+      y: pad + ((z + FIELD_D / 2) / FIELD_D) * (this.miniMapHeight - pad * 2),
     };
   }
 
@@ -2892,7 +2911,7 @@ class SimpleGameEngine {
     if (!ctx) return;
     const w = this.miniMapWidth;
     const h = this.miniMapHeight;
-    const pad = 8;
+    const pad = this.miniMapPitchPad;
 
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#0a8f35';
@@ -2941,11 +2960,12 @@ class SimpleGameEngine {
     ctx.clearRect(0, 0, this.miniMapWidth, this.miniMapHeight);
 
     const players = this.model.getPlayers();
+    const pad = this.miniMapPitchPad;
     for (const player of players) {
       const pos = this.worldToMiniMap(player.pos.x, player.pos.z);
       const radius = player.role === 'GK' ? 4.1 : 3.2;
-      const x = THREE.MathUtils.clamp(pos.x, radius, this.miniMapWidth - radius);
-      const y = THREE.MathUtils.clamp(pos.y, radius, this.miniMapHeight - radius);
+      const x = THREE.MathUtils.clamp(pos.x, pad + radius, this.miniMapWidth - pad - radius);
+      const y = THREE.MathUtils.clamp(pos.y, pad + radius, this.miniMapHeight - pad - radius);
       const color = player.team === 'A'
         ? `#${(player.role === 'GK' ? M.teamAKeeperShirt : M.teamAShirt).color.getHexString()}`
         : `#${(player.role === 'GK' ? M.teamBKeeperShirt : M.teamBShirt).color.getHexString()}`;
@@ -2961,8 +2981,8 @@ class SimpleGameEngine {
     const carrier = this.model.possession;
     if (carrier) {
       const pos = this.worldToMiniMap(carrier.pos.x, carrier.pos.z);
-      const x = THREE.MathUtils.clamp(pos.x, 6.4, this.miniMapWidth - 6.4);
-      const y = THREE.MathUtils.clamp(pos.y, 6.4, this.miniMapHeight - 6.4);
+      const x = THREE.MathUtils.clamp(pos.x, pad + 6.4, this.miniMapWidth - pad - 6.4);
+      const y = THREE.MathUtils.clamp(pos.y, pad + 6.4, this.miniMapHeight - pad - 6.4);
       ctx.beginPath();
       ctx.arc(x, y, 6.4, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(255,255,255,0.95)';
@@ -2987,8 +3007,10 @@ class SimpleGameEngine {
       ctx.lineWidth = 1.4;
       ctx.stroke();
     }
+    const clampedBallX = THREE.MathUtils.clamp(ball.x, pad + 2.6, this.miniMapWidth - pad - 2.6);
+    const clampedBallY = THREE.MathUtils.clamp(ball.y, pad + 2.6, this.miniMapHeight - pad - 2.6);
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, 2.6, 0, Math.PI * 2);
+    ctx.arc(clampedBallX, clampedBallY, 2.6, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.75)';

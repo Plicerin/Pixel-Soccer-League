@@ -2277,6 +2277,23 @@ const RetroFootball: React.FC = () => {
           setWatchedFixtureMessage(`Timed out at ${clock}`);
         }
       } else {
+        try {
+          const watchedSnapshot = gameRef.current?.getMatchSnapshot?.() || null;
+          const watchedBundle = gameRef.current?.getTuningBundle?.() || null;
+          if (watchedSnapshot?.phase === 'FULL_TIME' && watchedBundle) {
+            fetch('/__db/match-result', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(buildMatchResultPayload({
+                bundle: watchedBundle,
+                snapshot: watchedSnapshot,
+                fallbackSessionId: `ft-${Date.now()}`,
+              })),
+            }).catch(e => console.warn('[PSL] watched fixture SQLite save error:', e));
+          }
+        } catch (e) {
+          console.warn('[PSL] watched fixture SQLite save error:', e);
+        }
         setWatchedFixtureMessage(`Final ${result.teamA} ${result.scoreA}-${result.scoreB} ${result.teamB}`);
       }
     } catch (error) {
