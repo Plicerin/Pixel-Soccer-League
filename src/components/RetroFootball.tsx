@@ -65,12 +65,13 @@ function applyGameAggressionSettings(
   game?.setDefenseAggression?.(defenseValue);
 }
 
-// Helper: reset positions, draw routes, activate play — called on every play/formation change
+// Helper: reset positions, draw routes, optionally activate play — called on every play/formation change
 function applyPracticePlay(
   gameRef: React.MutableRefObject<any>,
   play: (typeof PRACTICE_PLAYS)[number],
   formation: string,
   aggressivenessKey: AggressivenessKey,
+  shouldActivate = true,
 ) {
   // 1. Deactivate any running play (clears stale player refs before formation rebuild)
   gameRef.current?.deactivatePracticePlay?.();
@@ -86,7 +87,9 @@ function applyPracticePlay(
   const routes = getPlayRoutes(play, allPlayers, attackSign);
   // 5. Draw arrows + execute play
   gameRef.current?.drawPracticeRoutes?.(routes);
-  gameRef.current?.activatePracticePlay?.(routes, play.template);
+  if (shouldActivate) {
+    gameRef.current?.activatePracticePlay?.(routes, play.template);
+  }
 }
 
 const BASE_TEAM_OPTIONS = WORLD_CUP_2026_TEAM_NAMES;
@@ -1105,6 +1108,7 @@ const RetroFootball: React.FC = () => {
   const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('AGGRESSIVE');
   const [showPracticeComplete, setShowPracticeComplete] = useState(false);
   const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const practiceStartPauseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -3046,6 +3050,12 @@ const RetroFootball: React.FC = () => {
                   setShowPracticeSetup(false);
                   handleKickOff('practice');
                   gameRef.current?.setCpuVsCpu?.(!isHumanPractice);
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  if (isHumanPractice) {
+                    practiceStartPauseRef.current = setTimeout(() => {
+                      gameRef.current?.setPaused?.(true);
+                    }, 0);
+                  }
                   // Do not automatically apply a play at startup (per user request).
                   // The practice should start in a standard kickoff formation at the center circle.
                   setShowPositionLabels(true);
@@ -3103,19 +3113,17 @@ const RetroFootball: React.FC = () => {
                     return;
                   }
                   const play = PRACTICE_PLAYS.find(p => p.key === key)!;
+                  const shouldAutoStart = !practiceIsHuman;
                   setSelectedPracticePlay(key);
-                  setPracticeActive(true);
+                  setPracticeActive(shouldAutoStart);
                   setPracticeFormation(play.formation);
                   setShowPositionLabels(true);
                   gameRef.current?.setShowPositionLabels?.(true);
-                  // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  if (practiceIsHuman) gameRef.current?.setPaused?.(true);
+                  // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start only for CPU practice
                   gameRef.current?.resetAndStartPracticePlay?.(() => {
-                    gameRef.current?.setTeamFormations?.(play.formation, play.formation);
-                    const freshPlayers = gameRef.current?.getPlayers?.() || [];
-                    const sorted = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
-                    const routes = getPlayRoutes(play, sorted, gameRef.current?.getTeamAAttackSign?.() ?? 1);
-                    gameRef.current?.drawPracticeRoutes?.(routes);
-                    gameRef.current?.activatePracticePlay?.(routes, play.template);
+                    applyPracticePlay(gameRef, play, play.formation, practiceAggressiveness, shouldAutoStart);
                   });
                 }}
                 className={PRACTICE_SELECT_CLASSNAME}
@@ -3144,7 +3152,13 @@ const RetroFootball: React.FC = () => {
                   const f = e.target.value;
                   setPracticeFormation(f);
                   if (currentPlay) {
-                    applyPracticePlay(gameRef, currentPlay, f, practiceAggressiveness);
+                    const shouldAutoStart = !practiceIsHuman;
+                    setPracticeActive(shouldAutoStart);
+                    if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                    if (practiceIsHuman) gameRef.current?.setPaused?.(true);
+                    gameRef.current?.resetAndStartPracticePlay?.(() => {
+                      applyPracticePlay(gameRef, currentPlay, f, practiceAggressiveness, shouldAutoStart);
+                    });
                   } else {
                     gameRef.current?.setTeamFormations?.(f, f);
                   }
@@ -3172,10 +3186,28 @@ const RetroFootball: React.FC = () => {
                 className={PRACTICE_SELECT_CLASSNAME}
               >
                 {(Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[]).map(k => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
             </div>
+            {practiceIsHuman && selectedPracticePlay && !practiceActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  const currentPlay = PRACTICE_PLAYS.find(p => p.key === selectedPracticePlay);
+                  if (!currentPlay) return;
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  setPracticeActive(true);
+                  gameRef.current?.setPaused?.(false);
+                  gameRef.current?.resetAndStartPracticePlay?.(() => {
+                    applyPracticePlay(gameRef, currentPlay, practiceFormation, practiceAggressiveness, true);
+                  });
+                }}
+                className="mt-1 py-2 border border-emerald-400/60 text-emerald-100 bg-emerald-500/20 text-xs rounded hover:bg-emerald-500/30 transition-colors"
+              >
+                Start Play
+              </button>
+            )}
           </div>
         );
       })()}
