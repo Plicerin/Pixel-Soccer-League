@@ -3039,19 +3039,18 @@ const RetroFootball: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  const isHumanPractice = practiceIsHuman;
                   setSelectedPracticePlay(null);
                   setPracticeActive(false);
                   setPracticeFormation('4-4-2'); // default practice start formation
                   setShowPracticeSetup(false);
                   handleKickOff('practice');
+                  gameRef.current?.setCpuVsCpu?.(!isHumanPractice);
                   // Do not automatically apply a play at startup (per user request).
                   // The practice should start in a standard kickoff formation at the center circle.
-                  setTimeout(() => {
-                    if (!practiceIsHuman) gameRef.current?.setCpuVsCpu?.(true);
-                    setShowPositionLabels(true);
-                    gameRef.current?.setShowPositionLabels?.(true);
-                    // play is only active once selected from the in-game play selector
-                  }, 600);
+                  setShowPositionLabels(true);
+                  gameRef.current?.setShowPositionLabels?.(true);
+                  // play is only active once selected from the in-game play selector
                 }}
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-semibold rounded transition-colors"
               >

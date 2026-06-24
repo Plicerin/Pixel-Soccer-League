@@ -910,6 +910,9 @@ test('V255 practice mode redraws routes after kickoff reset and engine tracks ac
   const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   const engine = readFileSync('src/gameEngine.ts', 'utf8');
   assert.match(source, /gameRef\.current\?\.setPracticeMode\?\.\(isPractice\);/, 'practice kickoff must enable practice mode in the engine');
+  assert.match(source, /const isHumanPractice = practiceIsHuman;/, 'practice begin must capture the current human/CPU selection before kickoff');
+  assert.match(source, /gameRef\.current\?\.setCpuVsCpu\?\.\(!isHumanPractice\);/, 'practice begin must explicitly set cpuVsCpu from the selected control mode');
+  assert.doesNotMatch(source, /setTimeout\(\(\) => \{[\s\S]*?if \(!practiceIsHuman\) gameRef\.current\?\.setCpuVsCpu\?\.\(true\);[\s\S]*?\}, 600\)/s, 'practice begin must not rely on a delayed cpuVsCpu toggle');
   assert.match(source, /resetAndStartPracticePlay\?\.\(\(\) => \{[\s\S]*?gameRef\.current\?\.setTeamFormations\?\.\(play\.formation, play\.formation\);[\s\S]*?const freshPlayers = gameRef\.current\?\.getPlayers\?\.\(\) \|\| \[\];[\s\S]*?const routes = getPlayRoutes\(play, sorted, gameRef\.current\?\.getTeamAAttackSign\?\.\(\) \?\? 1\);[\s\S]*?gameRef\.current\?\.drawPracticeRoutes\?\.\(routes\);[\s\S]*?gameRef\.current\?\.activatePracticePlay\?\.\(routes, play\.template\);[\s\S]*?\}\);/s, 'practice play must redraw from kickoff-snapped positions before activation');
   assert.match(engine, /private practiceModeEnabled = false;/, 'engine must track practice mode enablement');
   assert.match(engine, /private practicePlayActive = false;/, 'engine must track practice play active state');
