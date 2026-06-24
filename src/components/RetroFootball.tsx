@@ -3109,19 +3109,14 @@ const RetroFootball: React.FC = () => {
                   setPracticeFormation(play.formation);
                   setShowPositionLabels(true);
                   gameRef.current?.setShowPositionLabels?.(true);
-                  // Ensure players are in their formation positions before calculating routes
-                  gameRef.current?.setTeamFormations?.(play.formation, play.formation);
-                  const players = gameRef.current?.getPlayers?.() || [];
-                  const sortedPlayers = [...players].sort((a, b) => (a.id || 0) - (b.id || 0));
-                  const atkSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
-                  const routes = getPlayRoutes(play, sortedPlayers, atkSign);
-                  gameRef.current?.drawPracticeRoutes?.(routes);
-                  gameRef.current?.activatePracticePlay?.(routes, play.template);
                   // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start
                   gameRef.current?.resetAndStartPracticePlay?.(() => {
+                    gameRef.current?.setTeamFormations?.(play.formation, play.formation);
                     const freshPlayers = gameRef.current?.getPlayers?.() || [];
                     const sorted = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
-                    return getPlayRoutes(play, sorted, gameRef.current?.getTeamAAttackSign?.() ?? 1);
+                    const routes = getPlayRoutes(play, sorted, gameRef.current?.getTeamAAttackSign?.() ?? 1);
+                    gameRef.current?.drawPracticeRoutes?.(routes);
+                    gameRef.current?.activatePracticePlay?.(routes, play.template);
                   });
                 }}
                 className={PRACTICE_SELECT_CLASSNAME}

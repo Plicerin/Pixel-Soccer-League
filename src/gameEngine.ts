@@ -20,6 +20,7 @@ import {
   RIGHT_PENALTY_X,
 } from './core/constants';
 import { SimpleMatchModel, type SimplePlayer } from './core/simpleMatchModel';
+import { type RouteData } from './practicePlays';
 
 // ============================================================================
 // gameEngine.ts — simple model + restored PSL renderer shell (2026-05-12)
@@ -564,6 +565,12 @@ class SimpleGameEngine {
   private readonly headerAnimationEvents: HeaderAnimationEvent[] = [];
   private readonly cornerPresentationEvents: CornerPresentationEvent[] = [];
   private activeRestartPresentation: RestartPresentation | null = null;
+  private practiceModeEnabled = false;
+  private practicePlayActive = false;
+  private practicePlayTemplate: string | null = null;
+  private practicePlayTimer: number | null = null;
+  private readonly practiceRouteGroup = new THREE.Group();
+  private readonly practiceRouteVisuals: THREE.Object3D[] = [];
   private readonly cameraFocusSmoothed = new THREE.Vector3();
   private readonly cameraLerpPosition = new THREE.Vector3();
   private readonly cameraLookTarget = new THREE.Vector3();
@@ -700,6 +707,9 @@ class SimpleGameEngine {
     this.refereeVisual.mesh.name = 'refereeVisual';
     this.refereeVisual.mesh.visible = false;
     this.scene.add(this.refereeVisual.mesh);
+    this.practiceRouteGroup.name = 'practiceRouteGroup';
+    this.practiceRouteGroup.visible = false;
+    this.scene.add(this.practiceRouteGroup);
     const ball = this.addBall();
     this.ballGroup = ball.group;
     this.ballMesh = ball.mesh;
@@ -735,6 +745,7 @@ class SimpleGameEngine {
 
   resetMatch = () => {
     this.paused = false;
+    this.deactivatePracticePlay();
     this.model.resetMatch();
     this.refereeInitialized = false;
     this.miniMapBallTrail.length = 0;
@@ -798,6 +809,14 @@ class SimpleGameEngine {
   setAIStyle = (value: string) => { this.model.aiStyle = value; };
   setCameraMode = (value: string) => { this.model.cameraMode = value; };
   setPracticePlayCompleteCallback = (callback: () => void) => { this.practiceCompleteCallback = callback; };
+  setPracticeMode = (enabled: boolean) => {
+    this.practiceModeEnabled = !!enabled;
+    if (!this.practiceModeEnabled) {
+      this.deactivatePracticePlay();
+      return;
+    }
+    this.practiceRouteGroup.visible = this.practiceRouteVisuals.length > 0;
+  };
   setEngineRuntimeToken = (token: string | null) => {
     this.engineRuntimeToken = typeof token === 'string' && token.trim() ? token : null;
     this.model.setRuntimeProvenance({
@@ -857,6 +876,10 @@ class SimpleGameEngine {
 
   dispose = () => {
     this.disposed = true;
+    if (this.practicePlayTimer !== null) {
+      window.clearTimeout(this.practicePlayTimer);
+      this.practicePlayTimer = null;
+    }
     if (this.backgroundModelTimer !== null) {
       window.clearInterval(this.backgroundModelTimer);
       this.backgroundModelTimer = null;
@@ -915,7 +938,6 @@ class SimpleGameEngine {
   };
   setHotSeatMode = (_enabled: boolean) => {};
   setTestingMode = (_enabled: boolean) => {};
-  setPracticeMode = (_enabled: boolean) => {};
   setRealDataReplayMode = (_enabled: boolean) => {};
   setUseNewArchitecture = (_enabled: boolean) => {};
   setShowOrchTelemetry = (_enabled: boolean) => {};
@@ -937,14 +959,105 @@ class SimpleGameEngine {
     }
   };
   setStadiumCamTiltShift = (_enabled: boolean) => {};
-  drawPracticeRoutes = (_routes: unknown) => {};
-  clearPracticeRoutes = () => {};
-  isPracticePlayActive = () => false;
-  activatePracticePlay = (_routes: unknown, _template: unknown) => {
-    window.setTimeout(() => this.practiceCompleteCallback?.(), 1200);
+  drawPracticeRoutes = (routes: unknown) => {
+    this.clearPracticeRoutes();
+    if (!this.practiceModeEnabled || !Array.isArray(routes)) return;
+    for (const route of routes as RouteData[]) {
+      if (!route || !Number.isFinite(route.fromX) || !Number.isFinite(route.fromZ) || !Number.isFinite(route.toX) || !Number.isFinite(route.toZ)) continue;
+      const visual = this.createPracticeRouteVisual(route);
+      this.practiceRouteGroup.add(visual);
+      this.practiceRouteVisuals.push(visual);
+    }
+    this.practiceRouteGroup.visible = this.practiceRouteVisuals.length > 0;
   };
-  deactivatePracticePlay = () => {};
-  resetAndStartPracticePlay = () => this.startKickoffPresentation(true);
+  clearPracticeRoutes = () => {
+    while (this.practiceRouteVisuals.length > 0) {
+      const visual = this.practiceRouteVisuals.pop();
+      if (!visual) continue;
+      this.disposePracticeRouteVisual(visual);
+      this.practiceRouteGroup.remove(visual);
+    }
+    this.practiceRouteGroup.visible = false;
+  };
+  isPracticePlayActive = () => this.practiceModeEnabled && this.practicePlayActive;
+  activatePracticePlay = (_routes: unknown, template: unknown) => {
+    this.practicePlayActive = true;
+    this.practicePlayTemplate = typeof template === 'string' ? template : null;
+    if (this.practicePlayTimer !== null) window.clearTimeout(this.practicePlayTimer);
+    this.practicePlayTimer = window.setTimeout(() => {
+      this.practicePlayTimer = null;
+      this.practicePlayActive = false;
+      this.practiceCompleteCallback?.();
+    }, 1200);
+  };
+  deactivatePracticePlay = () => {
+    this.practicePlayActive = false;
+    this.practicePlayTemplate = null;
+    if (this.practicePlayTimer !== null) {
+      window.clearTimeout(this.practicePlayTimer);
+      this.practicePlayTimer = null;
+    }
+    this.clearPracticeRoutes();
+  };
+  resetAndStartPracticePlay = (redraw?: () => void) => {
+    this.deactivatePracticePlay();
+    this.startKickoffPresentation(true);
+    if (typeof redraw !== 'function') return;
+    const run = () => redraw();
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(run);
+    else window.setTimeout(run, 0);
+  };
+
+  private createPracticeRouteVisual(route: RouteData) {
+    const origin = new THREE.Vector3(route.fromX, 0.24, route.fromZ);
+    const delta = new THREE.Vector3(route.toX - route.fromX, 0, route.toZ - route.fromZ);
+    const length = Math.max(0.001, delta.length());
+    const direction = delta.clone().normalize();
+    const arrow = new THREE.ArrowHelper(
+      direction,
+      origin,
+      length,
+      route.color,
+      Math.min(1.1, Math.max(0.45, length * 0.18)),
+      Math.min(0.32, Math.max(0.12, length * 0.08)),
+    );
+    arrow.line.renderOrder = 40;
+    arrow.cone.renderOrder = 41;
+    (arrow.line.material as THREE.Material).depthTest = false;
+    (arrow.cone.material as THREE.Material).depthTest = false;
+    const startDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 10, 10),
+      new THREE.MeshBasicMaterial({ color: route.color }),
+    );
+    startDot.position.copy(origin);
+    startDot.renderOrder = 42;
+    const endDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 10, 10),
+      new THREE.MeshBasicMaterial({ color: route.color }),
+    );
+    endDot.position.set(route.toX, 0.24, route.toZ);
+    endDot.renderOrder = 42;
+    const group = new THREE.Group();
+    group.name = `practiceRoute:${route.fromX.toFixed(2)}:${route.fromZ.toFixed(2)}:${route.toX.toFixed(2)}:${route.toZ.toFixed(2)}`;
+    group.add(arrow);
+    group.add(startDot);
+    group.add(endDot);
+    group.renderOrder = 40;
+    return group;
+  }
+
+  private disposePracticeRouteVisual(root: THREE.Object3D) {
+    root.traverse((child) => {
+      if (!(child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.LineSegments)) return;
+      child.geometry?.dispose?.();
+      const material = child.material;
+      if (Array.isArray(material)) {
+        material.forEach((entry) => entry.dispose?.());
+      } else {
+        material?.dispose?.();
+      }
+    });
+  }
 
   private ensureAudioContext() {
     if (this.disposed) return null;

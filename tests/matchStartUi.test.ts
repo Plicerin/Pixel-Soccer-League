@@ -906,6 +906,19 @@ test('V120 practice panel selects have labels and visible focus rings', () => {
   assert.match(source, /<button\s+type="button"[\s\S]*?setPracticeIsHuman\(false\)/, 'practice CPU toggle must be an explicit non-submit button');
 });
 
+test('V255 practice mode redraws routes after kickoff reset and engine tracks active state', () => {
+  const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  assert.match(source, /gameRef\.current\?\.setPracticeMode\?\.\(isPractice\);/, 'practice kickoff must enable practice mode in the engine');
+  assert.match(source, /resetAndStartPracticePlay\?\.\(\(\) => \{[\s\S]*?gameRef\.current\?\.setTeamFormations\?\.\(play\.formation, play\.formation\);[\s\S]*?const freshPlayers = gameRef\.current\?\.getPlayers\?\.\(\) \|\| \[\];[\s\S]*?const routes = getPlayRoutes\(play, sorted, gameRef\.current\?\.getTeamAAttackSign\?\.\(\) \?\? 1\);[\s\S]*?gameRef\.current\?\.drawPracticeRoutes\?\.\(routes\);[\s\S]*?gameRef\.current\?\.activatePracticePlay\?\.\(routes, play\.template\);[\s\S]*?\}\);/s, 'practice play must redraw from kickoff-snapped positions before activation');
+  assert.match(engine, /private practiceModeEnabled = false;/, 'engine must track practice mode enablement');
+  assert.match(engine, /private practicePlayActive = false;/, 'engine must track practice play active state');
+  assert.match(engine, /setPracticeMode = \(enabled: boolean\) => \{[\s\S]*?this\.practiceModeEnabled = !!enabled;[\s\S]*?if \(!this\.practiceModeEnabled\) \{[\s\S]*?this\.deactivatePracticePlay\(\);[\s\S]*?\}/m, 'engine must enable/disable practice cleanup');
+  assert.match(engine, /drawPracticeRoutes = \(routes: unknown\) => \{[\s\S]*?this\.practiceRouteGroup\.visible = this\.practiceRouteVisuals\.length > 0;/m, 'practice routes must render through a real route group');
+  assert.match(engine, /resetAndStartPracticePlay = \(redraw\?: \(\) => void\) => \{[\s\S]*?this\.deactivatePracticePlay\(\);[\s\S]*?this\.startKickoffPresentation\(true\);[\s\S]*?window\.requestAnimationFrame\(run\)/s, 'practice kickoff reset must redraw after the kickoff snapshot');
+  assert.match(engine, /isPracticePlayActive = \(\) => this\.practiceModeEnabled && this\.practicePlayActive/, 'practice active badge must reflect engine state');
+});
+
 test('V62 dashboard and preview server keep completed-match telemetry complete', () => {
   const dashboard = readFileSync('public/dashboard.html', 'utf8');
   const viteConfig = readFileSync('vite.config.ts', 'utf8');
