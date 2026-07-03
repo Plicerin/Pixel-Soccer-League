@@ -27,17 +27,17 @@ test("Germany carries a stronger dormant FIFA profile than Algeria", () => {
   assert.ok((germany.normalizedStrength ?? 0) > (algeria.normalizedStrength ?? 0));
 });
 
-test("Dormant FIFA strength layer does not change current gameplay tuning yet", () => {
+test("FIFA strength layer now affects national-team gameplay tuning", () => {
   const germany = getTeamTuning("Germany");
   const algeria = getTeamTuning("Algeria");
 
-  assert.equal(germany.attack, 0.5);
-  assert.equal(germany.defense, 0.5);
-  assert.equal(algeria.attack, 0.5);
-  assert.equal(algeria.defense, 0.5);
-  assert.equal(germany.strengthProfile?.active, false);
-  assert.equal(algeria.strengthProfile?.active, false);
-  assert.equal(germany.strengthProfile?.effectScale, 0);
+  assert.ok((germany.attack ?? 0) > (algeria.attack ?? 0));
+  assert.ok((germany.defense ?? 0) > (algeria.defense ?? 0));
+  assert.ok((germany.tempo ?? 0) > (algeria.tempo ?? 0));
+  assert.ok((germany.possession ?? 0) > (algeria.possession ?? 0));
+  assert.equal(germany.strengthProfile?.active, true);
+  assert.equal(algeria.strengthProfile?.active, true);
+  assert.equal(germany.strengthProfile?.effectScale, 1);
 });
 
 test("SOFIFA national-team scaffold covers all 48 playable teams without inventing values", () => {

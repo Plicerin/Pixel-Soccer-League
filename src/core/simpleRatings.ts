@@ -101,7 +101,7 @@ function clamp01(value: number) {
   return Math.max(0.05, Math.min(0.95, value));
 }
 
-const FIFA_RANKING_EFFECT_SCALE = 0;
+const FIFA_RANKING_EFFECT_SCALE = 1;
 const SOFIFA_EFFECT_SCALE = 0;
 
 function normalizedFifaStrength(rank: number) {
@@ -183,10 +183,17 @@ export function getTeamTuning(teamName: string): SimpleTeamTuning {
   const strengthProfile = getTeamStrengthProfile(teamName);
   const sofifaProfile = getSofifaNationalTeamProfile(teamName);
   const modifiers = getMLS2025TeamModifiers(teamName);
-  if (!modifiers) {
-    return { attack: 0.5, defense: 0.5, tempo: 0.5, possession: 0.5, strengthProfile, sofifaProfile };
-  }
   const strengthBias = (strengthProfile.normalizedStrength - 0.5) * strengthProfile.effectScale;
+  if (!modifiers) {
+    return {
+      attack: clamp01(0.5 + strengthBias * 0.28),
+      defense: clamp01(0.5 + strengthBias * 0.26),
+      tempo: clamp01(0.5 + strengthBias * 0.12),
+      possession: clamp01(0.5 + strengthBias * 0.14),
+      strengthProfile,
+      sofifaProfile,
+    };
+  }
   return {
     attack: clamp01(0.5 + modifiers.attackCentered * 0.18 + strengthBias * 0.18),
     defense: clamp01(0.5 + modifiers.defenseCentered * 0.16 + strengthBias * 0.16),
