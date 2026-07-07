@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getSofifaNationalTeamProfile,
+  getRoleRatings,
   getTeamStrengthProfile,
   getTeamTuning,
 } from "../src/core/simpleRatings";
@@ -38,6 +39,18 @@ test("FIFA strength layer now affects national-team gameplay tuning", () => {
   assert.equal(germany.strengthProfile?.active, true);
   assert.equal(algeria.strengthProfile?.active, true);
   assert.equal(germany.strengthProfile?.effectScale, 1);
+});
+
+test("FIFA strength layer creates a material execution gap for large rank spreads", () => {
+  const portugalSt = getRoleRatings("ST", "Portugal", 9);
+  const bosniaSt = getRoleRatings("ST", "Bosnia and Herzegovina", 9);
+  const portugalGk = getRoleRatings("GK", "Portugal", 0);
+  const bosniaGk = getRoleRatings("GK", "Bosnia and Herzegovina", 0);
+
+  assert.ok(portugalSt.shooting - bosniaSt.shooting >= 0.05);
+  assert.ok(portugalSt.passing - bosniaSt.passing >= 0.02);
+  assert.ok(portugalSt.defense - bosniaSt.defense >= 0.04);
+  assert.ok(portugalGk.keeper - bosniaGk.keeper >= 0.05);
 });
 
 test("SOFIFA national-team scaffold covers all 48 playable teams without inventing values", () => {

@@ -101,7 +101,13 @@ function clamp01(value: number) {
   return Math.max(0.05, Math.min(0.95, value));
 }
 
-const FIFA_RANKING_EFFECT_SCALE = 1;
+function readEffectScale(envKey: string, fallback: number) {
+  const raw = globalThis?.process?.env?.[envKey];
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const FIFA_RANKING_EFFECT_SCALE = readEffectScale("PSL_FIFA_EFFECT_SCALE", 1);
 const SOFIFA_EFFECT_SCALE = 0;
 
 function normalizedFifaStrength(rank: number) {
@@ -186,10 +192,10 @@ export function getTeamTuning(teamName: string): SimpleTeamTuning {
   const strengthBias = (strengthProfile.normalizedStrength - 0.5) * strengthProfile.effectScale;
   if (!modifiers) {
     return {
-      attack: clamp01(0.5 + strengthBias * 0.28),
-      defense: clamp01(0.5 + strengthBias * 0.26),
-      tempo: clamp01(0.5 + strengthBias * 0.12),
-      possession: clamp01(0.5 + strengthBias * 0.14),
+      attack: clamp01(0.5 + strengthBias * 0.68),
+      defense: clamp01(0.5 + strengthBias * 0.62),
+      tempo: clamp01(0.5 + strengthBias * 0.20),
+      possession: clamp01(0.5 + strengthBias * 0.32),
       strengthProfile,
       sofifaProfile,
     };
@@ -208,15 +214,15 @@ export function getRoleRatings(role: SimpleRole, teamName: string, playerIndex: 
   const base = ROLE_BASE[role];
   const tuning = getTeamTuning(teamName);
   const variation = (((playerIndex * 37) % 11) - 5) / 100;
-  const attackBoost = (tuning.attack - 0.5) * 0.28;
-  const defenseBoost = (tuning.defense - 0.5) * 0.26;
-  const possessionBoost = (tuning.possession - 0.5) * 0.20;
+  const attackBoost = (tuning.attack - 0.5) * 0.48;
+  const defenseBoost = (tuning.defense - 0.5) * 0.42;
+  const possessionBoost = (tuning.possession - 0.5) * 0.34;
   return {
     pace: clamp01(base.pace + variation + (tuning.tempo - 0.5) * 0.16),
     passing: clamp01(base.passing + variation * 0.6 + possessionBoost),
     shooting: clamp01(base.shooting + variation * 0.5 + attackBoost),
     defense: clamp01(base.defense + variation * 0.5 + defenseBoost),
-    keeper: clamp01(base.keeper + (role === "GK" ? defenseBoost * 0.6 : 0)),
+    keeper: clamp01(base.keeper + (role === "GK" ? defenseBoost * 1.1 : 0)),
   };
 }
 

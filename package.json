@@ -18,6 +18,7 @@
     "sim:smoke": "node scripts/headless-sim.mjs --games 1 --mode smoke",
     "sim:goalkick": "node --import tsx scripts/goalkick-sim.mjs",
     "sim:simple-kpi": "node --import tsx scripts/simple-model-kpi.mjs",
+    "sim:fifa-calibrate": "node --import tsx scripts/fifa-calibration.mjs",
     "sim:browser": "node scripts/browser-harness-fixture.mjs",
     "perf:browser": "node scripts/browser-load-profile.mjs",
     "db:prune": "node scripts/prune-match-history.mjs 10",
