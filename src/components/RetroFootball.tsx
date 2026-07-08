@@ -19,6 +19,7 @@ import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
 import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
+import { createWorldCupRecord, deleteWorldCup, saveWorldCup } from '../worldCupManager';
 import {
   DEFAULT_AWAY_TEAM,
   DEFAULT_HOME_TEAM,
@@ -1892,6 +1893,31 @@ const RetroFootball: React.FC = () => {
           rec.start(() => gameRef.current, 500);
           telemetryRecorderRef.current = rec;
         }
+      };
+      (window as any).__pslUiTest = {
+        openWorldCupMode: (team?: string) => {
+          if (team) {
+            deleteWorldCup();
+            saveWorldCup(createWorldCupRecord(team));
+          }
+          setShowSplash(false);
+          splashAdvancedRef.current = true;
+          setIsOptionsOpen(false);
+          setShowPracticeSetup(false);
+          setShowPreMatchSetup(false);
+          setHasActiveMatchSession(false);
+          setAllowMainMenu(true);
+          setSessionMenuLock(false);
+          setIsFullTime(false);
+          setFullTimeScore(null);
+          try {
+            sessionStorage.removeItem('psl_fullTime');
+            sessionStorage.removeItem('psl_fullTimeScore');
+          } catch {}
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(true);
+          setSeasonModeActive(true);
+        },
       };
 
       gameRef.current?.setOnReset?.(() => {

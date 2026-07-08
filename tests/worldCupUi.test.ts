@@ -15,3 +15,23 @@ test('World Cup mode uses a dedicated hub instead of the season shell', () => {
   assert.match(hub, /Group Tables/);
   assert.match(hub, /Start World Cup as/);
 });
+
+test('world cup browser smoke harness is wired through the existing Playwright CDP stack', () => {
+  const pkg = readFileSync('package.json', 'utf8');
+  const script = readFileSync('scripts/worldcup-browser-smoke.mjs', 'utf8');
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const hub = readFileSync('src/components/WorldCupHub.tsx', 'utf8');
+
+  assert.match(pkg, /"sim:worldcup": "node scripts\/worldcup-browser-smoke\.mjs"/);
+  assert.match(script, /import \{ chromium \} from 'playwright-core'/);
+  assert.match(script, /const STORAGE_KEY = 'psl_world_cup'/);
+  assert.match(script, /__pslUiTest\?\.openWorldCupMode/);
+  assert.match(script, /__pslWorldCupTest\?\.snapshot/);
+  assert.match(retro, /__pslUiTest = \{/);
+  assert.match(retro, /openWorldCupMode: \(team\?: string\) => \{/);
+  assert.match(hub, /__pslWorldCupTest = \{/);
+  assert.match(script, /World Cup Mode/);
+  assert.match(script, /__pslWorldCupTest\?\.simRound/);
+  assert.match(script, /__pslWorldCupTest\?\.advance/);
+  assert.match(script, /Champion:/);
+});

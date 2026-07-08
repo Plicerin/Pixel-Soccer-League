@@ -108,6 +108,43 @@ export default function WorldCupHub({
     }
   }, [lastMatchResult]);
 
+  useEffect(() => {
+    (window as any).__pslWorldCupTest = {
+      snapshot: () => (worldCup ? structuredClone(worldCup) : null),
+      startAs: (team: string) => {
+        const next = createWorldCupRecord(team);
+        saveWorldCup(next);
+        setWorldCup(next);
+        setView('stage');
+        setViewGroup(playerGroup(team));
+      },
+      simRound: () => {
+        if (!worldCup) return null;
+        const next = structuredClone(worldCup) as WorldCupRecord;
+        simCurrentRound(next);
+        saveWorldCup(next);
+        setWorldCup(next);
+        return structuredClone(next);
+      },
+      advance: () => {
+        if (!worldCup) return null;
+        const next = structuredClone(worldCup) as WorldCupRecord;
+        advanceWorldCup(next);
+        saveWorldCup(next);
+        setWorldCup(next);
+        return structuredClone(next);
+      },
+      clear: () => {
+        deleteWorldCup();
+        setWorldCup(null);
+        setView('team_select');
+      },
+    };
+    return () => {
+      delete (window as any).__pslWorldCupTest;
+    };
+  }, [worldCup]);
+
   const handleStartWorldCup = () => {
     const next = createWorldCupRecord(selectedTeam);
     saveWorldCup(next);
