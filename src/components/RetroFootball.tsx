@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Pause, Play } from 'lucide-react';
-import SeasonHub from './SeasonHub';
+import WorldCupHub from './WorldCupHub';
 import {
   buildDriftDashboard,
   clearTelemetryDatabase,
@@ -2942,12 +2942,12 @@ const RetroFootball: React.FC = () => {
 
       )}
 
-      {/* Season Hub Overlay */}
+      {/* World Cup Hub Overlay */}
       {seasonModeActive && !hasActiveMatchSession && !isFullTime && (
-        <SeasonHub
+        <WorldCupHub
           onPlayMatch={(home, away) => {
             gameRef.current?.unlockGameplayAudio?.();
-            // Set up teams for the season match
+            // Set up teams for the World Cup match
             setTeamAName(home);
             setTeamBName(away);
             seasonReturnRef.current = true;
