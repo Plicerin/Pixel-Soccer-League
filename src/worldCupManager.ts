@@ -116,13 +116,6 @@ function compareStandings(a: GroupStanding, b: GroupStanding) {
   return a.team.localeCompare(b.team);
 }
 
-function cloneFixture(fixture: WorldCupFixture): WorldCupFixture {
-  return {
-    ...fixture,
-    result: fixture.result ? { ...fixture.result } : null,
-  };
-}
-
 function getTeamStrength(team: string) {
   return getTeamStrengthProfile(team).normalizedStrength || 0.5;
 }
@@ -369,6 +362,12 @@ export function getAllGroupStandings(record: WorldCupRecord) {
     group,
     standings: getGroupStandings(record, group),
   }));
+}
+
+export function getPlayerGroup(record: WorldCupRecord) {
+  return GROUP_NAMES.find((group) =>
+    getGroupStandings(record, group).some((row) => row.team === record.playerTeam),
+  ) || null;
 }
 
 export function getKnockoutFixtures(record: WorldCupRecord, stage?: Exclude<WorldCupStage, 'group' | 'completed'>) {
