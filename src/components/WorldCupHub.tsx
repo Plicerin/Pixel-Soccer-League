@@ -382,15 +382,15 @@ export default function WorldCupHub({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-4 w-full max-w-lg px-6 max-h-[calc(100vh-40px)] overflow-y-auto">
-        <div className="flex items-center gap-4 w-full">
-          <div className="flex-1">
+      <div className="flex flex-col items-center gap-4 w-full max-w-lg px-4 sm:px-6 max-h-[calc(100vh-40px)] overflow-y-auto overflow-x-hidden">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="min-w-0 flex-1">
             <div className="text-amber-400 text-lg font-extrabold tracking-widest uppercase">
               {stageLabel(worldCup.currentStage, worldCup.currentRound)}
             </div>
             <div className="text-white/40 text-[10px]">{worldCup.playerTeam}</div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
             <button onClick={() => setView('groups')} className="py-1 px-3 border border-white/20 text-white/60 text-[10px] uppercase rounded hover:text-white hover:border-white/40 transition-colors">
               Groups
             </button>

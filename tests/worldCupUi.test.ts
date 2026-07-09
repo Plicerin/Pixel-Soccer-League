@@ -35,3 +35,11 @@ test('world cup browser smoke harness is wired through the existing Playwright C
   assert.match(script, /__pslWorldCupTest\?\.advance/);
   assert.match(script, /Champion:/);
 });
+
+test('world cup stage view keeps header actions responsive on narrow screens', () => {
+  const hub = readFileSync('src/components/WorldCupHub.tsx', 'utf8');
+
+  assert.match(hub, /overflow-x-hidden/);
+  assert.match(hub, /flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-4/);
+  assert.match(hub, /flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end/);
+});
