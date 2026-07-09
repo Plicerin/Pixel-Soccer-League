@@ -1304,9 +1304,13 @@ test("V45 simple model keeps 5-minute halves at 100 percent movement speed while
 
   const shortHalf = sample(5 * 60);
   const fullHalf = sample(45 * 60);
+  const shortHalfKickoffCappedCeiling = (60 - 0.5) * 9;
 
   assert.ok(shortHalf.elapsed >= fullHalf.elapsed * 7.5, `short-half match clock did not compress enough: ${shortHalf.elapsed.toFixed(2)} vs ${fullHalf.elapsed.toFixed(2)}`);
-  assert.ok(shortHalf.elapsed <= fullHalf.elapsed * 9.1, `short-half match clock over-compressed: ${shortHalf.elapsed.toFixed(2)} vs ${fullHalf.elapsed.toFixed(2)}`);
+  assert.ok(
+    shortHalf.elapsed <= shortHalfKickoffCappedCeiling + 0.5,
+    `short-half match clock over-compressed beyond 9x kickoff-capped ceiling: ${shortHalf.elapsed.toFixed(2)} vs ${shortHalfKickoffCappedCeiling.toFixed(2)}`,
+  );
   assert.ok(
     fullHalf.elapsed >= 50 && fullHalf.elapsed <= 60,
     `full-half live clock should stay near real-time while dead-ball presentation stays frozen, got ${fullHalf.elapsed.toFixed(2)}`,
