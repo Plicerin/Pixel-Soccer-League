@@ -19,6 +19,13 @@ const MLS_TEAMS = WORLD_CUP_2026_TEAM_NAMES
 const FORMATIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3']
 const TEAM_ALIASES = new Map()
 
+function computeFixtureRuntimeTimeoutMs(halfSeconds, speed) {
+  const safeHalfSeconds = Math.max(30, Number(halfSeconds) || 300)
+  const safeSpeed = Math.max(1, Number(speed) || 1)
+  const expectedWallMs = (safeHalfSeconds * 2 * 1000) / safeSpeed
+  return Math.ceil(Math.max(420_000, expectedWallMs * 2 + 120_000))
+}
+
 function printHelp() {
   console.log(`Headless CPU vs CPU soccer sim runner
 
@@ -195,7 +202,10 @@ function parseArgs(argv) {
   }
 
   if (!options.timeoutMs) {
-    options.timeoutMs = options.games * (options.mode === 'smoke' ? 3 : 5) * 60 * 1000
+    const perGameTimeoutMs = options.mode === 'smoke'
+      ? Math.max(180_000, Math.ceil(((Math.max(1, options.halfSeconds) * 2) / Math.max(1, options.speed)) * 1000 + 90_000))
+      : computeFixtureRuntimeTimeoutMs(options.halfSeconds, options.speed)
+    options.timeoutMs = Math.ceil(options.games * perGameTimeoutMs + 60_000)
   }
 
   if ((options.homeTeam && !options.awayTeam) || (!options.homeTeam && options.awayTeam)) {
@@ -670,6 +680,27 @@ async function waitForFullTime(page, timeoutMs = 600000, visualAuditRecorder = n
     await delay(500)
   }
   return false
+}
+
+async function waitForFixtureCompletion(page, timeoutMs = 600000, visualAuditRecorder = null, gameIndex = 0) {
+  const start = Date.now()
+  let lastLog = 0
+  while (Date.now() - start < timeoutMs) {
+    const state = await readMatchStartState(page)
+    if (state.fixtureError) {
+      throw new Error(`Browser fixture failed before completion: ${state.fixtureError}`)
+    }
+    await pollVisualAudit(page, visualAuditRecorder, gameIndex)
+    if (state.fixtureResult) return state.fixtureResult
+    const now = Date.now()
+    if (now - lastLog > 10000) {
+      const clock = Number.isFinite(state.elapsedInHalf) ? state.elapsedInHalf.toFixed(1) : 'n/a'
+      console.log(`  [poll] phase=${state.phase || 'UNKNOWN'} half=${state.half || 0} clock=${clock} fixturePending=${state.hasPromise ? 'yes' : 'no'}`)
+      lastLog = now
+    }
+    await delay(500)
+  }
+  return null
 }
 
 function getMatchWaitTimeoutMs(options) {
@@ -1194,10 +1225,17 @@ async function run() {
         throw new Error(`Timed out after ${formatDuration(options.timeoutMs)} waiting for ${options.games} game(s)`)
       }
 
-      const finished = await waitForFullTime(page, Math.min(getMatchWaitTimeoutMs(options), remainingForMatch), visualAuditRecorder, i + 1)
-      if (!finished) {
+      const fixtureResult = await waitForFixtureCompletion(page, Math.min(getMatchWaitTimeoutMs(options), remainingForMatch), visualAuditRecorder, i + 1)
+      if (!fixtureResult) {
         const elapsed = Date.now() - runStartedAt
         throw new Error(`Timed out after ${formatDuration(elapsed)} waiting for game ${i + 1} to finish`)
+      }
+      if (fixtureResult.timedOut) {
+        throw new Error(
+          `Fixture timed out (${fixtureResult.timeoutReason || 'unknown'}) while waiting for game ${i + 1} ` +
+          `at phase=${fixtureResult.phase || 'UNKNOWN'} half=${fixtureResult.half || 0} ` +
+          `clock=${Number.isFinite(fixtureResult.elapsedInHalf) ? fixtureResult.elapsedInHalf.toFixed(1) : 'n/a'}`
+        )
       }
 
       await delay(1000)

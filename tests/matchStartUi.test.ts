@@ -184,6 +184,16 @@ test('V248 watched fixtures persist a fresh full-time DB row even while smoke mo
   assert.match(source, /buildMatchResultPayload\(\{[\s\S]*?bundle: watchedBundle,[\s\S]*?snapshot: watchedSnapshot,[\s\S]*?fallbackSessionId: `ft-\$\{Date\.now\(\)\}`/s, 'watched fixture save must use the current full-time bundle and snapshot when building the DB payload');
 });
 
+test('headless fixtures sync React team state before the smoke runner starts kickoff', () => {
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const smoke = readFileSync('src/smokeTest.ts', 'utf8');
+
+  assert.match(retro, /applySmokeFixtureSetup: async \(fixture: \{ homeTeam: string; awayTeam: string; formationA: string; formationB: string \}\) => \{/, 'RetroFootball must expose a smoke fixture UI-state bridge');
+  assert.match(retro, /setTeamAName\(fixture\.homeTeam\);[\s\S]*setTeamBName\(fixture\.awayTeam\);[\s\S]*setTeamAFormation\(fixture\.formationA\);[\s\S]*setTeamBFormation\(fixture\.formationB\);/s, 'smoke fixture bridge must sync selected teams and formations into React state');
+  assert.match(smoke, /const uiFixtureBridge = \(window as any\)\.__pslUiTest\?\.applySmokeFixtureSetup;/, 'smoke fixture runner must look for the UI-state bridge before kickoff');
+  assert.match(smoke, /await uiFixtureBridge\(\{[\s\S]*homeTeam: options\.homeTeam,[\s\S]*awayTeam: options\.awayTeam,[\s\S]*formationA: options\.formationA,[\s\S]*formationB: options\.formationB,[\s\S]*\}\);/s, 'smoke fixture runner must await the bridge with the requested fixture selection');
+});
+
 test('browser menus use the current Pixel Soccer League logo asset', () => {
   const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   const season = readFileSync('src/components/SeasonHub.tsx', 'utf8');

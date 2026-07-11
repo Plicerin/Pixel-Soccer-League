@@ -104,11 +104,42 @@ test("simple model emits stable telemetry shapes", () => {
   const zoneTrace = bundle.events.find((event) => event.type === "ATTACKER_ZONE_TRACE") as { detail?: Record<string, unknown> } | undefined;
   assert.ok(shapeRow && Number(shapeRow.width) > 0, "shape snapshots must preserve nonzero team width");
   assert.ok(positionRow && typeof positionRow.owner === "string", "player positioning rows must preserve owner labels");
+  assert.ok(positionRow && typeof positionRow.targetOwner === "string", "player positioning rows must preserve live target-owner labels");
   assert.ok(positionRow && Number(positionRow.targetAbsZ) >= 0, "player positioning rows must preserve target width data");
   assert.ok(passRow && Number((passRow.detail as Record<string, unknown>)?.x) === Number((passRow.detail as Record<string, unknown>)?.x), "pass rows must preserve carrier coordinates");
   assert.ok(carrierTrace && Number(carrierTrace.detail?.x) === Number(carrierTrace.detail?.x), "carrier traces must preserve x coordinates for trajectory analysis");
   assert.ok(carrierTrace && Number(carrierTrace.detail?.segmentId) >= 1, "carrier traces must preserve segment ids for possession trajectory grouping");
   assert.ok(zoneTrace && typeof zoneTrace.detail?.dangerMarkingZone === "boolean", "attacker zone traces must preserve marking-zone telemetry");
+  assert.ok(zoneTrace && typeof zoneTrace.detail?.targetOwner === "string", "attacker zone traces must preserve live target-owner labels");
+});
+
+test("V256 attacking wide support preserves lane ownership during buildup", () => {
+  const model = new SimpleMatchModel();
+  model.setTeamNames("Charlotte FC", "Sporting Kansas City");
+  model.setTeamFormations("4-3-3", "4-4-2");
+  model.startMatch();
+
+  const internal = model as unknown as {
+    possession: (ReturnType<SimpleMatchModel["getPlayers"]>[number]) | null;
+    ball: { pos: { x: number; y: number; z: number } };
+    updateTargets: () => void;
+  };
+  const carrier = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W" && player.homePos.z < 0);
+
+  assert.ok(carrier, "expected a support carrier");
+  assert.ok(winger, "expected a left winger");
+
+  carrier.pos.x = 6;
+  carrier.pos.z = 0.5;
+  internal.possession = carrier;
+  internal.ball.pos.x = carrier.pos.x;
+  internal.ball.pos.z = carrier.pos.z;
+
+  internal.updateTargets();
+
+  assert.ok(Math.abs(winger.targetPos.z) >= Math.abs(winger.homePos.z) * 0.9, `winger lane collapsed too far centrally: ${winger.targetPos.z.toFixed(2)} vs home ${winger.homePos.z.toFixed(2)}`);
+  assert.equal(winger.targetOwner, "support_wide_lane_hold");
 });
 
 test("V206 simple model keeps one stable session id per match and stamps runtime provenance", () => {
@@ -5440,6 +5471,122 @@ test("V216 compressed dangerous header touch seeds a fast second-action window",
   assert.equal((model as unknown as { deliveryContinuationPlayerId: string | null }).deliveryContinuationPlayerId, striker.id);
   assert.ok((model as unknown as { deliveryContinuationRemaining: number }).deliveryContinuationRemaining >= 1.25);
   assert.equal(Number(((model as unknown as { actionTimer: number }).actionTimer).toFixed(2)), 0.14);
+});
+
+test("V257 compressed dangerous wide delivery favors a shot over another recycle", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v257-dangerous-wide-delivery-shot");
+  model.setHalfDurationSeconds(5 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  assert.ok(winger);
+
+  winger.pos = { x: RIGHT_PENALTY_X - 1.6, y: 0, z: FIELD_D * 0.18 };
+  winger.targetPos = { x: winger.pos.x, z: winger.pos.z };
+  winger.vel = { x: 0, z: 0 };
+
+  for (const player of model.getPlayers()) {
+    if (player.id === winger.id) continue;
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 11 + player.shirtNumber * 0.06 : LEFT_GOAL_X + 8 + player.shirtNumber * 0.04;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = winger;
+  model.ball.pos = { x: winger.pos.x, y: 0.18, z: winger.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+  (model as unknown as { deliveryContinuationPlayerId: string | null }).deliveryContinuationPlayerId = winger.id;
+  (model as unknown as { deliveryContinuationRemaining: number }).deliveryContinuationRemaining = 1.1;
+
+  let roll = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => {
+      roll += 1;
+      if (roll === 1) return 0.08;
+      if (roll === 2) return 0.064;
+      if (roll === 3) return 0.99;
+      if (roll === 5) return 0.99;
+      return 0.5;
+    },
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const goal = (model as unknown as { playLiveTick: (dt: number) => unknown }).playLiveTick(1 / 60);
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  const latestOpportunity = model.getTuningBundle().shotOpportunities.at(-1);
+
+  assert.equal(goal, null);
+  assert.ok(latestShot, "dangerous delivery continuation should now produce a shot decision");
+  assert.equal(latestOpportunity?.outcome, "shot");
+  assert.equal(model.possession, null, "shot resolution should release carrier possession");
+});
+
+test("V258 pressured chance-creation midfielder shoots before a lateral recycle", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v258-pressured-chance-midfielder-shot");
+  model.setHalfDurationSeconds(5 * 60);
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+
+  const midfielder = model.getPlayers().find((player) => player.team === "A" && player.role === "CM");
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(midfielder);
+  assert.ok(striker);
+
+  midfielder.pos = { x: RIGHT_PENALTY_X - 3.2, y: 0, z: 4.8 };
+  midfielder.targetPos = { x: midfielder.pos.x, z: midfielder.pos.z };
+  midfielder.vel = { x: 0, z: 0 };
+  striker.pos = { x: midfielder.pos.x + 1.2, y: 0, z: midfielder.pos.z + 2.4 };
+  striker.targetPos = { x: striker.pos.x, z: striker.pos.z };
+  striker.vel = { x: 0, z: 0 };
+
+  let defenderOffset = 0;
+  for (const player of model.getPlayers()) {
+    if (player.id === midfielder.id || player.id === striker.id) continue;
+    if (player.team === "B" && player.role !== "GK" && defenderOffset < 3) {
+      const xOffset = defenderOffset === 0 ? 0.9 : defenderOffset === 1 ? 1.4 : 0.6;
+      const zOffset = defenderOffset === 0 ? -0.6 : defenderOffset === 1 ? 0.9 : 2.0;
+      player.pos = { x: midfielder.pos.x + xOffset, y: 0, z: midfielder.pos.z + zOffset };
+      player.targetPos = { x: player.pos.x, z: player.pos.z };
+      player.vel = { x: 0, z: 0 };
+      defenderOffset += 1;
+      continue;
+    }
+    player.pos.x = player.team === "A" ? LEFT_GOAL_X + 9 + player.shirtNumber * 0.08 : LEFT_GOAL_X + 6 + player.shirtNumber * 0.06;
+    player.pos.z = player.role === "GK" ? 0 : FIELD_D * 0.34;
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+
+  model.possession = midfielder;
+  model.ball.pos = { x: midfielder.pos.x, y: 0.18, z: midfielder.pos.z };
+  (model as unknown as { actionTimer: number }).actionTimer = 0;
+
+  let roll = 0;
+  (model as unknown as { rng: { next: () => number; range: (min: number, max: number) => number } }).rng = {
+    next: () => {
+      roll += 1;
+      if (roll === 1) return 0.99;
+      if (roll === 2) return 0.99;
+      if (roll === 3) return 0.99;
+      if (roll === 4) return 0.028;
+      return 0.99;
+    },
+    range: (min, max) => (min + max) / 2,
+  };
+
+  const goal = (model as unknown as { playLiveTick: (dt: number) => unknown }).playLiveTick(1 / 60);
+  const latestShot = model.getTuningBundle().shotDecisions.at(-1);
+  const latestOpportunity = model.getTuningBundle().shotOpportunities.at(-1);
+  const latestPassDecision = model.getTuningBundle().passDecisions.at(-1);
+
+  assert.equal(goal, null);
+  assert.ok(latestShot, "pressured chance-creation midfielder should now produce a shot");
+  assert.equal(latestOpportunity?.outcome, "shot");
+  assert.equal(latestPassDecision, undefined, "shot window should beat the lateral recycle");
 });
 
 test("V200 underproducing full-length possession shortens non-box action cadence", () => {

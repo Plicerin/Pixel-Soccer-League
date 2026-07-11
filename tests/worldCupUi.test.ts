@@ -36,6 +36,16 @@ test('world cup browser smoke harness is wired through the existing Playwright C
   assert.match(script, /Champion:/);
 });
 
+test('headless sim waits for fixture runner completion and budgets tuning runs beyond five minutes', () => {
+  const script = readFileSync('scripts/headless-sim.mjs', 'utf8');
+
+  assert.match(script, /function computeFixtureRuntimeTimeoutMs\(halfSeconds, speed\)/);
+  assert.match(script, /options\.timeoutMs = Math\.ceil\(options\.games \* perGameTimeoutMs \+ 60_000\)/);
+  assert.match(script, /async function waitForFixtureCompletion\(page, timeoutMs = 600000, visualAuditRecorder = null, gameIndex = 0\)/);
+  assert.match(script, /const fixtureResult = await waitForFixtureCompletion\(page, Math\.min\(getMatchWaitTimeoutMs\(options\), remainingForMatch\), visualAuditRecorder, i \+ 1\)/);
+  assert.match(script, /if \(fixtureResult\.timedOut\) \{/);
+});
+
 test('world cup stage view keeps header actions responsive on narrow screens', () => {
   const hub = readFileSync('src/components/WorldCupHub.tsx', 'utf8');
 

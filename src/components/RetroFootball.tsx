@@ -1895,6 +1895,28 @@ const RetroFootball: React.FC = () => {
         }
       };
       (window as any).__pslUiTest = {
+        applySmokeFixtureSetup: async (fixture: { homeTeam: string; awayTeam: string; formationA: string; formationB: string }) => {
+          teamANameRef.current = fixture.homeTeam;
+          teamBNameRef.current = fixture.awayTeam;
+          activeMatchTeamsRef.current = { a: fixture.homeTeam, b: fixture.awayTeam };
+          fullTimeCapturedRef.current = false;
+          setShowSplash(false);
+          splashAdvancedRef.current = true;
+          setShowPreMatchSetup(false);
+          setShowPracticeSetup(false);
+          setHasActiveMatchSession(true);
+          setAllowMainMenu(false);
+          setSessionMenuLock(true);
+          setIsFullTime(false);
+          setFullTimeScore(null);
+          setTeamAName(fixture.homeTeam);
+          setTeamBName(fixture.awayTeam);
+          setTeamAFormation(fixture.formationA);
+          setTeamBFormation(fixture.formationB);
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(false);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        },
         openWorldCupMode: (team?: string) => {
           if (team) {
             deleteWorldCup();

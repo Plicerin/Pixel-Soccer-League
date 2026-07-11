@@ -207,6 +207,15 @@ function normalizeFixtureOptions(input: FixtureRunOptions = {}): Required<Fixtur
 }
 
 async function configureFixture(game: any, options: Required<FixtureRunOptions>): Promise<void> {
+  const uiFixtureBridge = (window as any).__pslUiTest?.applySmokeFixtureSetup;
+  if (typeof uiFixtureBridge === 'function') {
+    await uiFixtureBridge({
+      homeTeam: options.homeTeam,
+      awayTeam: options.awayTeam,
+      formationA: options.formationA,
+      formationB: options.formationB,
+    });
+  }
   game.setSplashSceneMode?.(false);
   game.setMenuVisible?.(false);
   game.resetMatch?.();

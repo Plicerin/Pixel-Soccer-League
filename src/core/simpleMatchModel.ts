@@ -118,6 +118,7 @@ export type SimplePlayer = {
   vel: Vec2;
   homePos: Vec2;
   targetPos: Vec2;
+  targetOwner: string;
   ratings: SimplePlayerRatings;
   stats: SimplePlayerStats;
 };
@@ -1701,10 +1702,23 @@ export class SimpleMatchModel {
     }
 
     const compressedDeliveryContinuation = deliveryContinuation && this.productionCompression() > 1.01;
+    const dangerousDeliverySecondAction = deliveryContinuation
+      && (carrier.role === "W" || carrier.role === "AM" || carrier.role === "ST")
+      && distToGoal <= 24;
+    const pressuredChanceCreationShotWindow = !deliveryContinuation
+      && distToGoal <= 18
+      && forwardX >= 12
+      && pressure >= 1.1
+      && carrier.role !== "CB"
+      && carrier.role !== "FB";
     const distanceShotChance = clamp(
       this.distanceShotChance(carrier, distToGoal, pressure, forwardX)
         + (deliveryContinuation && distToGoal <= 20
-          ? compressedDeliveryContinuation ? 0.028 : 0.016
+          ? compressedDeliveryContinuation
+            ? dangerousDeliverySecondAction ? 0.040 : 0.028
+            : dangerousDeliverySecondAction ? 0.024 : 0.016
+          : pressuredChanceCreationShotWindow
+            ? carrier.role === "W" || carrier.role === "AM" || carrier.role === "ST" ? 0.012 : 0.008
           : 0),
       0,
       0.14,
@@ -1749,14 +1763,21 @@ export class SimpleMatchModel {
       this.shootUrge(carrier, distToGoal, pressure)
         + (deliveryContinuation
           ? compressedDeliveryContinuation
-            ? carrier.role === "ST" ? 0.040
-              : carrier.role === "AM" ? 0.030
-                : distToGoal <= 18 ? 0.022
-                  : 0.012
-            : carrier.role === "ST" ? 0.026
-              : carrier.role === "AM" ? 0.018
-                : distToGoal <= 18 ? 0.012
+            ? carrier.role === "ST" ? (dangerousDeliverySecondAction ? 0.058 : 0.040)
+              : carrier.role === "AM" ? (dangerousDeliverySecondAction ? 0.046 : 0.030)
+                : carrier.role === "W" ? (dangerousDeliverySecondAction ? 0.042 : distToGoal <= 18 ? 0.022 : 0.012)
+                  : distToGoal <= 18 ? 0.022
+                    : 0.012
+            : carrier.role === "ST" ? (dangerousDeliverySecondAction ? 0.036 : 0.026)
+              : carrier.role === "AM" ? (dangerousDeliverySecondAction ? 0.028 : 0.018)
+                : carrier.role === "W" ? (dangerousDeliverySecondAction ? 0.024 : distToGoal <= 18 ? 0.012 : 0.006)
+                  : distToGoal <= 18 ? 0.012
                   : 0.006
+          : pressuredChanceCreationShotWindow
+            ? carrier.role === "ST" ? 0.036
+              : carrier.role === "AM" || carrier.role === "W" ? 0.028
+                : carrier.role === "CM" || carrier.role === "DM" ? 0.024
+                  : 0.018
           : 0),
       0.001,
       0.14,
@@ -1770,9 +1791,15 @@ export class SimpleMatchModel {
       return this.resolveShot(carrier, distToGoal, pressure);
     }
 
-    const shouldPass = compressedDeliveryContinuation
-      ? pressure > 1.05 || forwardX < 8 || this.rng.next() < 0.72
-      : pressure > 0.8 || forwardX < 10 || this.rng.next() < 0.995;
+    const shouldPass = dangerousDeliverySecondAction
+      ? compressedDeliveryContinuation
+        ? pressure > 1.18 || (forwardX < 6 && carrier.role !== "W") || this.rng.next() < 0.38
+        : pressure > 0.95 || (forwardX < 7 && carrier.role !== "W") || this.rng.next() < 0.58
+      : pressuredChanceCreationShotWindow
+        ? pressure > 2.9 || forwardX < 11 || this.rng.next() < 0.44
+      : compressedDeliveryContinuation
+        ? pressure > 1.05 || forwardX < 8 || this.rng.next() < 0.72
+        : pressure > 0.8 || forwardX < 10 || this.rng.next() < 0.995;
     if (shouldPass) {
       const strikerNearBox = this.isStrikerNearPenaltyArea(carrier, distToGoal);
       const forwardDeliveryContinuation = deliveryContinuation && (carrier.role === "ST" || carrier.role === "AM" || distToGoal <= 18);
@@ -2497,9 +2524,11 @@ export class SimpleMatchModel {
       const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
       const receivingFlight = this.ballFlight?.followPlayerId === player.id;
       let target = { ...player.homePos };
+      let targetOwner = "home_anchor";
       if (this.possession?.id === player.id) {
         if (receivingFlight && this.ballFlight) {
           target = { ...this.ballFlight.to };
+          targetOwner = "carrier_receive_flight";
         } else if (this.visualReceptionPlayerId === player.id && this.visualReceptionSettleRemaining > 0) {
           const goal = goalCenterForAttack(attackSign);
           const dir = normalize2({ x: goal.x - player.pos.x, z: goal.z - player.pos.z });
@@ -2508,6 +2537,7 @@ export class SimpleMatchModel {
             x: player.pos.x + dir.x * settleLead,
             z: player.pos.z + dir.z * settleLead,
           };
+          targetOwner = "carrier_reception_settle";
         } else {
           const goal = goalCenterForAttack(attackSign);
           const dir = normalize2({ x: goal.x - player.pos.x, z: goal.z - player.pos.z });
@@ -2515,19 +2545,31 @@ export class SimpleMatchModel {
       const expansion = this.attackExpansionScale();
       if (player.role !== "GK" && this.isInAttackingPenaltyArea(player)) {
         target = this.penaltyAreaDecisionTarget(player);
+        targetOwner = "carrier_box_attack";
       } else if (player.role === "ST" && this.isStrikerInShotPreparationZone(player)) {
         target = this.strikerShotPreparationTarget(player);
+        targetOwner = "carrier_shot_prep";
       } else {
         target = { x: player.pos.x + dir.x * 8 * expansion, z: player.pos.z + dir.z * 5 * Math.min(expansion, 1.6) + lane };
+        targetOwner = "carrier_drive";
       }
         }
       } else if (this.possession?.team === player.team) {
         const push = player.role === "ST" || player.role === "W" || player.role === "AM" ? 7 : 3;
         const expansion = this.attackExpansionScale();
+        const lateralHomeBlend = player.role === "W" ? 0.98
+          : player.role === "FB" ? 0.92
+            : player.role === "AM" ? 0.88
+              : 0.85;
+        const lateralBallBlend = player.role === "W" ? 0.08
+          : player.role === "FB" ? 0.12
+            : player.role === "AM" ? 0.16
+              : 0.18;
         target = {
           x: player.homePos.x + attackSign * clamp(ball.x * 0.18 + push * expansion, -8, 16),
-          z: player.homePos.z * 0.85 + ball.z * 0.18,
+          z: player.homePos.z * lateralHomeBlend + ball.z * lateralBallBlend,
         };
+        targetOwner = "support_shape_attack";
         if (continuationSupportPhase && possessionCarrier) {
           const supportLane = compressedContinuationSupportPhase
             ? player.role === "CM" ? 1.6
@@ -2564,6 +2606,16 @@ export class SimpleMatchModel {
             x: lerpNumber(target.x, supportTarget.x, continuationBlend * continuationBlendScale),
             z: lerpNumber(target.z, supportTarget.z, continuationBlend * continuationBlendScale),
           };
+          targetOwner = "support_continuation";
+        }
+        if (player.role === "W" || player.role === "FB") {
+          const wideFloor = player.role === "W"
+            ? Math.max(10.5, Math.abs(player.homePos.z) * 0.92)
+            : Math.max(8.5, Math.abs(player.homePos.z) * 0.82);
+          const wideSign = Math.sign(player.homePos.z || target.z || 1) || 1;
+          const widened = wideSign * Math.max(wideFloor, Math.abs(target.z));
+          target = { ...target, z: widened };
+          targetOwner = "support_wide_lane_hold";
         }
         target = this.constrainAttackingSupportToOffsideLine(player, target, ball);
       } else if (this.possession && player.team !== this.possession.team) {
@@ -2605,11 +2657,17 @@ export class SimpleMatchModel {
                   : dangerCollapse ? 0.82 : 1,
             ),
           };
+          targetOwner = boxEmergency
+            ? "defend_ball_pressure_box"
+            : boxOccupancyEmergency
+              ? "defend_ball_pressure_collapse"
+              : "defend_ball_pressure";
         } else {
           target = {
             x: player.homePos.x + attackSign * clamp(ball.x * (dangerCollapse ? 0.18 : 0.12), dangerCollapse ? -7 : -5, dangerCollapse ? 7 : 5),
             z: player.homePos.z * (dangerCollapse ? 0.62 : 0.75) + ball.z * (dangerCollapse ? 0.38 : 0.25),
           };
+          targetOwner = dangerCollapse ? "defend_shape_collapse" : "defend_shape_shell";
           if (dangerCollapse && (player.role === "CB" || player.role === "FB" || player.role === "CM" || player.role === "DM")) {
             target = {
               x: lerpNumber(
@@ -2643,6 +2701,7 @@ export class SimpleMatchModel {
                   : player.role === "CB" ? 0.46 : 0.34,
               ),
             };
+            targetOwner = boxEmergency ? "defend_box_emergency" : "defend_shape_collapse";
           }
           if (extraBoxBody) {
             target = {
@@ -2665,12 +2724,14 @@ export class SimpleMatchModel {
                   : player.role === "CB" ? 0.34 : 0.28,
               ),
             };
+            targetOwner = "defend_extra_box_body";
           }
         }
       }
       if (player.role === "GK" && !receivingFlight) {
         const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + 2.4 : RIGHT_GOAL_X - 2.4;
         target = { x: ownGoalX, z: clamp(ball.z * 0.25, -4, 4) };
+        targetOwner = "keeper_anchor";
         if (this.possession && this.possession.team !== player.team) {
           const ownGoal = goalCenterForAttack((-attackSign) as 1 | -1);
           const dangerDist = dist2(this.possession.pos, ownGoal);
@@ -2682,11 +2743,13 @@ export class SimpleMatchModel {
               x: ownGoal.x + dir.x * stepOut,
               z: clamp(this.possession.pos.z * 0.82, -GOAL_MOUTH_HALF_Z * 0.95, GOAL_MOUTH_HALF_Z * 0.95),
             };
+            targetOwner = "keeper_sweep";
           }
         }
       }
       if (protectedKeeper && player.team !== protectedKeeper.team) {
         target = this.keeperStandoffTarget(player, protectedKeeper, target);
+        targetOwner = "keeper_hands_standoff";
       }
       if (this.kickoffShapeReleaseRemaining > 0 && player.role !== "GK") {
         const releaseAge = KICKOFF_SHAPE_RELEASE_SECONDS - this.kickoffShapeReleaseRemaining;
@@ -2705,8 +2768,10 @@ export class SimpleMatchModel {
           const laneReleaseProgress = clamp(releaseAge / KICKOFF_LANE_RELEASE_SECONDS, 0, 1);
           target.z = lerpNumber(kickoffAnchor.z, target.z, laneReleaseProgress);
         }
+        targetOwner = "kickoff_shape_release";
       }
       player.targetPos = clampToPlayable(target);
+      player.targetOwner = targetOwner;
     }
   }
 
@@ -4245,6 +4310,7 @@ export class SimpleMatchModel {
         vel: { x: 0, z: 0 },
         homePos,
         targetPos: { ...homePos },
+        targetOwner: "home_anchor",
         ratings: getRoleRatings(slot.role, stats.name, index),
         stats: createStats(),
       });
@@ -4261,6 +4327,7 @@ export class SimpleMatchModel {
       player.pos.x = homePos.x;
       player.pos.z = homePos.z;
       player.targetPos = { ...homePos };
+      player.targetOwner = "home_anchor";
     }
     const starter =
       this.players.find((p) => p.team === team && p.role === "ST")
@@ -4316,6 +4383,7 @@ export class SimpleMatchModel {
         kickoffPos.z = clamp(kickoffPos.z + (player.team === "A" ? laneOffset : -laneOffset), -FIELD_D / 2 + 1, FIELD_D / 2 - 1);
       }
       player.targetPos = { ...kickoffPos };
+      player.targetOwner = "home_anchor";
       if (snapPlayers) {
         player.pos.x = kickoffPos.x;
         player.pos.z = kickoffPos.z;
@@ -6823,6 +6891,7 @@ export class SimpleMatchModel {
         team,
         role: p.role,
         owner: this.positionOwnerLabel(p),
+        targetOwner: p.targetOwner,
         label: p.label,
         player: p.name,
         x: +p.pos.x.toFixed(2),
@@ -6873,6 +6942,7 @@ export class SimpleMatchModel {
         playerName: player.name,
         role: player.role,
         patternRole: this.positionOwnerLabel(player),
+        targetOwner: player.targetOwner,
         x: +player.pos.x.toFixed(2),
         z: +player.pos.z.toFixed(2),
         distToGoal: +distToGoal.toFixed(2),
