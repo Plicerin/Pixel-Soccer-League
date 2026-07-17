@@ -19,6 +19,8 @@ function completeCurrentRound(record: WorldCupRecord, homeGoals = 1, awayGoals =
       awayGoals,
       winner: homeGoals === awayGoals ? fixture.home : homeGoals > awayGoals ? fixture.home : fixture.away,
       decidedBy: 'regulation',
+      homeScorers: homeGoals > 0 ? Array.from({ length: homeGoals }, () => `${fixture.home} Scorer`) : [],
+      awayScorers: awayGoals > 0 ? Array.from({ length: awayGoals }, () => `${fixture.away} Scorer`) : [],
     };
     fixture.played = true;
   }

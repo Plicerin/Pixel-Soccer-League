@@ -52,4 +52,16 @@ test('world cup stage view keeps header actions responsive on narrow screens', (
   assert.match(hub, /overflow-x-hidden/);
   assert.match(hub, /flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-4/);
   assert.match(hub, /flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end/);
+  assert.match(hub, /max-w-6xl/);
+  assert.match(hub, /break-words/);
+  assert.match(hub, /min-w-\[760px\]/);
+  assert.match(hub, /Save PNG/);
+  assert.match(hub, /data-export-ignore="true"/);
+  assert.match(hub, /handleExportScreenshot/);
+  assert.match(hub, /exportElementAsPng/);
+  assert.match(hub, /World Champions/);
+  assert.match(hub, /Golden Boot/);
+  assert.match(hub, /Big Final/);
+  assert.match(hub, /Third Place Playoff/);
+  assert.match(hub, /getWorldCupTeamFlag/);
 });

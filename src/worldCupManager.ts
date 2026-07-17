@@ -1,4 +1,5 @@
 import { getTeamStrengthProfile } from './core/simpleRatings';
+import { getWorldTeamStartingLineup } from './worldTeamRosters.js';
 import {
   FIFA_WORLD_CUP_2026_GROUPS,
   FIFA_WORLD_CUP_2026_GROUP_STAGE_FIXTURES,
@@ -19,6 +20,8 @@ export interface WorldCupResult {
   awayGoals: number;
   winner: string | null;
   decidedBy: 'regulation' | 'tiebreak';
+  homeScorers: string[];
+  awayScorers: string[];
 }
 
 export interface WorldCupFixture {
@@ -139,6 +142,33 @@ function resolveTieWinner(home: string, away: string) {
   return Math.random() < homeStrength / Math.max(0.001, total) ? home : away;
 }
 
+function scorerPool(team: string) {
+  const lineup = getWorldTeamStartingLineup(team, '4-3-3');
+  const weighted: string[] = [];
+  for (const player of lineup) {
+    const weight =
+      player.role === 'ST' ? 5 :
+      player.role === 'LW' || player.role === 'RW' || player.role === 'AM' ? 3 :
+      player.role === 'LCM' || player.role === 'RCM' || player.role === 'DM' ? 2 :
+      player.role === 'RB' || player.role === 'LB' || player.role === 'CB' || player.role === 'RCB' || player.role === 'LCB' ? 1 :
+      0;
+    for (let i = 0; i < weight; i += 1) {
+      weighted.push(player.name);
+    }
+  }
+  return weighted.length > 0 ? weighted : lineup.map((player) => player.name);
+}
+
+function sampleScorers(team: string, goals: number) {
+  const pool = scorerPool(team);
+  const scorers: string[] = [];
+  for (let i = 0; i < goals; i += 1) {
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    scorers.push(pick);
+  }
+  return scorers;
+}
+
 function buildWorldCupResult(home: string, away: string, homeGoals: number, awayGoals: number, knockout = false): WorldCupResult {
   if (!knockout) {
     return {
@@ -146,6 +176,8 @@ function buildWorldCupResult(home: string, away: string, homeGoals: number, away
       awayGoals,
       winner: homeGoals === awayGoals ? null : homeGoals > awayGoals ? home : away,
       decidedBy: 'regulation',
+      homeScorers: sampleScorers(home, homeGoals),
+      awayScorers: sampleScorers(away, awayGoals),
     };
   }
   if (homeGoals !== awayGoals) {
@@ -154,6 +186,8 @@ function buildWorldCupResult(home: string, away: string, homeGoals: number, away
       awayGoals,
       winner: homeGoals > awayGoals ? home : away,
       decidedBy: 'regulation',
+      homeScorers: sampleScorers(home, homeGoals),
+      awayScorers: sampleScorers(away, awayGoals),
     };
   }
   return {
@@ -161,6 +195,8 @@ function buildWorldCupResult(home: string, away: string, homeGoals: number, away
     awayGoals,
     winner: resolveTieWinner(home, away),
     decidedBy: 'tiebreak',
+    homeScorers: sampleScorers(home, homeGoals),
+    awayScorers: sampleScorers(away, awayGoals),
   };
 }
 
