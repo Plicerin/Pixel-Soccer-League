@@ -24,12 +24,17 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; worker-src 'self' blob:"
     }
   },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "publisher": "Plicerin",
+    "copyright": "Copyright © 2026 Plicerin. All rights reserved.",
+    "category": "Game",
+    "shortDescription": "Retro pixel-art soccer with a full season and World Cup mode.",
+    "longDescription": "Pixel Soccer League is a retro-styled soccer game featuring single-player and two-player matches, CPU exhibitions, a season campaign, and a full 48-team FIFA World Cup 2026 tournament mode.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

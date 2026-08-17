@@ -19,3 +19,12 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 tauri = { version = "2.11.3", features = [] }
+
+# The Rust side is only a webview host, so trade compile time for a much
+# smaller shipped binary. Nothing here is on a gameplay hot path.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
