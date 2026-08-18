@@ -22,9 +22,14 @@ tauri = { version = "2.11.3", features = [] }
 
 # The Rust side is only a webview host, so trade compile time for a much
 # smaller shipped binary. Nothing here is on a gameplay hot path.
+#
+# Deliberately NOT panic = "abort": tao wraps every Windows event-loop
+# dispatch in catch_unwind (platform_impl/windows/event_loop/runner.rs) so a
+# panic in a handler unwinds out of the Win32 callback instead of crossing the
+# FFI boundary, which is UB. Aborting defeats that and turns any panic into a
+# silent process exit with no stderr and no Application Error event.
 [profile.release]
 opt-level = "s"
 lto = true
 codegen-units = 1
-panic = "abort"
 strip = true
