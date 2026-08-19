@@ -60,3 +60,8 @@ rl/logs/
 Thumbs.db
 *.tmp
 *.swp
+
+# Generated smoke-test output (screenshots, captures, per-team JSON)
+telemetry/worldcup-screenshots/
+telemetry/worldcup-smoke/
+telemetry/worldcup-ui-captures/

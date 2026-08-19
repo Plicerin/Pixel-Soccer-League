@@ -216,6 +216,23 @@ test('browser main menu follows the World Cup mockup layout', () => {
   assert.doesNotMatch(source, /Real Data Replay[\s\S]*<\/button>/, 'main menu should not show the old replay button in the mockup layout');
 });
 
+test('main menu enables restored human-control modes and wires them into the live engine', () => {
+  const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  const model = readFileSync('src/core/simpleMatchModel.ts', 'utf8');
+  assert.match(source, /const INTERACTIVE_PLAYER_MODES_ENABLED = true;/, 'live build must explicitly re-enable restored human-control modes');
+  assert.doesNotMatch(source, /Interactive 1P and 2P control is not available in the current engine build/, 'main menu must no longer show the broken-mode warning');
+  assert.match(source, /const isInteractivePlayerMode = mode === '1p' \|\| mode === '2p';/, 'kickoff wiring must treat both 1P and 2P as human-controlled modes');
+  assert.match(source, /gameRef\.current\?\.setHotSeatMode\?\.\(isInteractivePlayerMode \|\| isTesting\);/, 'engine must enable team A manual control for both restored human modes');
+  assert.match(source, /gameRef\.current\?\.setTwoPlayerMode\?\.\(isHotSeat\);/, 'engine must enable the second human path only for 2P mode');
+  assert.match(engine, /setHotSeatMode = \(enabled: boolean\) => \{[\s\S]*?this\.humanControlEnabled = !!enabled;[\s\S]*?this\.model\.setManualControlEnabled\('A', this\.humanControlEnabled\);/m, 'renderer must turn team A human control back on');
+  assert.match(engine, /setTwoPlayerMode = \(enabled: boolean\) => \{[\s\S]*?this\.twoPlayerMode = !!enabled;[\s\S]*?this\.model\.setManualControlEnabled\('B', this\.twoPlayerMode\);/m, 'renderer must expose an explicit second-human control path');
+  assert.match(engine, /private pollManualControls\(modelActive: boolean\)/, 'renderer must poll live manual controls every frame');
+  assert.match(model, /setManualControlEnabled\(team: SimpleTeamCode, enabled: boolean\)/, 'simple model must expose a public manual-control toggle');
+  assert.match(model, /triggerManualPass\(team: SimpleTeamCode\)/, 'simple model must expose a public manual pass command');
+  assert.match(model, /triggerManualShot\(team: SimpleTeamCode\)/, 'simple model must expose a public manual shot command');
+});
+
 test('browser match HUD includes a real pause button wired to the engine', () => {
   const ui = readFileSync('src/components/RetroFootball.tsx', 'utf8');
   const engine = readFileSync('src/gameEngine.ts', 'utf8');
@@ -454,7 +471,7 @@ test('ENH-INPUT-001 restores legacy gamepad menu and match controls', () => {
   assert.match(spec, /V157\. Browser gamepad controls/, 'gamepad behavior must be captured in the spec');
   assert.match(spec, /B153 \| 2026-05-18 \| Current gamepad support only handled the main menu/, 'gamepad root cause must be recorded');
   assert.match(source, /const gameplayGpPrev = useRef<boolean\[\]>\(new Array\(17\)\.fill\(false\)\)/, 'gameplay/pause gamepad polling must keep its own edge-detection state');
-  assert.match(source, /navigator\.getGamepads\?\.\(\)\?\.\[0\]/, 'gamepad polling must use the browser Gamepad API defensively');
+  assert.match(source, /pickStandardGamepad\(/, 'gamepad polling must go through the shared standard-mapping selector, not raw slot 0');
   assert.match(source, /confirmPressed = justPressed\(0\)/, 'A/Cross must be mapped as the confirm button');
   assert.match(source, /backPressed = justPressed\(1\)/, 'B/Circle must be mapped as the back button');
   assert.match(source, /startPressed = justPressed\(9\)/, 'Start must be mapped for pause and halftime continue');
@@ -580,10 +597,10 @@ test('BUG-GK-002 keeper save animations emit renderer audit telemetry', () => {
   assert.match(bugs, /BUG-GK-002 \| Fixed - Awaiting User Approval \| Goalkeeper save animations may not activate/, 'keeper animation bug must remain awaiting visual approval');
   assert.match(spec, /V131\. Keeper animation telemetry/, 'keeper animation telemetry behavior must be captured in the spec');
   assert.match(spec, /B124 \| 2026-05-16 \| Keeper save telemetry proved the model emitted `SAVE`/, 'keeper animation telemetry root cause must be recorded');
-  assert.match(source, /type KeeperAnimationEvent = \{[\s\S]*?action: 'SAVE' \| 'SMOTHER';[\s\S]*?keeperId: string;[\s\S]*?direction: KeeperDiveDirection;[\s\S]*?sourceEventIndex: number;/, 'renderer must define a keeper animation audit row');
+  assert.match(source, /type KeeperAnimationEvent = \{[\s\S]*?action: 'SAVE' \| 'SMOTHER';[\s\S]*?keeperId: string;[\s\S]*?direction: KeeperDiveDirection;[\s\S]*?sourceEventSeq: number;/, 'renderer must define a keeper animation audit row');
   assert.match(source, /private readonly keeperAnimationEvents: KeeperAnimationEvent\[\] = \[\]/, 'renderer must keep a bounded keeper animation audit log');
   assert.match(source, /getTuningBundle = \(\) => \(\{[\s\S]*?keeperAnimationEvents: this\.keeperAnimationEvents\.slice\(-100\),[\s\S]*?\}\);/, 'tuning bundle must expose renderer keeper animation events');
-  assert.match(source, /if \(event\.action === 'SAVE' \|\| event\.action === 'SMOTHER'\) \{[\s\S]*?this\.keeperReactions\.set\(team, \{ ttl: duration, duration, zLean, direction \}\);[\s\S]*?this\.recordKeeperAnimationEvent\(event, keeper, direction, duration, this\.processedLiveEvents - 1\);/, 'SAVE/SMOTHER events must both install keeper reactions and audit telemetry rows');
+  assert.match(source, /if \(event\.action === 'SAVE' \|\| event\.action === 'SMOTHER'\) \{[\s\S]*?this\.keeperReactions\.set\(team, \{ ttl: duration, duration, zLean, direction \}\);[\s\S]*?this\.recordKeeperAnimationEvent\(event, keeper, direction, duration, seq\);/, 'SAVE/SMOTHER events must both install keeper reactions and audit telemetry rows');
   assert.match(source, /private keeperAnimationDirectionFromEvent\(event: \{ action: string; meta\?: Record<string, unknown> \}, keeper: SimplePlayer\): KeeperDiveDirection/, 'smother animation direction must be derived explicitly');
   assert.match(source, /while \(this\.keeperAnimationEvents\.length > 100\) this\.keeperAnimationEvents\.shift\(\);/, 'keeper animation audit log must stay bounded');
 });
@@ -626,10 +643,10 @@ test('BUG-UI-006 full-time headers come from visible header animations', () => {
   assert.match(bugs, /BUG-UI-006 \| Fixed - Awaiting User Approval \| Header shown in Game Over without visible header/, 'header summary bug must remain awaiting visual approval');
   assert.match(spec, /V132\. Visible header summary/, 'visible header summary behavior must be captured in the spec');
   assert.match(spec, /B125 \| 2026-05-16 \| Full-time overlay displayed raw header counters/, 'visible header root cause must be recorded');
-  assert.match(engine, /type HeaderAnimationEvent = \{[\s\S]*?action: 'HEADER_SHOT' \| 'HEADER_CLEARANCE' \| 'HEADER_TOUCH';[\s\S]*?playerId: string;[\s\S]*?sourceEventIndex: number;/, 'renderer must define a header animation audit row');
+  assert.match(engine, /type HeaderAnimationEvent = \{[\s\S]*?action: 'HEADER_SHOT' \| 'HEADER_CLEARANCE' \| 'HEADER_TOUCH';[\s\S]*?playerId: string;[\s\S]*?sourceEventSeq: number;/, 'renderer must define a header animation audit row');
   assert.match(engine, /private readonly headerAnimationEvents: HeaderAnimationEvent\[\] = \[\]/, 'renderer must keep a bounded header animation audit log');
   assert.match(engine, /headerAnimationEvents: this\.headerAnimationEvents\.slice\(-100\)/, 'tuning bundle must expose renderer header animation events');
-  assert.match(engine, /const kind = event\.action === 'HEADER_SHOT' \? 'shot' : event\.action === 'HEADER_CLEARANCE' \? 'clearance' : 'touch';[\s\S]*?this\.headerReactions\.set\(player\.id,[\s\S]*?this\.recordHeaderAnimationEvent\(event, player, kind, direction, duration, this\.processedLiveEvents - 1\);/, 'header live events must both install reactions and audit telemetry rows');
+  assert.match(engine, /const kind = event\.action === 'HEADER_SHOT' \? 'shot' : event\.action === 'HEADER_CLEARANCE' \? 'clearance' : 'touch';[\s\S]*?this\.headerReactions\.set\(player\.id,[\s\S]*?this\.recordHeaderAnimationEvent\(event, player, kind, direction, duration, seq\);/, 'header live events must both install reactions and audit telemetry rows');
   assert.match(engine, /while \(this\.headerAnimationEvents\.length > 100\) this\.headerAnimationEvents\.shift\(\);/, 'header animation audit log must stay bounded');
   assert.match(ui, /const visibleHeaderEvents = Array\.isArray\(tuningBundle\?\.headerAnimationEvents\) \? tuningBundle\.headerAnimationEvents : \[\];/, 'full-time capture must read visible header animation telemetry');
   assert.match(ui, /headersA: visibleHeadersA,[\s\S]*?headersB: visibleHeadersB,/, 'full-time summary must use visible header counts');
@@ -698,7 +715,7 @@ test('BUG-RESTART-001 corner presentation cannot fall back to ball-only animatio
   assert.match(engine, /private readonly cornerPresentationEvents: CornerPresentationEvent\[\] = \[\]/, 'renderer must retain corner presentation audit telemetry');
   assert.match(engine, /cornerPresentationEvents: this\.cornerPresentationEvents\.slice\(-100\)/, 'tuning bundle must expose corner presentation telemetry');
   assert.match(engine, /const takerId = this\.resolveRestartPresentationTakerId\(type, event\.team \|\| '', spot, requestedTakerId, fallbackTaker\);/, 'restart presentation must resolve a visible taker id');
-  assert.match(engine, /if \(type === 'corner'\) this\.recordCornerPresentationEvent\(event, phase, spot, requestedTakerId, takerId, sourceEventIndex\);/, 'corner presentation must emit an audit row on setup and release');
+  assert.match(engine, /if \(type === 'corner'\) this\.recordCornerPresentationEvent\(event, phase, spot, requestedTakerId, takerId, sourceEventSeq\);/, 'corner presentation must emit an audit row on setup and release');
   assert.match(engine, /this\.model\.players[\s\S]*?player\.team === team && player\.role !== 'GK' && this\.playerMeshes\.has\(player\.id\)[\s\S]*?Math\.hypot\(a\.pos\.x - spot\.x, a\.pos\.z - spot\.z\)/, 'corner fallback must choose a visible non-GK player near the flag');
   assert.match(engine, /while \(this\.cornerPresentationEvents\.length > 100\) this\.cornerPresentationEvents\.shift\(\);/, 'corner presentation audit log must stay bounded');
 });
@@ -914,6 +931,56 @@ test('V120 practice panel selects have labels and visible focus rings', () => {
   assert.match(source, /<label htmlFor="practice-aggressiveness-select"[\s\S]*?>Aggressiveness<\/label>[\s\S]*?<select\s+id="practice-aggressiveness-select"[\s\S]*?className=\{PRACTICE_SELECT_CLASSNAME\}/, 'practice aggressiveness select must be label-linked and use visible focus styling');
   assert.match(source, /<button\s+type="button"[\s\S]*?setPracticeIsHuman\(true\)/, 'practice Human toggle must be an explicit non-submit button');
   assert.match(source, /<button\s+type="button"[\s\S]*?setPracticeIsHuman\(false\)/, 'practice CPU toggle must be an explicit non-submit button');
+});
+
+test('desktop options expose fixed window resolution presets and Tauri window is non-resizable', () => {
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const tauriConfig = readFileSync('src-tauri/tauri.conf.json', 'utf8');
+  const pkg = readFileSync('package.json', 'utf8');
+  assert.match(retro, /type WindowResolutionPreset = '1280x720' \| '1366x768' \| '1600x900' \| '1920x1080'/, 'resolution presets must be explicit and bounded');
+  assert.match(retro, /const WINDOW_RESOLUTION_STORAGE_KEY = 'psl\.windowResolution'/, 'resolution selection must persist through a stable storage key');
+  assert.match(retro, /@tauri-apps\/api\/window/, 'desktop resolution control must use the Tauri window API');
+  assert.match(retro, /await currentWindow\.setSize\(new LogicalSize\(next\.width, next\.height\)\)/, 'resolution selector must resize the Tauri window to the chosen preset');
+  assert.match(retro, /Current: \{WINDOW_RESOLUTION_PRESETS\.find/, 'options panel must show the current resolution preset');
+  assert.match(tauriConfig, /"resizable": false/, 'desktop window must not be freely resizable');
+  assert.match(tauriConfig, /"maximizable": false/, 'desktop window must not expose maximize when using fixed presets');
+  assert.match(tauriConfig, /"width": 1600/, 'desktop window should default to the selected fixed-width baseline');
+  assert.match(tauriConfig, /"height": 900/, 'desktop window should default to the selected fixed-height baseline');
+  assert.match(pkg, /"@tauri-apps\/api": "\^2\./, 'desktop resolution selector must ship the Tauri JS API dependency');
+});
+
+test('live telemetry keeps hook order stable before match data arrives', () => {
+  const source = readFileSync('src/components/LiveTelemetry.tsx', 'utf8');
+  const guardIndex = source.indexOf('if (!data) {');
+  const eventMemoIndex = source.indexOf('const reversedEventLog = useMemo(() => [...eventLog].reverse(), [eventLog]);');
+  const shotMemoIndex = source.indexOf('const recentShotDecisions = useMemo(() => [...shotDecisions].reverse().slice(0, 25), [shotDecisions]);');
+  const passMemoIndex = source.indexOf('const recentPassDecisions = useMemo(() => [...passDecisions].reverse().slice(0, 25), [passDecisions]);');
+  assert.ok(eventMemoIndex >= 0 && eventMemoIndex < guardIndex, 'event log memo hook must run before the empty-data return');
+  assert.ok(shotMemoIndex >= 0 && shotMemoIndex < guardIndex, 'shot-decision memo hook must run before the empty-data return');
+  assert.ok(passMemoIndex >= 0 && passMemoIndex < guardIndex, 'pass-decision memo hook must run before the empty-data return');
+  assert.match(source, /const eventLog = data\?\.eventLog \?\? \[\];/, 'live telemetry must normalize event logs before memoized derived views');
+  assert.match(source, /const shotDecisions = data\?\.shotDecisions \?\? \[\];/, 'live telemetry must normalize shot decisions before memoized derived views');
+  assert.match(source, /const passDecisions = data\?\.passDecisions \?\? \[\];/, 'live telemetry must normalize pass decisions before memoized derived views');
+});
+
+test('V258 desktop menu, stats, manual controls, and corner ownership remain playable', () => {
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  const model = readFileSync('src/core/simpleMatchModel.ts', 'utf8');
+  assert.match(retro, /z-50 overflow-y-auto overflow-x-hidden/, 'main menu must scroll instead of clipping at default desktop resolution');
+  assert.match(retro, /max-h-\[18vh\] object-contain/, 'main-menu title art must scale within the viewport');
+  assert.match(retro, /Number\(p\.stats\?\.speed \?\? 0\)\.toFixed\(2\)/, 'Stats must tolerate incomplete player records');
+  assert.match(retro, /PASS — HOLD TO CHARGE[\s\S]*?SHOOT — HOLD TO CHARGE[\s\S]*?TACKLE \(WHEN DEFENDING\)/, 'How to Play must document charged pass, shoot, and tackle controls');
+  assert.match(engine, /manualSelectedPlayerRing/, 'manual play must render a selected-player ring');
+  assert.match(engine, /startKickoffPresentation[\s\S]{0,400}?this\.splashMusicStop\(\);/, 'kickoff must stop the splash theme');
+  assert.match(engine, /private applyPausedAudio\(\)[\s\S]{0,400}?ctx\.suspend\(\)/, 'pause must suspend the audio context so looping crowd/ambience stops too');
+  assert.match(engine, /ctx\.state === 'suspended' && !this\.paused/, 'audio nodes must not auto-resume a paused context');
+  assert.doesNotMatch(engine, /startMatchMusic/, 'kickoff must not restart the theme as match music -- crowd ambience carries live play');
+  assert.match(engine, /triggerManualTackle\('A'\)/, 'home player must have a tackle input');
+  assert.match(engine, /triggerManualTackle\('B'\)/, 'away player must have a tackle input');
+  assert.match(model, /triggerManualTackle\(team: SimpleTeamCode\)/, 'model must expose manual tackle resolution');
+  assert.match(model, /direction\?: Vec2/, 'manual pass target options must support aim direction');
+  assert.match(model, /const attackingTeam: SimpleTeamCode \| null = goalLine/, 'goal-line restart ownership must derive from the attacking end');
 });
 
 test('V255 practice mode redraws routes after kickoff reset and engine tracks active state', () => {

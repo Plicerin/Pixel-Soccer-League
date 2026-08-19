@@ -97,6 +97,12 @@ export default function LiveTelemetry({ gameRef }: Props) {
   const [data, setData] = useState<LiveTelemetryData | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const eventLog = data?.eventLog ?? [];
+  const shotDecisions = data?.shotDecisions ?? [];
+  const passDecisions = data?.passDecisions ?? [];
+  const reversedEventLog = useMemo(() => [...eventLog].reverse(), [eventLog]);
+  const recentShotDecisions = useMemo(() => [...shotDecisions].reverse().slice(0, 25), [shotDecisions]);
+  const recentPassDecisions = useMemo(() => [...passDecisions].reverse().slice(0, 25), [passDecisions]);
 
   useEffect(() => {
     let raf: number;
@@ -115,18 +121,13 @@ export default function LiveTelemetry({ gameRef }: Props) {
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [data?.eventLog.length]);
+  }, [eventLog.length]);
 
   if (!data) {
     return <div className="text-white/40 text-sm text-center py-8">Waiting for match data…</div>;
   }
 
-  const { teamA, teamB, carrier, eventLog } = data;
-  const shotDecisions = data.shotDecisions || [];
-  const passDecisions = data.passDecisions || [];
-  const reversedEventLog = useMemo(() => [...eventLog].reverse(), [eventLog]);
-  const recentShotDecisions = useMemo(() => [...shotDecisions].reverse().slice(0, 25), [shotDecisions]);
-  const recentPassDecisions = useMemo(() => [...passDecisions].reverse().slice(0, 25), [passDecisions]);
+  const { teamA, teamB, carrier } = data;
   const director = data.possessionDirector;
 
   function copyTelemetry() {

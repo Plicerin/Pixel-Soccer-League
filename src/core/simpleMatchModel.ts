@@ -11,6 +11,8 @@ import {
   GOAL_MOUTH_HALF_Z,
   LEFT_GOAL_X,
   LEFT_PENALTY_X,
+  MANUAL_CONTROL_ACCELERATION_MULTIPLIER,
+  MANUAL_CONTROL_SPEED_MULTIPLIER,
   PENALTY_HALF_Z,
   PENALTY_SPOT_DIST,
   PLAYER_ACCELERATION,
@@ -18,6 +20,7 @@ import {
   RIGHT_GOAL_X,
   RIGHT_PENALTY_X,
   SIMULATION_DT,
+  SPRINT_MULTIPLIER,
   clamp,
   dist2,
   isInPenaltyArea,
@@ -59,7 +62,33 @@ const GOAL_KICK_LONG_MAX_YARDS = 72;
 const GOAL_KICK_LONG_ARC = 1.02;
 const CORNER_KICK_ARC = 1.35;
 const LOFTED_PASS_ARC = 0.82;
-const LOOSE_BALL_GROUND_FRICTION = 0.84;
+// Player sprites stand ~0.78 units tall, so a manual lob peaks well clear of a
+// defender's head rather than skimming it. Kept under CORNER_KICK_ARC (1.35).
+const MANUAL_LOB_ARC = 1.15;
+// Exponential roll decay: damp = 1 - FRICTION * 3 * dt, so the effective rate
+// is 3x this value per second. 0.84 (rate 2.52/s) scrubbed ~92% of the ball's
+// pace in a single second, which read on screen as the ball stopping dead.
+// Slack the corner/throw-in taker gets beyond the lines, so they can stand
+// behind the ball instead of being clamped onto the pitch side of it.
+const RESTART_TAKER_OUTSIDE_ALLOWANCE = 2.5;
+// How long a human-owned restart waits for the player before the dead-ball
+// watchdog steps in and plays it for them.
+const MANUAL_RESTART_WATCHDOG_SECONDS = 25;
+// Manual tackling: a contested attempt on a cooldown, not a guaranteed strip.
+// Hold-to-charge: full power after ~0.9s, matching the original charge feel.
+const MANUAL_CHARGE_RATE = 1.1;
+const MANUAL_CHARGE_MIN_POWER = 0.55;
+const MANUAL_CHARGE_POWER_SPAN = 0.85;
+const MANUAL_TACKLE_RANGE = 3.25;
+const MANUAL_TACKLE_COOLDOWN_SECONDS = 0.65;
+const LOOSE_BALL_GROUND_FRICTION = 0.5;
+// Fraction of true flight pace an uncollected ground pass keeps on landing.
+const LOOSE_BALL_LANDING_CARRY = 0.62;
+// Lofted balls land steeply, so they keep less of their pace than a driven one.
+const LOOSE_BALL_AERIAL_LANDING_CARRY = 0.35;
+// Headroom the per-tick anti-teleport cap allows above a player's own top
+// speed, so collision nudges are absorbed without throttling normal running.
+const PLAYER_DISPLACEMENT_CAP_TOLERANCE = 1.12;
 
 type GoalKickRestartPlan = {
   receiver: SimplePlayer | null;
@@ -83,6 +112,22 @@ type PassTargetOptions = {
   minProgress?: number;
   preferForward?: boolean;
   reason?: string;
+  direction?: Vec2;
+  /** Force a lofted delivery -- the player's manual lob/chip button. */
+  lofted?: boolean;
+  /** Charge power (~0.55 tap .. 1.4 full). Reaches for longer outlets when high. */
+  power?: number;
+};
+
+type ManualChargeAction = "pass" | "shot";
+
+type ManualControlState = {
+  enabled: boolean;
+  selectedPlayerId: string | null;
+  move: Vec2;
+  sprinting: boolean;
+  /** Hold-to-charge: null when idle, otherwise the action and its 0..1 fill. */
+  charge: { action: ManualChargeAction; progress: number } | null;
 };
 
 export type SimplePlayerStats = {
@@ -166,6 +211,9 @@ type SimpleEvent = {
 };
 
 type LiveEvent = {
+  /** Monotonic id. Consumers must track this, not an array index: the log is
+   *  capped with shift(), which renumbers every index underneath them. */
+  seq: number;
   time: number;
   team: SimpleTeamCode | "";
   action: string;
@@ -219,6 +267,8 @@ type BallFlightOptions = {
   contactPoint?: Vec2;
   keeperReachDistance?: number | null;
   keeperMaxReach?: number;
+  /** Charge power: scales the ball's travel speed for manual strikes. */
+  speedMultiplier?: number;
 };
 
 type ShotResolutionContext = {
@@ -232,6 +282,16 @@ type ShotResolutionContext = {
   minGoalChance?: number;
   goalChanceMultiplier?: number;
   style?: string;
+  /** Manual aim (stick/keys). Lateral component steers placement across the mouth. */
+  aimDirection?: Vec2;
+  /** Charge power (~0.55 tap .. 1.4 full): drives ball speed and accuracy. */
+  power?: number;
+  /**
+   * Human pressed shoot. Exempts the shot from the CPU shot-selection gates:
+   * those recycle long attempts into a pass, which for a player reads as the
+   * shoot button firing the ball at a teammate instead of where they aimed.
+   */
+  manual?: boolean;
   details?: Record<string, unknown>;
 };
 
@@ -263,6 +323,7 @@ type BallOutRestartContext = {
   crossedLine: "left_goal_line" | "right_goal_line" | "top_touchline" | "bottom_touchline" | "infraction";
   takerId?: string;
   fouledPlayerId?: string | null;
+  plan?: "corner_near_post" | "corner_far_post" | "throw_short" | "goal_kick_short" | "goal_kick_long" | "free_kick_direct" | "penalty";
 };
 
 type VisibleBallOutPending = {
@@ -518,6 +579,8 @@ class Rng {
 export class SimpleMatchModel {
   readonly players: SimplePlayer[] = [];
   readonly eventLog: LiveEvent[] = [];
+  private liveEventSeq = 0;
+  private readonly manualTackleCooldown: Record<SimpleTeamCode, number> = { A: 0, B: 0 };
   readonly events: SimpleEvent[] = [];
   readonly passLog: SimpleEvent[] = [];
   readonly shotDecisions: Record<string, unknown>[] = [];
@@ -591,6 +654,7 @@ export class SimpleMatchModel {
   private pendingMissGoalLineOut: { event: BallOutEvent; context: BallOutRestartContext } | null = null;
   private visibleBallOutPending: VisibleBallOutPending | null = null;
   private pendingFlightGoalEvent: GoalEvent | null = null;
+  private pendingGoalAnnouncement: { team: SimpleTeamCode; detail: string; meta: Record<string, unknown> } | null = null;
   private goalNetSettleRemaining = 0;
   private goalKickoffSetupInstalled = false;
   private restartContext: BallOutRestartContext | null = null;
@@ -603,6 +667,10 @@ export class SimpleMatchModel {
   private sessionId = this.makeSessionId();
   private engineRuntimeToken: string | null = null;
   private engineBootedAt: number | null = null;
+  private readonly manualControl: Record<SimpleTeamCode, ManualControlState> = {
+    A: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null },
+    B: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null },
+  };
   private fullLengthPossessionDiagnostics: FullLengthPossessionDiagnostics = {
     noSafeOutletPassFails: 0,
     speculativePassInterceptions: 0,
@@ -661,6 +729,178 @@ export class SimpleMatchModel {
     this.interactiveHalftime = !!enabled;
   }
 
+  setManualControlEnabled(team: SimpleTeamCode, enabled: boolean) {
+    const state = this.manualControl[team];
+    state.enabled = !!enabled;
+    state.move = { x: 0, z: 0 };
+    state.sprinting = false;
+    state.charge = null;
+    if (!enabled) {
+      state.selectedPlayerId = null;
+      return;
+    }
+    this.ensureManualSelection(team);
+  }
+
+  setManualMove(team: SimpleTeamCode, x: number, z: number) {
+    const state = this.manualControl[team];
+    state.move = {
+      x: clamp(Number.isFinite(x) ? x : 0, -1, 1),
+      z: clamp(Number.isFinite(z) ? z : 0, -1, 1),
+    };
+    if (state.enabled) this.ensureManualSelection(team);
+  }
+
+  /** Hold-to-sprint. Only the team's currently selected player is boosted. */
+  setManualSprint(team: SimpleTeamCode, active: boolean) {
+    const state = this.manualControl[team];
+    state.sprinting = state.enabled && !!active;
+  }
+
+  isManualSprinting(team: SimpleTeamCode) {
+    return this.manualControl[team].sprinting;
+  }
+
+  cycleManualPlayer(team: SimpleTeamCode, dir: -1 | 1) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return null;
+    const players = this.teamFieldPlayers(team);
+    if (players.length === 0) return null;
+    const currentIndex = Math.max(0, players.findIndex((player) => player.id === state.selectedPlayerId));
+    const nextIndex = (currentIndex + dir + players.length) % players.length;
+    state.selectedPlayerId = players[nextIndex]?.id ?? players[0]?.id ?? null;
+    return this.manualSelectedPlayer(team);
+  }
+
+  selectNearestManualPlayer(team: SimpleTeamCode) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return null;
+    const nearest = this.nearestFieldPlayerToBall(team);
+    state.selectedPlayerId = nearest?.id ?? state.selectedPlayerId;
+    return nearest;
+  }
+
+  triggerManualPass(team: SimpleTeamCode) {
+    return this.runManualAction(team, "pass");
+  }
+
+  /**
+   * Begin charging a pass or shot. Power builds while held and is applied on
+   * release, so a tap is a soft ball and a full hold is struck hard.
+   */
+  beginManualCharge(team: SimpleTeamCode, action: ManualChargeAction) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return false;
+    if (!this.canManualActNow(team)) return false;
+    state.charge = { action, progress: 0 };
+    return true;
+  }
+
+  /** Fire the charged action. Returns whether anything was played. */
+  releaseManualCharge(team: SimpleTeamCode) {
+    const state = this.manualControl[team];
+    const charge = state.charge;
+    state.charge = null;
+    if (!charge || !state.enabled) return false;
+    const power = MANUAL_CHARGE_MIN_POWER + charge.progress * MANUAL_CHARGE_POWER_SPAN;
+    return this.runManualAction(team, charge.action, power);
+  }
+
+  cancelManualCharge(team: SimpleTeamCode) {
+    this.manualControl[team].charge = null;
+  }
+
+  /** Renderer read-model for the aim arrow and power ring. */
+  getManualChargeState(team: SimpleTeamCode) {
+    const state = this.manualControl[team];
+    if (!state.enabled || !state.charge) return null;
+    const carrier = this.manualSelectedPlayer(team);
+    if (!carrier) return null;
+    return {
+      action: state.charge.action,
+      progress: state.charge.progress,
+      power: MANUAL_CHARGE_MIN_POWER + state.charge.progress * MANUAL_CHARGE_POWER_SPAN,
+      origin: { x: carrier.pos.x, z: carrier.pos.z },
+      aim: { ...state.move },
+      attackSign: this.attackSign(team),
+      hasBall: this.possession?.id === carrier.id,
+    };
+  }
+
+  private canManualActNow(team: SimpleTeamCode) {
+    if (this.msm.state.kind === "ball_out") return this.restartContext?.restartTeam === team;
+    if (this.msm.state.kind !== "live_play" || this.ballFlight) return false;
+    return !!this.possession && this.possession.team === team;
+  }
+
+  private advanceManualCharges(dt: number) {
+    for (const team of ["A", "B"] as const) {
+      const state = this.manualControl[team];
+      if (!state.charge) continue;
+      // Losing the ball (or the phase) cancels the charge rather than firing it.
+      if (!this.canManualActNow(team)) {
+        state.charge = null;
+        continue;
+      }
+      state.charge.progress = Math.min(1, state.charge.progress + dt * MANUAL_CHARGE_RATE);
+    }
+  }
+
+  /** Chip/lob: same targeting as a pass, but lofted so it can be headed. */
+  triggerManualLobPass(team: SimpleTeamCode) {
+    return this.runManualAction(team, "lob");
+  }
+
+  triggerManualShot(team: SimpleTeamCode) {
+    return this.runManualAction(team, "shot");
+  }
+
+  triggerManualTackle(team: SimpleTeamCode) {
+    if (!this.manualControl[team].enabled || this.msm.state.kind !== "live_play" || this.ballFlight) return false;
+    const carrier = this.possession;
+    const defender = this.manualSelectedPlayer(team);
+    if (!carrier || carrier.team === team || !defender) {
+      this.selectNearestManualPlayer(team);
+      return false;
+    }
+    const gap = dist2(defender.pos, carrier.pos);
+    if (gap > MANUAL_TACKLE_RANGE) return false;
+    // A tackle used to be an unconditional steal inside range, with no cooldown
+    // and no foul risk, so mashing the button stripped the CPU every time and
+    // there was no contest at all. Contest it on defence vs the carrier.
+    if (this.manualTackleCooldown[team] > 0) return false;
+    this.manualTackleCooldown[team] = MANUAL_TACKLE_COOLDOWN_SECONDS;
+
+    const pressure = Math.max(0.25, 2.4 - gap * 0.45);
+    const proximity = clamp(1 - gap / MANUAL_TACKLE_RANGE, 0, 1);
+    const carrierSpeed = Math.hypot(carrier.vel.x, carrier.vel.z);
+    const skillEdge = (defender.ratings.defense ?? 0.5) - (carrier.ratings.pace ?? 0.5) * 0.6;
+    const winChance = clamp(
+      0.26 + proximity * 0.34 + skillEdge * 0.30 - Math.min(0.12, carrierSpeed * 0.02),
+      0.12,
+      0.82,
+    );
+    this.finalizeActiveReceptionTelemetryForPlayer(carrier, "manual_tackle");
+
+    if (this.rng.next() >= winChance) {
+      // Mistimed. From behind or at pace it is a foul rather than a clean miss.
+      const foulChance = clamp(0.16 + (1 - proximity) * 0.24, 0.10, 0.42);
+      if (this.rng.next() < foulChance) {
+        this.resolveFoul(defender, carrier, pressure, "MANUAL_TACKLE_FOUL");
+        return false;
+      }
+      this.recordEvent("TACKLE", defender.team, defender, { carrier: carrier.name, outcome: "missed", pressure, reason: "MANUAL_TACKLE_MISS" });
+      return false;
+    }
+
+    this.possession = defender;
+    this.rememberTouch(defender);
+    this.startTackleRecoveryFlight(carrier, defender);
+    this.recordTackle(defender, carrier, pressure, "MANUAL_TACKLE");
+    this.recordEvent("TURNOVER", defender.team, defender, { carrier: carrier.name, outcome: "tackle", pressure, reason: "MANUAL_TACKLE" });
+    return true;
+  }
+
   setSeed(seed: string | number) {
     this.seedSalt = String(seed || "");
     this.reseed();
@@ -688,6 +928,7 @@ export class SimpleMatchModel {
     this.activeReceptionTelemetry = null;
     this.elapsedTotal = 0;
     this.eventSeq = 0;
+    this.liveEventSeq = 0;
     this.shotSeq = 0;
     this.keeperSeq = 0;
     this.passLoopSeq = 0;
@@ -714,6 +955,7 @@ export class SimpleMatchModel {
     this.pendingMissGoalLineOut = null;
     this.visibleBallOutPending = null;
     this.pendingFlightGoalEvent = null;
+    this.pendingGoalAnnouncement = null;
     this.goalNetSettleRemaining = 0;
     this.goalKickoffSetupInstalled = false;
     this.restartContext = null;
@@ -722,6 +964,10 @@ export class SimpleMatchModel {
     this.cpuPhasePauseConsumedKey = "";
     this.deadBallStateKey = "";
     this.deadBallStateWallSeconds = 0;
+    this.manualControl.A.selectedPlayerId = null;
+    this.manualControl.A.move = { x: 0, z: 0 };
+    this.manualControl.B.selectedPlayerId = null;
+    this.manualControl.B.move = { x: 0, z: 0 };
     this.lastShotTelemetry = null;
     this.lastKeeperKickTelemetry = null;
     this.lastPassLoopTelemetry = null;
@@ -1025,12 +1271,122 @@ export class SimpleMatchModel {
   }
 
   getSelectedPlayerStats() {
-    return this.possession || this.players.find((p) => p.team === "A") || null;
+    return this.manualSelectedPlayer("A") || this.possession || this.players.find((p) => p.team === "A") || null;
   }
 
   getSelectedDefensePlayerStats() {
+    const selectedB = this.manualSelectedPlayer("B");
+    if (selectedB) return selectedB;
     if (!this.possession) return this.players.find((p) => p.team === "B") || null;
     return this.nearestOpponent(this.possession, otherTeam(this.possession.team));
+  }
+
+  private teamFieldPlayers(team: SimpleTeamCode) {
+    return this.players.filter((player) => player.team === team && player.role !== "GK");
+  }
+
+  private nearestFieldPlayerToBall(team: SimpleTeamCode) {
+    const players = this.teamFieldPlayers(team);
+    if (players.length === 0) return null;
+    return players.reduce((best, player) => {
+      const bestDist = dist2(best.pos, this.ball.pos);
+      const nextDist = dist2(player.pos, this.ball.pos);
+      return nextDist < bestDist ? player : best;
+    });
+  }
+
+  private manualSelectedPlayer(team: SimpleTeamCode) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return null;
+    const current = state.selectedPlayerId
+      ? this.players.find((player) => player.id === state.selectedPlayerId && player.team === team && player.role !== "GK") ?? null
+      : null;
+    if (current) return current;
+    this.ensureManualSelection(team);
+    return state.selectedPlayerId
+      ? this.players.find((player) => player.id === state.selectedPlayerId && player.team === team && player.role !== "GK") ?? null
+      : null;
+  }
+
+  private ensureManualSelection(team: SimpleTeamCode) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return null;
+    const fieldPlayers = this.teamFieldPlayers(team);
+    if (fieldPlayers.length === 0) {
+      state.selectedPlayerId = null;
+      return null;
+    }
+    const possessionPlayer = this.possession && this.possession.team === team && this.possession.role !== "GK"
+      ? this.possession
+      : null;
+    const preferred = possessionPlayer ?? this.nearestFieldPlayerToBall(team) ?? fieldPlayers[0];
+    state.selectedPlayerId = preferred?.id ?? null;
+    return preferred ?? null;
+  }
+
+  /**
+   * True while a restart awarded to a human team is staged and waiting on that
+   * player. Deliberately does not require the taker to be in position: the hold
+   * has to start the instant the restart is awarded, or the 1.5s timer expires
+   * while the player is still walking up and the CPU plays the ball for them.
+   */
+  private awaitingManualRestart() {
+    const restart = this.restartContext;
+    if (!restart || this.msm.state.kind !== "ball_out") return false;
+    if (restart.restartType === "penalty") return false;
+    return !!this.manualControl[restart.restartTeam]?.enabled;
+  }
+
+  /** Player pressed a ball action while holding a restart: put it back in play. */
+  private takeManualRestart(team: SimpleTeamCode) {
+    const restart = this.restartContext;
+    if (!restart || restart.restartTeam !== team) return false;
+    if (!this.awaitingManualRestart()) return false;
+    this.msm.restartTimer = 0;
+    this.msm.state = { kind: "live_play", half: this.msm.clock.half, startTick: 0 };
+    this.executeBallOutRestart();
+    return true;
+  }
+
+  private runManualAction(team: SimpleTeamCode, action: "pass" | "shot" | "lob", power = 1) {
+    const state = this.manualControl[team];
+    if (!state.enabled) return false;
+    if (this.msm.state.kind === "ball_out") return this.takeManualRestart(team);
+    if (this.msm.state.kind !== "live_play" || this.ballFlight) return false;
+    const carrier = this.possession;
+    if (!carrier || carrier.team !== team) {
+      this.selectNearestManualPlayer(team);
+      return false;
+    }
+    if (carrier.role !== "GK") state.selectedPlayerId = carrier.id;
+    const pressure = this.pressureOn(carrier);
+    this.actionTimer = this.nextActionDelay();
+    const direction = Math.hypot(state.move.x, state.move.z) > 0.2 ? { ...state.move } : undefined;
+    if (action === "pass" || action === "lob") {
+      return this.resolvePass(carrier, pressure, {
+        preferForward: !direction,
+        direction,
+        lofted: action === "lob",
+        power,
+        reason: action === "lob" ? "MANUAL_LOB" : "MANUAL_PASS",
+      });
+    }
+    // resolveShot returns a GoalEvent, so it is null for every shot that does
+    // not score. Reporting that as "false" told callers the button did nothing
+    // on a save, miss or woodwork. Compare the team's shot tally instead: it is
+    // incremented once a shot is genuinely taken.
+    const shotsBefore = this.team(carrier.team).shots;
+    const goal = this.resolveShot(carrier, dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team))), pressure, {
+      reason: "MANUAL_SHOT",
+      style: pressure > 1 ? "driven" : "early",
+      // Shots used to ignore aim entirely and always place randomly across the
+      // mouth, so the stick/keys had no effect on where the ball went.
+      aimDirection: direction,
+      manual: true,
+      power,
+      details: { manualControl: true, power: +power.toFixed(2) },
+    });
+    return !!goal || this.team(carrier.team).shots > shotsBefore;
   }
 
   private cpuPhasePauseKeyForCurrentState() {
@@ -1157,7 +1513,13 @@ export class SimpleMatchModel {
       this.deadBallStateWallSeconds = 0;
     }
     this.deadBallStateWallSeconds += dt;
-    const threshold = this.msm.state.kind === "halftime" ? 8 : 6;
+    // A restart the player is holding gets a long leash -- the 6s dead-ball
+    // watchdog otherwise force-resolved it and the CPU took the player's free
+    // kick for them. Still bounded, so a player who never presses cannot hang
+    // the match.
+    const threshold = this.awaitingManualRestart()
+      ? MANUAL_RESTART_WATCHDOG_SECONDS
+      : this.msm.state.kind === "halftime" ? 8 : 6;
     if (this.deadBallStateWallSeconds >= threshold) {
       this.forceResolveDeadBallStall("DEAD_BALL_STALL_WATCHDOG");
     }
@@ -1198,6 +1560,9 @@ export class SimpleMatchModel {
   private stepFixed(dt: number) {
     const prevKind = this.msm.state.kind;
     const clockDt = dt * this.matchClockScale;
+    this.advanceManualCharges(dt);
+    this.manualTackleCooldown.A = Math.max(0, this.manualTackleCooldown.A - dt);
+    this.manualTackleCooldown.B = Math.max(0, this.manualTackleCooldown.B - dt);
     this.updateDeadBallWatchdog(dt);
     let goalEvent: GoalEvent | null = null;
     this.pendingBallOutEvent = null;
@@ -1209,6 +1574,12 @@ export class SimpleMatchModel {
       this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
     }
     if (this.msm.state.kind === "ball_out" && this.restartContext?.restartType === "penalty" && !this.isPenaltySetupReady(this.restartContext)) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
+    // A restart awarded to a human team waits for that player to take it.
+    // Without this the timer expired and the CPU played the ball while the
+    // player was still walking up to it.
+    if (this.awaitingManualRestart()) {
       this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
     }
     if (this.msm.state.kind === "goal_scored" && this.goalNetVisualPending()) {
@@ -1335,8 +1706,14 @@ export class SimpleMatchModel {
       if (this.totalShots() === 0) this.forceNoShotAttempt("NO_SHOT_FULL_TIME_FALLBACK");
       this.addLiveEvent("", "FULL", `${this.teamA.name} ${this.msm.score.home}-${this.msm.score.away} ${this.teamB.name}`);
     }
+    // Safety net: the announcement is normally flushed when the shot flight
+    // lands, but it must never be stranded if that path is missed.
+    if (this.pendingGoalAnnouncement && !this.ballFlight) this.flushPendingGoalAnnouncement();
     for (const player of this.players) {
-      const clamped = clampToPlayable(player.pos);
+      // Honour the restart-taker allowance: this runs after moveRestartPlayers
+      // has snapped the corner/throw-in taker behind the ball, and clamping
+      // them here put them back on the pitch side of it.
+      const clamped = clampToPlayable(player.pos, this.playableOutsideAllowance(player));
       player.pos.x = clamped.x;
       player.pos.z = clamped.z;
     }
@@ -1388,6 +1765,7 @@ export class SimpleMatchModel {
       if (this.pendingFlightGoalEvent && !this.ballFlight) {
         const goalEvent = this.pendingFlightGoalEvent;
         this.pendingFlightGoalEvent = null;
+        this.flushPendingGoalAnnouncement();
         return goalEvent;
       }
       const goalLineGoal = this.detectAndStageBallOut();
@@ -1415,6 +1793,18 @@ export class SimpleMatchModel {
     if (this.carrierTraceTimer <= 0) {
       this.recordCarrierTrace(carrier, distToGoal, pressure);
       this.carrierTraceTimer = 0.1;
+    }
+
+    const manualCarrier =
+      this.manualControl[carrier.team].enabled
+      && this.manualSelectedPlayer(carrier.team)?.id === carrier.id;
+    if (manualCarrier) {
+      this.actionTimer = Math.max(0, this.actionTimer - dt);
+      if (this.actionTimer <= 0 && !this.hasKeeperSmotherContact(carrier)) {
+        this.actionTimer = 0.12;
+        if (this.resolvePressureDuel(carrier, pressure)) return null;
+      }
+      return null;
     }
 
     const urgentGoalmouth = distToGoal < 4.6 && carrier.role !== "GK";
@@ -1967,18 +2357,31 @@ export class SimpleMatchModel {
     if (t >= 1) {
       if (this.resolveAerialHeaderOnArrival(flight)) return;
       if (this.resolveDangerousDeliveryFirstTimeShotOnArrival(flight)) return;
-      const landingVel = { ...this.ball.vel };
+      // The closing step is clamped to t=1, so it advances only a fraction of a
+      // normal timestep and this.ball.vel here reads an order of magnitude
+      // slower than the pass actually travelled. Derive the carry from the
+      // flight's own geometry instead, or an uncollected ball dies on the spot.
+      const flightDx = flight.to.x - flight.from.x;
+      const flightDz = flight.to.z - flight.from.z;
+      const flightLen = Math.hypot(flightDx, flightDz);
+      const flightSpeed = flightLen / Math.max(0.001, flight.duration);
+      const landingVel = flightLen > 1e-4
+        ? { x: (flightDx / flightLen) * flightSpeed, z: (flightDz / flightLen) * flightSpeed }
+        : { x: 0, z: 0 };
       this.ball.pos.x = flight.to.x;
       this.ball.pos.y = this.ballGroundY();
       this.ball.pos.z = flight.to.z;
       this.ball.vel = { x: 0, z: 0 };
       const received = this.resolveBallFlightReception(flight);
       if (!received) {
-        if (!flight.aerial && !flight.headerEligible && (flight.kind === "pass" || flight.kind === "restart" || flight.kind === "interception")) {
-          this.ball.vel = {
-            x: landingVel.x * 0.28,
-            z: landingVel.z * 0.28,
-          };
+        if (flight.kind === "pass" || flight.kind === "restart" || flight.kind === "interception") {
+          // Aerial balls drop steeper and lose more pace on the bounce than a
+          // driven ground ball, but they must still run on. Excluding them
+          // here left every uncollected lob, cross and corner dead on the spot.
+          const carry = flight.aerial || flight.headerEligible
+            ? LOOSE_BALL_AERIAL_LANDING_CARRY
+            : LOOSE_BALL_LANDING_CARRY;
+          this.ball.vel = { x: landingVel.x * carry, z: landingVel.z * carry };
         }
         this.auditFlightLanding(flight);
       }
@@ -2523,8 +2926,9 @@ export class SimpleMatchModel {
       const attackSign = this.attackSign(player.team);
       const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
       const receivingFlight = this.ballFlight?.followPlayerId === player.id;
-      let target = { ...player.homePos };
-      let targetOwner = "home_anchor";
+      const formationAnchor = this.ballZoneFormationAnchor(player);
+      let target = formationAnchor.pos;
+      let targetOwner = `formation_${formationAnchor.zone}`;
       if (this.possession?.id === player.id) {
         if (receivingFlight && this.ballFlight) {
           target = { ...this.ballFlight.to };
@@ -2566,8 +2970,8 @@ export class SimpleMatchModel {
             : player.role === "AM" ? 0.16
               : 0.18;
         target = {
-          x: player.homePos.x + attackSign * clamp(ball.x * 0.18 + push * expansion, -8, 16),
-          z: player.homePos.z * lateralHomeBlend + ball.z * lateralBallBlend,
+          x: formationAnchor.pos.x + attackSign * clamp(ball.x * 0.18 + push * expansion, -8, 16),
+          z: formationAnchor.pos.z * lateralHomeBlend + ball.z * lateralBallBlend,
         };
         targetOwner = "support_shape_attack";
         if (continuationSupportPhase && possessionCarrier) {
@@ -2773,6 +3177,51 @@ export class SimpleMatchModel {
       player.targetPos = clampToPlayable(target);
       player.targetOwner = targetOwner;
     }
+    this.applyManualControlTargets();
+  }
+
+  private ballZoneFormationAnchor(player: SimplePlayer) {
+    const progress = this.ball.pos.x * this.attackSign(player.team);
+    const zone = progress < -22 ? "defensive_third"
+      : progress < -7 ? "build_up"
+        : progress < 16 ? "midfield"
+          : "final_third";
+    const roleShift = zone === "defensive_third"
+      ? player.role === "ST" ? -8 : player.role === "W" || player.role === "AM" ? -5 : player.role === "CM" || player.role === "DM" ? -3 : -1
+      : zone === "build_up"
+        ? player.role === "ST" || player.role === "W" ? -2 : 0
+        : zone === "midfield"
+          ? player.role === "ST" || player.role === "W" || player.role === "AM" ? 2 : player.role === "FB" ? 1 : 0
+          : player.role === "ST" ? 5 : player.role === "W" || player.role === "AM" ? 4 : player.role === "FB" ? 2 : 1;
+    const lateralScale = zone === "defensive_third" ? 0.9 : zone === "final_third" ? 1.08 : 1;
+    return {
+      zone,
+      pos: clampToPlayable({
+        x: player.homePos.x + this.attackSign(player.team) * roleShift,
+        z: player.homePos.z * lateralScale,
+      }),
+    };
+  }
+
+  private applyManualControlTargets() {
+    if (this.msm.state.kind !== "live_play") return;
+    for (const team of ["A", "B"] as const) {
+      const state = this.manualControl[team];
+      if (!state.enabled) continue;
+      const selected = this.manualSelectedPlayer(team);
+      if (!selected) continue;
+      const moveLen = Math.hypot(state.move.x, state.move.z);
+      if (moveLen <= 0.05) {
+        selected.targetPos = clampToPlayable({ x: selected.pos.x, z: selected.pos.z });
+      } else {
+        const scale = 6 / moveLen;
+        selected.targetPos = clampToPlayable({
+          x: selected.pos.x + state.move.x * scale,
+          z: selected.pos.z + state.move.z * scale,
+        });
+      }
+      selected.targetOwner = "manual_control";
+    }
   }
 
   private keeperWithHandsPossession() {
@@ -2827,6 +3276,39 @@ export class SimpleMatchModel {
     return (offsideLine - OFFSIDE_SUPPORT_HOLD_BUFFER) * attackSign;
   }
 
+  /**
+   * Arcade bump plus sprint, both applied only to the player a human is
+   * actually driving. CPU players stay on the calibrated baseline so the MLS
+   * KPI envelope is unaffected.
+   */
+  private manualSpeedMultiplier(player: SimplePlayer) {
+    const state = this.manualControl[player.team];
+    if (!state.enabled || state.selectedPlayerId !== player.id) return 1;
+    return MANUAL_CONTROL_SPEED_MULTIPLIER * (state.sprinting ? SPRINT_MULTIPLIER : 1);
+  }
+
+  private playerMaxSpeed(player: SimplePlayer, movementSpeedMultiplier: number) {
+    return BASE_RUN_SPEED
+      * (0.42 + player.ratings.pace * 0.58)
+      * movementSpeedMultiplier
+      * this.manualSpeedMultiplier(player);
+  }
+
+  /**
+   * How far outside the lines this player may stand.
+   *
+   * Only the active corner/throw-in taker gets any: the laws put them behind
+   * the line, and the interior clamp otherwise drags them to the pitch side of
+   * the ball so they appear to take the corner from the wrong side.
+   */
+  private playableOutsideAllowance(player: SimplePlayer) {
+    const restart = this.restartContext;
+    if (!restart || restart.takerId !== player.id) return 0;
+    return restart.restartType === "corner" || restart.restartType === "throw_in"
+      ? RESTART_TAKER_OUTSIDE_ALLOWANCE
+      : 0;
+  }
+
   private movePlayers(dt: number, speedMultiplier = 1) {
     const tickStart = new Map(this.players.map((player) => [player.id, { x: player.pos.x, z: player.pos.z }]));
     const movementSpeedMultiplier = Math.max(0, speedMultiplier);
@@ -2835,14 +3317,16 @@ export class SimpleMatchModel {
       const dx = target.x - player.pos.x;
       const dz = target.z - player.pos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
-      const maxSpeed = BASE_RUN_SPEED * (0.42 + player.ratings.pace * 0.58) * movementSpeedMultiplier;
+      const maxSpeed = this.playerMaxSpeed(player, movementSpeedMultiplier);
       const oldX = player.pos.x;
       const oldZ = player.pos.z;
       if (len > 0.001) {
         const dirX = dx / len;
         const dirZ = dz / len;
         const currentSpeedTowardTarget = Math.max(0, player.vel.x * dirX + player.vel.z * dirZ);
-        const speed = Math.min(maxSpeed, currentSpeedTowardTarget + PLAYER_ACCELERATION * dt);
+        const manualSelected = this.manualControl[player.team].enabled && this.manualSelectedPlayer(player.team)?.id === player.id;
+        const acceleration = PLAYER_ACCELERATION * (manualSelected ? MANUAL_CONTROL_ACCELERATION_MULTIPLIER : 1);
+        const speed = Math.min(maxSpeed, currentSpeedTowardTarget + acceleration * dt);
         const step = Math.min(len, speed * dt);
         if (step >= len) {
           player.pos.x = target.x;
@@ -2851,7 +3335,7 @@ export class SimpleMatchModel {
           player.pos.x += dirX * step;
           player.pos.z += dirZ * step;
         }
-        const clamped = clampToPlayable(player.pos);
+        const clamped = clampToPlayable(player.pos, this.playableOutsideAllowance(player));
         player.pos.x = clamped.x;
         player.pos.z = clamped.z;
       } else {
@@ -2865,7 +3349,7 @@ export class SimpleMatchModel {
     this.resolvePlayerCollisions();
     if (!skipCap) this.capTickPlayerDisplacements(tickStart, dt, movementSpeedMultiplier);
     for (const player of this.players) {
-      const clamped = clampToPlayable(player.pos);
+      const clamped = clampToPlayable(player.pos, this.playableOutsideAllowance(player));
       player.pos.x = clamped.x;
       player.pos.z = clamped.z;
     }
@@ -2888,10 +3372,15 @@ export class SimpleMatchModel {
   }
 
   private capTickPlayerDisplacements(startPositions: Map<string, Vec2>, dt: number, speedMultiplier = 1) {
-    const maxVisualStep = BASE_RUN_SPEED * 0.93 * Math.max(0, dt) * Math.max(0, speedMultiplier);
     for (const player of this.players) {
       const start = startPositions.get(player.id);
       if (!start) continue;
+      // Anti-teleport guard, not a speed governor. It used to be a flat
+      // BASE_RUN_SPEED * 0.93 for everyone, which throttled quick players below
+      // their own top speed and would have eaten the sprint boost entirely.
+      const maxVisualStep = this.playerMaxSpeed(player, Math.max(0, speedMultiplier))
+        * PLAYER_DISPLACEMENT_CAP_TOLERANCE
+        * Math.max(0, dt);
       const dx = player.pos.x - start.x;
       const dz = player.pos.z - start.z;
       const moved = Math.hypot(dx, dz);
@@ -2935,8 +3424,8 @@ export class SimpleMatchModel {
           b.pos.x += nx * push;
           b.pos.z += nz * push;
 
-          const clampedA = clampToPlayable(a.pos);
-          const clampedB = clampToPlayable(b.pos);
+          const clampedA = clampToPlayable(a.pos, this.playableOutsideAllowance(a));
+          const clampedB = clampToPlayable(b.pos, this.playableOutsideAllowance(b));
           a.pos.x = clampedA.x;
           a.pos.z = clampedA.z;
           b.pos.x = clampedB.x;
@@ -2980,11 +3469,19 @@ export class SimpleMatchModel {
       && (compressedContinuationCarrier || fullLengthContinuationCarrier);
     const wideDelivery = this.isWideFinalThirdDelivery(carrier, target, progress, targetDistToGoal);
     const drivenCross = wideDelivery && this.rng.next() < 0.42;
-    const aerialDelivery = wideDelivery || (passStyle === "FORWARD"
+    const aerialDelivery = !!options.lofted || wideDelivery || (passStyle === "FORWARD"
       && distance / FIELD_SCALE_PER_YARD >= 24
       && progress >= 7
       && targetDistToGoal <= 16);
     const deliveryStyle = wideDelivery ? (drivenCross ? "DRIVEN" : "LONG_LOFTED") : null;
+    // One arc for the whole delivery. It used to be computed only on the
+    // completion path, so an intercepted or out-of-play lob was re-drawn with a
+    // hardcoded flat arc and read as a knee-high pass.
+    const passArc = wideDelivery
+      ? (drivenCross ? 0.42 : LOFTED_PASS_ARC)
+      : options.lofted
+        ? MANUAL_LOB_ARC
+        : aerialDelivery ? LOFTED_PASS_ARC : 0.32;
     const safeSupportPassBoost = !wideDelivery
       ? compressedContinuationCarrier && distance <= 13 && progress >= -1.5
         ? fifteenMinuteContinuationDamping
@@ -3104,9 +3601,10 @@ export class SimpleMatchModel {
       target.stats.touches += 1;
       this.possession = target;
       this.rememberTouch(target);
-      const passArc = wideDelivery ? (drivenCross ? 0.42 : LOFTED_PASS_ARC) : aerialDelivery ? LOFTED_PASS_ARC : 0.32;
-      const settleSeconds = this.visibleReceptionHoldSeconds();
-      const flightSeconds = this.startBallFlight("pass", origin, target.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), passArc, target, {
+      const ledGroundPass = !wideDelivery && !aerialDelivery && distance >= 13;
+      const landingPoint = this.passLandingPoint(origin, target.pos, distance, ledGroundPass);
+      const settleSeconds = ledGroundPass ? 0.18 : this.visibleReceptionHoldSeconds();
+      const flightSeconds = this.startBallFlight("pass", origin, landingPoint, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), passArc, target, {
         aerial: aerialDelivery,
         headerEligible: aerialDelivery,
         settleSeconds,
@@ -3157,7 +3655,7 @@ export class SimpleMatchModel {
       };
       this.possession = null;
       this.lastCompletedPass = null;
-      this.startBallFlight("pass", origin, outTarget, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), 0.35);
+      this.startBallFlight("pass", origin, outTarget, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), aerialDelivery ? passArc : 0.35);
       this.addLiveEvent(otherTeam(carrier.team), "THROW", `${carrier.label} pass ran out`);
       const event = this.recordEvent("TURNOVER", otherTeam(carrier.team), carrier, {
         passer: carrier.name,
@@ -3191,7 +3689,7 @@ export class SimpleMatchModel {
         this.possession.stats.interceptions += 1;
         this.possession.stats.touches += 1;
         const settleSeconds = this.visibleReceptionHoldSeconds();
-        const flightSeconds = this.startBallFlight("interception", origin, this.possession.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.3)), 0.65, this.possession, {
+        const flightSeconds = this.startBallFlight("interception", origin, this.possession.pos, this.flightDuration(clamp(distance / 24, 0.65, 1.3)), aerialDelivery ? passArc : 0.65, this.possession, {
           settleSeconds,
         });
         this.deferActionAfterReception(flightSeconds, settleSeconds);
@@ -3484,7 +3982,7 @@ export class SimpleMatchModel {
   ): GoalEvent | null {
     this.finalizeActiveReceptionTelemetryForPlayer(carrier, "shot");
     const carrierDistYards = (distToGoal / FIELD_W) * 120;
-    if (!context.forceGoal && !context.forceOnTarget && context.reason !== "NO_SHOT_FINAL_WHISTLE" && context.reason !== "NO_SHOT_FULL_TIME_FALLBACK" && carrierDistYards > 36) {
+    if (!context.manual && !context.forceGoal && !context.forceOnTarget && context.reason !== "NO_SHOT_FINAL_WHISTLE" && context.reason !== "NO_SHOT_FULL_TIME_FALLBACK" && carrierDistYards > 36) {
       this.recordShotOpportunity(carrier, distToGoal, pressure, 0, "range_recycled", {
         reason: "LONG_SHOT_SUPPRESSED",
         distToGoalYards: +carrierDistYards.toFixed(1),
@@ -3517,7 +4015,7 @@ export class SimpleMatchModel {
       && shotDistToGoalYards > 24
       && (pressure > 1 || anglePenalty > 0.16)
       && (longRangeCentrality > 0.3 || anglePenalty > 0.2);
-    if (fifteenMinuteLongShotSuppressed) {
+    if (fifteenMinuteLongShotSuppressed && !context.manual) {
       this.recordShotOpportunity(carrier, distToGoal, pressure, 0, "range_recycled", {
         reason: "FIFTEEN_MINUTE_LONG_SHOT_SUPPRESSED",
         distToGoalYards: +shotDistToGoalYards.toFixed(1),
@@ -3554,7 +4052,20 @@ export class SimpleMatchModel {
           ? 0
           : 0.140;
     const rawOnTargetChance = 0.445 + compressedOnTargetBoost - shotDistToGoal * 0.011 - distanceOnTargetPenalty - shotLoadOnTargetPenalty - anglePenalty * 0.20 - pressure * 0.055 + carrier.ratings.shooting * 0.10;
-    const onTargetChance = clamp(Math.max(rawOnTargetChance, context.minOnTargetChance ?? 0), 0.08, 0.68);
+    // A human who aimed and pressed shoot is not taking a speculative punt.
+    // The CPU model bottoms out around 0.08, which put ~93% of manual shots off
+    // target and made every aimed shot fly diagonally wide.
+    // Blasting it is less accurate than a placed side-foot.
+    const chargePower = clamp(context.power ?? 1, MANUAL_CHARGE_MIN_POWER, MANUAL_CHARGE_MIN_POWER + MANUAL_CHARGE_POWER_SPAN);
+    const powerAccuracyCost = context.manual ? Math.max(0, chargePower - 1.05) * 0.35 : 0;
+    const manualOnTargetFloor = context.manual
+      ? clamp(0.82 - shotDistToGoalYards * 0.012 - pressure * 0.06 + carrier.ratings.shooting * 0.10 - powerAccuracyCost, 0.34, 0.93)
+      : 0;
+    const onTargetChance = clamp(
+      Math.max(rawOnTargetChance, context.minOnTargetChance ?? 0, manualOnTargetFloor),
+      0.08,
+      context.manual ? 0.93 : 0.68,
+    );
     const onTarget = context.forceOnTarget || this.rng.next() < onTargetChance;
     teamStats.shots += 1;
     carrier.stats.shots += 1;
@@ -3589,7 +4100,17 @@ export class SimpleMatchModel {
       && !context.forceSave
       && (context.forceWoodwork || (naturalWoodworkAllowed && this.shouldHitWoodwork(shotDistToGoalYards, anglePenalty, pressure)));
     const woodworkTarget = woodwork ? this.woodworkTarget(carrier.team, context.forceWoodworkPart) : null;
-    const shotTarget = woodworkTarget || this.shotTarget(carrier.team, onTarget, anglePenalty);
+    // Both goals face along x, so the goal mouth is parameterised purely by z:
+    // the z part of the aim IS "where across the mouth". Do NOT rotate this
+    // into a shot-relative frame -- that flips the lateral sign with the
+    // attacking direction, so the same stick push aimed at opposite sides
+    // after the half-time end swap.
+    const aimLateral = (() => {
+      const aim = context.aimDirection;
+      if (!aim || Math.hypot(aim.x, aim.z) <= 0.2) return null;
+      return clamp(aim.z, -1, 1);
+    })();
+    const shotTarget = woodworkTarget || this.shotTarget(carrier.team, onTarget, anglePenalty, aimLateral, !!context.manual);
 
     this.recordShotPositionSnapshot(carrier.team, carrier, shotOrigin, shotDefense);
     this.recordEvent("SHOT", carrier.team, carrier, {
@@ -3609,13 +4130,13 @@ export class SimpleMatchModel {
       };
       this.recordEvent("WOODWORK", carrier.team, carrier, woodworkMeta);
       this.addLiveEvent(carrier.team, "WOODWORK", `${carrier.label} ${woodworkMeta.framePart}`, woodworkMeta);
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95);
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
       this.possession = null;
       return null;
     }
 
     if (!onTarget) {
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4);
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
       this.possession = null;
       return null;
     }
@@ -3730,7 +4251,7 @@ export class SimpleMatchModel {
         return null;
       }
       if (dist2(shotOrigin, saveTarget) / FIELD_SCALE_PER_YARD >= 3) {
-        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined);
+        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined, { speedMultiplier: context.manual ? chargePower : 1 });
       } else {
         this.ball.pos.x = saveTarget.x;
         this.ball.pos.y = 0.18;
@@ -3767,14 +4288,30 @@ export class SimpleMatchModel {
     };
     this.goalLog.push(goalRow);
     this.recordEvent("GOAL", carrier.team, carrier, goalRow);
-    this.addLiveEvent(carrier.team, "GOAL", `${carrier.name} ${goalRow.matchMinute}'`, {
-      shotOrigin: { x: +shotOrigin.x.toFixed(2), z: +shotOrigin.z.toFixed(2) },
-      shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
-      netTarget: { x: +netTarget.x.toFixed(2), y: this.ballGroundY(), z: +netTarget.z.toFixed(2) },
-    });
+    // Hold the announcement until the ball is actually in the net. A shot is
+    // resolved the instant it is struck, but the ball then flies for up to a
+    // few seconds -- announcing here called the goal well before it happened.
+    this.pendingGoalAnnouncement = {
+      team: carrier.team,
+      detail: `${carrier.name} ${goalRow.matchMinute}'`,
+      meta: {
+        shotOrigin: { x: +shotOrigin.x.toFixed(2), z: +shotOrigin.z.toFixed(2) },
+        shotTarget: { x: +shotTarget.x.toFixed(2), z: +shotTarget.z.toFixed(2) },
+        netTarget: { x: +netTarget.x.toFixed(2), y: this.ballGroundY(), z: +netTarget.z.toFixed(2) },
+      },
+    };
     this.goalNetSettleRemaining = 0;
     this.goalKickoffSetupInstalled = false;
-    this.startBallFlight("shot", shotOrigin, netTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.4)), 1.0);
+    // A harder strike gets there sooner.
+    this.startBallFlight(
+      "shot",
+      shotOrigin,
+      netTarget,
+      this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.4)),
+      1.0,
+      undefined,
+      { speedMultiplier: context.manual ? chargePower : 1 },
+    );
     this.possession = null;
     return { scoringTeam: teamSide(carrier.team) };
   }
@@ -4865,6 +5402,11 @@ export class SimpleMatchModel {
     };
     this.goalLog.push(goalRow);
     this.recordEvent("GOAL", crossing.scoringTeam, lastTouch || undefined, goalRow);
+    // A shot goal stages an announcement in resolveShot and the ball then flies
+    // into the net, where this crossing detector fires too. Both used to
+    // announce, which is the double GOAL: drop the staged one, this is the
+    // moment the ball actually crossed the line.
+    this.pendingGoalAnnouncement = null;
     this.addLiveEvent(crossing.scoringTeam, "GOAL", `${playerName} ${goalRow.matchMinute}'`, {
       shotOrigin: { x: +this.lastBallPos.x.toFixed(2), z: +this.lastBallPos.z.toFixed(2) },
       shotTarget: { x: +crossing.spot.x.toFixed(2), z: +crossing.spot.z.toFixed(2) },
@@ -4928,11 +5470,26 @@ export class SimpleMatchModel {
     } else {
       return null;
     }
+    const lastTouchTeam = this.lastTouchTeam;
+    const goalLine = crossedLine === "left_goal_line" || crossedLine === "right_goal_line";
+    const attackingTeam: SimpleTeamCode | null = goalLine
+      ? (crossedLine === "right_goal_line"
+        ? (this.attackSign("A") > 0 ? "A" : "B")
+        : (this.attackSign("A") < 0 ? "A" : "B"))
+      : null;
+    const restartType = goalLine && attackingTeam && lastTouchTeam
+      ? (lastTouchTeam === attackingTeam ? "goal_kick" : "corner")
+      : event.restartType;
+    const restartTeam = restartType === "corner" && attackingTeam
+      ? attackingTeam
+      : restartType === "goal_kick" && attackingTeam
+        ? otherTeam(attackingTeam)
+        : codeFromSide(event.restartTeam);
     return {
-      restartType: event.restartType,
-      restartTeam: codeFromSide(event.restartTeam),
+      restartType,
+      restartTeam,
       spot,
-      lastTouchTeam: this.lastTouchTeam,
+      lastTouchTeam,
       lastTouchPlayerId: this.lastTouchPlayerId,
       crossedLine,
     };
@@ -4973,6 +5530,7 @@ export class SimpleMatchModel {
     restart.spot = this.restartSpot(restart);
     const taker = this.restartTaker(restart);
     restart.takerId = taker?.id;
+    restart.plan = this.restartPlanFor(restart, taker);
     this.restartContext = restart;
     this.ballFlight = null;
     this.possession = taker || null;
@@ -4999,6 +5557,7 @@ export class SimpleMatchModel {
       restartType: restart.restartType,
       presentationKind,
       presentationSeconds,
+      restartPlan: restart.plan,
       takerId: taker?.id || null,
       takerName: taker?.name || null,
       spot: { ...restart.spot },
@@ -5303,7 +5862,9 @@ export class SimpleMatchModel {
       }
       return;
     }
-    const goalKickPlan = restart.restartType === "goal_kick" ? this.goalKickRestartPlan(restart, taker?.id) : null;
+    const goalKickPlan = restart.restartType === "goal_kick"
+      ? this.goalKickRestartPlan(restart, taker?.id, restart.plan === "goal_kick_long")
+      : null;
     const receiver = goalKickPlan?.receiver || this.restartReceiver(restart, taker?.id);
     if (!receiver) {
       this.restartContext = null;
@@ -5342,6 +5903,7 @@ export class SimpleMatchModel {
       restartType: restart.restartType,
       presentationKind,
       presentationSeconds,
+      restartPlan: restart.plan,
       takerId: taker?.id || null,
       takerName: taker?.name || null,
       takerSpot,
@@ -5589,13 +6151,13 @@ export class SimpleMatchModel {
     return { scoringTeam: teamSide(restart.restartTeam) };
   }
 
-  private goalKickRestartPlan(restart: BallOutRestartContext, takerId?: string): GoalKickRestartPlan {
+  private goalKickRestartPlan(restart: BallOutRestartContext, takerId?: string, plannedLong?: boolean): GoalKickRestartPlan {
     const shortReceiver = this.restartReceiver(restart, takerId);
     const attackSign = this.attackSign(restart.restartTeam);
     const noSafeShort = !this.hasSafeShortKeeperOutlet(restart.restartTeam, restart.spot, takerId);
     const scoredLongOptions = this.keeperLongDistributionOptions(restart.restartTeam, restart.spot, takerId);
 
-    const useLong = scoredLongOptions.length > 0 && (noSafeShort || this.rng.next() < GOAL_KICK_LONG_CHANCE);
+    const useLong = scoredLongOptions.length > 0 && (plannedLong ?? (noSafeShort || this.rng.next() < GOAL_KICK_LONG_CHANCE));
     if (useLong) {
       const selected = scoredLongOptions[0];
       return {
@@ -5694,11 +6256,21 @@ export class SimpleMatchModel {
       .sort((a, b) => {
         if (restart.restartType === "corner") {
           const goal = goalCenterForAttack(attackSign);
-          return dist2(a.pos, goal) - dist2(b.pos, goal);
+          const side = restart.plan === "corner_far_post" ? -(restart.spot.z >= 0 ? 1 : -1) : (restart.spot.z >= 0 ? 1 : -1);
+          const target = { x: goal.x - attackSign * 4.8, z: side * 3.5 };
+          return dist2(a.pos, target) - dist2(b.pos, target);
         }
         return dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot);
       });
     return candidates[0] || null;
+  }
+
+  private restartPlanFor(restart: BallOutRestartContext, taker: SimplePlayer | null): NonNullable<BallOutRestartContext["plan"]> {
+    if (restart.restartType === "corner") return (taker?.shirtNumber ?? 0) % 2 === 0 ? "corner_far_post" : "corner_near_post";
+    if (restart.restartType === "throw_in") return "throw_short";
+    if (restart.restartType === "goal_kick") return this.goalKickRestartPlan(restart, taker?.id).style === "goal_kick_long" ? "goal_kick_long" : "goal_kick_short";
+    if (restart.restartType === "penalty") return "penalty";
+    return "free_kick_direct";
   }
 
   private restartAction(type: BallOutEvent["restartType"]) {
@@ -5723,10 +6295,13 @@ export class SimpleMatchModel {
     const target = { x: to.x, z: to.z };
     const distanceUnits = dist2(start, target);
     const distanceYards = distanceUnits / FIELD_SCALE_PER_YARD;
-    const targetSpeedMps = this.ballFlightTargetSpeedMps(kind, distanceYards);
+    // The passed duration is only a readability hint -- real pace comes from the
+    // target speed, so charge power has to scale that to be felt.
+    const speedScale = clamp(options.speedMultiplier ?? 1, 0.5, 1.6);
+    const targetSpeedMps = this.ballFlightTargetSpeedMps(kind, distanceYards) * speedScale;
     const speedDuration = (distanceYards * 0.9144) / targetSpeedMps;
-    const minDuration = kind === "shot" || kind === "save" || kind === "miss" ? 0.12 : 0.28;
-    const readabilityDuration = kind === "shot" || kind === "save" || kind === "miss" ? 0 : duration * 0.45;
+    const minDuration = kind === "shot" || kind === "save" || kind === "miss" ? 0.12 : 0.18;
+    const readabilityDuration = kind === "shot" || kind === "save" || kind === "miss" ? 0 : Math.min(duration * 0.45, 0.18);
     const maxDuration = kind === "shot" || kind === "save" || kind === "miss" ? 3.2 : 2.4;
     const safeDuration = clamp(Math.max(0.001, speedDuration, readabilityDuration), minDuration, maxDuration);
     const speedUnitsPerSecond = distanceUnits / safeDuration;
@@ -5836,10 +6411,17 @@ export class SimpleMatchModel {
   private ballFlightArc(kind: BallFlightKind, distanceYards: number, requestedArc: number) {
     if (kind === "pass" || kind === "restart") {
       if (requestedArc > 0.5) return Math.min(requestedArc, 1.45);
-      if (distanceYards <= 12) return 0.035;
-      if (distanceYards <= 28) return lerpNumber(0.045, 0.11, clamp((distanceYards - 12) / 16, 0, 1));
-      if (distanceYards <= 42) return lerpNumber(0.12, 0.24, clamp((distanceYards - 28) / 14, 0, 1));
-      return Math.min(requestedArc, lerpNumber(0.28, 0.46, clamp((distanceYards - 42) / 24, 0, 1)));
+      // Arc is peak height in world units (~1.67 m each). The old curve topped
+      // out at 0.24 (~0.40 m) for a 42-yard ball, so nothing ever left the
+      // deck and almost no pass cleared HEADER_MIN_ARC. Short balls still roll;
+      // longer ones now rise to waist/chest height like a real driven ball.
+      // Held just under HEADER_MIN_ARC (0.18) through the 28-42yd band: going
+      // over it turns ordinary midfield passes into headed arrivals, which
+      // pushes total passes past the MLS KPI ceiling of 954.
+      if (distanceYards <= 12) return 0.05;
+      if (distanceYards <= 28) return lerpNumber(0.07, 0.14, clamp((distanceYards - 12) / 16, 0, 1));
+      if (distanceYards <= 42) return lerpNumber(0.15, 0.175, clamp((distanceYards - 28) / 14, 0, 1));
+      return Math.max(requestedArc, lerpNumber(0.30, 0.48, clamp((distanceYards - 42) / 24, 0, 1)));
     }
     if (kind === "interception") return requestedArc > 0.5 ? Math.min(requestedArc, 1.05) : Math.min(requestedArc, 0.10);
     if (kind === "save") return Math.min(requestedArc, 0.22);
@@ -6020,6 +6602,16 @@ export class SimpleMatchModel {
     return clamp(baseDuration, 0.55, 1.35);
   }
 
+  private passLandingPoint(origin: Vec2, receiver: Vec2, distance: number, leadReceiver: boolean) {
+    if (!leadReceiver) return { ...receiver };
+    const direction = normalize2({ x: receiver.x - origin.x, z: receiver.z - origin.z });
+    const lead = clamp((distance - 10) * 0.1, 0.65, 1.45);
+    return clampToPlayable({
+      x: receiver.x + direction.x * lead,
+      z: receiver.z + direction.z * lead,
+    });
+  }
+
   private ballFlightTargetSpeedMps(kind: BallFlightKind, distanceYards: number) {
     if (kind === "shot" || kind === "save" || kind === "miss") {
       return lerpNumber(31, 38, clamp((distanceYards - 10) / 28, 0, 1));
@@ -6114,12 +6706,28 @@ export class SimpleMatchModel {
     return clamp(volumeBoost * phaseBoost, 1, 1.28);
   }
 
-  private shotTarget(team: SimpleTeamCode, onTarget: boolean, anglePenalty: number): Vec2 {
+  private shotTarget(team: SimpleTeamCode, onTarget: boolean, anglePenalty: number, aimLateral: number | null = null, manual = false): Vec2 {
     const goal = goalCenterForAttack(this.attackSign(team));
+    const span = GOAL_MOUTH_HALF_Z * 0.75;
     if (onTarget) {
-      return { x: goal.x, z: this.rng.range(-GOAL_MOUTH_HALF_Z * 0.75, GOAL_MOUTH_HALF_Z * 0.75) };
+      if (aimLateral !== null) {
+        // Tight spread for a deliberate shot: aiming should place the ball,
+        // not merely nudge it.
+        const spread = this.rng.range(-0.18, 0.18) * span;
+        return { x: goal.x, z: clamp(aimLateral * span + spread, -span, span) };
+      }
+      return { x: goal.x, z: this.rng.range(-span, span) };
     }
-    const missSide = this.rng.next() < 0.5 ? -1 : 1;
+    const missSide = aimLateral !== null && Math.abs(aimLateral) > 0.25
+      ? Math.sign(aimLateral)
+      : this.rng.next() < 0.5 ? -1 : 1;
+    if (manual) {
+      // A missed manual shot goes narrowly wide, not spraying across the pitch.
+      return {
+        x: goal.x + this.attackSign(team) * this.rng.range(0.6, 1.8),
+        z: missSide * (GOAL_MOUTH_HALF_Z + this.rng.range(0.25, 1.5)),
+      };
+    }
     const missZ = missSide * (GOAL_MOUTH_HALF_Z + this.rng.range(0.8, 4.2 + anglePenalty * 2));
     return { x: goal.x + this.attackSign(team) * this.rng.range(0.6, 1.8), z: missZ };
   }
@@ -6164,6 +6772,40 @@ export class SimpleMatchModel {
   private bestPassTarget(carrier: SimplePlayer, options: PassTargetOptions = {}) {
     const attackSign = this.attackSign(carrier.team);
     const own = this.players.filter((p) => p.team === carrier.team && p.id !== carrier.id && p.role !== "GK");
+    if (options.direction) {
+      const length = Math.hypot(options.direction.x, options.direction.z);
+      if (length > 0.15) {
+        const direction = { x: options.direction.x / length, z: options.direction.z / length };
+        const ranked = own
+          .map((player) => {
+            const dx = player.pos.x - carrier.pos.x;
+            const dz = player.pos.z - carrier.pos.z;
+            const distance = Math.hypot(dx, dz);
+            const alignment = distance > 0.1 ? (dx * direction.x + dz * direction.z) / distance : -1;
+            return { player, distance, alignment };
+          })
+          .filter(({ distance }) => distance >= 1.5)
+          .sort((a, b) => b.alignment - a.alignment || a.distance - b.distance);
+        // An explicit aim is an instruction, not a hint. Prefer a well-aligned
+        // outlet, then anything not behind, then simply the best available.
+        // Falling through to the CPU chooser (as this used to when the cone was
+        // empty) silently turned an aimed forward ball into a backwards pass.
+        const inCone = ranked.filter((candidate) => candidate.alignment >= 0.35);
+        const notBehind = ranked.filter((candidate) => candidate.alignment >= 0);
+        const pool = inCone.length ? inCone : notBehind.length ? notBehind : ranked;
+        // Charge picks the range: a tap finds the nearest outlet, a full hold
+        // reaches for the furthest one along the aim.
+        const power = options.power;
+        if (pool.length && power !== undefined) {
+          const reach = clamp((power - MANUAL_CHARGE_MIN_POWER) / MANUAL_CHARGE_POWER_SPAN, 0, 1);
+          const byDistance = [...pool].sort((a, b) => a.distance - b.distance);
+          const index = Math.min(byDistance.length - 1, Math.round(reach * (byDistance.length - 1)));
+          return byDistance[index].player;
+        }
+        const aimed = pool[0];
+        if (aimed) return aimed.player;
+      }
+    }
     const deliveryTarget = this.bestWideDeliveryTarget(carrier, own);
     if (deliveryTarget) return deliveryTarget;
     const carrierDistToGoal = dist2(carrier.pos, goalCenterForAttack(attackSign));
@@ -7017,8 +7659,16 @@ export class SimpleMatchModel {
     return event;
   }
 
+  /** Emit the goal announcement that was held back until the ball arrived. */
+  private flushPendingGoalAnnouncement() {
+    const pending = this.pendingGoalAnnouncement;
+    if (!pending) return;
+    this.pendingGoalAnnouncement = null;
+    this.addLiveEvent(pending.team, "GOAL", pending.detail, pending.meta);
+  }
+
   private addLiveEvent(team: SimpleTeamCode | "", action: string, detail: string, meta?: Record<string, unknown>) {
-    this.eventLog.push({ time: Date.now(), team, action, detail, ...(meta ? { meta } : {}) });
+    this.eventLog.push({ seq: ++this.liveEventSeq, time: Date.now(), team, action, detail, ...(meta ? { meta } : {}) });
     if (this.eventLog.length > 120) this.eventLog.shift();
   }
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
@@ -636,6 +637,78 @@ test("V239 restart setup/release expose taker spot for corner and throw-in prese
   for (let i = 0; i < 900 && (cornerModel.msm.state as { kind: string }).kind === "ball_out"; i++) cornerModel.step(1 / 60);
   const cornerRelease = cornerModel.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "release").at(-1);
   assert.deepEqual(cornerRelease?.meta?.takerSpot, cornerTarget, "corner release must keep the same taker spot");
+});
+
+test("V259 ball-zone formations compact at home and expand into the final third", () => {
+  const model = new SimpleMatchModel();
+  model.startMatch();
+  const striker = model.getPlayers().find((player) => player.team === "A" && player.role === "ST");
+  const winger = model.getPlayers().find((player) => player.team === "A" && player.role === "W");
+  assert.ok(striker, "home team needs a striker for formation coverage");
+  assert.ok(winger, "home team needs a winger for formation coverage");
+
+  const api = model as unknown as {
+    ball: { pos: { x: number; y: number; z: number } };
+    ballZoneFormationAnchor: (player: NonNullable<typeof striker>) => { zone: string; pos: { x: number; z: number } };
+  };
+  api.ball.pos = { x: LEFT_GOAL_X + 2, y: 0.18, z: 0 };
+  const defensiveStriker = api.ballZoneFormationAnchor(striker);
+  const defensiveWinger = api.ballZoneFormationAnchor(winger);
+  api.ball.pos = { x: RIGHT_GOAL_X - 2, y: 0.18, z: 0 };
+  const finalThirdStriker = api.ballZoneFormationAnchor(striker);
+  const finalThirdWinger = api.ballZoneFormationAnchor(winger);
+
+  assert.equal(defensiveStriker.zone, "defensive_third");
+  assert.equal(finalThirdStriker.zone, "final_third");
+  assert.ok(finalThirdStriker.pos.x - defensiveStriker.pos.x >= 12, "striker must progress materially with the ball zone");
+  assert.ok(Math.abs(finalThirdWinger.pos.z) > Math.abs(defensiveWinger.pos.z), "wide players must expand when the attack reaches the final third");
+});
+
+test("V260 corner restart plan is fixed from setup through release", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v260-corner-plan");
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "corner", restartTeam: "home" };
+  const restart = {
+    restartType: "corner" as const,
+    restartTeam: "A" as const,
+    spot: { x: RIGHT_GOAL_X + 1, z: FIELD_D / 2 + 1 },
+    lastTouchTeam: "B" as const,
+    lastTouchPlayerId: null,
+    crossedLine: "right_goal_line" as const,
+  };
+  (model as unknown as { installBallOutRestart: (context: typeof restart) => void }).installBallOutRestart(restart);
+  const setup = model.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "setup").at(-1);
+  const setupPlan = setup?.meta?.restartPlan;
+  assert.ok(["corner_near_post", "corner_far_post"].includes(String(setupPlan)), "corner setup must publish a delivery plan");
+
+  for (let i = 0; i < 900 && model.msm.state.kind === "ball_out"; i++) model.step(1 / 60);
+  const release = model.eventLog.filter((event) => event.action === "CORNER" && event.meta?.phase === "release").at(-1);
+  assert.equal(release?.meta?.restartPlan, setupPlan, "corner release must use the plan committed at setup");
+});
+
+test("V260 goal-kick release honours the setup delivery plan", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("v260-goal-kick-plan");
+  model.startMatch();
+  model.msm.state = { kind: "ball_out", restartType: "goal_kick", restartTeam: "home" };
+  const restart = {
+    restartType: "goal_kick" as const,
+    restartTeam: "A" as const,
+    spot: { x: LEFT_GOAL_X + 1, z: 0 },
+    lastTouchTeam: "A" as const,
+    lastTouchPlayerId: null,
+    crossedLine: "left_goal_line" as const,
+  };
+  (model as unknown as { installBallOutRestart: (context: typeof restart) => void }).installBallOutRestart(restart);
+  const setup = model.eventLog.filter((event) => event.action === "GOAL_KICK" && event.meta?.phase === "setup").at(-1);
+  const setupPlan = setup?.meta?.restartPlan;
+  assert.ok(["goal_kick_short", "goal_kick_long"].includes(String(setupPlan)), "goal-kick setup must publish a delivery plan");
+
+  for (let i = 0; i < 900 && model.msm.state.kind === "ball_out"; i++) model.step(1 / 60);
+  const release = model.eventLog.filter((event) => event.action === "GOAL_KICK" && event.meta?.phase === "release").at(-1);
+  assert.equal(release?.meta?.restartPlan, setupPlan, "goal-kick release must retain the setup plan");
+  assert.equal(release?.meta?.goalKickStyle, setupPlan === "goal_kick_long" ? "goal_kick_long" : "goal_kick", "goal-kick flight must follow the committed setup plan");
 });
 
 test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
@@ -1346,8 +1419,19 @@ test("V45 simple model keeps 5-minute halves at 100 percent movement speed while
     fullHalf.elapsed >= 50 && fullHalf.elapsed <= 60,
     `full-half live clock should stay near real-time while dead-ball presentation stays frozen, got ${fullHalf.elapsed.toFixed(2)}`,
   );
-  assert.ok(shortHalf.topInstantSpeed <= BASE_RUN_SPEED * 1.02, `short-half player speed was accelerated to ${shortHalf.topInstantSpeed.toFixed(2)}`);
-  assert.ok(fullHalf.topInstantSpeed <= BASE_RUN_SPEED * 1.02, `full-half player speed was accelerated to ${fullHalf.topInstantSpeed.toFixed(2)}`);
+  // Ceiling is the engine's own: a pace-1.0 player tops out at BASE_RUN_SPEED,
+  // plus the anti-teleport cap's tolerance and a little slack for the
+  // overlap-recovery frames that bypass the cap. (This used to read
+  // BASE_RUN_SPEED * 1.02, which only held because every player was throttled
+  // by a flat cap set *below* their own top speed.)
+  const speedCeiling = BASE_RUN_SPEED * 1.2;
+  assert.ok(shortHalf.topInstantSpeed <= speedCeiling, `short-half player speed was accelerated to ${shortHalf.topInstantSpeed.toFixed(2)}`);
+  assert.ok(fullHalf.topInstantSpeed <= speedCeiling, `full-half player speed was accelerated to ${fullHalf.topInstantSpeed.toFixed(2)}`);
+  // The point of the test: a compressed half must not run players hot.
+  assert.ok(
+    shortHalf.topInstantSpeed <= fullHalf.topInstantSpeed * 1.05,
+    `short halves must not accelerate movement: ${shortHalf.topInstantSpeed.toFixed(2)} vs ${fullHalf.topInstantSpeed.toFixed(2)}`,
+  );
   assert.ok(shortHalf.actions >= fullHalf.actions * 0.85, `short-half runtime should not collapse action density at normal gameplay speed, got ${shortHalf.actions} vs ${fullHalf.actions}`);
   assert.ok(shortHalf.actions <= fullHalf.actions * 1.35, `short-half runtime should not spike action density into compressed-speed gameplay, got ${shortHalf.actions} vs ${fullHalf.actions}`);
 });
@@ -1427,6 +1511,649 @@ test("V56 simple model reports realistic rendered ball speed bands", () => {
   assert.ok(avgShortMediumPassMps >= 15 && avgShortMediumPassMps <= 21, `short/medium pass avg ${avgShortMediumPassMps.toFixed(1)} m/s`);
   assert.ok(longPasses.every((flight) => flight.speedMps >= 24 && flight.speedMps <= 32), "driven long balls must stay in 25-31 m/s band");
   assert.ok(shotFlights.every((flight) => flight.speedMps >= 30 && flight.speedMps <= 39), "shot flights must stay in 31-38 m/s band");
+});
+
+test("V261 live pacing keeps short passes and player acceleration out of slow motion", () => {
+  const model = new SimpleMatchModel();
+  const api = model as unknown as {
+    startBallFlight: (kind: "pass", from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void;
+    movePlayers: (dt: number) => void;
+  };
+  api.startBallFlight("pass", { x: 0, z: 0 }, { x: 1.6, z: 0 }, 0.55, 0.2);
+  const shortPass = model.getTuningBundle().ballFlightTelemetry.at(-1);
+  assert.ok(Number(shortPass?.speedMps) >= 14, `three-yard pass too slow at ${shortPass?.speedMps} m/s`);
+
+  const players = model.getPlayers();
+  for (const [index, player] of players.entries()) {
+    player.pos = { x: -25 + (index % 11) * 5, y: 0, z: index < 11 ? -15 : 15 };
+    player.targetPos = { x: player.pos.x, z: player.pos.z };
+    player.vel = { x: 0, z: 0 };
+  }
+  const runner = players.find((player) => player.team === "A" && player.role === "ST");
+  assert.ok(runner, "formation must provide a runner");
+  runner.ratings.pace = 1;
+  runner.targetPos = { x: runner.pos.x + 18, z: runner.pos.z };
+  model.ball.pos = { x: runner.pos.x, y: 0.18, z: runner.pos.z };
+  model.setManualControlEnabled("A", true);
+  for (let i = 0; i < 30; i++) api.movePlayers(1 / 60);
+  const metersPerUnit = 0.9144 / FIELD_SCALE_PER_YARD;
+  const runnerSpeed = Math.hypot(runner.vel.x, runner.vel.z) * metersPerUnit;
+  assert.ok(runnerSpeed >= 5, `runner acceleration too slow at ${runnerSpeed.toFixed(2)} m/s after 0.5s`);
+});
+
+test("an uncollected lofted ball keeps running instead of dying on landing", () => {
+  const rollAfterLanding = (aerial: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`landing-carry-${aerial}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      startBallFlight: (kind: string, from: unknown, to: unknown, duration: number, arc: number, follow?: unknown, opts?: unknown) => void;
+      ballFlight: unknown;
+    };
+    // Park everyone far away so nobody collects it.
+    for (const p of model.getPlayers()) {
+      p.pos = { x: -55, y: 0, z: 30 };
+      p.targetPos = { x: -55, z: 30 };
+    }
+    model.possession = null;
+    model.ball.pos = { x: -10, y: 0.18, z: 0 };
+    model.ball.vel = { x: 0, z: 0 };
+    api.startBallFlight("pass", { x: -10, z: 0 }, { x: 14, z: 0 }, 0.9, aerial ? 0.9 : 0.05, undefined, { aerial });
+    for (let i = 0; i < 600 && api.ballFlight; i++) model.step(1 / 60);
+
+    const landing = { ...model.ball.pos };
+    let frames = 0;
+    while (frames < 900 && Math.hypot(model.ball.vel.x, model.ball.vel.z) > 0.05) {
+      model.step(1 / 60);
+      frames++;
+    }
+    return Math.hypot(model.ball.pos.x - landing.x, model.ball.pos.z - landing.z);
+  };
+
+  // Aerial landings used to be excluded from the carry entirely, so every
+  // uncollected lob, cross and corner stopped dead where it touched down.
+  assert.ok(rollAfterLanding(true) > 1.5, `a lofted ball must run on after landing, rolled ${rollAfterLanding(true).toFixed(2)}u`);
+  assert.ok(rollAfterLanding(false) > 1.5, "a ground pass must run on after landing");
+});
+
+test("a lofted delivery keeps its shape when intercepted or run out of play", () => {
+  const model = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(
+    model,
+    /startBallFlight\("pass", origin, outTarget[\s\S]{0,140}?aerialDelivery \? passArc : 0\.35/,
+    "an out-of-play lob must keep its loft instead of a hardcoded flat arc",
+  );
+  assert.match(
+    model,
+    /aerialDelivery \? passArc : 0\.65, this\.possession/,
+    "an intercepted lob must keep its loft instead of a hardcoded flat arc",
+  );
+});
+
+test("live events stay consumable after the log hits its cap", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("live-event-cap");
+  model.setHalfDurationSeconds(300);
+  model.startMatch();
+  const api = model as unknown as { addLiveEvent: (t: string, a: string, d: string, m?: unknown) => void };
+
+  const emitted: string[] = [];
+  const original = api.addLiveEvent.bind(api);
+  api.addLiveEvent = (team, action, detail, meta) => {
+    emitted.push(action);
+    return original(team, action, detail, meta);
+  };
+
+  // Mirror gameEngine.processLiveEventCues: it must follow the monotonic seq,
+  // because the model caps eventLog at 120 with shift(). With an array-index
+  // cursor everything after the cap was silently dropped -- no goal
+  // announcement, no crowd swell, no kick sounds for the rest of the match.
+  let cursorSeq = 0;
+  const played: string[] = [];
+  for (let i = 0; i < 60 * 60 * 12 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+    model.step(1 / 60);
+    for (const event of model.eventLog) {
+      if (!event) continue;
+      if (event.seq <= cursorSeq) continue;
+      cursorSeq = event.seq;
+      played.push(event.action);
+    }
+  }
+
+  assert.ok(emitted.length > 150, `needs to exceed the 120-entry cap, emitted ${emitted.length}`);
+  assert.ok(model.eventLog.length <= 120, "log must still be capped");
+  assert.ok(
+    played.length >= emitted.length - 1,
+    `every emitted event must remain consumable: emitted ${emitted.length}, played ${played.length}`,
+  );
+  const goalsScored = model.getMatchSnapshot().scoreA + model.getMatchSnapshot().scoreB;
+  assert.equal(
+    played.filter((action) => action === "GOAL").length,
+    goalsScored,
+    "each goal must be announced exactly once",
+  );
+});
+
+test("a restart awarded to a human team waits for that player to take it", () => {
+  const stage = (manual: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`manual-restart-${manual}`);
+    model.startMatch();
+    const api = model as unknown as {
+      stageFreeKickRestart: (team: string, spot: unknown, lastTouchTeam: string | null, lastTouchPlayerId: string | null) => void;
+    };
+    if (manual) model.setManualControlEnabled("A", true);
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    api.stageFreeKickRestart("A", { x: 5, z: 3 }, "B", null);
+    // Well past both the 1.5s restart timer and the 6s dead-ball watchdog.
+    for (let i = 0; i < 60 * 10; i++) model.step(1 / 60);
+    return model;
+  };
+
+  const cpuOwned = stage(false);
+  assert.equal(cpuOwned.msm.state.kind, "live_play", "a CPU restart must still be taken automatically");
+
+  const humanOwned = stage(true);
+  assert.equal(
+    humanOwned.msm.state.kind,
+    "ball_out",
+    "a restart awarded to the human team must wait rather than being played by the CPU",
+  );
+  assert.ok(humanOwned.triggerManualPass("A"), "the player's pass must take the restart");
+  for (let i = 0; i < 30; i++) humanOwned.step(1 / 60);
+  assert.equal(humanOwned.msm.state.kind, "live_play", "taking the restart must resume play");
+});
+
+test("manual tackles are contested rather than a guaranteed strip", () => {
+  let won = 0;
+  let failed = 0;
+  let repeatRefused = 0;
+  const attempts = 300;
+
+  for (let seed = 0; seed < attempts; seed++) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`contested-tackle-${seed}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as { manualControl: Record<string, { selectedPlayerId: string | null }> };
+
+    model.setManualControlEnabled("B", true);
+    const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+    const defender = model.getPlayers().find((p) => p.team === "B" && p.role !== "GK");
+    assert.ok(carrier && defender, "need a carrier and a defender");
+    carrier.pos = { x: 0, y: 0, z: 0 };
+    carrier.vel = { x: 0, z: 0 };
+    defender.pos = { x: 1.2, y: 0, z: 0 };
+    model.possession = carrier;
+    api.manualControl.B.selectedPlayerId = defender.id;
+
+    if (model.triggerManualTackle("B")) won += 1; else failed += 1;
+    // Cooldown: mashing the button must not give a second bite immediately.
+    if (model.triggerManualTackle("B") === false) repeatRefused += 1;
+  }
+
+  assert.equal(repeatRefused, attempts, "an immediate repeat tackle must be refused by the cooldown");
+  assert.ok(won > attempts * 0.25, `tackling must still work, won ${won}/${attempts}`);
+  assert.ok(failed > attempts * 0.15, `tackling must be losable, failed only ${failed}/${attempts}`);
+});
+
+test("a goal is announced when the ball arrives, not when the shot is struck", () => {
+  let checked = 0;
+  for (let seed = 0; seed < 8; seed++) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`goal-announce-${seed}`);
+    model.setHalfDurationSeconds(300);
+    model.startMatch();
+    const api = model as unknown as {
+      addLiveEvent: (t: string, a: string, d: string, m?: unknown) => void;
+      ballFlight: { kind: string } | null;
+    };
+
+    // A shot is resolved the instant it is struck, but the ball then flies to
+    // the net. Announcing at resolution called goals seconds before they landed.
+    let announcedMidFlight = 0;
+    let announcements = 0;
+    const original = api.addLiveEvent.bind(api);
+    api.addLiveEvent = (team, action, detail, meta) => {
+      if (action === "GOAL") {
+        announcements += 1;
+        if (api.ballFlight && api.ballFlight.kind === "shot") announcedMidFlight += 1;
+      }
+      return original(team, action, detail, meta);
+    };
+
+    for (let i = 0; i < 60 * 60 * 12 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+      model.step(1 / 60);
+    }
+    checked += announcements;
+    assert.equal(announcedMidFlight, 0, `seed ${seed}: a goal was announced while the shot was still in the air`);
+    // resolveShot stages an announcement and the goal-mouth crossing detector
+    // fires one too. Both used to run, which is the double GOAL sound.
+    const snapshot = model.getMatchSnapshot();
+    assert.equal(
+      announcements,
+      snapshot.scoreA + snapshot.scoreB,
+      `seed ${seed}: expected one announcement per goal, got ${announcements} for ${snapshot.scoreA + snapshot.scoreB} goals`,
+    );
+  }
+  assert.ok(checked > 0, "needed at least one goal across the sample");
+});
+
+test("hold-to-charge scales shot power and cancels if the ball is lost", () => {
+  const stage = () => {
+    const model = new SimpleMatchModel();
+    model.setSeed("charge-power");
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      attackSign: (team: "A" | "B") => number;
+      manualControl: Record<string, { selectedPlayerId: string | null; charge: unknown }>;
+      ballFlight: { from: { x: number; z: number }; to: { x: number; z: number }; duration: number } | null;
+    };
+    model.setManualControlEnabled("A", true);
+    const sign = api.attackSign("A");
+    const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+    assert.ok(carrier, "need a carrier");
+    carrier.pos = { x: sign * 26, y: 0, z: 0 };
+    carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+    model.possession = carrier;
+    api.manualControl.A.selectedPlayerId = carrier.id;
+    model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+    return { model, api, sign };
+  };
+
+  // Charge fills over time and is readable by the renderer.
+  const build = stage();
+  assert.ok(build.model.beginManualCharge("A", "shot"), "charging must start while holding the ball");
+  for (let i = 0; i < 30; i++) build.model.step(1 / 60);
+  const mid = build.model.getManualChargeState("A");
+  assert.ok(mid && mid.progress > 0.2 && mid.progress < 1, `charge must build gradually, got ${mid?.progress}`);
+  assert.ok(mid && mid.power > 0.55, "power must rise with charge");
+
+  // Power drives ball pace: a tap is much softer than a full strike.
+  const paceFor = (progress: number) => {
+    const { model, api } = stage();
+    api.manualControl.A.charge = { action: "shot", progress };
+    model.releaseManualCharge("A");
+    const flight = api.ballFlight;
+    assert.ok(flight, `release at ${progress} must play the ball`);
+    const distance = Math.hypot(flight.to.x - flight.from.x, flight.to.z - flight.from.z);
+    return distance / flight.duration;
+  };
+  const soft = paceFor(0);
+  const hard = paceFor(1);
+  assert.ok(hard > soft * 1.8, `a full charge must strike far harder: ${soft.toFixed(1)} vs ${hard.toFixed(1)} u/s`);
+
+  // Losing possession cancels rather than firing a stray shot.
+  const lost = stage();
+  lost.model.beginManualCharge("A", "shot");
+  lost.model.possession = null;
+  lost.model.step(1 / 60);
+  assert.equal(lost.model.getManualChargeState("A"), null, "charge must cancel when the ball is lost");
+  assert.equal(lost.model.releaseManualCharge("A"), false, "a cancelled charge must not fire");
+});
+
+test("an aimed pass never falls back to a backwards CPU choice", () => {
+  const setup = (placeForwardMate: boolean, placeLateralMate: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`aimed-pass-${placeForwardMate}-${placeLateralMate}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      attackSign: (team: "A" | "B") => number;
+      bestPassTarget: (carrier: unknown, options: unknown) => { name: string; pos: { x: number; z: number } } | null;
+    };
+    const sign = api.attackSign("A");
+    const mates = model.getPlayers().filter((p) => p.team === "A" && p.role !== "GK");
+    const carrier = mates[0];
+    carrier.pos = { x: 0, y: 0, z: 0 };
+    carrier.targetPos = { x: 0, z: 0 };
+    model.possession = carrier;
+    // Everyone behind by default, so the only way to face forward is to honour the aim.
+    mates.slice(1).forEach((p, i) => {
+      p.pos = { x: -sign * (7 + i), y: 0, z: (i % 4) * 2 - 3 };
+      p.targetPos = { x: p.pos.x, z: p.pos.z };
+    });
+    if (placeForwardMate) {
+      mates[1].pos = { x: sign * 12, y: 0, z: 1 };
+      mates[1].targetPos = { x: mates[1].pos.x, z: mates[1].pos.z };
+    } else if (placeLateralMate) {
+      mates[1].pos = { x: 0, y: 0, z: 10 };
+      mates[1].targetPos = { x: 0, z: 10 };
+    }
+    const target = api.bestPassTarget(carrier, { direction: { x: sign, z: 0 }, preferForward: false });
+    assert.ok(target, "an aimed pass must find a target");
+    return (target.pos.x - carrier.pos.x) * sign;
+  };
+
+  assert.ok(setup(true, false) > 0, "a team-mate in the aim cone must be chosen");
+  // The regression: with nobody straight ahead this used to fall through to the
+  // CPU chooser and play the ball backwards while the player held forward.
+  assert.ok(setup(false, true) >= 0, "with a lateral outlet available an aimed pass must not go backwards");
+});
+
+test("manual lob gets the ball off the deck and makes it headable", () => {
+  const launch = (lob: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed("lob-probe");
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      manualControl: Record<string, { selectedPlayerId: string | null }>;
+      ballFlight: { arc: number; aerial?: boolean; headerEligible?: boolean } | null;
+    };
+
+    model.setManualControlEnabled("A", true);
+    const carrier = model.getPlayers().find((p) => p.team === "A" && p.role === "CM")
+      || model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+    assert.ok(carrier, "need an outfield carrier");
+    model.possession = carrier;
+    api.manualControl.A.selectedPlayerId = carrier.id;
+    model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+
+    const fired = lob ? model.triggerManualLobPass("A") : model.triggerManualPass("A");
+    assert.ok(fired, `${lob ? "lob" : "pass"} must resolve`);
+
+    let peakY = 0;
+    for (let i = 0; i < 240 && api.ballFlight; i++) {
+      model.step(1 / 60);
+      peakY = Math.max(peakY, model.ball.pos.y);
+    }
+    return peakY;
+  };
+
+  const groundPeak = launch(false);
+  const lobPeak = launch(true);
+  assert.ok(lobPeak > groundPeak * 2, `lob must clearly out-climb a ground pass: ${lobPeak.toFixed(2)} vs ${groundPeak.toFixed(2)}`);
+  // Player sprites stand ~0.78 units tall (PLAYER_VOXEL_SIZE * 5.25 * 2 * 1.12).
+  // A lob has to clear a defender's head, not skim it.
+  const HEAD_HEIGHT_UNITS = 0.0665 * 5.25 * 2 * 1.12;
+  assert.ok(
+    lobPeak > HEAD_HEIGHT_UNITS * 1.2,
+    `lob must clear head height (${HEAD_HEIGHT_UNITS.toFixed(2)}u), peaked at ${lobPeak.toFixed(2)}u`,
+  );
+});
+
+test("corner takers stand behind the ball at every corner, not inside the pitch", () => {
+  // The interior clamp (clampToPlayable keeps players 1 unit inside the lines)
+  // used to run at the end of step() and undo the restart snap, parking the
+  // taker between the ball and the goal -- the wrong side to cross from.
+  const corners = [
+    { name: "right/+z", x: RIGHT_GOAL_X, z: FIELD_D / 2, line: "right_goal_line" as const, team: "A" as const },
+    { name: "right/-z", x: RIGHT_GOAL_X, z: -FIELD_D / 2, line: "right_goal_line" as const, team: "A" as const },
+    { name: "left/+z", x: LEFT_GOAL_X, z: FIELD_D / 2, line: "left_goal_line" as const, team: "B" as const },
+    { name: "left/-z", x: LEFT_GOAL_X, z: -FIELD_D / 2, line: "left_goal_line" as const, team: "B" as const },
+  ];
+
+  for (const corner of corners) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`corner-side-${corner.name}`);
+    model.startMatch();
+    model.msm.state = { kind: "ball_out", restartType: "corner", restartTeam: "home" } as never;
+    const api = model as unknown as {
+      installBallOutRestart: (ctx: unknown) => void;
+      restartContext: { takerId?: string } | null;
+    };
+    model.ball.pos = { x: corner.x, y: 0.18, z: corner.z };
+    api.installBallOutRestart({
+      restartType: "corner",
+      restartTeam: corner.team,
+      spot: { x: corner.x, z: corner.z },
+      takerId: null,
+      lastTouchTeam: corner.team === "A" ? "B" : "A",
+      lastTouchPlayerId: null,
+      crossedLine: corner.line,
+    });
+
+    const takerId = api.restartContext?.takerId;
+    assert.ok(takerId, `${corner.name}: a corner must have a taker`);
+    for (let i = 0; i < 180; i++) model.step(1 / 60);
+
+    const taker = model.getPlayers().find((p) => p.id === takerId);
+    assert.ok(taker, `${corner.name}: taker must still exist`);
+    const ball = model.ball.pos;
+    assert.ok(
+      Math.abs(taker.pos.x) > Math.abs(ball.x),
+      `${corner.name}: taker must stand beyond the goal line, taker x ${taker.pos.x.toFixed(2)} vs ball ${ball.x.toFixed(2)}`,
+    );
+    assert.ok(
+      Math.abs(taker.pos.z) > Math.abs(ball.z),
+      `${corner.name}: taker must stand beyond the touchline, taker z ${taker.pos.z.toFixed(2)} vs ball ${ball.z.toFixed(2)}`,
+    );
+  }
+});
+
+test("halftime can be continued by keyboard as the card promises", () => {
+  const retro = readFileSync("src/components/RetroFootball.tsx", "utf8");
+  assert.match(retro, /Press any key to continue/, "halftime card advertises a key press");
+  assert.match(
+    retro,
+    /showHalftimeOverlay[\s\S]{0,700}?window\.addEventListener\('keydown', onKey\)/,
+    "a keydown listener must actually exist while the halftime card is up",
+  );
+  assert.match(
+    retro,
+    /handleContinueHalftimeRef\.current\('manual'\)/,
+    "the key press must continue the match",
+  );
+});
+
+test("both gamepad pollers share one standard-mapping selector", () => {
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  const retro = readFileSync("src/components/RetroFootball.tsx", "utf8");
+  const shared = readFileSync("src/gamepadSelect.ts", "utf8");
+  for (const [name, src] of [["engine", engine], ["ui", retro]] as const) {
+    assert.doesNotMatch(
+      src,
+      /navigator\.getGamepads\?\.\(\)\?\.\[0\]/,
+      `${name} must not hardcode pad slot 0`,
+    );
+    assert.match(src, /pickStandardGamepad\(/, `${name} must use the shared pad selector`);
+  }
+  assert.match(shared, /pad\.mapping === 'standard'/, "selector must require the standard mapping");
+});
+
+test("gamepad selection ignores idle/virtual pads and latches the one in use", () => {
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  assert.doesNotMatch(
+    engine,
+    /navigator\.getGamepads\?\.\(\)\?\.\[0\]/,
+    "must not hardcode pad slot 0: virtual-pad drivers and idle wireless pads sit in low slots",
+  );
+  const selector = readFileSync("src/gamepadSelect.ts", "utf8");
+  assert.match(engine, /private pickGamepad\(\): Gamepad \| null/, "pad selection must be explicit");
+  assert.match(selector, /latch\.index = pad\.index;/, "the pad in use must be latched once found");
+  assert.match(
+    selector,
+    /pad\.buttons\.some\(\(button\) => button\?\.pressed\)[\s\S]{0,200}?Math\.abs\(axis \?\? 0\) > ACTIVE_AXIS_THRESHOLD/,
+    "a pad counts as in use only on a real button press or a stick beyond deadzone",
+  );
+  assert.match(
+    selector,
+    /pad\.mapping === 'standard'/,
+    "only standard-mapped pads are eligible: analog keyboards and virtual buses enumerate as gamepads and the button indices are standard-mapping specific",
+  );
+});
+
+test("lob is reachable from both players' inputs", () => {
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  assert.match(engine, /KeyC'[\s\S]{0,120}?triggerManualLobPass\('A'\)/, "player 1 needs a keyboard lob");
+  assert.match(engine, /Semicolon'[\s\S]{0,120}?triggerManualLobPass\('B'\)/, "player 2 needs a keyboard lob");
+  assert.match(engine, /justPressed\(3\)\) this\.model\.triggerManualLobPass\('A'\)/, "player 1 needs a gamepad lob");
+});
+
+test("sprint boosts only the selected manual player, for either team", () => {
+  const topSpeed = (team: "A" | "B", sprint: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed("sprint-probe");
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as { movePlayers: (dt: number, mult?: number) => void };
+
+    model.setManualControlEnabled(team, true);
+    const selected = model.getPlayers().find((p) => p.team === team && p.role !== "GK");
+    assert.ok(selected, "team must have a field player");
+    (model as unknown as { manualControl: Record<string, { selectedPlayerId: string | null }> })
+      .manualControl[team].selectedPlayerId = selected.id;
+    model.setManualSprint(team, sprint);
+
+    // Long straight run so the player reaches terminal speed.
+    selected.pos = { x: 0, y: 0, z: 0 };
+    selected.targetPos = { x: 40, z: 0 };
+    selected.vel = { x: 0, z: 0 };
+    for (let i = 0; i < 180; i++) api.movePlayers(1 / 60);
+    return Math.hypot(selected.vel.x, selected.vel.z);
+  };
+
+  for (const team of ["A", "B"] as const) {
+    const base = topSpeed(team, false);
+    const sprinting = topSpeed(team, true);
+    assert.ok(base > 0.5, `${team} base run speed must be non-trivial, got ${base.toFixed(2)}`);
+    assert.ok(
+      sprinting > base * 1.15,
+      `${team} sprint must clearly outpace a normal run: base ${base.toFixed(2)} vs sprint ${sprinting.toFixed(2)}`,
+    );
+  }
+});
+
+test("sprint is wired to inputs for both players", () => {
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  assert.match(engine, /setManualSprint\('A',[\s\S]{0,160}?ShiftLeft/, "player 1 must have a keyboard sprint");
+  assert.match(engine, /setManualSprint\('B',[\s\S]{0,160}?ShiftRight/, "player 2 must have a keyboard sprint");
+  assert.match(engine, /gamepadSprint/, "player 1 must have a gamepad sprint");
+});
+
+test("manual shots place across the goal mouth by aim direction", () => {
+  const aimedTargetZ = (aimZ: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`aimed-shot-${aimZ}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      shotTarget: (team: "A" | "B", onTarget: boolean, anglePenalty: number, aimLateral?: number | null, manual?: boolean) => { x: number; z: number };
+    };
+    // aim is now a resolved lateral scalar (-1 = one post, +1 = the other).
+    return api.shotTarget("A", true, 0, aimZ, true).z;
+  };
+
+  const left = aimedTargetZ(-1);
+  const right = aimedTargetZ(1);
+  assert.ok(left < 0, `aiming left must place left of centre, got ${left.toFixed(2)}`);
+  assert.ok(right > 0, `aiming right must place right of centre, got ${right.toFixed(2)}`);
+  assert.ok(right - left > 1, `aim must meaningfully move placement, spread ${(right - left).toFixed(2)}`);
+});
+
+test("a manual shot always shoots, even from range where the CPU would recycle", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("manual-long-shot");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    manualControl: Record<string, { selectedPlayerId: string | null }>;
+    ballFlight: { kind: string } | null;
+    attackSign: (team: "A" | "B") => number;
+  };
+
+  model.setManualControlEnabled("A", true);
+  const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+  assert.ok(carrier, "need an outfield carrier");
+
+  // Park the carrier well beyond the 36-yard CPU suppression range, measured
+  // against whichever goal team A is actually attacking.
+  const attackSign = api.attackSign("A");
+  const ownHalfX = -attackSign * (FIELD_W * 0.28);
+  carrier.pos = { x: ownHalfX, y: 0, z: 4 };
+  carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+  model.possession = carrier;
+  api.manualControl.A.selectedPlayerId = carrier.id;
+  model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+
+  const attackingGoalX = attackSign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const distYards = (dist2(carrier.pos, { x: attackingGoalX, z: 0 }) / FIELD_W) * 120;
+  assert.ok(distYards > 36, `carrier must be beyond the suppression range, got ${distYards.toFixed(1)}yd`);
+
+  assert.ok(model.triggerManualShot("A"), "triggerManualShot must report true when a shot is taken, not only when it scores");
+  assert.ok(api.ballFlight, "a manual long shot must launch a ball flight");
+  assert.ok(
+    api.ballFlight && api.ballFlight.kind !== "pass",
+    `pressing shoot must not fire a pass, got flight kind "${api.ballFlight?.kind}"`,
+  );
+});
+
+test("triggerManualShot reports a taken shot even when it does not score", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("manual-shot-return");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    manualControl: Record<string, { selectedPlayerId: string | null }>;
+    attackSign: (team: "A" | "B") => number;
+  };
+
+  model.setManualControlEnabled("A", true);
+  const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+  assert.ok(carrier, "need an outfield carrier");
+
+  // Just outside the six-yard area: shots here are overwhelmingly saved or
+  // missed rather than scored, which is exactly the case that used to report
+  // false and make the shoot button look dead.
+  const sign = api.attackSign("A");
+  const attackingGoalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  let taken = 0;
+  let scored = 0;
+  for (let i = 0; i < 40; i++) {
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    (model as unknown as { ballFlight: unknown }).ballFlight = null;
+    carrier.pos = { x: attackingGoalX - sign * 14, y: 0, z: 6 };
+    carrier.targetPos = { x: carrier.pos.x, z: carrier.pos.z };
+    model.possession = carrier;
+    api.manualControl.A.selectedPlayerId = carrier.id;
+    model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+
+    const before = model.getMatchSnapshot().scoreA;
+    if (model.triggerManualShot("A")) taken += 1;
+    if (model.getMatchSnapshot().scoreA > before) scored += 1;
+  }
+
+  assert.ok(taken > 0, "manual shots must report as taken");
+  assert.ok(
+    taken > scored,
+    `the reported count must include non-scoring shots: taken ${taken} vs scored ${scored}`,
+  );
+});
+
+test("manual shots pass the aim direction through to shot resolution", () => {
+  const model = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(model, /aimDirection\?: Vec2;/, "shot context must carry a manual aim direction");
+  assert.match(
+    model,
+    /reason: "MANUAL_SHOT",[\s\S]{0,400}?aimDirection: direction,/,
+    "manual shots must forward the player's aim into shot resolution",
+  );
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  const aimCommitted = engine.indexOf("this.model.setManualMove('B', nextB.x, nextB.z);");
+  // Shooting is charge-based now: press begins, release fires.
+  const shotDispatched = engine.indexOf("justPressed(1)) this.model.beginManualCharge('A', 'shot')");
+  assert.ok(aimCommitted >= 0, "manual aim must be committed to the model");
+  assert.ok(shotDispatched >= 0, "gamepad shot must be dispatched");
+  assert.ok(
+    aimCommitted < shotDispatched,
+    "gamepad buttons must dispatch after manual aim is committed, or shots read a stale stick",
+  );
+});
+
+test("V262 long ground passes lead the receiver instead of dying at their feet", () => {
+  const model = new SimpleMatchModel();
+  const api = model as unknown as {
+    passLandingPoint: (origin: { x: number; z: number }, receiver: { x: number; z: number }, distance: number, leadReceiver: boolean) => { x: number; z: number };
+  };
+  const origin = { x: -16, z: 2 };
+  const receiver = { x: 10, z: 2 };
+  const landingPoint = api.passLandingPoint(origin, receiver, dist2(origin, receiver), true);
+  assert.ok(landingPoint.x > receiver.x + 1, `long pass must lead receiver, landed at ${landingPoint.x.toFixed(2)}`);
+  assert.equal(landingPoint.z, receiver.z);
+  assert.deepEqual(api.passLandingPoint(origin, receiver, dist2(origin, receiver), false), receiver, "short or aerial passes must keep their explicit target");
 });
 
 test("V57 simple model does not launch a new ball action before the visible flight arrives", () => {
@@ -2442,13 +3169,16 @@ test("V189 loose ball keeps rolling and decelerates smoothly after an unclaimed 
 
   const startPos = { ...model.ball.pos };
   const startSpeed = Math.hypot(model.ball.vel.x, model.ball.vel.z);
-  assert.ok(startSpeed > 0.05, `loose ball must retain ground-roll velocity after missed landing, got ${startSpeed.toFixed(3)}`);
+  // Carry must come from the flight's real pace. Reading ball.vel on the
+  // clamped closing frame used to yield ~5% of it, so the ball died on the
+  // spot; anything in that range means the regression is back.
+  assert.ok(startSpeed > 4, `loose ball must retain real pass pace after missed landing, got ${startSpeed.toFixed(3)}`);
 
   for (let i = 0; i < 30; i++) model.step(1 / 60);
 
   const moved = Math.hypot(model.ball.pos.x - startPos.x, model.ball.pos.z - startPos.z);
   const endSpeed = Math.hypot(model.ball.vel.x, model.ball.vel.z);
-  assert.ok(moved > 0.02, `loose ball must keep moving after landing, got ${moved.toFixed(3)}`);
+  assert.ok(moved > 1.5, `loose ball must keep running after landing, got ${moved.toFixed(3)}`);
   assert.ok(endSpeed > 0, "loose ball must not snap to a dead stop immediately");
   assert.ok(endSpeed < startSpeed, `loose ball must decelerate under friction, start=${startSpeed.toFixed(3)} end=${endSpeed.toFixed(3)}`);
 });
@@ -2525,9 +3255,15 @@ test("V41 simple model keeps live player positions inside the field", () => {
   model.setSeriesSpeedMul(1);
   model.startMatch();
 
+  const restartApi = model as unknown as { restartContext: { takerId?: string } | null };
+
   for (let i = 0; i < 60 * 120; i++) {
     model.step(1 / 60);
+    // The active corner/throw-in taker is legitimately outside the lines --
+    // that is where the laws put them. Everyone else stays on the pitch.
+    const takerId = restartApi.restartContext?.takerId ?? null;
     for (const player of model.getPlayers()) {
+      if (takerId && player.id === takerId) continue;
       assert.ok(
         player.pos.x >= LEFT_GOAL_X && player.pos.x <= RIGHT_GOAL_X,
         `${player.name} x escaped field at ${player.pos.x.toFixed(2)}`,
@@ -2754,6 +3490,10 @@ test("V85 scored goals send the ball into the back of the net before kickoff set
     forceGoal: true,
     reason: "V85_FORCED_GOAL",
   });
+
+  // The GOAL announcement is held until the ball reaches the net, so step the
+  // shot flight out before inspecting it.
+  for (let i = 0; i < 300 && (model as unknown as { ballFlight: unknown }).ballFlight; i++) model.step(1 / 60);
 
   const bundle = model.getTuningBundle();
   const goalFlight = bundle.ballFlightTelemetry.filter((flight) => flight.kind === "shot").at(-1);
@@ -4836,9 +5576,18 @@ test("V151 unreachable goalkeeper cannot create a save or corner by stat check",
     reason: "V151_UNREACHABLE_KEEPER",
   });
 
+  // The GOAL announcement now waits for the ball to reach the net.
+  for (let i = 0; i < 300 && (model as unknown as { ballFlight: unknown }).ballFlight; i++) model.step(1 / 60);
+
   const latestSave = model.eventLog.filter((event) => event.action === "SAVE").at(-1);
   const latestGoal = model.eventLog.filter((event) => event.action === "GOAL").at(-1);
-  const telemetryGoal = model.getTuningBundle().events.filter((event) => event.type === "GOAL").at(-1);
+  // Both resolveShot and the goal-mouth crossing record a GOAL telemetry row
+  // (the latter reports GOAL_MOUTH_CROSSING). This assertion is about the shot
+  // resolution, so pick that row by its reason rather than by position.
+  const telemetryGoal = model.getTuningBundle().events
+    .filter((event) => event.type === "GOAL"
+      && (event.detail as { resolutionReason?: string })?.resolutionReason === "V151_UNREACHABLE_KEEPER")
+    .at(-1);
   const latestShot = model.getTuningBundle().shotDecisions.at(-1);
   assert.equal(latestSave, undefined);
   assert.equal(latestGoal?.action, "GOAL");

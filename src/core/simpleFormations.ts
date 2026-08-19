@@ -121,10 +121,19 @@ export function ownGoalCenterForAttack(attackSign: 1 | -1): Vec2 {
   return { x: attackSign > 0 ? LEFT_GOAL_X : RIGHT_GOAL_X, z: 0 };
 }
 
-export function clampToPlayable(pos: Vec2): Vec2 {
+/**
+ * Keep a player inside the field of play.
+ *
+ * `outsideAllowance` lets specific players stand beyond the lines. Restart
+ * takers need it: a corner is taken from behind the corner flag and a throw-in
+ * from behind the touchline, so clamping them to the interior parks them on
+ * the pitch side of the ball -- the wrong side to kick from.
+ */
+export function clampToPlayable(pos: Vec2, outsideAllowance = 0): Vec2 {
+  const slack = Math.max(0, outsideAllowance);
   return {
-    x: Math.max(LEFT_GOAL_X + 1, Math.min(RIGHT_GOAL_X - 1, pos.x)),
-    z: Math.max(-FIELD_D / 2 + 1, Math.min(FIELD_D / 2 - 1, pos.z)),
+    x: Math.max(LEFT_GOAL_X + 1 - slack, Math.min(RIGHT_GOAL_X - 1 + slack, pos.x)),
+    z: Math.max(-FIELD_D / 2 + 1 - slack, Math.min(FIELD_D / 2 - 1 + slack, pos.z)),
   };
 }
 

@@ -223,7 +223,10 @@ export function getWorldCupTeamFlagAsset(teamName) {
   const canonical = resolveWorldCupTeamName(teamName) || teamName;
   const code = WORLD_CUP_2026_TEAM_FLAG_CODES[canonical];
   if (!code) return '';
-  return `https://flagcdn.com/w80/${code.toLocaleLowerCase()}.png`;
+  // Bundled locally under public/assets/flags rather than fetched from
+  // flagcdn.com: the desktop build ships a strict img-src 'self' CSP, and an
+  // installed game should not need the network to draw a scoreboard flag.
+  return `/assets/flags/${code.toLocaleLowerCase()}.png`;
 }
 
 export function resolveWorldCupTeamName(input) {

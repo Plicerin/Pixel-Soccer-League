@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -414,7 +415,7 @@ type KeeperAnimationEvent = {
   keeperName: string;
   direction: KeeperDiveDirection;
   duration: number;
-  sourceEventIndex: number;
+  sourceEventSeq: number;
   phase: string;
   clock: string;
 };
@@ -427,7 +428,7 @@ type HeaderAnimationEvent = {
   kind: 'shot' | 'clearance' | 'touch';
   direction: 1 | -1;
   duration: number;
-  sourceEventIndex: number;
+  sourceEventSeq: number;
   phase: string;
   clock: string;
 };
@@ -440,7 +441,7 @@ type CornerPresentationEvent = {
   takerName: string | null;
   usedFallback: boolean;
   spot: { x: number; z: number };
-  sourceEventIndex: number;
+  sourceEventSeq: number;
   phaseName: string;
   clock: string;
 };
@@ -539,6 +540,24 @@ class SimpleGameEngine {
   private readonly camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 600);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
   private readonly playerMeshes = new Map<string, PlayerVisual>();
+  /** Aim arrow + power ring shown while a pass/shot is being charged. */
+  private readonly chargeGroup = new THREE.Group();
+  private readonly chargeArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 0, 0),
+    1,
+    0x63f7ff,
+    0.6,
+    0.28,
+  );
+  private readonly chargeRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.78, 32),
+    new THREE.MeshBasicMaterial({ color: 0x63f7ff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthTest: false }),
+  );
+  private readonly selectedPlayerRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.72, 0.9, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
+  );
   private readonly refereePlayer = {
     id: 'referee',
     team: 'A',
@@ -666,6 +685,69 @@ class SimpleGameEngine {
   private stadiumBuildHandle: number | null = null;
   private readonly engineBootedAt = Date.now();
   private engineRuntimeToken: string | null = null;
+  private humanControlEnabled = false;
+  private twoPlayerMode = false;
+  private readonly pressedKeys = new Set<string>();
+  private readonly gameplayGpPrev: boolean[] = new Array(17).fill(false);
+  private readonly gamepadLatch = createGamepadLatch();
+
+  private handleGameplayKeyDown = (event: KeyboardEvent) => {
+    this.pressedKeys.add(event.code);
+    if (event.repeat || !this.isModelActive()) return;
+    if (this.humanControlEnabled) {
+      if (event.code === 'Space' || event.code === 'KeyG') {
+        event.preventDefault();
+        this.model.beginManualCharge('A', 'pass');
+      } else if (event.code === 'KeyF') {
+        event.preventDefault();
+        this.model.beginManualCharge('A', 'shot');
+      } else if (event.code === 'KeyR') {
+        event.preventDefault();
+        this.model.triggerManualTackle('A');
+      } else if (event.code === 'KeyC') {
+        event.preventDefault();
+        this.model.triggerManualLobPass('A');
+      } else if (event.code === 'KeyQ') {
+        event.preventDefault();
+        this.model.cycleManualPlayer('A', -1);
+      } else if (event.code === 'KeyE') {
+        event.preventDefault();
+        this.model.cycleManualPlayer('A', 1);
+      }
+    }
+    if (this.twoPlayerMode) {
+      if (event.code === 'Comma') {
+        event.preventDefault();
+        this.model.beginManualCharge('B', 'pass');
+      } else if (event.code === 'Period') {
+        event.preventDefault();
+        this.model.beginManualCharge('B', 'shot');
+      } else if (event.code === 'Slash') {
+        event.preventDefault();
+        this.model.triggerManualTackle('B');
+      } else if (event.code === 'Semicolon') {
+        event.preventDefault();
+        this.model.triggerManualLobPass('B');
+      } else if (event.code === 'BracketLeft') {
+        event.preventDefault();
+        this.model.cycleManualPlayer('B', -1);
+      } else if (event.code === 'BracketRight') {
+        event.preventDefault();
+        this.model.cycleManualPlayer('B', 1);
+      }
+    }
+  };
+
+  private handleGameplayKeyUp = (event: KeyboardEvent) => {
+    this.pressedKeys.delete(event.code);
+    // Release fires the charged action; power is however long it was held.
+    if (this.humanControlEnabled && (event.code === 'Space' || event.code === 'KeyG' || event.code === 'KeyF')) {
+      this.model.releaseManualCharge('A');
+    }
+    if (this.twoPlayerMode && (event.code === 'Comma' || event.code === 'Period')) {
+      this.model.releaseManualCharge('B');
+    }
+  };
 
   constructor(private readonly container: HTMLElement) {
     markPslPerf('psl:engine:init:start');
@@ -701,6 +783,21 @@ class SimpleGameEngine {
 
     this.addLights();
     this.addField();
+    this.selectedPlayerRing.rotation.x = -Math.PI / 2;
+    this.selectedPlayerRing.visible = false;
+    this.selectedPlayerRing.name = 'manualSelectedPlayerRing';
+    this.scene.add(this.selectedPlayerRing);
+    this.chargeRing.rotation.x = -Math.PI / 2;
+    this.chargeRing.renderOrder = 42;
+    this.chargeArrow.line.renderOrder = 43;
+    this.chargeArrow.cone.renderOrder = 43;
+    (this.chargeArrow.line.material as THREE.Material).depthTest = false;
+    (this.chargeArrow.cone.material as THREE.Material).depthTest = false;
+    this.chargeGroup.name = 'manualChargeIndicator';
+    this.chargeGroup.add(this.chargeRing);
+    this.chargeGroup.add(this.chargeArrow);
+    this.chargeGroup.visible = false;
+    this.scene.add(this.chargeGroup);
     markPslPerf('psl:field:ready');
     this.scheduleStadiumBuild();
     this.refereeVisual = this.createPlayerVisual(this.refereePlayer, TEAM_PALETTES.referee);
@@ -720,6 +817,8 @@ class SimpleGameEngine {
     markPslPerf('psl:players:ready');
     this.resize();
     window.addEventListener('resize', this.resize);
+    window.addEventListener('keydown', this.handleGameplayKeyDown);
+    window.addEventListener('keyup', this.handleGameplayKeyUp);
     this.startBackgroundModelLoop();
     this.animate();
     this.preloadAudioBytes(['splashMusic', 'welcome', 'whistle']);
@@ -744,7 +843,7 @@ class SimpleGameEngine {
   }
 
   resetMatch = () => {
-    this.paused = false;
+    this.setPaused(false);
     this.deactivatePracticePlay();
     this.model.resetMatch();
     this.refereeInitialized = false;
@@ -756,10 +855,12 @@ class SimpleGameEngine {
   };
 
   startKickoffPresentation = (_fromUi = true) => {
-    this.paused = false;
+    this.setPaused(false);
     this.menuVisible = false;
     this.splashSceneMode = false;
     this.miniMapBallTrail.length = 0;
+    // Kickoff kills the theme for good. Crowd ambience carries the match --
+    // music over live play drowns the whistle, kicks and crowd swells.
     this.splashMusicStop();
     this.preloadGameplayAudio();
     this.startCrowdLoop();
@@ -781,22 +882,46 @@ class SimpleGameEngine {
   };
 
   setHalfDurationSeconds = (seconds: number) => this.model.setHalfDurationSeconds(seconds);
-  setCpuVsCpu = (enabled: boolean) => { this.model.cpuVsCpu = !!enabled; };
+  setCpuVsCpu = (enabled: boolean) => {
+    this.model.cpuVsCpu = !!enabled;
+    if (enabled) {
+      this.setHotSeatMode(false);
+      this.setTwoPlayerMode(false);
+    }
+  };
   setInteractiveHalftime = (enabled: boolean) => this.model.setInteractiveHalftime(enabled);
   continueFromHalftime = (mode: 'manual' | 'auto_cpu' = 'manual') => {
     const continued = this.model.continueFromHalftime(mode);
     if (continued) {
-      this.paused = false;
-      this.updateScoreBug();
+      this.setPaused(false);
     }
     return continued;
   };
   setSeriesSpeedMul = (value: number) => this.model.setSeriesSpeedMul(value);
   setRestartDelays = (goalDelay: number, halfDelay: number) => this.model.setRestartDelays(goalDelay, halfDelay);
   setPaused = (paused: boolean) => {
-    this.paused = !!paused;
+    const next = !!paused;
+    const changed = this.paused !== next;
+    this.paused = next;
+    if (changed) this.applyPausedAudio();
     this.updateScoreBug();
   };
+
+  /**
+   * Pause must silence everything, not just stop new sounds.
+   * gameplayAudioEnabled() already blocks fresh one-shots while paused, but
+   * looping sources (crowd, ambience) keep running because they were started
+   * earlier -- so suspend the whole AudioContext and resume it on unpause.
+   */
+  private applyPausedAudio() {
+    const ctx = this.audioCtx;
+    if (!ctx || ctx.state === 'closed') return;
+    if (this.paused) {
+      void ctx.suspend().catch(() => {});
+      return;
+    }
+    if (!this.disposed && !this.splashSceneMode) void ctx.resume().catch(() => {});
+  }
   togglePaused = () => {
     this.setPaused(!this.paused);
     return this.paused;
@@ -891,6 +1016,8 @@ class SimpleGameEngine {
       this.stadiumBuildHandle = null;
     }
     window.removeEventListener('resize', this.resize);
+    window.removeEventListener('keydown', this.handleGameplayKeyDown);
+    window.removeEventListener('keyup', this.handleGameplayKeyUp);
     this.resetVisualCues();
     this.stopAllAudio();
     this.renderer.dispose();
@@ -921,7 +1048,7 @@ class SimpleGameEngine {
     const ctx = this.ensureAudioContext();
     if (!ctx) return false;
     this.preloadAudio();
-    void ctx.resume().catch(() => {});
+    if (!this.paused) void ctx.resume().catch(() => {});
     return true;
   };
   setSplashSceneMode = (active: boolean) => {
@@ -936,7 +1063,16 @@ class SimpleGameEngine {
     this.scoreBugVisible = !!visible;
     this.updateScoreBug();
   };
-  setHotSeatMode = (_enabled: boolean) => {};
+  setHotSeatMode = (enabled: boolean) => {
+    this.humanControlEnabled = !!enabled;
+    this.model.setManualControlEnabled('A', this.humanControlEnabled);
+    if (!this.humanControlEnabled) this.model.setManualMove('A', 0, 0);
+  };
+  setTwoPlayerMode = (enabled: boolean) => {
+    this.twoPlayerMode = !!enabled;
+    this.model.setManualControlEnabled('B', this.twoPlayerMode);
+    if (!this.twoPlayerMode) this.model.setManualMove('B', 0, 0);
+  };
   setTestingMode = (_enabled: boolean) => {};
   setRealDataReplayMode = (_enabled: boolean) => {};
   setUseNewArchitecture = (_enabled: boolean) => {};
@@ -1140,7 +1276,9 @@ class SimpleGameEngine {
   private audioDestination() {
     const ctx = this.ensureAudioContext();
     if (!ctx || !this.audioMasterGain) return null;
-    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
+    // Never auto-resume while paused: that would undo the deliberate suspend
+    // in applyPausedAudio() the moment anything asked for an audio node.
+    if (ctx.state === 'suspended' && !this.paused) void ctx.resume().catch(() => {});
     return { ctx, destination: this.audioMasterGain };
   }
 
@@ -2120,6 +2258,16 @@ class SimpleGameEngine {
       visual.mesh.scale.setScalar(scale);
       this.updatePlayerSprite(visual, player, dt, keeperReaction, restartPose, headerReaction);
     }
+    const selected = this.humanControlEnabled
+      ? this.model.getSelectedPlayerStats()
+      : this.twoPlayerMode
+        ? this.model.getSelectedDefensePlayerStats()
+        : null;
+    this.selectedPlayerRing.visible = !!selected && selected.role !== 'GK';
+    if (selected && this.selectedPlayerRing.visible) {
+      this.selectedPlayerRing.position.set(selected.pos.x, 0.025, selected.pos.z);
+    }
+    this.updateChargeIndicator();
     this.updateRefereeVisual(dt);
     const ballY = Math.max(BALL_GROUND_Y, this.model.ball.pos.y);
     const restartBall = this.restartPresentationBallPosition();
@@ -2133,6 +2281,40 @@ class SimpleGameEngine {
     this.ballShadowMaterial.opacity = THREE.MathUtils.clamp(0.36 - height * 0.05, 0.1, 0.38);
     this.updatePendingGoalNetImpact(dt);
     this.updateBallTrail();
+  }
+
+  /**
+   * Aim arrow + power ring for the charging player. Arrow length and both
+   * colours track the charge, so the player can see strength and direction
+   * before releasing.
+   */
+  private updateChargeIndicator() {
+    const team = this.humanControlEnabled ? 'A' : this.twoPlayerMode ? 'B' : null;
+    const charge = team ? this.model.getManualChargeState(team) : null;
+    if (!charge || !charge.hasBall) {
+      this.chargeGroup.visible = false;
+      return;
+    }
+    this.chargeGroup.visible = true;
+
+    // Green (soft) -> yellow -> red (full power), as the original did.
+    const colour = new THREE.Color().setHSL((1 - charge.progress) * 0.33, 1, 0.55);
+    (this.chargeRing.material as THREE.MeshBasicMaterial).color.copy(colour);
+    this.chargeArrow.setColor(colour);
+
+    this.chargeRing.position.set(charge.origin.x, 0.03, charge.origin.z);
+    this.chargeRing.scale.setScalar(0.6 + charge.progress * 1.5);
+
+    const aim = new THREE.Vector3(charge.aim.x, 0, charge.aim.z);
+    if (aim.lengthSq() < 0.0001) {
+      // No stick input: point the arrow at the goal being attacked.
+      aim.set(charge.attackSign, 0, 0);
+    }
+    aim.normalize();
+    const length = 2.2 + charge.progress * 6.5;
+    this.chargeArrow.position.set(charge.origin.x, 0.12, charge.origin.z);
+    this.chargeArrow.setDirection(aim);
+    this.chargeArrow.setLength(length, Math.min(1.2, 0.45 + length * 0.12), Math.min(0.34, 0.16 + length * 0.05));
   }
 
   private updateRefereeVisual(dt: number) {
@@ -2536,10 +2718,17 @@ class SimpleGameEngine {
   }
 
   private processLiveEventCues(dt: number) {
+    // Track the monotonic event seq, not an array index. The model caps the log
+    // at 120 entries with shift(), which renumbers indices underneath us: the
+    // old index cursor simply stopped firing once the cap was reached, so every
+    // sound after the first ~120 events was silently dropped -- including the
+    // goal announcement and its crowd swell.
     const events = this.model.eventLog;
-    while (this.processedLiveEvents < events.length) {
-      const event = events[this.processedLiveEvents++];
+    for (const event of events) {
       if (!event) continue;
+      const seq = typeof event.seq === 'number' ? event.seq : 0;
+      if (seq <= this.processedLiveEvents) continue;
+      this.processedLiveEvents = seq;
       this.playSoundForLiveEvent(event);
       if (event.action === 'PASS') this.spawnEventCue(0x63f7ff, 0.45, 0.7);
       if (event.action === 'SHOT') this.spawnEventCue(0xfff06a, 0.7, 0.85);
@@ -2557,7 +2746,7 @@ class SimpleGameEngine {
             kind,
             direction,
           });
-          this.recordHeaderAnimationEvent(event, player, kind, direction, duration, this.processedLiveEvents - 1);
+          this.recordHeaderAnimationEvent(event, player, kind, direction, duration, seq);
         }
       }
       if (event.action === 'GOAL') {
@@ -2581,7 +2770,7 @@ class SimpleGameEngine {
       if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'PENALTY' || event.action === 'DROP_KICK') {
         const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' || event.action === 'PENALTY' ? 0xffffff : 0xd8f7ff;
         this.spawnEventCue(color, event.action === 'CORNER' ? 0.8 : 0.62, 0.78);
-        this.updateRestartPresentationFromEvent(event, this.processedLiveEvents - 1);
+        this.updateRestartPresentationFromEvent(event, seq);
       }
       if (event.action === 'SAVE' || event.action === 'SMOTHER') {
         this.spawnEventCue(0xffffff, 0.9, 0.95);
@@ -2592,7 +2781,7 @@ class SimpleGameEngine {
           const zLean = direction === 'left' ? -1 : direction === 'right' ? 1 : Math.sign(this.model.ball.pos.z - keeper.pos.z) || 1;
           const duration = event.action === 'SAVE' ? 0.9 : 0.65;
           this.keeperReactions.set(team, { ttl: duration, duration, zLean, direction });
-          this.recordKeeperAnimationEvent(event, keeper, direction, duration, this.processedLiveEvents - 1);
+          this.recordKeeperAnimationEvent(event, keeper, direction, duration, seq);
         }
       }
     }
@@ -2629,7 +2818,7 @@ class SimpleGameEngine {
     }
   }
 
-  private updateRestartPresentationFromEvent(event: { team: string; action: string; meta?: Record<string, unknown> }, sourceEventIndex: number) {
+  private updateRestartPresentationFromEvent(event: { team: string; action: string; meta?: Record<string, unknown> }, sourceEventSeq: number) {
     const type = this.restartTypeFromEvent(event);
     const phase = event.meta?.phase === 'release' ? 'release' : 'setup';
     const spot = this.pointFromMeta(event.meta?.spot);
@@ -2662,7 +2851,7 @@ class SimpleGameEngine {
       ttl: duration,
       duration,
     };
-    if (type === 'corner') this.recordCornerPresentationEvent(event, phase, spot, requestedTakerId, takerId, sourceEventIndex);
+    if (type === 'corner') this.recordCornerPresentationEvent(event, phase, spot, requestedTakerId, takerId, sourceEventSeq);
   }
 
   private resolveRestartPresentationTakerId(
@@ -2694,7 +2883,7 @@ class SimpleGameEngine {
     spot: { x: number; z: number },
     requestedTakerId: string | null,
     takerId: string | null,
-    sourceEventIndex: number,
+    sourceEventSeq: number,
   ) {
     const snapshot = this.model.getMatchSnapshot();
     const taker = takerId ? this.model.players.find((player) => player.id === takerId) || null : null;
@@ -2707,7 +2896,7 @@ class SimpleGameEngine {
       takerName: taker?.name || null,
       usedFallback: !!requestedTakerId && requestedTakerId !== takerId,
       spot: { x: +spot.x.toFixed(2), z: +spot.z.toFixed(2) },
-      sourceEventIndex,
+      sourceEventSeq,
       phaseName: snapshot.phase,
       clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
     });
@@ -2758,7 +2947,7 @@ class SimpleGameEngine {
     keeper: SimplePlayer,
     direction: KeeperDiveDirection,
     duration: number,
-    sourceEventIndex: number,
+    sourceEventSeq: number,
   ) {
     const snapshot = this.model.getMatchSnapshot();
     this.keeperAnimationEvents.push({
@@ -2768,7 +2957,7 @@ class SimpleGameEngine {
       keeperName: keeper.name,
       direction,
       duration,
-      sourceEventIndex,
+      sourceEventSeq,
       phase: snapshot.phase,
       clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
     });
@@ -2781,7 +2970,7 @@ class SimpleGameEngine {
     kind: 'shot' | 'clearance' | 'touch',
     direction: 1 | -1,
     duration: number,
-    sourceEventIndex: number,
+    sourceEventSeq: number,
   ) {
     const snapshot = this.model.getMatchSnapshot();
     this.headerAnimationEvents.push({
@@ -2792,7 +2981,7 @@ class SimpleGameEngine {
       kind,
       direction,
       duration,
-      sourceEventIndex,
+      sourceEventSeq,
       phase: snapshot.phase,
       clock: `${snapshot.elapsedInHalf.toFixed(2)}s`,
     });
@@ -3291,6 +3480,91 @@ class SimpleGameEngine {
     this.renderer.setSize(width, height, false);
   };
 
+  /** Delegates to the shared selector so the UI poller agrees on the device. */
+  private pickGamepad(): Gamepad | null {
+    return pickStandardGamepad(this.gamepadLatch, () => this.gameplayGpPrev.fill(false));
+  }
+
+  private pollManualControls(modelActive: boolean) {
+    if (!this.humanControlEnabled && !this.twoPlayerMode) return;
+    if (!modelActive) {
+      this.model.setManualMove('A', 0, 0);
+      this.model.setManualMove('B', 0, 0);
+      return;
+    }
+
+    const right = new THREE.Vector3();
+    right.setFromMatrixColumn(this.camera.matrixWorld, 0);
+    right.y = 0;
+    right.normalize();
+
+    const forward = new THREE.Vector3();
+    forward.crossVectors(right, new THREE.Vector3(0, 1, 0)).negate().normalize();
+    if (right.lengthSq() < 0.01 || forward.lengthSq() < 0.01) {
+      right.set(1, 0, 0);
+      forward.set(0, 0, -1);
+    }
+
+    const moveA = new THREE.Vector3();
+    if (this.pressedKeys.has('KeyW')) moveA.add(forward);
+    if (this.pressedKeys.has('KeyS')) moveA.addScaledVector(forward, -1);
+    if (this.pressedKeys.has('KeyA')) moveA.addScaledVector(right, -1);
+    if (this.pressedKeys.has('KeyD')) moveA.add(right);
+
+    const gamepad = this.pickGamepad();
+    const gamepadActive = this.humanControlEnabled && !!gamepad;
+    if (gamepadActive && gamepad) {
+      const axisX = Math.abs(gamepad.axes[0] ?? 0) > 0.2 ? (gamepad.axes[0] ?? 0) : 0;
+      const axisY = Math.abs(gamepad.axes[1] ?? 0) > 0.2 ? (gamepad.axes[1] ?? 0) : 0;
+      moveA.addScaledVector(right, axisX);
+      moveA.addScaledVector(forward, -axisY);
+    }
+
+    const moveB = new THREE.Vector3();
+    if (this.pressedKeys.has('ArrowUp')) moveB.add(forward);
+    if (this.pressedKeys.has('ArrowDown')) moveB.addScaledVector(forward, -1);
+    if (this.pressedKeys.has('ArrowLeft')) moveB.addScaledVector(right, -1);
+    if (this.pressedKeys.has('ArrowRight')) moveB.add(right);
+
+    const normalizeMove = (vector: THREE.Vector3) => {
+      vector.y = 0;
+      if (vector.lengthSq() <= 0.0001) return { x: 0, z: 0 };
+      vector.normalize();
+      return { x: vector.x, z: vector.z };
+    };
+
+    const nextA = this.humanControlEnabled ? normalizeMove(moveA) : { x: 0, z: 0 };
+    const nextB = this.twoPlayerMode ? normalizeMove(moveB) : { x: 0, z: 0 };
+    this.model.setManualMove('A', nextA.x, nextA.z);
+    this.model.setManualMove('B', nextB.x, nextB.z);
+
+    // Hold to sprint: Left Shift / gamepad RT for player 1, Right Shift for player 2.
+    const gamepadSprint = !!gamepad && (!!gamepad.buttons[7]?.pressed || !!gamepad.buttons[6]?.pressed);
+    this.model.setManualSprint('A', this.humanControlEnabled && (this.pressedKeys.has('ShiftLeft') || gamepadSprint));
+    this.model.setManualSprint('B', this.twoPlayerMode && this.pressedKeys.has('ShiftRight'));
+
+    // Buttons are dispatched only after the aim above is committed to the
+    // model. Dispatching first made pass/shot read the previous frame's stick,
+    // so flicking the stick and shooting in the same instant aimed at stale
+    // input -- the reason gamepad shots ignored direction.
+    if (gamepadActive && gamepad) {
+      const justPressed = (index: number) => !!gamepad.buttons[index]?.pressed && !this.gameplayGpPrev[index];
+      const justReleased = (index: number) => !gamepad.buttons[index]?.pressed && this.gameplayGpPrev[index];
+      if (justPressed(0)) this.model.beginManualCharge('A', 'pass');
+      if (justPressed(1)) this.model.beginManualCharge('A', 'shot');
+      if (justReleased(0) || justReleased(1)) this.model.releaseManualCharge('A');
+      if (justPressed(2)) this.model.triggerManualTackle('A');
+      if (justPressed(3)) this.model.triggerManualLobPass('A');
+      if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
+      if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
+      for (let i = 0; i < this.gameplayGpPrev.length; i++) {
+        this.gameplayGpPrev[i] = !!gamepad.buttons[i]?.pressed;
+      }
+    } else {
+      this.gameplayGpPrev.fill(false);
+    }
+  }
+
   private isModelActive() {
     return !this.paused && !this.menuVisible && !this.splashSceneMode;
   }
@@ -3324,6 +3598,7 @@ class SimpleGameEngine {
     requestAnimationFrame(this.animate);
     const dt = Math.min(0.05, this.clock.getDelta());
     const modelActive = this.isModelActive();
+    this.pollManualControls(modelActive);
     if (modelActive && !document.hidden) {
       this.lastBackgroundModelTickMs = performance.now();
       this.advanceModel(dt, true);

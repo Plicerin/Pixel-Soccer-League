@@ -43,8 +43,16 @@ export const PLAYER_RADIUS = 0.35;
 export const BALL_RADIUS = 0.2;
 export const BALL_GROUND_Y = 0.15;
 
+// Sim-wide baseline. Do NOT raise this to make the game feel faster: the MLS
+// KPI envelope (shots 20-35, passes 900-954) is calibrated against it and a
+// +20% bump pushes shots and passes straight out of bounds. Arcade
+// responsiveness belongs on the human-controlled player instead.
 export const BASE_RUN_SPEED = 5.0;
 export const PLAYER_ACCELERATION = 3.0;
+export const MANUAL_CONTROL_ACCELERATION_MULTIPLIER = 2.2;
+// Arcade top-speed bump for the player you are actually controlling. Kept off
+// the CPU so the calibrated simulation output is untouched.
+export const MANUAL_CONTROL_SPEED_MULTIPLIER = 1.18;
 export const SPRINT_MULTIPLIER = 1.35;
 export const JOG_MULTIPLIER = 0.55;
 export const WALK_MULTIPLIER = 0.3;

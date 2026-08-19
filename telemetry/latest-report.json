@@ -1,29 +1,29 @@
 {
-  "generatedAt": "2026-06-07T02:51:05.497Z",
+  "generatedAt": "2026-07-10T21:57:14.618Z",
   "model": {
     "name": "simple-v1",
     "disabledRules": [],
     "disabledMetrics": []
   },
   "match": {
-    "sessionId": "simple-1780771356280-2ultig",
-    "matchId": "simple-ecuador-portugal",
-    "timestamp": 1780772076184,
-    "teamA": "Ecuador",
-    "teamB": "Portugal",
-    "score": "3-0",
-    "shotsA": 5,
-    "shotsB": 12,
-    "shotsOnTargetA": 3,
-    "shotsOnTargetB": 4,
-    "passesA": 179,
-    "passesB": 201,
+    "sessionId": "simple-1783720261962-k0fug9",
+    "matchId": "simple-brazil-argentina",
+    "timestamp": 1783720621015,
+    "teamA": "Brazil",
+    "teamB": "Argentina",
+    "score": "0-0",
+    "shotsA": 4,
+    "shotsB": 5,
+    "shotsOnTargetA": 1,
+    "shotsOnTargetB": 1,
+    "passesA": 21,
+    "passesB": 23,
     "runtimeProvenance": {
-      "engineRuntimeToken": "1780771356128-azxiozu8b29",
-      "engineBootedAt": 1780771356303,
-      "runtimeHalfDuration": 300,
+      "engineRuntimeToken": "1783720260845-rcrb8qb5geh",
+      "engineBootedAt": 1783720260999,
+      "runtimeHalfDuration": 150,
       "simulatedHalfDuration": 2700,
-      "matchClockScale": 9,
+      "matchClockScale": 18,
       "seriesSpeedMul": 1,
       "restartDelayGoal": 2,
       "restartDelayHalf": 3,
@@ -36,136 +36,194 @@
   },
   "counts": {
     "events": 5000,
-    "passLog": 410,
+    "passLog": 60,
     "midfieldSupport": 0,
-    "carrierTraces": 589,
-    "attackerZoneTraces": 1035,
-    "positionOwnerSamples": 3205,
+    "carrierTraces": 1022,
+    "attackerZoneTraces": 944,
+    "positionOwnerSamples": 2970,
     "kickoffPasses": 0,
     "kickoffReceives": 0,
     "goalScorerEvents": 0,
-    "shotSnapshots": 6,
+    "shotSnapshots": 3,
     "shotOnTargetSnapshots": 0,
-    "shotDecisions": 17,
-    "passDecisions": 378,
-    "turnovers": 26,
-    "interceptions": 19,
-    "fouls": 4,
-    "tackles": 4,
-    "offsides": 1
+    "shotDecisions": 9,
+    "passDecisions": 44,
+    "turnovers": 7,
+    "interceptions": 0,
+    "fouls": 3,
+    "tackles": 11,
+    "offsides": 0
   },
   "passProfile": {
     "A": {
-      "team": "Ecuador",
-      "total": 195,
-      "avgProgress": 0.95,
-      "backwardPct": 23.6,
-      "forwardPct": 34.4,
-      "lateralPct": 42.1,
+      "team": "Brazil",
+      "total": 28,
+      "avgProgress": 0.61,
+      "backwardPct": 35.7,
+      "forwardPct": 28.6,
+      "lateralPct": 35.7,
       "topRoles": {
-        "W": {
-          "total": 83,
-          "backward": 25,
-          "forward": 15,
-          "lateral": 43
-        },
-        "CM": {
-          "total": 51,
-          "backward": 15,
-          "forward": 26,
-          "lateral": 10
+        "DM": {
+          "total": 6,
+          "backward": 1,
+          "forward": 4,
+          "lateral": 1
         },
         "CB": {
-          "total": 47,
-          "backward": 4,
-          "forward": 25,
-          "lateral": 18
-        },
-        "GK": {
-          "total": 9,
-          "backward": 0,
-          "forward": 1,
-          "lateral": 8
-        },
-        "ST": {
           "total": 5,
           "backward": 2,
-          "forward": 0,
-          "lateral": 3
-        }
-      }
-    },
-    "B": {
-      "team": "Portugal",
-      "total": 215,
-      "avgProgress": 0.43,
-      "backwardPct": 27,
-      "forwardPct": 33,
-      "lateralPct": 40,
-      "topRoles": {
-        "W": {
-          "total": 91,
-          "backward": 21,
-          "forward": 22,
-          "lateral": 48
+          "forward": 1,
+          "lateral": 2
         },
         "CM": {
-          "total": 67,
-          "backward": 23,
-          "forward": 30,
-          "lateral": 14
-        },
-        "CB": {
-          "total": 38,
+          "total": 5,
           "backward": 4,
-          "forward": 18,
-          "lateral": 16
-        },
-        "ST": {
-          "total": 17,
-          "backward": 10,
           "forward": 1,
-          "lateral": 6
+          "lateral": 0
+        },
+        "FB": {
+          "total": 4,
+          "backward": 2,
+          "forward": 2,
+          "lateral": 0
         },
         "GK": {
+          "total": 4,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 4
+        },
+        "ST": {
+          "total": 2,
+          "backward": 1,
+          "forward": 0,
+          "lateral": 1
+        },
+        "W": {
           "total": 2,
           "backward": 0,
           "forward": 0,
           "lateral": 2
         }
       }
+    },
+    "B": {
+      "team": "Argentina",
+      "total": 32,
+      "avgProgress": -0.04,
+      "backwardPct": 28.1,
+      "forwardPct": 25,
+      "lateralPct": 46.9,
+      "topRoles": {
+        "CM": {
+          "total": 10,
+          "backward": 1,
+          "forward": 4,
+          "lateral": 5
+        },
+        "W": {
+          "total": 7,
+          "backward": 3,
+          "forward": 2,
+          "lateral": 2
+        },
+        "ST": {
+          "total": 6,
+          "backward": 3,
+          "forward": 0,
+          "lateral": 3
+        },
+        "CB": {
+          "total": 6,
+          "backward": 2,
+          "forward": 2,
+          "lateral": 2
+        },
+        "GK": {
+          "total": 3,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 3
+        }
+      }
     }
   },
   "passDecisionSummary": {
-    "total": 378,
+    "total": 44,
     "attackerBackpassesInFinalThird": 0,
     "attackerBackpassesInBox": 0,
     "directBlockerPassDecisions": 0,
     "topHoldReasons": {
-      "none": 378
+      "none": 44
     },
     "recentAttackerBackpasses": []
   },
   "shotDecisionSummary": {
-    "total": 17,
-    "forcedShots": 0,
-    "selectedShots": 17,
+    "total": 9,
+    "forcedShots": 5,
+    "selectedShots": 4,
     "desperationShots": 0,
     "goalLineForces": 0,
-    "longRangeDecisions": 11,
+    "longRangeDecisions": 1,
     "pressuredLongRangeDecisions": 0,
     "aiSimpleDecisions": 0,
     "aiSimpleBrokenRows": 0,
     "forcedAiSimpleBrokenRows": 0,
     "aiSimpleBrokenPct": 0,
-    "recentForcedShots": []
+    "recentForcedShots": [
+      {
+        "minute": 1008.1,
+        "team": "B",
+        "shooter": "A LST 10",
+        "role": "ST",
+        "distYards": 16.3,
+        "pressure": 3.8,
+        "style": "first_time"
+      },
+      {
+        "minute": 1435.2,
+        "team": "B",
+        "shooter": "A LST 10",
+        "role": "ST",
+        "distYards": 15.8,
+        "pressure": 3.46,
+        "style": "first_time"
+      },
+      {
+        "minute": 2076.7,
+        "team": "A",
+        "shooter": "B ST 10",
+        "role": "ST",
+        "distYards": 15.7,
+        "pressure": 1.96,
+        "style": "first_time"
+      },
+      {
+        "minute": 2263.9,
+        "team": "B",
+        "shooter": "A LST 10",
+        "role": "ST",
+        "distYards": 27.4,
+        "pressure": 1.47,
+        "style": "first_time"
+      },
+      {
+        "minute": 1005.5,
+        "team": "B",
+        "shooter": "A LST 10",
+        "role": "ST",
+        "distYards": 15.5,
+        "pressure": 2.77,
+        "style": "first_time"
+      }
+    ]
   },
   "movement": {
-    "carrierTraceCount": 589,
-    "attackerZoneTraceCount": 1035,
-    "carriersTracked": 19,
-    "totalForwardCarrySamples": 472,
-    "totalLateralFlips": 1,
+    "carrierTraceCount": 1022,
+    "attackerZoneTraceCount": 944,
+    "carriersTracked": 15,
+    "totalForwardCarrySamples": 400,
+    "totalLateralFlips": 0,
     "totalSwitchRequests": 0,
     "totalBlockedSwitches": 0,
     "totalCarryLockSamples": 0,
@@ -174,13 +232,13 @@
     "desiredSteerMismatchPct": 0,
     "topZigzagOffenders": [
       {
-        "carrier": "P ST 10",
+        "carrier": "A LCM 7",
         "team": "B",
-        "role": "ST",
-        "traces": 8,
-        "forwardCarrySamples": 6,
-        "lateralFlips": 1,
-        "lateralFlipRate": 0.2,
+        "role": "CM",
+        "traces": 185,
+        "forwardCarrySamples": 45,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
         "switchRequests": 0,
         "blockedSwitches": 0,
         "carryLockSamples": 0,
@@ -189,10 +247,55 @@
         "desiredSteerMismatchPct": 0
       },
       {
-        "carrier": "E RM 8",
+        "carrier": "B DM 7",
         "team": "A",
+        "role": "DM",
+        "traces": 137,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "A LST 10",
+        "team": "B",
+        "role": "ST",
+        "traces": 124,
+        "forwardCarrySamples": 73,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "B LB 2",
+        "team": "A",
+        "role": "FB",
+        "traces": 121,
+        "forwardCarrySamples": 65,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "A LM 6",
+        "team": "B",
         "role": "W",
-        "traces": 74,
+        "traces": 107,
         "forwardCarrySamples": 68,
         "lateralFlips": 0,
         "lateralFlipRate": 0,
@@ -204,26 +307,11 @@
         "desiredSteerMismatchPct": 0
       },
       {
-        "carrier": "P RCM 7",
-        "team": "B",
-        "role": "CM",
-        "traces": 72,
-        "forwardCarrySamples": 48,
-        "lateralFlips": 0,
-        "lateralFlipRate": 0,
-        "switchRequests": 0,
-        "blockedSwitches": 0,
-        "carryLockSamples": 0,
-        "avgForwardProgressPerFlip": 0,
-        "facingMovementMismatchPct": 0,
-        "desiredSteerMismatchPct": 0
-      },
-      {
-        "carrier": "E RCM 7",
+        "carrier": "B LCM 6",
         "team": "A",
         "role": "CM",
-        "traces": 60,
-        "forwardCarrySamples": 54,
+        "traces": 89,
+        "forwardCarrySamples": 55,
         "lateralFlips": 0,
         "lateralFlipRate": 0,
         "switchRequests": 0,
@@ -234,11 +322,11 @@
         "desiredSteerMismatchPct": 0
       },
       {
-        "carrier": "P RM 8",
+        "carrier": "A LCB 3",
         "team": "B",
-        "role": "W",
-        "traces": 57,
-        "forwardCarrySamples": 51,
+        "role": "CB",
+        "traces": 53,
+        "forwardCarrySamples": 20,
         "lateralFlips": 0,
         "lateralFlipRate": 0,
         "switchRequests": 0,
@@ -249,41 +337,11 @@
         "desiredSteerMismatchPct": 0
       },
       {
-        "carrier": "E RW 11",
-        "team": "A",
-        "role": "W",
-        "traces": 49,
-        "forwardCarrySamples": 49,
-        "lateralFlips": 0,
-        "lateralFlipRate": 0,
-        "switchRequests": 0,
-        "blockedSwitches": 0,
-        "carryLockSamples": 0,
-        "avgForwardProgressPerFlip": 0,
-        "facingMovementMismatchPct": 0,
-        "desiredSteerMismatchPct": 0
-      },
-      {
-        "carrier": "P LCM 6",
+        "carrier": "A RCM 8",
         "team": "B",
         "role": "CM",
-        "traces": 37,
-        "forwardCarrySamples": 24,
-        "lateralFlips": 0,
-        "lateralFlipRate": 0,
-        "switchRequests": 0,
-        "blockedSwitches": 0,
-        "carryLockSamples": 0,
-        "avgForwardProgressPerFlip": 0,
-        "facingMovementMismatchPct": 0,
-        "desiredSteerMismatchPct": 0
-      },
-      {
-        "carrier": "P LM 5",
-        "team": "B",
-        "role": "W",
-        "traces": 35,
-        "forwardCarrySamples": 35,
+        "traces": 53,
+        "forwardCarrySamples": 28,
         "lateralFlips": 0,
         "lateralFlipRate": 0,
         "switchRequests": 0,
@@ -303,48 +361,24 @@
   "shotSupport": [
     {
       "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 70,
-      "shooter": "P ST 10",
+      "minute": 62,
+      "shooter": "A LST 10",
       "shooterRole": "ST",
+      "nearestMid": null,
+      "secondMid": null
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 65,
+      "shooter": "A LCM 7",
+      "shooterRole": "CM",
       "nearestMid": null,
       "secondMid": null
     },
     {
       "type": "SHOT_POSITION_SNAPSHOT",
       "minute": 72,
-      "shooter": "P ST 10",
-      "shooterRole": "ST",
-      "nearestMid": null,
-      "secondMid": null
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 73,
-      "shooter": "P ST 10",
-      "shooterRole": "ST",
-      "nearestMid": null,
-      "secondMid": null
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 73,
-      "shooter": "P ST 10",
-      "shooterRole": "ST",
-      "nearestMid": null,
-      "secondMid": null
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 78,
-      "shooter": "E ST 10",
-      "shooterRole": "ST",
-      "nearestMid": null,
-      "secondMid": null
-    },
-    {
-      "type": "SHOT_POSITION_SNAPSHOT",
-      "minute": 80,
-      "shooter": "P ST 10",
+      "shooter": "B ST 10",
       "shooterRole": "ST",
       "nearestMid": null,
       "secondMid": null
@@ -352,100 +386,108 @@
   ],
   "shape": {
     "A": {
-      "team": "Ecuador",
-      "snapshots": 590,
-      "avgWidth": 26.59,
-      "minWidth": 13.35,
-      "maxWidth": 37.66,
-      "avgDepth": 34.62,
+      "team": "Brazil",
+      "snapshots": 294,
+      "avgWidth": 27.52,
+      "minWidth": 13.11,
+      "maxWidth": 37.95,
+      "avgDepth": 33.99,
       "avgCompactness": 14.85,
-      "avgAbsAvgZ": 2.19,
-      "centerLockedPct": 76.3,
-      "narrowPct": 0.7,
-      "centerAndNarrowPct": 0.7
+      "avgAbsAvgZ": 1.26,
+      "centerLockedPct": 93.2,
+      "narrowPct": 3.1,
+      "centerAndNarrowPct": 3.1
     },
     "B": {
-      "team": "Portugal",
-      "snapshots": 590,
-      "avgWidth": 26.82,
-      "minWidth": 20.64,
-      "maxWidth": 37.63,
-      "avgDepth": 34.74,
-      "avgCompactness": 14.97,
-      "avgAbsAvgZ": 2.21,
-      "centerLockedPct": 76.6,
-      "narrowPct": 0,
-      "centerAndNarrowPct": 0
+      "team": "Argentina",
+      "snapshots": 294,
+      "avgWidth": 28.6,
+      "minWidth": 13.86,
+      "maxWidth": 36.45,
+      "avgDepth": 32.42,
+      "avgCompactness": 14.16,
+      "avgAbsAvgZ": 1.08,
+      "centerLockedPct": 94.2,
+      "narrowPct": 1.4,
+      "centerAndNarrowPct": 1.4
     }
   },
   "roleCentrality": {
     "A": {
-      "wideTouches": 93,
-      "centralTouches": 21,
-      "wideTouchShareVsCentral": 4.43,
+      "wideTouches": 9,
+      "centralTouches": 26,
+      "wideTouchShareVsCentral": 0.35,
       "wideShots": 0,
-      "centralShots": 5,
+      "centralShots": 4,
       "wideShotShareVsCentral": 0
     },
     "B": {
-      "wideTouches": 99,
-      "centralTouches": 48,
-      "wideTouchShareVsCentral": 2.06,
+      "wideTouches": 13,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
       "wideShots": 0,
-      "centralShots": 12,
-      "wideShotShareVsCentral": 0
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
     }
   },
   "positionOwners": {
-    "samples": 3205,
+    "samples": 2970,
     "byTeam": {
       "A": {
-        "RW": 292,
-        "LW": 291,
-        "ST": 146,
-        "GK": 145,
-        "LCB": 145,
-        "CB": 145,
-        "RCB": 145,
-        "LCM": 145,
-        "RCM": 145
+        "GK": 135,
+        "LB": 135,
+        "LCB": 135,
+        "RCB": 135,
+        "RB": 135,
+        "LCM": 135,
+        "DM": 135,
+        "RCM": 135,
+        "LW": 135,
+        "ST": 135,
+        "RW": 135
       },
       "B": {
-        "GK": 146,
-        "LCB": 146,
-        "CB": 146,
-        "RCB": 146,
-        "LW": 292,
-        "LCM": 146,
-        "RCM": 146,
-        "RW": 292,
-        "ST": 146
+        "GK": 135,
+        "LB": 135,
+        "LCB": 135,
+        "RCB": 135,
+        "RB": 135,
+        "LW": 135,
+        "LCM": 135,
+        "RCM": 135,
+        "RW": 135,
+        "LST": 135,
+        "RST": 135
       }
     },
     "wide": {
       "A": {
-        "samples": 583,
-        "avgAbsZ": 12.9,
-        "avgTargetAbsZ": 12.79,
+        "samples": 540,
+        "avgAbsZ": 12.34,
+        "avgTargetAbsZ": 12.72,
         "byOwner": {
-          "RW": 292,
-          "LW": 291
+          "LB": 135,
+          "RB": 135,
+          "LW": 135,
+          "RW": 135
         }
       },
       "B": {
-        "samples": 584,
-        "avgAbsZ": 12.94,
-        "avgTargetAbsZ": 13,
+        "samples": 540,
+        "avgAbsZ": 13.7,
+        "avgTargetAbsZ": 13.98,
         "byOwner": {
-          "LW": 292,
-          "RW": 292
+          "LB": 135,
+          "RB": 135,
+          "LW": 135,
+          "RW": 135
         }
       }
     }
   },
   "eventStream": {
-    "totalShots": 6,
-    "onTargetShots": 2,
+    "totalShots": 3,
+    "onTargetShots": 1,
     "goals": 0,
     "longRangeOnTargetCount": 0,
     "closeRangeBadAngleCount": 0,
@@ -457,15 +499,15 @@
     "attackerResetPasses": []
   },
   "keeperSummary": {
-    "totalSaves": 4,
+    "totalSaves": 2,
     "byTeam": {
       "A": {
-        "saves": 4,
+        "saves": 1,
         "keeperKicks": 0,
         "goalKicks": 0
       },
       "B": {
-        "saves": 0,
+        "saves": 1,
         "keeperKicks": 0,
         "goalKicks": 0
       }
@@ -473,24 +515,24 @@
   },
   "restartSummary": {
     "total": {
-      "corners": 2,
-      "throwIns": 7,
-      "goalKicks": 10,
-      "freeKicks": 12,
+      "corners": 3,
+      "throwIns": 0,
+      "goalKicks": 7,
+      "freeKicks": 7,
       "penalties": 0
     },
     "byTeam": {
       "A": {
-        "corners": 0,
-        "throwIns": 1,
-        "goalKicks": 8,
-        "freeKicks": 7,
+        "corners": 1,
+        "throwIns": 0,
+        "goalKicks": 4,
+        "freeKicks": 2,
         "penalties": 0
       },
       "B": {
         "corners": 2,
-        "throwIns": 6,
-        "goalKicks": 2,
+        "throwIns": 0,
+        "goalKicks": 3,
         "freeKicks": 5,
         "penalties": 0
       }
@@ -498,56 +540,56 @@
   },
   "baselines": {
     "duration": {
-      "halfSeconds": 300,
-      "matchSeconds": 600,
-      "runtimeMinutes": 10,
+      "halfSeconds": 150,
+      "matchSeconds": 300,
+      "runtimeMinutes": 5,
       "matchMinutes": 90,
-      "durationFactor": 0.1111111111111111
+      "durationFactor": 0.05555555555555555
     },
     "global": {
       "totalGoals": {
-        "simulated": 3,
-        "baseline": 0.31,
-        "drift": 2.69
+        "simulated": 0,
+        "baseline": 0.15,
+        "drift": -0.15
       },
       "totalShots": {
-        "simulated": 17,
-        "baseline": 2.91,
-        "drift": 14.09
+        "simulated": 9,
+        "baseline": 1.46,
+        "drift": 7.54
       },
       "totalShotsOnTarget": {
-        "simulated": 7,
-        "baseline": 1.04,
-        "drift": 5.96
+        "simulated": 2,
+        "baseline": 0.52,
+        "drift": 1.48
       },
       "totalCorners": {
         "simulated": 2,
-        "baseline": 0.89,
-        "drift": 1.11
+        "baseline": 0.44,
+        "drift": 1.56
       }
     },
     "teamComparison": [
       {
-        "team": "Ecuador",
+        "team": "Brazil",
         "simulated": {
-          "goals": 3,
-          "shots": 5,
-          "shotsOnTarget": 3,
-          "passCompletionPct": 77.7,
-          "possessionPct": 48,
-          "corners": 0
+          "goals": 0,
+          "shots": 4,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 95.2,
+          "possessionPct": 45,
+          "corners": 1
         },
         "baseline": null
       },
       {
-        "team": "Portugal",
+        "team": "Argentina",
         "simulated": {
           "goals": 0,
-          "shots": 12,
-          "shotsOnTarget": 4,
-          "passCompletionPct": 80.1,
-          "possessionPct": 52,
-          "corners": 2
+          "shots": 5,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 95.7,
+          "possessionPct": 55,
+          "corners": 1
         },
         "baseline": null
       }
@@ -555,42 +597,64 @@
   },
   "phaseTime": {
     "A": {
-      "samples": 322,
-      "buildupPct": 20.5,
-      "progressionPct": 79.5,
-      "chanceCreationPct": 0,
+      "samples": 439,
+      "buildupPct": 35.3,
+      "progressionPct": 60.4,
+      "chanceCreationPct": 4.3,
       "finishPct": 0
     },
     "B": {
-      "samples": 267,
-      "buildupPct": 9,
-      "progressionPct": 88,
-      "chanceCreationPct": 3,
+      "samples": 583,
+      "buildupPct": 7.7,
+      "progressionPct": 61.6,
+      "chanceCreationPct": 30.7,
       "finishPct": 0
     }
   },
   "passByZone": {
     "evaluated": {
-      "KICKOFF": 5,
-      "BUILDUP": 323,
-      "PROGRESSION": 45,
-      "CHANCE_CREATION": 5
+      "KICKOFF": 2,
+      "BUILDUP": 22,
+      "PROGRESSION": 16,
+      "CHANCE_CREATION": 4
     },
     "executed": {
-      "KICKOFF": 5,
-      "BUILDUP": 323,
-      "PROGRESSION": 45,
-      "CHANCE_CREATION": 5
+      "KICKOFF": 2,
+      "BUILDUP": 22,
+      "PROGRESSION": 16,
+      "CHANCE_CREATION": 4
     }
   },
   "rolePositions": {
     "A": [
       {
         "role": "CM",
+        "samples": 23,
+        "avgX": -2.63,
+        "avgAbsZ": 9.06,
+        "avgDistToGoal": 31.51,
+        "oppHalfSamples": 0,
+        "avgForwardXInOppHalf": null,
+        "finalThirdSamples": 0,
+        "avgAbsZInFinalThird": null
+      },
+      {
+        "role": "DM",
         "samples": 13,
-        "avgX": -1.65,
-        "avgAbsZ": 6.69,
-        "avgDistToGoal": 32.08,
+        "avgX": -4.49,
+        "avgAbsZ": 1.22,
+        "avgDistToGoal": 28.34,
+        "oppHalfSamples": 0,
+        "avgForwardXInOppHalf": null,
+        "finalThirdSamples": 1,
+        "avgAbsZInFinalThird": 1.26
+      },
+      {
+        "role": "FB",
+        "samples": 4,
+        "avgX": -3.66,
+        "avgAbsZ": 12.2,
+        "avgDistToGoal": 31.61,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
         "finalThirdSamples": 0,
@@ -598,71 +662,82 @@
       },
       {
         "role": "ST",
-        "samples": 139,
-        "avgX": -16.03,
-        "avgAbsZ": 2.74,
-        "avgDistToGoal": 17.07,
+        "samples": 122,
+        "avgX": -17.04,
+        "avgAbsZ": 1.94,
+        "avgDistToGoal": 15.93,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 126,
-        "avgAbsZInFinalThird": 2.75
+        "finalThirdSamples": 110,
+        "avgAbsZInFinalThird": 1.67
       },
       {
         "role": "W",
-        "samples": 358,
-        "avgX": -9.97,
-        "avgAbsZ": 13,
-        "avgDistToGoal": 26.49,
+        "samples": 253,
+        "avgX": -14.81,
+        "avgAbsZ": 13.41,
+        "avgDistToGoal": 22.75,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 63,
-        "avgAbsZInFinalThird": 9.98
+        "finalThirdSamples": 118,
+        "avgAbsZInFinalThird": 12.93
       }
     ],
     "B": [
       {
         "role": "CB",
-        "samples": 7,
-        "avgX": 13.22,
-        "avgAbsZ": 5.01,
-        "avgDistToGoal": 20.45,
+        "samples": 10,
+        "avgX": 7.22,
+        "avgAbsZ": 6.83,
+        "avgDistToGoal": 26.63,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 4,
-        "avgAbsZInFinalThird": 4.73
+        "finalThirdSamples": 1,
+        "avgAbsZInFinalThird": 9.4
       },
       {
         "role": "CM",
-        "samples": 7,
-        "avgX": 13.82,
-        "avgAbsZ": 5.67,
-        "avgDistToGoal": 20.17,
+        "samples": 99,
+        "avgX": 6.25,
+        "avgAbsZ": 6.06,
+        "avgDistToGoal": 27.31,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 4,
-        "avgAbsZInFinalThird": 5.73
+        "finalThirdSamples": 22,
+        "avgAbsZInFinalThird": 4.75
+      },
+      {
+        "role": "FB",
+        "samples": 14,
+        "avgX": 12.13,
+        "avgAbsZ": 6.73,
+        "avgDistToGoal": 21.89,
+        "oppHalfSamples": 0,
+        "avgForwardXInOppHalf": null,
+        "finalThirdSamples": 8,
+        "avgAbsZInFinalThird": 4.74
       },
       {
         "role": "ST",
-        "samples": 141,
-        "avgX": 16.36,
-        "avgAbsZ": 2.71,
-        "avgDistToGoal": 16.71,
+        "samples": 255,
+        "avgX": 16.42,
+        "avgAbsZ": 5.8,
+        "avgDistToGoal": 17.6,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 132,
-        "avgAbsZInFinalThird": 2.65
+        "finalThirdSamples": 217,
+        "avgAbsZInFinalThird": 5.65
       },
       {
         "role": "W",
-        "samples": 370,
-        "avgX": 10.81,
-        "avgAbsZ": 12.81,
-        "avgDistToGoal": 25.74,
+        "samples": 151,
+        "avgX": 7.68,
+        "avgAbsZ": 14.86,
+        "avgDistToGoal": 29.41,
         "oppHalfSamples": 0,
         "avgForwardXInOppHalf": null,
-        "finalThirdSamples": 90,
-        "avgAbsZInFinalThird": 9.72
+        "finalThirdSamples": 8,
+        "avgAbsZInFinalThird": 9.52
       }
     ]
   },
@@ -678,431 +753,495 @@
     "avgDurationByType": {},
     "endReasonCounts": {},
     "shotsByActivePattern": {
-      "NONE": 6
+      "NONE": 3
     },
-    "goalsByActivePattern": {
-      "NONE": 1
-    },
+    "goalsByActivePattern": {},
     "patternsPerTeamA": 0,
     "patternsPerTeamB": 0
   },
   "patternRoleAlignment": {
     "LW": {
-      "samples": 369,
-      "avgForwardX": -10.45,
-      "avgAbsZ": 12.21,
-      "avgDistToGoal": 25.74
+      "samples": 202,
+      "avgForwardX": -12.14,
+      "avgAbsZ": 14.66,
+      "avgDistToGoal": 25.68
     },
     "ST": {
-      "samples": 280,
-      "avgForwardX": -16.2,
-      "avgAbsZ": 2.73,
-      "avgDistToGoal": 16.89
+      "samples": 122,
+      "avgForwardX": -17.04,
+      "avgAbsZ": 1.94,
+      "avgDistToGoal": 15.93
     },
     "RW": {
-      "samples": 359,
-      "avgForwardX": -10.34,
-      "avgAbsZ": 13.61,
-      "avgDistToGoal": 26.49
+      "samples": 202,
+      "avgForwardX": -12.15,
+      "avgAbsZ": 13.25,
+      "avgDistToGoal": 24.79
+    },
+    "LST": {
+      "samples": 126,
+      "avgForwardX": -15.8,
+      "avgAbsZ": 6.66,
+      "avgDistToGoal": 18.49
+    },
+    "RST": {
+      "samples": 129,
+      "avgForwardX": -17.02,
+      "avgAbsZ": 4.97,
+      "avgDistToGoal": 16.74
     },
     "LCM": {
-      "samples": 9,
-      "avgForwardX": -6.43,
-      "avgAbsZ": 4.24,
-      "avgDistToGoal": 27.06
-    },
-    "LCB": {
-      "samples": 3,
-      "avgForwardX": -14.3,
-      "avgAbsZ": 2.06,
-      "avgDistToGoal": 18.66
+      "samples": 69,
+      "avgForwardX": -6.21,
+      "avgAbsZ": 6.79,
+      "avgDistToGoal": 27.49
     },
     "RCM": {
+      "samples": 53,
+      "avgForwardX": -4.72,
+      "avgAbsZ": 6.41,
+      "avgDistToGoal": 28.9
+    },
+    "DM": {
+      "samples": 13,
+      "avgForwardX": -4.49,
+      "avgAbsZ": 1.22,
+      "avgDistToGoal": 28.34
+    },
+    "LB": {
       "samples": 11,
-      "avgForwardX": -5.48,
-      "avgAbsZ": 8.05,
-      "avgDistToGoal": 28.61
+      "avgForwardX": -9.41,
+      "avgAbsZ": 10,
+      "avgDistToGoal": 25.46
+    },
+    "LCB": {
+      "samples": 6,
+      "avgForwardX": -8.02,
+      "avgAbsZ": 7.73,
+      "avgDistToGoal": 26.15
+    },
+    "RCB": {
+      "samples": 4,
+      "avgForwardX": -6.01,
+      "avgAbsZ": 5.47,
+      "avgDistToGoal": 27.34
+    },
+    "RB": {
+      "samples": 7,
+      "avgForwardX": -11.56,
+      "avgAbsZ": 4.73,
+      "avgDistToGoal": 21.82
     }
   },
   "carrierTrajectories": {
-    "totalSegments": 99,
-    "avgBLineRatio": 0,
-    "straightRunsOver15Units": 0,
-    "byLineRunSegments": [],
+    "totalSegments": 34,
+    "avgBLineRatio": 0.69,
+    "straightRunsOver15Units": 8,
+    "byLineRunSegments": [
+      {
+        "carrier": "B LB 2",
+        "team": "A",
+        "duration": 108.26,
+        "directDist": 21.8,
+        "pathLength": 22,
+        "bLineRatio": 0.99
+      },
+      {
+        "carrier": "A RCM 8",
+        "team": "B",
+        "duration": 102.39,
+        "directDist": 20.1,
+        "pathLength": 20.3,
+        "bLineRatio": 0.99
+      },
+      {
+        "carrier": "A LST 10",
+        "team": "B",
+        "duration": 96.45,
+        "directDist": 20,
+        "pathLength": 20.2,
+        "bLineRatio": 0.99
+      },
+      {
+        "carrier": "B DM 7",
+        "team": "A",
+        "duration": 104.33,
+        "directDist": 19.8,
+        "pathLength": 19.9,
+        "bLineRatio": 1
+      },
+      {
+        "carrier": "A LCM 7",
+        "team": "B",
+        "duration": 98.44,
+        "directDist": 18.8,
+        "pathLength": 18.9,
+        "bLineRatio": 1
+      },
+      {
+        "carrier": "A LCB 3",
+        "team": "B",
+        "duration": 100.45,
+        "directDist": 17.1,
+        "pathLength": 17.1,
+        "bLineRatio": 1
+      },
+      {
+        "carrier": "B LB 2",
+        "team": "A",
+        "duration": 84.67,
+        "directDist": 16.4,
+        "pathLength": 16.5,
+        "bLineRatio": 0.99
+      },
+      {
+        "carrier": "B DM 7",
+        "team": "A",
+        "duration": 84.62,
+        "directDist": 15.6,
+        "pathLength": 15.6,
+        "bLineRatio": 1
+      }
+    ],
     "curlingSegments": 0,
-    "totalFlips": 0,
+    "totalFlips": 1,
     "totalFlippyCarriers": 0,
     "flipsByTeam": {
       "A": 0,
-      "B": 0
+      "B": 1
     },
     "flipsByTeamHalf": {
       "A1": 0,
       "A2": 0,
       "B1": 0,
-      "B2": 0
+      "B2": 1
     },
     "flipsByDirection": {
       "L2R": 0,
       "R2L": 0
     },
     "segmentsByTeam": {
-      "A": 51,
-      "B": 48
+      "A": 15,
+      "B": 19
     },
     "segmentsByDirection": {
-      "L2R": 0,
-      "R2L": 3
+      "L2R": 16,
+      "R2L": 13
     },
     "segmentsByTeamHalf": {
       "A1": 0,
-      "A2": 51,
+      "A2": 15,
       "B1": 0,
-      "B2": 48
+      "B2": 19
     }
   },
   "multiTouchOppHalf": {
-    "totalSequences": 32,
-    "multiTouchOppHalfCount": 15,
-    "totalOppHalfTouches": 96,
-    "avgDistinctPlayersPerSequence": 1.25,
+    "totalSequences": 12,
+    "multiTouchOppHalfCount": 8,
+    "totalOppHalfTouches": 21,
+    "avgDistinctPlayersPerSequence": 1.67,
     "exampleSequences": [
       {
-        "team": "A",
+        "team": "B",
         "players": [
-          "E LCB 2",
-          "E CB 3",
-          "E LCM 6"
-        ],
-        "touchCount": 8,
-        "firstTouchAt": 1431.5
-      },
-      {
-        "team": "A",
-        "players": [
-          "E CB 3",
-          "E RCB 4"
+          "A LCM 7",
+          "A LM 6"
         ],
         "touchCount": 2,
-        "firstTouchAt": 1511.5
+        "firstTouchAt": 274.49
       },
       {
         "team": "A",
         "players": [
-          "E LM 5",
-          "E LCM 6"
+          "B RB 5",
+          "B DM 7"
         ],
         "touchCount": 2,
-        "firstTouchAt": 1605.31
+        "firstTouchAt": 552.36
       },
       {
-        "team": "A",
+        "team": "B",
         "players": [
-          "E RCM 7",
-          "E RCB 4"
+          "A RCB 4",
+          "A LCB 3",
+          "A LCM 7"
         ],
         "touchCount": 4,
-        "firstTouchAt": 1747.47
+        "firstTouchAt": 732.65
+      },
+      {
+        "team": "A",
+        "players": [
+          "B RCB 4",
+          "B DM 7",
+          "B LCM 6"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 1366.93
       },
       {
         "team": "B",
         "players": [
-          "P RCB 4",
-          "P RCM 7",
-          "P RM 8"
+          "A RM 9",
+          "A RCM 8"
         ],
-        "touchCount": 8,
-        "firstTouchAt": 1824.31
+        "touchCount": 2,
+        "firstTouchAt": 1645.39
       },
       {
-        "team": "B",
+        "team": "A",
         "players": [
-          "P RCM 7",
-          "P RW 11"
+          "B LB 2",
+          "B DM 7"
         ],
-        "touchCount": 5,
-        "firstTouchAt": 1931.631
+        "touchCount": 2,
+        "firstTouchAt": 1887.34
       }
     ]
   },
   "finalThirdOverloads": {
     "A": {
-      "totalBuckets": 127,
-      "bucketsWithOverload": 2,
-      "maxAttackersInBucket": 3
+      "totalBuckets": 116,
+      "bucketsWithOverload": 26,
+      "maxAttackersInBucket": 4
     },
     "B": {
-      "totalBuckets": 132,
-      "bucketsWithOverload": 14,
+      "totalBuckets": 130,
+      "bucketsWithOverload": 20,
       "maxAttackersInBucket": 9
     }
   },
   "dangerMarking": {
-    "samples": 419,
+    "samples": 485,
     "byTeam": {
       "A": {
-        "samples": 189,
-        "marked": 31,
-        "unmarked": 158,
-        "markedPct": 16.4,
-        "avgNearestDefenderDist": 4.73,
+        "samples": 229,
+        "marked": 8,
+        "unmarked": 221,
+        "markedPct": 3.5,
+        "avgNearestDefenderDist": 6.12,
         "worstSamples": [
           {
-            "t": 2141.7,
-            "player": "E RW 11",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 21.6,
-            "nearestDefenderDist": 8.95,
-            "patternRole": "RW"
+            "t": 2262.6,
+            "player": "B ST 10",
+            "role": "ST",
+            "zone": "CHANCE_CREATION",
+            "distToGoal": 15.2,
+            "nearestDefenderDist": 12.43,
+            "patternRole": "ST"
           },
           {
-            "t": 1902.1,
-            "player": "E LW 9",
+            "t": 2516.9,
+            "player": "B ST 10",
+            "role": "ST",
+            "zone": "CHANCE_CREATION",
+            "distToGoal": 15.3,
+            "nearestDefenderDist": 12.21,
+            "patternRole": "ST"
+          },
+          {
+            "t": 1737.4,
+            "player": "B ST 10",
+            "role": "ST",
+            "zone": "CHANCE_CREATION",
+            "distToGoal": 15.3,
+            "nearestDefenderDist": 11.8,
+            "patternRole": "ST"
+          },
+          {
+            "t": 445.2,
+            "player": "B ST 10",
+            "role": "ST",
+            "zone": "CHANCE_CREATION",
+            "distToGoal": 15.4,
+            "nearestDefenderDist": 11.6,
+            "patternRole": "ST"
+          },
+          {
+            "t": 2535.1,
+            "player": "B LW 9",
             "role": "W",
             "zone": "PROGRESSION",
-            "distToGoal": 20.5,
-            "nearestDefenderDist": 8.94,
+            "distToGoal": 21.3,
+            "nearestDefenderDist": 11.57,
             "patternRole": "LW"
           },
           {
-            "t": 2567.9,
-            "player": "E LW 9",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 20.9,
-            "nearestDefenderDist": 8.86,
-            "patternRole": "LW"
-          },
-          {
-            "t": 2159.8,
-            "player": "E RW 11",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 21.2,
-            "nearestDefenderDist": 8.85,
-            "patternRole": "RW"
-          },
-          {
-            "t": 1604.5,
-            "player": "E RW 11",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 20.9,
-            "nearestDefenderDist": 8.83,
-            "patternRole": "RW"
-          },
-          {
-            "t": 1613.5,
-            "player": "E RW 11",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 21.4,
-            "nearestDefenderDist": 8.81,
-            "patternRole": "RW"
+            "t": 2244.3,
+            "player": "B ST 10",
+            "role": "ST",
+            "zone": "CHANCE_CREATION",
+            "distToGoal": 15.6,
+            "nearestDefenderDist": 11.48,
+            "patternRole": "ST"
           }
         ]
       },
       "B": {
-        "samples": 230,
-        "marked": 40,
-        "unmarked": 190,
-        "markedPct": 17.4,
-        "avgNearestDefenderDist": 4.4,
+        "samples": 256,
+        "marked": 149,
+        "unmarked": 107,
+        "markedPct": 58.2,
+        "avgNearestDefenderDist": 2.51,
         "worstSamples": [
           {
-            "t": 1663.1,
-            "player": "P LW 9",
+            "t": 1051.1,
+            "player": "A LM 6",
             "role": "W",
             "zone": "PROGRESSION",
-            "distToGoal": 20.3,
-            "nearestDefenderDist": 15.42,
+            "distToGoal": 21.1,
+            "nearestDefenderDist": 15.14,
             "patternRole": "LW"
           },
           {
-            "t": 1672.1,
-            "player": "P LW 9",
-            "role": "W",
-            "zone": "CHANCE_CREATION",
-            "distToGoal": 17.6,
-            "nearestDefenderDist": 12.95,
-            "patternRole": "LW"
-          },
-          {
-            "t": 1649.9,
-            "player": "P RW 11",
-            "role": "W",
-            "zone": "CHANCE_CREATION",
-            "distToGoal": 18,
-            "nearestDefenderDist": 10.63,
-            "patternRole": "RW"
-          },
-          {
-            "t": 2323.1,
-            "player": "P LW 9",
-            "role": "W",
-            "zone": "PROGRESSION",
-            "distToGoal": 22,
-            "nearestDefenderDist": 9.15,
-            "patternRole": "LW"
-          },
-          {
-            "t": 1359.9,
-            "player": "P RW 11",
+            "t": 1033.1,
+            "player": "A LM 6",
             "role": "W",
             "zone": "PROGRESSION",
             "distToGoal": 20.8,
-            "nearestDefenderDist": 8.98,
-            "patternRole": "RW"
+            "nearestDefenderDist": 15.02,
+            "patternRole": "LW"
           },
           {
-            "t": 2522.7,
-            "player": "P ST 10",
+            "t": 318.7,
+            "player": "A RST 11",
             "role": "ST",
-            "zone": "CHANCE_CREATION",
-            "distToGoal": 17.4,
-            "nearestDefenderDist": 8.97,
-            "patternRole": "ST"
+            "zone": "PROGRESSION",
+            "distToGoal": 19.6,
+            "nearestDefenderDist": 8.12,
+            "patternRole": "RST"
+          },
+          {
+            "t": 1610.7,
+            "player": "A LST 10",
+            "role": "ST",
+            "zone": "PROGRESSION",
+            "distToGoal": 19.1,
+            "nearestDefenderDist": 8.07,
+            "patternRole": "LST"
+          },
+          {
+            "t": 1610.7,
+            "player": "A RST 11",
+            "role": "ST",
+            "zone": "PROGRESSION",
+            "distToGoal": 19.2,
+            "nearestDefenderDist": 8.05,
+            "patternRole": "RST"
+          },
+          {
+            "t": 1592.7,
+            "player": "A LST 10",
+            "role": "ST",
+            "zone": "PROGRESSION",
+            "distToGoal": 20.4,
+            "nearestDefenderDist": 8.01,
+            "patternRole": "LST"
           }
         ]
       }
     }
   },
   "defendersInBoxAtGoal": {
-    "goalCount": 3,
-    "avgDefendersInBox": 1,
+    "goalCount": 0,
+    "avgDefendersInBox": 0,
     "avgAttackersInBox": 0,
-    "distribution": {
-      "0": 1,
-      "1": 1,
-      "2": 1
-    },
-    "samples": [
-      {
-        "team": "A",
-        "scorer": "E ST 10",
-        "shirt": 10,
-        "minute": 38,
-        "defendersInBox": 0,
-        "attackersInBox": 0,
-        "outfieldBoxCrowd": 0,
-        "isBreakaway": false
-      },
-      {
-        "team": "A",
-        "scorer": "E ST 10",
-        "shirt": 10,
-        "minute": 59,
-        "defendersInBox": 1,
-        "attackersInBox": 0,
-        "outfieldBoxCrowd": 1,
-        "isBreakaway": false
-      },
-      {
-        "team": "A",
-        "scorer": "E ST 10",
-        "shirt": 10,
-        "minute": 78,
-        "defendersInBox": 2,
-        "attackersInBox": 0,
-        "outfieldBoxCrowd": 2,
-        "isBreakaway": false
-      }
-    ]
+    "distribution": {},
+    "samples": []
   },
   "shotBoxDefense": {
-    "shots": 17,
-    "avgDefendersInBox": 0.82,
-    "avgDefendersInCorridor": 1.88,
-    "emptyBoxShots": 12,
-    "emptyCorridorShots": 5,
+    "shots": 9,
+    "avgDefendersInBox": 2.33,
+    "avgDefendersInCorridor": 3.89,
+    "emptyBoxShots": 1,
+    "emptyCorridorShots": 0,
     "samples": [
       {
-        "t": 207,
+        "t": 1008.1,
         "team": "B",
-        "shooter": "P ST 10",
+        "shooter": "A LST 10",
         "shooterRole": "ST",
-        "ballX": 18.1,
+        "ballX": 8.9,
         "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 2,
+        "defendersInBox": 4,
+        "defendersInCorridor": 5,
         "source": "shotDecisions"
       },
       {
-        "t": 269.3,
+        "t": 1435.2,
         "team": "B",
-        "shooter": "P ST 10",
+        "shooter": "A LST 10",
         "shooterRole": "ST",
-        "ballX": 15.8,
+        "ballX": 8.7,
         "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 0,
+        "defendersInBox": 4,
+        "defendersInCorridor": 5,
         "source": "shotDecisions"
       },
       {
-        "t": 837.5,
-        "team": "B",
-        "shooter": "P ST 10",
-        "shooterRole": "ST",
-        "ballX": 13.5,
+        "t": 1665.6,
+        "team": "A",
+        "shooter": "B DM 7",
+        "shooterRole": "DM",
+        "ballX": 8.3,
         "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 2,
+        "defendersInBox": 1,
+        "defendersInCorridor": 5,
         "source": "shotDecisions"
       },
       {
-        "t": 862.4,
-        "team": "B",
-        "shooter": "P ST 10",
+        "t": 1713.7,
+        "team": "A",
+        "shooter": "B ST 10",
         "shooterRole": "ST",
         "ballX": 4.3,
         "ballZ": 0,
-        "defendersInBox": 5,
+        "defendersInBox": 4,
         "defendersInCorridor": 7,
         "source": "shotDecisions"
       },
       {
-        "t": 974.2,
-        "team": "B",
-        "shooter": "P ST 10",
+        "t": 2076.7,
+        "team": "A",
+        "shooter": "B ST 10",
         "shooterRole": "ST",
-        "ballX": 10.1,
+        "ballX": 8.6,
+        "ballZ": 0,
+        "defendersInBox": 4,
+        "defendersInCorridor": 2,
+        "source": "shotDecisions"
+      },
+      {
+        "t": 2263.9,
+        "team": "B",
+        "shooter": "A LST 10",
+        "shooterRole": "ST",
+        "ballX": 15,
+        "ballZ": 0,
+        "defendersInBox": 1,
+        "defendersInCorridor": 1,
+        "source": "shotDecisions"
+      },
+      {
+        "t": 1005.5,
+        "team": "B",
+        "shooter": "A LST 10",
+        "shooterRole": "ST",
+        "ballX": 8.5,
+        "ballZ": 0,
+        "defendersInBox": 1,
+        "defendersInCorridor": 4,
+        "source": "shotDecisions"
+      },
+      {
+        "t": 1192.5,
+        "team": "B",
+        "shooter": "A LCM 7",
+        "shooterRole": "CM",
+        "ballX": 9.3,
         "ballZ": 0,
         "defendersInBox": 2,
-        "defendersInCorridor": 3,
-        "source": "shotDecisions"
-      },
-      {
-        "t": 1496.8,
-        "team": "A",
-        "shooter": "E ST 10",
-        "shooterRole": "ST",
-        "ballX": 14.2,
-        "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 0,
-        "source": "shotDecisions"
-      },
-      {
-        "t": 2264.7,
-        "team": "A",
-        "shooter": "E ST 10",
-        "shooterRole": "ST",
-        "ballX": 15.2,
-        "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 0,
-        "source": "shotDecisions"
-      },
-      {
-        "t": 2435.4,
-        "team": "B",
-        "shooter": "P ST 10",
-        "shooterRole": "ST",
-        "ballX": 16.7,
-        "ballZ": 0,
-        "defendersInBox": 0,
-        "defendersInCorridor": 2,
+        "defendersInCorridor": 4,
         "source": "shotDecisions"
       }
     ]
@@ -1138,184 +1277,67 @@
   "neoPlays": {
     "outcomeWindowSeconds": 8,
     "totalStarts": 0,
-    "totalDeliveries": 5,
+    "totalDeliveries": 0,
     "totalShotCreatingDeliveries": 0,
     "totalGoalCreatingDeliveries": 0,
     "effectivenessPct": 0,
     "goalRatePct": 0,
-    "byPlay": {
-      "WIDE_DELIVERY": {
-        "playName": "WIDE_DELIVERY",
-        "patternTypes": {
-          "WIDE_DELIVERY": 5
-        },
-        "starts": 0,
-        "deliveries": 5,
-        "crosses": 5,
-        "shotCreatingDeliveries": 0,
-        "goalCreatingDeliveries": 0,
-        "effectivenessPct": 0,
-        "goalRatePct": 0,
-        "samples": [
-          {
-            "team": "B",
-            "t": 1638.9,
-            "patternType": "WIDE_DELIVERY",
-            "passer": "P LW 9",
-            "passerRole": "W",
-            "target": "P ST 10",
-            "targetRole": "ST",
-            "style": "DRIVEN",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 1922.3,
-            "patternType": "WIDE_DELIVERY",
-            "passer": "E RW 11",
-            "passerRole": "W",
-            "target": "E ST 10",
-            "targetRole": "ST",
-            "style": "LONG_LOFTED",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "B",
-            "t": 2192.3,
-            "patternType": "WIDE_DELIVERY",
-            "passer": "P LW 9",
-            "passerRole": "W",
-            "target": "P ST 10",
-            "targetRole": "ST",
-            "style": "LONG_LOFTED",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 2427.6,
-            "patternType": "WIDE_DELIVERY",
-            "passer": "E RW 11",
-            "passerRole": "W",
-            "target": "E ST 10",
-            "targetRole": "ST",
-            "style": "DRIVEN",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          },
-          {
-            "team": "A",
-            "t": 2468.1,
-            "patternType": "WIDE_DELIVERY",
-            "passer": "E RW 11",
-            "passerRole": "W",
-            "target": "E ST 10",
-            "targetRole": "ST",
-            "style": "DRIVEN",
-            "shotWithinSeconds": null,
-            "goalWithinSeconds": null
-          }
-        ]
-      }
-    }
+    "byPlay": {}
   },
   "patternCrosses": {
-    "total": 5,
-    "deliveries": 5,
-    "longLofted": 2,
-    "driven": 3,
-    "samples": [
-      {
-        "team": "B",
-        "passer": "P LW 9",
-        "target": "P ST 10",
-        "targetRole": "ST",
-        "style": "DRIVEN",
-        "crossDist": 13.04
-      },
-      {
-        "team": "A",
-        "passer": "E RW 11",
-        "target": "E ST 10",
-        "targetRole": "ST",
-        "style": "LONG_LOFTED",
-        "crossDist": 12.65
-      },
-      {
-        "team": "B",
-        "passer": "P LW 9",
-        "target": "P ST 10",
-        "targetRole": "ST",
-        "style": "LONG_LOFTED",
-        "crossDist": 9.82
-      },
-      {
-        "team": "A",
-        "passer": "E RW 11",
-        "target": "E ST 10",
-        "targetRole": "ST",
-        "style": "DRIVEN",
-        "crossDist": 12.55
-      },
-      {
-        "team": "A",
-        "passer": "E RW 11",
-        "target": "E ST 10",
-        "targetRole": "ST",
-        "style": "DRIVEN",
-        "crossDist": 10.13
-      }
-    ]
+    "total": 0,
+    "deliveries": 0,
+    "longLofted": 0,
+    "driven": 0,
+    "samples": []
   },
   "kpis": {
     "baselineFit": {
-      "score": 16,
+      "score": 35.3,
       "inputs": {
-        "goals": 3,
-        "shots": 17,
-        "shotsOnTarget": 7,
+        "goals": 0,
+        "shots": 9,
+        "shotsOnTarget": 2,
         "longRangeSot": 0,
         "corners": 2,
         "durationMinutes": 90,
-        "durationFactor": 0.1111,
+        "durationFactor": 0.0556,
         "disabledMetrics": []
       },
-      "target": "one-match MLS runtime-scaled raw stat fit: goals ~0.31, shots ~2.89, SOT ~1.06, corners ~0.89",
+      "target": "one-match MLS runtime-scaled raw stat fit: goals ~0.16, shots ~1.44, SOT ~0.53, corners ~0.44",
       "grade": "red"
     },
     "soccerStructure": {
       "score": 100,
       "inputs": {
-        "widthA": 26.59,
-        "widthB": 26.82,
-        "centerAndNarrowWorst": 0.7,
-        "finalThirdOverloadShare": 6.1,
+        "widthA": 27.52,
+        "widthB": 28.6,
+        "centerAndNarrowWorst": 3.1,
+        "finalThirdOverloadShare": 18.9,
         "disabledForModel": "simple-v1"
       },
       "target": "advanced shape/pattern/cross structure is out of scope for simple-v1",
       "grade": "green"
     },
     "tuningEfficiency": {
-      "score": 99.8,
+      "score": 75,
       "inputs": {
-        "forcedShotSharePct": 0,
+        "forcedShotSharePct": 55.6,
         "attackerBackpasses": 0,
-        "zigzagFlips": 1,
+        "zigzagFlips": 0,
         "directBlockerPasses": 0,
         "brokenShotRowsPct": 0
       },
       "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
-      "grade": "green"
+      "grade": "watch"
     },
     "overall": {
-      "score": 71.9,
+      "score": 70.1,
       "grade": "watch"
     }
   },
   "recommendations": [
-    "Long-range shot accuracy is still too clean. Push more off-frame bias onto 20+ yard attempts, especially central shots and pressured strikes.",
+    "Scoreless output with very low shot volume is not a defensive 0-0; it is an underproduction failure. Tune shot creation first, then finishing.",
     "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed."
   ]
 }

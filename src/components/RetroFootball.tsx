@@ -18,6 +18,8 @@ import { compactLiveDashboardPayload } from '../telemetry/liveDashboardPayload';
 import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
 import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
+import { hasDevServer } from '../runtimeEnv';
+import { createGamepadLatch, pickStandardGamepad } from '../gamepadSelect';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
 import { createWorldCupRecord, deleteWorldCup, saveWorldCup } from '../worldCupManager';
 import {
@@ -37,7 +39,15 @@ const MatchHistoryDashboard = React.lazy(() => import('./MatchHistoryDashboard')
 const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
 const FrameViewer = React.lazy(() => import('./FrameViewer'));
 const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
+const PauseOverlay = React.lazy(() => import('./PauseOverlay'));
 const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/**
+ * MATCHES reads the dev-server-only /__db route, and ANIMATIONS / TELEMETRY are
+ * authoring instrumentation. Hide all three in the packaged desktop build so
+ * players never land on a permanently empty tab.
+ */
+const DEV_ONLY_OPTIONS_TABS = ['MATCH_HISTORY', 'FRAME_VIEWER', 'LIVE_TELEMETRY'] as const;
 
 const AGGRESSION_SCALE: Record<AggressivenessKey, number> = {
   POSSESSION: 35,
@@ -108,6 +118,43 @@ const MLS_TEAM_KITS = PLAYABLE_WORLD_TEAM_KITS as Record<string, { home: { shirt
 const FALLBACK_TEAM_KIT = MLS_TEAM_KITS[DEFAULT_HOME_TEAM] ?? Object.values(MLS_TEAM_KITS)[0];
 const MLS_TEAM_NAMES = PLAYABLE_WORLD_TEAM_NAMES;
 type CpuMatchup = { a: string; b: string };
+type WindowResolutionPreset = '1280x720' | '1366x768' | '1600x900' | '1920x1080';
+
+const WINDOW_RESOLUTION_STORAGE_KEY = 'psl.windowResolution';
+const WINDOW_RESOLUTION_PRESETS: ReadonlyArray<{ key: WindowResolutionPreset; label: string; width: number; height: number }> = [
+  { key: '1280x720', label: '1280 × 720', width: 1280, height: 720 },
+  { key: '1366x768', label: '1366 × 768', width: 1366, height: 768 },
+  { key: '1600x900', label: '1600 × 900', width: 1600, height: 900 },
+  { key: '1920x1080', label: '1920 × 1080', width: 1920, height: 1080 },
+];
+const DEFAULT_WINDOW_RESOLUTION: WindowResolutionPreset = '1600x900';
+const INTERACTIVE_PLAYER_MODES_ENABLED = true;
+
+function isWindowResolutionPreset(value: string): value is WindowResolutionPreset {
+  return WINDOW_RESOLUTION_PRESETS.some((preset) => preset.key === value);
+}
+
+function getStoredWindowResolution(): WindowResolutionPreset {
+  try {
+    const stored = window.localStorage.getItem(WINDOW_RESOLUTION_STORAGE_KEY);
+    if (stored && isWindowResolutionPreset(stored)) return stored;
+  } catch {}
+  return DEFAULT_WINDOW_RESOLUTION;
+}
+
+async function applyWindowResolution(preset: WindowResolutionPreset) {
+  const next = WINDOW_RESOLUTION_PRESETS.find((candidate) => candidate.key === preset) ?? WINDOW_RESOLUTION_PRESETS[2];
+  if ((window as any).__TAURI_INTERNALS__) {
+    const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
+    const currentWindow = getCurrentWindow();
+    await currentWindow.setSize(new LogicalSize(next.width, next.height));
+    await currentWindow.center();
+    return;
+  }
+  if (typeof window.resizeTo === 'function') {
+    window.resizeTo(next.width, next.height);
+  }
+}
 
 function randomCpuMatchup(): CpuMatchup {
   const fixture = randomWorldCup2026GroupFixture();
@@ -887,11 +934,13 @@ function MenuModeButton({
   focused,
   tone = 'white',
   onClick,
+  disabled = false,
 }: {
   children: React.ReactNode;
   focused: boolean;
   tone?: 'white' | 'muted' | 'amber' | 'green';
   onClick: () => void;
+  disabled?: boolean;
 }) {
   const toneClass =
     tone === 'amber'
@@ -909,12 +958,17 @@ function MenuModeButton({
           : focused
             ? 'border-white bg-white/15 text-white shadow-[0_0_24px_rgba(255,255,255,0.22)]'
             : 'border-white/80 text-white hover:bg-white/10';
+  const disabledClass = disabled
+    ? 'cursor-not-allowed border-white/20 text-white/25 hover:bg-transparent opacity-70 shadow-none'
+    : '';
 
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`h-[58px] w-full rounded-md border-2 bg-zinc-950/86 text-[19px] font-black uppercase leading-none transition-colors shadow-[0_0_0_2px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.14),inset_0_-10px_22px_rgba(255,255,255,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${toneClass}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`h-[58px] w-full rounded-md border-2 bg-zinc-950/86 text-[19px] font-black uppercase leading-none transition-colors shadow-[0_0_0_2px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.14),inset_0_-10px_22px_rgba(255,255,255,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${disabled ? disabledClass : toneClass}`}
       style={{ textShadow: '0 3px 0 rgba(0,0,0,0.85)' }}
     >
       {children}
@@ -1038,7 +1092,16 @@ const RetroFootball: React.FC = () => {
   const [halfLengthMinutes, setHalfLengthMinutes] = useState(5);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
+  const devToolsVisible = useMemo(() => hasDevServer(), []);
+  // A tab persisted from a dev session must not strand a player on a hidden tab.
+  useEffect(() => {
+    if (!devToolsVisible && (DEV_ONLY_OPTIONS_TABS as readonly string[]).includes(activeTab)) {
+      setActiveTab('OPTIONS');
+    }
+  }, [devToolsVisible, activeTab]);
   const [crowdVolume, setCrowdVolume] = useState(0.60);
+  const [windowResolution, setWindowResolution] = useState<WindowResolutionPreset>(() => getStoredWindowResolution());
+  const [windowResolutionMessage, setWindowResolutionMessage] = useState('');
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
   const [autoClearances, setAutoClearances] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
@@ -1130,10 +1193,11 @@ const RetroFootball: React.FC = () => {
   const seasonReturnRef = useRef(false); // true when returning from a season match
 
   // ── Gamepad menu navigation ───────────────────────────────────
-  const [menuFocusIndex, setMenuFocusIndex] = useState(2); // default to "1 Player vs CPU"
-  const menuFocusRef = useRef(2);
+  const [menuFocusIndex, setMenuFocusIndex] = useState(INTERACTIVE_PLAYER_MODES_ENABLED ? 2 : 4);
+  const menuFocusRef = useRef(INTERACTIVE_PLAYER_MODES_ENABLED ? 2 : 4);
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
   const gameplayGpPrev = useRef<boolean[]>(new Array(17).fill(false));
+  const uiGamepadLatch = useRef(createGamepadLatch());
   const menuGpStickCooldown = useRef(0);
   const easterEggSequenceRef = useRef('');
   const handleKickOffRef = useRef<(
@@ -1187,6 +1251,28 @@ const RetroFootball: React.FC = () => {
       sessionStorage.removeItem('psl_fullTimeScore');
     } catch {}
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const apply = async () => {
+      try {
+        await applyWindowResolution(windowResolution);
+        if (cancelled) return;
+        try {
+          window.localStorage.setItem(WINDOW_RESOLUTION_STORAGE_KEY, windowResolution);
+        } catch {}
+        setWindowResolutionMessage((window as any).__TAURI_INTERNALS__ ? 'Applied to desktop window.' : 'Applied where the browser allows resizing.');
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Window resolution change failed', error);
+        setWindowResolutionMessage('Window resize failed.');
+      }
+    };
+    void apply();
+    return () => {
+      cancelled = true;
+    };
+  }, [windowResolution]);
 
   useEffect(() => {
     if (!startMenuVisible || showSplash || easterEggUnlocked) return;
@@ -1329,8 +1415,8 @@ const RetroFootball: React.FC = () => {
         // A / Cross (0) → select current item
         if (justPressed(0)) {
           setMenuFocusIndex(fi => {
-            if (fi === 2) handleKickOffRef.current('1p');
-            else if (fi === 3) handleKickOffRef.current('2p');
+            if (fi === 2 && INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('1p');
+            else if (fi === 3 && INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('2p');
             else if (fi === 4) {
               setShowPreMatchSetup(true);
             }
@@ -1340,9 +1426,10 @@ const RetroFootball: React.FC = () => {
           });
         }
 
-        // Start (9) → quick-start 1P
+        // Start (9) → quick-start the first available real mode
         if (justPressed(9)) {
-          handleKickOffRef.current('1p');
+          if (INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('1p');
+          else setShowPreMatchSetup(true);
         }
 
         menuGpPrev.current = btns;
@@ -1436,10 +1523,30 @@ const RetroFootball: React.FC = () => {
     }
   };
 
+  // The halftime card literally reads "Press any key to continue", but nothing
+  // was listening for a key -- only the click handler and the gamepad poller.
+  useEffect(() => {
+    if (!showHalftimeOverlay || gameMode === 'cpu') return;
+    const onKey = (event: KeyboardEvent) => {
+      // Escape still belongs to the options menu, and bare modifiers are not
+      // "a key" from the player's point of view.
+      if (event.key === 'Escape' || event.key === 'Shift' || event.key === 'Control'
+        || event.key === 'Alt' || event.key === 'Meta') return;
+      event.preventDefault();
+      handleContinueHalftimeRef.current('manual');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showHalftimeOverlay, gameMode]);
+
   useEffect(() => {
     let rafId = 0;
     const pollGameplayGamepad = () => {
-      const gp = navigator.getGamepads?.()?.[0];
+      // Same selector the engine uses: slot 0 is often an analog keyboard or a
+      // virtual-pad bus, which is why halftime "press any key" never fired.
+      const gp = pickStandardGamepad(uiGamepadLatch.current, () => {
+        gameplayGpPrev.current = new Array(17).fill(false);
+      });
       if (!gp) {
         gameplayGpPrev.current = new Array(17).fill(false);
         rafId = requestAnimationFrame(pollGameplayGamepad);
@@ -1620,7 +1727,13 @@ const RetroFootball: React.FC = () => {
   }, []);
 
   // ── Dashboard telemetry bridge (separate effect, always mounts) ──
+  // Everything below feeds dev tooling: the /__tuning and /__db routes live in
+  // the Vite dev/preview middleware, and psl-tuning{,-history} in localStorage
+  // is read only by public/dashboard.html. In the packaged desktop build none
+  // of it exists, so the 2s serialize-and-post loop would burn frame budget
+  // for nothing.
   useEffect(() => {
+    if (!hasDevServer()) return;
     let dashChannel: BroadcastChannel | null = null;
     try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
     // Default to BroadcastChannel + fetch. The websocket relay is optional because
@@ -1848,6 +1961,7 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setShowPositionLabels?.(showPositionLabels);
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
+      gameRef.current?.setTwoPlayerMode?.(false);
       gameRef.current?.setCpuVsCpu?.(false);
       gameRef.current?.setPracticePlayCompleteCallback?.(() => {
         if (practiceCompleteTimerRef.current) clearTimeout(practiceCompleteTimerRef.current);
@@ -1968,6 +2082,7 @@ const RetroFootball: React.FC = () => {
         setTestingMode(false);
         gameRef.current?.setHotSeatMode?.(false);
         gameRef.current?.setTestingMode?.(false);
+        gameRef.current?.setTwoPlayerMode?.(false);
         gameRef.current?.setCpuVsCpu?.(false);
         gameRef.current?.setPracticeMode?.(false);
         gameRef.current?.clearPracticeRoutes?.();
@@ -2096,6 +2211,7 @@ const RetroFootball: React.FC = () => {
       return;
     }
     gameRef.current?.unlockGameplayAudio?.();
+    const isInteractivePlayerMode = mode === '1p' || mode === '2p';
     const isHotSeat = mode === '2p';
     const isCpu = mode === 'cpu';
     const isTesting = mode === 'test';
@@ -2137,7 +2253,7 @@ const RetroFootball: React.FC = () => {
     setHasActiveMatchSession(true);
     setAllowMainMenu(false);
     setSessionMenuLock(true);
-    setHotSeatMode(isHotSeat || isTesting);
+    setHotSeatMode(isInteractivePlayerMode || isTesting);
     setTestingMode(isTesting);
 
     const kickoffTelemetry = async () => {
@@ -2161,7 +2277,7 @@ const RetroFootball: React.FC = () => {
         mode,
         cpuVsCpu: isCpu,
         testingMode: isTesting,
-        hotSeatMode: isHotSeat || isTesting,
+        hotSeatMode: isInteractivePlayerMode || isTesting,
         teamAName: nextTeamAName,
         teamBName: nextTeamBName,
       });
@@ -2177,13 +2293,15 @@ const RetroFootball: React.FC = () => {
     };
     void kickoffTelemetry();
     // AI state overlay is off by default; user can toggle it manually
-    gameRef.current?.setHotSeatMode?.(isHotSeat || isTesting);
+    gameRef.current?.setHotSeatMode?.(isInteractivePlayerMode || isTesting);
+    gameRef.current?.setTwoPlayerMode?.(isHotSeat);
     gameRef.current?.setTestingMode?.(isTesting);
     gameRef.current?.setCpuVsCpu?.(isCpu);
     gameRef.current?.setPracticeMode?.(isPractice);
     if (isPractice) {
       gameRef.current?.setTestingMode?.(true);
       gameRef.current?.setHotSeatMode?.(true);
+      gameRef.current?.setTwoPlayerMode?.(false);
     }
     gameRef.current?.splashMusicStop?.();
     gameRef.current?.setSplashSceneMode?.(false);
@@ -2232,6 +2350,7 @@ const RetroFootball: React.FC = () => {
     setTestingMode(false);
     gameRef.current?.setHotSeatMode?.(false);
     gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setTwoPlayerMode?.(false);
     gameRef.current?.setCpuVsCpu?.(false);
     gameRef.current?.setPracticeMode?.(false);
     gameRef.current?.splashMusicStop?.();
@@ -2293,6 +2412,7 @@ const RetroFootball: React.FC = () => {
     setTestingMode(false);
     gameRef.current?.setHotSeatMode?.(false);
     gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setTwoPlayerMode?.(false);
     gameRef.current?.setCpuVsCpu?.(true);
     gameRef.current?.setPracticeMode?.(false);
     gameRef.current?.splashMusicStop?.();
@@ -2332,6 +2452,8 @@ const RetroFootball: React.FC = () => {
         try {
           const watchedSnapshot = gameRef.current?.getMatchSnapshot?.() || null;
           const watchedBundle = gameRef.current?.getTuningBundle?.() || null;
+          // Not gated on hasDevServer(): this path only runs from the
+          // pslSmokeTest fixture runner, which is dev-harness-only anyway.
           if (watchedSnapshot?.phase === 'FULL_TIME' && watchedBundle) {
             fetch('/__db/match-result', {
               method: 'POST',
@@ -2384,6 +2506,7 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setTestingMode?.(false);
+      gameRef.current?.setTwoPlayerMode?.(false);
       gameRef.current?.setCpuVsCpu?.(true);
       gameRef.current?.setSplashSceneMode?.(true);
       gameRef.current?.setScoreBugVisible?.(false);
@@ -2471,10 +2594,10 @@ const RetroFootball: React.FC = () => {
         </div>
         <div className="text-white text-[11px] font-semibold mb-1">{p.name} ({p.role})</div>
         <div className="grid grid-cols-2 gap-2 text-[10px] text-white/70 mb-2">
-          <div>SPD: {p.stats.speed.toFixed(2)}</div>
-          <div>STR: {p.stats.strength.toFixed(2)}</div>
-          <div>CAT: {p.stats.catching.toFixed(2)}</div>
-          <div>TAK: {p.stats.tackle.toFixed(2)}</div>
+          <div>SPD: {Number(p.stats?.speed ?? 0).toFixed(2)}</div>
+          <div>STR: {Number(p.stats?.strength ?? 0).toFixed(2)}</div>
+          <div>CAT: {Number(p.stats?.catching ?? 0).toFixed(2)}</div>
+          <div>TAK: {Number(p.stats?.tackle ?? 0).toFixed(2)}</div>
         </div>
         <div className="border-t border-white/10 pt-2 text-[10px]">
           <div className="text-white/50 uppercase tracking-wide mb-1">Team Modifier</div>
@@ -2819,6 +2942,12 @@ const RetroFootball: React.FC = () => {
         );
       })()}
 
+      {isPaused && hasActiveMatchSession && !showSplash && !isOptionsOpen && (
+        <React.Suspense fallback={null}>
+          <PauseOverlay onResume={handleTogglePause} />
+        </React.Suspense>
+      )}
+
       {showHalftimeOverlay && (() => {
         const firstHalfGoals = (matchSnapshot.goalLog || []).filter((goal: any) => Number(goal?.matchMinute || 0) <= 45);
         return (
@@ -2918,17 +3047,17 @@ const RetroFootball: React.FC = () => {
       )}
       {/* Mode Select Screen */}
       {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && !showPreMatchSetup && (
-        <div className="absolute inset-0 z-50 overflow-hidden">
+        <div className="absolute inset-0 z-50 overflow-y-auto overflow-x-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,197,94,0.05),rgba(34,197,94,0.02)_18%,transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72)_82%)]" />
-          <div className="relative z-[2] flex h-full w-full items-center justify-center px-6 py-8">
-            <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-5">
+          <div className="relative z-[2] flex min-h-full w-full items-center justify-center px-5 py-5">
+            <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-3">
               <img
                 src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-[36rem] max-w-[78vw] drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
+                className="w-[36rem] max-w-[78vw] max-h-[18vh] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
               />
 
-              <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
                 <MenuTeamSelect
                   label="Home"
                   value={teamAName}
@@ -2959,12 +3088,11 @@ const RetroFootball: React.FC = () => {
                   Loading game engine...
                 </div>
               )}
-
               <div className="flex w-full flex-col gap-3">
-                <MenuModeButton focused={menuFocusIndex === 2} onClick={() => handleKickOff('1p')}>
+                <MenuModeButton focused={menuFocusIndex === 2} tone={INTERACTIVE_PLAYER_MODES_ENABLED ? 'white' : 'muted'} disabled={!INTERACTIVE_PLAYER_MODES_ENABLED} onClick={() => handleKickOff('1p')}>
                   1 Player vs CPU
                 </MenuModeButton>
-                <MenuModeButton focused={menuFocusIndex === 3} onClick={() => handleKickOff('2p')}>
+                <MenuModeButton focused={menuFocusIndex === 3} tone={INTERACTIVE_PLAYER_MODES_ENABLED ? 'white' : 'muted'} disabled={!INTERACTIVE_PLAYER_MODES_ENABLED} onClick={() => handleKickOff('2p')}>
                   2 Players - Hot Seat
                 </MenuModeButton>
                 <MenuModeButton
@@ -2981,7 +3109,7 @@ const RetroFootball: React.FC = () => {
                 </MenuModeButton>
               </div>
 
-              <p className="mt-8 text-center text-[11px] font-black uppercase leading-none text-lime-300/70" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.9)' }}>
+              <p className="mt-2 text-center text-[11px] font-black uppercase leading-none text-lime-300/70" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.9)' }}>
                 Press [ESC] in-game for options
               </p>
             </div>
@@ -3016,6 +3144,7 @@ const RetroFootball: React.FC = () => {
               setSessionMenuLock(true);
               gameRef.current?.setHotSeatMode?.(false);
               gameRef.current?.setTestingMode?.(false);
+              gameRef.current?.setTwoPlayerMode?.(false);
               gameRef.current?.setCpuVsCpu?.(false);
               gameRef.current?.splashMusicStop?.();
               gameRef.current?.setSplashSceneMode?.(false);
@@ -3414,10 +3543,16 @@ const RetroFootball: React.FC = () => {
                 <button onClick={() => setActiveTab('OPTIONS')} className={`text-white text-sm ${activeTab === 'OPTIONS' ? 'font-bold' : 'text-white/40'}`}>OPTIONS</button>
                 <button onClick={() => setActiveTab('CONTROLS')} className={`text-white text-sm ${activeTab === 'CONTROLS' ? 'font-bold' : 'text-white/40'}`}>CONTROLS</button>
                 <button onClick={() => setActiveTab('STATS')} className={`text-white text-sm ${activeTab === 'STATS' ? 'font-bold' : 'text-white/40'}`}>STATS</button>
-                <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
-                <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
+                {devToolsVisible && (
+                  <>
+                    <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
+                    <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
+                  </>
+                )}
                 <button onClick={() => setActiveTab('HOW_TO_PLAY')} className={`text-white text-sm ${activeTab === 'HOW_TO_PLAY' ? 'font-bold' : 'text-white/40'}`}>HOW TO PLAY</button>
-                <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
+                {devToolsVisible && (
+                  <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
+                )}
               </div>
               <button 
                 onClick={() => setIsOptionsOpen(false)}
@@ -3532,6 +3667,32 @@ const RetroFootball: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-4">
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Display</h3>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-white/30 text-[9px]">The desktop build uses a fixed window. Change size with presets instead of free resizing.</div>
+                      <div className="flex flex-wrap gap-2">
+                        {WINDOW_RESOLUTION_PRESETS.map((preset) => (
+                          <button
+                            key={preset.key}
+                            onClick={() => setWindowResolution(preset.key)}
+                            className={`px-3 py-1.5 text-[10px] border rounded ${
+                              windowResolution === preset.key ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                            } transition-colors`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-white/30 text-[9px] uppercase tracking-widest">
+                        Current: {WINDOW_RESOLUTION_PRESETS.find((preset) => preset.key === windowResolution)?.label ?? windowResolution}
+                      </div>
+                      {windowResolutionMessage && (
+                        <div className="text-emerald-300/70 text-[9px] uppercase tracking-widest">{windowResolutionMessage}</div>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Environment</h3>
                     <div className="flex flex-col gap-2">
@@ -3883,10 +4044,10 @@ const RetroFootball: React.FC = () => {
                       <span>{p.name} ({p.role})</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-white/60">
-                      <div>SPD: {p.stats.speed.toFixed(2)}</div>
-                      <div>STR: {p.stats.strength.toFixed(2)}</div>
-                      <div>CAT: {p.stats.catching.toFixed(2)}</div>
-                      <div>TAK: {p.stats.tackle.toFixed(2)}</div>
+                      <div>SPD: {Number(p.stats?.speed ?? 0).toFixed(2)}</div>
+                      <div>STR: {Number(p.stats?.strength ?? 0).toFixed(2)}</div>
+                      <div>CAT: {Number(p.stats?.catching ?? 0).toFixed(2)}</div>
+                      <div>TAK: {Number(p.stats?.tackle ?? 0).toFixed(2)}</div>
                     </div>
                   </div>
                 ))}
@@ -3898,20 +4059,46 @@ const RetroFootball: React.FC = () => {
             ) : activeTab === 'HOW_TO_PLAY' ? (
               <div className="max-w-lg mx-auto flex flex-col gap-6">
                 <div>
-                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Controls</h3>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Player 1 — Home</h3>
                   <div className="grid grid-cols-2 gap-y-2 text-[11px]">
-                    <div className="text-white/60">WASD / ARROWS</div>
+                    <div className="text-white/60">W A S D</div>
                     <div className="text-white text-right">MOVE PLAYER</div>
-                    <div className="text-white/60">H</div>
-                    <div className="text-white text-right">KICK OFF / RESTART</div>
-                    <div className="text-white/60">SPACEBAR</div>
-                    <div className="text-white text-right">PASS / SELECT TARGET</div>
+                    <div className="text-white/60">LEFT SHIFT (HOLD)</div>
+                    <div className="text-white text-right">SPRINT</div>
+                    <div className="text-white/60">SPACEBAR / G</div>
+                    <div className="text-white text-right">PASS — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">C</div>
+                    <div className="text-white text-right">LOB / CHIP PASS</div>
+                    <div className="text-white/60">F</div>
+                    <div className="text-white text-right">SHOOT — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">R</div>
+                    <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">Q / E</div>
                     <div className="text-white text-right">SWITCH HOME PLAYER</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Player 2 — Away</h3>
+                  <div className="grid grid-cols-2 gap-y-2 text-[11px]">
+                    <div className="text-white/60">ARROW KEYS</div>
+                    <div className="text-white text-right">MOVE PLAYER</div>
+                    <div className="text-white/60">RIGHT SHIFT (HOLD)</div>
+                    <div className="text-white text-right">SPRINT</div>
+                    <div className="text-white/60">,</div>
+                    <div className="text-white text-right">PASS — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">;</div>
+                    <div className="text-white text-right">LOB / CHIP PASS</div>
+                    <div className="text-white/60">.</div>
+                    <div className="text-white text-right">SHOOT — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">/</div>
+                    <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">[ / ]</div>
                     <div className="text-white text-right">SWITCH AWAY PLAYER</div>
-                    <div className="text-white/60">R</div>
-                    <div className="text-white text-right">RESET GAME</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">General</h3>
+                  <div className="grid grid-cols-2 gap-y-2 text-[11px]">
                     <div className="text-white/60">ESC</div>
                     <div className="text-white text-right">OPTIONS MENU</div>
                   </div>
@@ -3919,11 +4106,10 @@ const RetroFootball: React.FC = () => {
                 <div>
                   <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">How to Play</h3>
                   <div className="text-white/70 text-[11px] leading-relaxed space-y-2">
-                    <p>You control the <span className="text-white font-bold">highlighted player</span> on your team. Use WASD or arrow keys to move around the pitch.</p>
-                    <p>When your team has the ball, press <span className="text-white font-bold">SPACEBAR</span> to pass to a nearby teammate. Run toward the opponent{'\u2019'}s goal and your player will shoot automatically when in range.</p>
+                    <p>You control the <span className="text-white font-bold">highlighted player</span> on your team. Player 1 moves with <span className="text-white font-bold">WASD</span>; in two-player matches Player 2 moves with the <span className="text-white font-bold">arrow keys</span>.</p>
+                    <p>When your team has the ball, use movement to aim, then press <span className="text-white font-bold">SPACEBAR</span> to pass or <span className="text-white font-bold">F</span> to shoot. When defending, press <span className="text-white font-bold">R</span> near the ball carrier to tackle.</p>
                     <p>Use <span className="text-white font-bold">Q / E</span> to cycle through your home-team players and <span className="text-white font-bold">[ / ]</span> to cycle away-team players.</p>
-                    <p>Press <span className="text-white font-bold">H</span> to kick off at the start of each half or after a goal.</p>
-                    <p>Press <span className="text-white font-bold">R</span> to reset the match at any time.</p>
+                    <p>Kick-offs, restarts and resetting the match are handled from the on-screen buttons and the <span className="text-white font-bold">OPTIONS</span> menu.</p>
                   </div>
                 </div>
               </div>

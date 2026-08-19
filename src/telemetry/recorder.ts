@@ -1,6 +1,7 @@
 import { createId, telemetryDb, type CorrectionActionRow, type MatchSnapshotRow, type PlayerSnapshotRow, type RealWorldBaselineRow, type TelemetryEventRow, type TelemetrySession } from './db';
 import { buildDriftDashboard, generateDriftRecommendations } from './analysis';
 import { seedMLS2025Baselines } from './mls2025-baselines';
+import { hasDevServer } from '../runtimeEnv';
 
 type PlayerStatsLike = {
   role?: string;
@@ -144,6 +145,7 @@ async function mirrorTelemetrySnapshot(payload: {
     z: number;
   }>;
 }) {
+  if (!hasDevServer()) return;
   try {
     await fetch('/__telemetry/mirror-snapshot', {
       method: 'POST',
@@ -170,6 +172,7 @@ async function mirrorTelemetryBatch(payload: {
   };
   telemetryEvents: TelemetryEventRow[];
 }) {
+  if (!hasDevServer()) return;
   try {
     await fetch('/__telemetry/mirror-batch', {
       method: 'POST',
@@ -218,6 +221,7 @@ export type MirroredRecoveryPayload = {
 };
 
 export async function getDiskMirrorStatus(): Promise<DiskMirrorStatus | null> {
+  if (!hasDevServer()) return null;
   try {
     const response = await fetch('/__telemetry/mirror-status');
     if (!response.ok) return null;
@@ -228,6 +232,7 @@ export async function getDiskMirrorStatus(): Promise<DiskMirrorStatus | null> {
 }
 
 export async function recoverLatestMirroredSession(): Promise<MirroredRecoveryPayload | null> {
+  if (!hasDevServer()) return null;
   try {
     const response = await fetch('/__telemetry/recover-latest');
     if (!response.ok) return null;
@@ -753,7 +758,7 @@ export class TelemetryRecorder {
     };
     await telemetryDb.telemetryEvents.add(row);
     // Auto-mirror shot events to disk
-    if (eventType === 'shot_style_taken') {
+    if (eventType === 'shot_style_taken' && hasDevServer()) {
       fetch('/__telemetry/shot-events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1252,7 +1257,7 @@ async function dumpShotEventsToFile(): Promise<{ ok: boolean; appended: number }
     .where('eventType')
     .equals('shot_style_taken')
     .toArray();
-  if (rows.length === 0) return { ok: true, appended: 0 };
+  if (rows.length === 0 || !hasDevServer()) return { ok: true, appended: 0 };
   const payloads = rows.map(r => JSON.parse(r.payloadJson));
   const res = await fetch('/__telemetry/shot-events', {
     method: 'POST',
@@ -1268,6 +1273,7 @@ async function dumpShotEventsToFile(): Promise<{ ok: boolean; appended: number }
  * Silently no-ops in production (endpoint won't exist).
  */
 export async function mirrorMatchSummary(sessionId?: string | null): Promise<boolean> {
+  if (!hasDevServer()) return false;
   try {
     const summary = await getLatestSessionSummary(sessionId);
     if (!summary) return false;

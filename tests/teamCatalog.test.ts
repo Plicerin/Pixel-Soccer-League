@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -8,6 +9,7 @@ import {
   PLAYABLE_WORLD_TEAM_NAMES,
   resolvePlayableTeamKits,
   WORLD_CUP_2026_TEAM_KITS,
+  WORLD_CUP_2026_TEAM_FLAG_CODES,
   WORLD_CUP_2026_TEAM_NAMES,
   WORLD_CUP_2026_TEAMS,
   getWorldCupTeamFlagAsset,
@@ -50,8 +52,8 @@ test('world team catalog exposes 1982 final teams as easter eggs outside the 48-
   assert.equal(resolveWorldCupTeamName('Germany 1982'), 'West Germany 1982');
   assert.equal(getWorldCupTeamFlag('Italy 1982'), '🇮🇹');
   assert.equal(getWorldCupTeamFlag('West Germany 1982'), '🇩🇪');
-  assert.equal(getWorldCupTeamFlagAsset('Italy 1982'), 'https://flagcdn.com/w80/it.png');
-  assert.equal(getWorldCupTeamFlagAsset('West Germany 1982'), 'https://flagcdn.com/w80/de.png');
+  assert.equal(getWorldCupTeamFlagAsset('Italy 1982'), '/assets/flags/it.png');
+  assert.equal(getWorldCupTeamFlagAsset('West Germany 1982'), '/assets/flags/de.png');
   assert.ok(PLAYABLE_WORLD_TEAM_KITS['Italy 1982']);
   assert.ok(PLAYABLE_WORLD_TEAM_KITS['West Germany 1982']);
 });
@@ -74,14 +76,14 @@ test('world team catalog provides defaults, aliases, and kits for every team', (
   assert.equal(getWorldCupTeamFlag('United States'), '🇺🇸');
   assert.equal(getWorldCupTeamFlag('Mexico'), '🇲🇽');
   assert.ok(getWorldCupTeamFlag('England').length > 0);
-  assert.equal(getWorldCupTeamFlagAsset('United States'), 'https://flagcdn.com/w80/us.png');
-  assert.equal(getWorldCupTeamFlagAsset('England'), 'https://flagcdn.com/w80/gb-eng.png');
-  assert.equal(getWorldCupTeamFlagAsset('Scotland'), 'https://flagcdn.com/w80/gb-sct.png');
+  assert.equal(getWorldCupTeamFlagAsset('United States'), '/assets/flags/us.png');
+  assert.equal(getWorldCupTeamFlagAsset('England'), '/assets/flags/gb-eng.png');
+  assert.equal(getWorldCupTeamFlagAsset('Scotland'), '/assets/flags/gb-sct.png');
 
   for (const team of WORLD_CUP_2026_TEAM_NAMES) {
     const kit = WORLD_CUP_2026_TEAM_KITS[team];
     assert.ok(getWorldCupTeamFlag(team), `${team} missing flag`);
-    assert.match(getWorldCupTeamFlagAsset(team), /^https:\/\/flagcdn\.com\/w80\/[a-z-]+\.png$/, `${team} missing real flag asset`);
+    assert.match(getWorldCupTeamFlagAsset(team), /^\/assets\/flags\/[a-z-]+\.png$/, `${team} missing real flag asset`);
     assert.ok(kit, `${team} missing kit`);
     assert.equal(typeof kit.home.shirt, 'number', `${team} missing home shirt color`);
     assert.equal(typeof kit.away.pants, 'number', `${team} missing away pants color`);
@@ -137,4 +139,13 @@ test('world teams expose synthetic country-appropriate starting lineups', () => 
     assert.equal(new Set(lineup.map((player) => player.number)).size, 11, `${team} must expose unique shirt numbers`);
     assert.equal(lineup.every((player) => player.team === team), true, `${team} lineup must keep the selected team name`);
   }
+});
+
+test('every flag code ships a bundled image', () => {
+  // Flags are served from public/assets/flags under a strict img-src 'self'
+  // CSP; a missing file is an invisible flag in the shipped game.
+  const codes = [...new Set(Object.values(WORLD_CUP_2026_TEAM_FLAG_CODES).map((code) => String(code).toLowerCase()))];
+  assert.ok(codes.length >= 48, `expected the full team field, got ${codes.length} codes`);
+  const missing = codes.filter((code) => !existsSync(`public/assets/flags/${code}.png`));
+  assert.deepEqual(missing, [], `missing bundled flag images: ${missing.join(', ')}`);
 });
