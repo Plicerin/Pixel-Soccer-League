@@ -49,31 +49,18 @@ const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2
  */
 const DEV_ONLY_OPTIONS_TABS = ['MATCH_HISTORY', 'FRAME_VIEWER', 'LIVE_TELEMETRY'] as const;
 
-const AGGRESSION_SCALE: Record<AggressivenessKey, number> = {
-  POSSESSION: 35,
-  BALANCED: 55,
-  AGGRESSIVE: 85,
-};
-
+/**
+ * Push each side's coaching intent into the model. It shifts the team's rated
+ * tuning rather than replacing it, so a stronger squad stays stronger at every
+ * setting. Previously this called two engine stubs and did nothing at all.
+ */
 function applyGameAggressionSettings(
   game: any,
-  attackAggressiveness: AggressivenessKey,
-  defenseAggressiveness: AggressivenessKey = attackAggressiveness,
+  teamAAggressiveness: AggressivenessKey,
+  teamBAggressiveness: AggressivenessKey = teamAAggressiveness,
 ) {
-  const params = new URLSearchParams(window.location.search);
-  if (
-    params.has('coachAggression')
-    || params.has('attackAggression')
-    || params.has('aggression')
-    || params.has('defenseAggression')
-    || params.has('defAggression')
-  ) {
-    return;
-  }
-  const attackValue = Math.round((AGGRESSION_SCALE[attackAggressiveness] + AGGRESSION_SCALE[defenseAggressiveness]) / 2);
-  const defenseValue = Math.max(AGGRESSION_SCALE[attackAggressiveness], AGGRESSION_SCALE[defenseAggressiveness]);
-  game?.setCoachAggression?.(attackValue);
-  game?.setDefenseAggression?.(defenseValue);
+  game?.setTeamAggression?.('A', teamAAggressiveness);
+  game?.setTeamAggression?.('B', teamBAggressiveness);
 }
 
 // Helper: reset positions, draw routes, optionally activate play — called on every play/formation change

@@ -121,6 +121,19 @@ type PassTargetOptions = {
 
 type ManualChargeAction = "pass" | "shot";
 
+/**
+ * Coaching intent. Applied as a delta on top of the team's identity-derived
+ * tuning (getTeamTuning -> FIFA/MLS ratings), never as a replacement, so a
+ * stronger side stays stronger at every setting.
+ */
+export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
+
+const TEAM_AGGRESSION_DELTAS: Record<TeamAggressionKey, { attack: number; defense: number; tempo: number }> = {
+  BALANCED: { attack: 0, defense: 0, tempo: 0 },
+  AGGRESSIVE: { attack: 0.15, defense: -0.08, tempo: 0.10 },
+  POSSESSION: { attack: -0.13, defense: 0.08, tempo: -0.12 },
+};
+
 /** When the game may re-pick which player you control. */
 export type AutoSwitchMode = "AUTOMATIC" | "AIR_BALLS" | "LOOSE_BALLS" | "MANUAL";
 
@@ -584,6 +597,7 @@ export class SimpleMatchModel {
   readonly players: SimplePlayer[] = [];
   readonly eventLog: LiveEvent[] = [];
   private liveEventSeq = 0;
+  private readonly teamAggression: Record<SimpleTeamCode, TeamAggressionKey> = { A: "BALANCED", B: "BALANCED" };
   private readonly manualTackleCooldown: Record<SimpleTeamCode, number> = { A: 0, B: 0 };
   readonly events: SimpleEvent[] = [];
   readonly passLog: SimpleEvent[] = [];
@@ -753,6 +767,41 @@ export class SimpleMatchModel {
       z: clamp(Number.isFinite(z) ? z : 0, -1, 1),
     };
     if (state.enabled) this.ensureManualSelection(team);
+  }
+
+  /**
+   * How much the coaching dial scales shot appetite. The rated attack tuning
+   * only contributes ~0.001 to shootUrge, far too small for a setting the
+   * player chooses, so intent scales the whole urge instead.
+   */
+  private aggressionShotScale(team: SimpleTeamCode) {
+    const delta = TEAM_AGGRESSION_DELTAS[this.teamAggression[team]] ?? TEAM_AGGRESSION_DELTAS.BALANCED;
+    return clamp(1 + delta.attack * 1.9, 0.6, 1.5);
+  }
+
+  /** Coaching intent for a team. Modifies, never replaces, its rated tuning. */
+  setTeamAggression(team: SimpleTeamCode, key: TeamAggressionKey) {
+    this.teamAggression[team] = TEAM_AGGRESSION_DELTAS[key] ? key : "BALANCED";
+  }
+
+  getTeamAggression(team: SimpleTeamCode) {
+    return this.teamAggression[team];
+  }
+
+  /**
+   * Team tuning as the match should actually play it: rated identity plus the
+   * coach's intent. Player ratings are deliberately NOT re-derived from this --
+   * changing a coaching setting must not restat the squad mid-match.
+   */
+  effectiveTuning(team: SimpleTeamCode) {
+    const base = this.team(team).tuning;
+    const delta = TEAM_AGGRESSION_DELTAS[this.teamAggression[team]] ?? TEAM_AGGRESSION_DELTAS.BALANCED;
+    return {
+      ...base,
+      attack: clamp(base.attack + delta.attack, 0, 1),
+      defense: clamp(base.defense + delta.defense, 0, 1),
+      tempo: clamp(base.tempo + delta.tempo, 0, 1),
+    };
   }
 
   /**
@@ -6474,13 +6523,13 @@ export class SimpleMatchModel {
     if (carrier && carrier.role !== "GK") {
       return clamp(this.compressedOutfieldCadenceDelay(carrier), 0.03, 8.5);
     }
-    const tempo = this.team(this.possession?.team || "A").tuning.tempo;
+    const tempo = this.effectiveTuning(this.possession?.team || "A").tempo;
     const baseDelay = clamp(4.75 - tempo * 1.25 + this.rng.range(-0.8, 1.1), 2.75, 6.25);
     return clamp((baseDelay * BALL_HOLD_TIME_MULTIPLIER * this.underproducingCadenceScale()) / this.productionCompression(), 0.03, 8.5);
   }
 
   private fullLengthOutfieldCadenceDelay(carrier: SimplePlayer) {
-    const tempo = this.team(carrier.team).tuning.tempo;
+    const tempo = this.effectiveTuning(carrier.team).tempo;
     const distToGoal = dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team)));
     const zone = this.zoneForDist(distToGoal);
     const pressure = this.pressureOn(carrier);
@@ -6506,7 +6555,7 @@ export class SimpleMatchModel {
   }
 
   private compressedOutfieldCadenceDelay(carrier: SimplePlayer) {
-    const tempo = this.team(carrier.team).tuning.tempo;
+    const tempo = this.effectiveTuning(carrier.team).tempo;
     const distToGoal = dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team)));
     const zone = this.zoneForDist(distToGoal);
     const pressure = this.pressureOn(carrier);
@@ -7093,12 +7142,18 @@ export class SimpleMatchModel {
     const distance = distToGoal < 8 ? 0.094 : distToGoal < 14 ? 0.062 : distToGoal < 22 ? 0.022 : distToGoal < 29 ? 0.005 : 0;
     const centrality = clamp(1 - Math.abs(carrier.pos.z) / (FIELD_D * 0.42), 0, 1);
     const pressureBoost = Math.min(0.010, pressure * 0.0023);
-    const attackBoost = (this.team(carrier.team).tuning.attack - 0.5) * 0.007;
+    const attackBoost = (this.effectiveTuning(carrier.team).attack - 0.5) * 0.007;
     const centralBoost = distYards <= 24 ? centrality * 0.012 : centrality * 0.004;
     const longRangeBrake = distYards > 30 ? 0.22 : distYards > 24 ? 0.45 : 1;
     const matchShotLoad = this.teamA.shots + this.teamB.shots;
     const loadBrake = matchShotLoad > 36 ? 0.12 : matchShotLoad > 32 ? 0.32 : matchShotLoad > 28 ? 0.62 : 1;
-    return clamp((role + distance + pressureBoost + attackBoost + centralBoost) * this.shotSelectionScale() * longRangeBrake * loadBrake, 0.001, 0.11);
+    return clamp(
+      (role + distance + pressureBoost + attackBoost + centralBoost)
+        * this.aggressionShotScale(carrier.team)
+        * this.shotSelectionScale() * longRangeBrake * loadBrake,
+      0.001,
+      0.11,
+    );
   }
 
   private distanceShotChance(carrier: SimplePlayer, distToGoal: number, pressure: number, forwardX: number) {
@@ -7111,7 +7166,7 @@ export class SimpleMatchModel {
     const roleBase = carrier.role === "ST" ? 0.021 : carrier.role === "AM" ? 0.018 : carrier.role === "W" ? 0.012 : 0.008;
     const sweetSpot = clamp(1 - Math.abs(distYards - 24) / 7, 0, 1);
     const centralBoost = centrality * 0.010;
-    const attackBoost = (this.team(carrier.team).tuning.attack - 0.5) * 0.005;
+    const attackBoost = (this.effectiveTuning(carrier.team).attack - 0.5) * 0.005;
     const pressureBoost = clamp(pressure * 0.0045, 0, 0.008);
     const matchShotLoad = this.teamA.shots + this.teamB.shots;
     const loadMultiplier = matchShotLoad > 40 ? 0 : matchShotLoad > 34 ? 0.25 : 1;

@@ -1816,19 +1816,22 @@ test("auto-switch modes actually gate who you control", () => {
 
     // Any manual input runs the selection logic.
     model.setManualMove("A", 1, 0);
-    return { model, pickedId: picked.id, carrierId: carrier.id };
+    const selected = () =>
+      (model as unknown as { manualSelectedPlayer: (t: "A" | "B") => { id: string } | null })
+        .manualSelectedPlayer("A")?.id;
+    return { model, selected, pickedId: picked.id, carrierId: carrier.id };
   };
 
   const automatic = stage("AUTOMATIC");
   assert.equal(
-    automatic.model.manualSelectedPlayer("A")?.id,
+    automatic.selected(),
     automatic.carrierId,
     "AUTOMATIC must hand control to the player on the ball",
   );
 
   const manual = stage("MANUAL");
   assert.equal(
-    manual.model.manualSelectedPlayer("A")?.id,
+    manual.selected(),
     manual.pickedId,
     "MANUAL must never steal the player's selection",
   );
@@ -1836,16 +1839,74 @@ test("auto-switch modes actually gate who you control", () => {
   // LOOSE_BALLS only switches when nobody is in possession.
   const loose = stage("LOOSE_BALLS");
   assert.equal(
-    loose.model.manualSelectedPlayer("A")?.id,
+    loose.selected(),
     loose.pickedId,
     "LOOSE_BALLS must not switch while a player is on the ball",
   );
   loose.model.possession = null;
   loose.model.setManualMove("A", 1, 0);
   assert.notEqual(
-    loose.model.manualSelectedPlayer("A")?.id,
+    loose.selected(),
     undefined,
     "LOOSE_BALLS must switch once the ball is loose",
+  );
+});
+
+test("coaching intent modifies rated tuning without replacing it", () => {
+  const tuningFor = (aggression: "BALANCED" | "AGGRESSIVE" | "POSSESSION") => {
+    const model = new SimpleMatchModel();
+    model.setSeed("aggression-tuning");
+    model.setTeamNames("Brazil", "Curacao");
+    model.startMatch();
+    model.setTeamAggression("A", aggression);
+    const api = model as unknown as {
+      effectiveTuning: (t: "A" | "B") => { attack: number; defense: number; tempo: number };
+      aggressionShotScale: (t: "A" | "B") => number;
+      team: (t: "A" | "B") => { tuning: { attack: number } };
+    };
+    return {
+      effective: api.effectiveTuning("A"),
+      shotScale: api.aggressionShotScale("A"),
+      rated: api.team("A").tuning.attack,
+    };
+  };
+
+  const balanced = tuningFor("BALANCED");
+  const aggressive = tuningFor("AGGRESSIVE");
+  const possession = tuningFor("POSSESSION");
+
+  // BALANCED must be a pure no-op, or every existing calibration shifts.
+  assert.equal(balanced.effective.attack, balanced.rated, "BALANCED must not alter rated tuning");
+  assert.equal(balanced.shotScale, 1, "BALANCED must not scale shot appetite");
+
+  assert.ok(aggressive.effective.attack > balanced.effective.attack, "AGGRESSIVE must raise attack intent");
+  assert.ok(aggressive.effective.tempo > balanced.effective.tempo, "AGGRESSIVE must raise tempo");
+  assert.ok(aggressive.shotScale > 1, "AGGRESSIVE must raise shot appetite");
+  assert.ok(possession.effective.attack < balanced.effective.attack, "POSSESSION must lower attack intent");
+  assert.ok(possession.effective.defense > balanced.effective.defense, "POSSESSION must raise defensive intent");
+  assert.ok(possession.shotScale < 1, "POSSESSION must lower shot appetite");
+});
+
+test("team strength still outranks the coaching dial", () => {
+  const goalsFor = (teamName: string, aggression: "BALANCED" | "AGGRESSIVE" | "POSSESSION") => {
+    const model = new SimpleMatchModel();
+    model.setSeed("aggression-vs-strength");
+    model.setTeamNames(teamName, "Curacao");
+    model.setHalfDurationSeconds(300);
+    model.startMatch();
+    model.setTeamAggression("A", aggression);
+    model.setTeamAggression("B", "BALANCED");
+    const api = model as unknown as { effectiveTuning: (t: "A" | "B") => { attack: number } };
+    return api.effectiveTuning("A").attack;
+  };
+
+  // A strong side set to POSSESSION must still out-rate a weak side set to
+  // AGGRESSIVE: intent is a modifier on rated identity, not a replacement.
+  const strongDefensive = goalsFor("Brazil", "POSSESSION");
+  const weakAggressive = goalsFor("Curacao", "AGGRESSIVE");
+  assert.ok(
+    strongDefensive > weakAggressive,
+    `coaching intent must not overturn rated team strength: Brazil/POSSESSION ${strongDefensive.toFixed(3)} vs Curacao/AGGRESSIVE ${weakAggressive.toFixed(3)}`,
   );
 });
 

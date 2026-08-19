@@ -1083,8 +1083,15 @@ class SimpleGameEngine {
     this.model.setAutoSwitchMode('A', next);
     this.model.setAutoSwitchMode('B', next);
   };
-  setCoachAggression = (_value: number) => {};
-  setDefenseAggression = (_value: number) => {};
+  /**
+   * Coaching intent per team. Modifies the team's rated tuning rather than
+   * replacing it, so FIFA/MLS strength still decides who is better.
+   */
+  setTeamAggression = (team: 'A' | 'B', key: string) => {
+    const allowed = ['BALANCED', 'AGGRESSIVE', 'POSSESSION'] as const;
+    const next = (allowed as readonly string[]).includes(key) ? key as typeof allowed[number] : 'BALANCED';
+    this.model.setTeamAggression(team, next);
+  };
   setTeamLogos = (_a: string, _b: string) => {};
   setCrowdVolume = (value: number) => {
     this.crowdLoop.baseVolume = THREE.MathUtils.clamp(Number(value) || 0, 0, 1);
