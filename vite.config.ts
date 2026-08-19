@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
-import {defineConfig, loadEnv, type Plugin} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
 
 /** Dev-only Vite plugin: tiny POST endpoint that mirrors match results to a local JSON file. */
 function telemetryMirrorPlugin(): Plugin {
@@ -522,26 +522,73 @@ function tuningRelayPlugin(): Plugin {
   };
 }
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+/**
+ * Files under public/ are copied verbatim into dist/, which means the debug
+ * dashboard and the infinite-game scratchpad would ship inside the Windows
+ * installer. They are dev-server tools (SPEC I.dashboard serves them from
+ * localhost:3001), so keep them in public/ for dev and drop them from the
+ * production bundle.
+ */
+function stripDevOnlyPublicAssets(): Plugin {
+  const devOnlyAssets = ['dashboard.html', 'ig.js', 'infinite-game.js'];
+  let outDir = 'dist';
+
   return {
-    plugins: [react(), tailwindcss(), telemetryMirrorPlugin(), tuningRelayPlugin()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    name: 'psl-strip-dev-only-public-assets',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
     },
+    closeBundle() {
+      for (const asset of devOnlyAssets) {
+        const target = path.join(outDir, asset);
+        try {
+          if (fs.existsSync(target)) fs.rmSync(target);
+        } catch (err) {
+          this.warn(`could not strip dev-only asset ${asset}: ${err}`);
+        }
+      }
+    },
+  };
+}
+
+export default defineConfig(() => {
+  const tauriHost = process.env.TAURI_DEV_HOST;
+  const hmr =
+    process.env.DISABLE_HMR === 'true'
+      ? false
+      : tauriHost
+        ? {
+            protocol: 'ws',
+            host: tauriHost,
+            port: 1421,
+          }
+        : true;
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      telemetryMirrorPlugin(),
+      tuningRelayPlugin(),
+      stripDevOnlyPublicAssets(),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    envPrefix: ['VITE_', 'TAURI_ENV_*'],
     server: {
+      host: tauriHost || undefined,
       port: 3001,
+      strictPort: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr,
       allowedHosts: ['localhost', '127.0.0.1', 'gakeen'],
       watch: {
         ignored: [
+          '**/src-tauri/**',
           '**/match-results.json',
           '**/telemetry-snapshots.json',
           '**/telemetry-snapshots.ndjson',
@@ -574,6 +621,11 @@ export default defineConfig(({mode}) => {
         'troika-three-text',
         'dexie',
       ],
+    },
+    build: {
+      target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'es2020',
+      minify: process.env.TAURI_ENV_DEBUG ? false : ('esbuild' as const),
+      sourcemap: !!process.env.TAURI_ENV_DEBUG,
     },
   };
 });

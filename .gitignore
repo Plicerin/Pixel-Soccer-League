@@ -1,6 +1,8 @@
 node_modules/
 build/
 dist/
+src-tauri/target/
+src-tauri/gen/
 coverage/
 .DS_Store
 *.log
@@ -31,6 +33,10 @@ psl.db-wal
 
 # Public sample tracking datasets used for local analysis
 data/metrica-sample-data/
+
+# Regenerate with `node scripts/build-metrica-replay.mjs` when the replay
+# viewer needs it. Never commit: it is 13 MB and ships in the installer.
+public/data/
 
 # Temporary patcher scripts
 tmp-*.cjs
