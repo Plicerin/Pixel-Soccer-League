@@ -96,7 +96,19 @@ if (noBuild) process.exit(0);
 // .cmd without it -- this sidesteps both.
 const tauriCli = path.join(ROOT, 'node_modules', '@tauri-apps', 'cli', 'tauri.js');
 if (!existsSync(tauriCli)) fail(`cannot find ${tauriCli}; run npm install`);
-execFileSync(process.execPath, [tauriCli, 'build'], { cwd: ROOT, stdio: 'inherit' });
+try {
+  execFileSync(process.execPath, [tauriCli, 'build'], { cwd: ROOT, stdio: 'inherit' });
+} catch (error) {
+  // Roll the version back so a failed build (locked exe, compile error) does
+  // not silently consume a version number and leave a gap in the history.
+  if (!buildCurrent) {
+    writeJsonVersion(PKG, current);
+    writeJsonVersion(CONF, current);
+    writeCargoVersion(current);
+    console.error(`release: build failed, version rolled back to ${current}`);
+  }
+  process.exit(typeof error?.status === 'number' ? error.status : 1);
+}
 
 if (!existsSync(artifact)) fail(`build finished but ${path.basename(artifact)} is missing`);
 console.log(`\nrelease: built ${artifact}`);
