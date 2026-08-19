@@ -1077,12 +1077,12 @@ class SimpleGameEngine {
   setRealDataReplayMode = (_enabled: boolean) => {};
   setUseNewArchitecture = (_enabled: boolean) => {};
   setShowOrchTelemetry = (_enabled: boolean) => {};
-  setShowAIStateOverlay = (_enabled: boolean) => {};
-  setShowPositionLabels = (_enabled: boolean) => {};
-  setShowAIStateLabels = (_enabled: boolean) => {};
-  setAutoSwitching = (_mode: string) => {};
-  setAutoClearances = (_enabled: boolean) => {};
-  setCPUShotTuning = (_aimErrorRad: number, _pressureError: number) => {};
+  setAutoSwitching = (mode: string) => {
+    const allowed = ['AUTOMATIC', 'AIR_BALLS', 'LOOSE_BALLS', 'MANUAL'] as const;
+    const next = (allowed as readonly string[]).includes(mode) ? mode as typeof allowed[number] : 'AUTOMATIC';
+    this.model.setAutoSwitchMode('A', next);
+    this.model.setAutoSwitchMode('B', next);
+  };
   setCoachAggression = (_value: number) => {};
   setDefenseAggression = (_value: number) => {};
   setTeamLogos = (_a: string, _b: string) => {};
@@ -1094,7 +1094,6 @@ class SimpleGameEngine {
       this.crowdLoop.gain.gain.linearRampToValueAtTime(this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac, this.audioCtx.currentTime + 0.15);
     }
   };
-  setStadiumCamTiltShift = (_enabled: boolean) => {};
   drawPracticeRoutes = (routes: unknown) => {
     this.clearPracticeRoutes();
     if (!this.practiceModeEnabled || !Array.isArray(routes)) return;

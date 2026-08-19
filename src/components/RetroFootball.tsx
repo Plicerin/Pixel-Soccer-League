@@ -108,12 +108,6 @@ const EASTER_EGG_TEAM_OPTIONS = ['Italy 1982', 'West Germany 1982'];
 
 const SOCCER_FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'];
 
-const CPU_SHOT_TUNING_PRESETS = {
-  BALANCED: { aimErrorRad: 0.14, pressureError: 0.08 },
-  AGGRESSIVE: { aimErrorRad: 0.18, pressureError: 0.1 },
-  POSSESSION: { aimErrorRad: 0.11, pressureError: 0.06 },
-} as const;
-
 const MLS_TEAM_KITS = PLAYABLE_WORLD_TEAM_KITS as Record<string, { home: { shirt: number; pants: number }; away: { shirt: number; pants: number } }>;
 const FALLBACK_TEAM_KIT = MLS_TEAM_KITS[DEFAULT_HOME_TEAM] ?? Object.values(MLS_TEAM_KITS)[0];
 const MLS_TEAM_NAMES = PLAYABLE_WORLD_TEAM_NAMES;
@@ -1064,11 +1058,7 @@ const RetroFootball: React.FC = () => {
   const [gameReady, setGameReady] = useState(false);
   const [lighting, setLighting] = useState('NOON');
   const [weather, setWeather] = useState<'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY'>('SUNNY');
-  const [aiStyle, setAIStyle] = useState<'BALANCED' | 'AGGRESSIVE' | 'POSSESSION'>('BALANCED');
-  const [cpuShotAimErrorRad, setCPUShotAimErrorRad] = useState<number>(CPU_SHOT_TUNING_PRESETS.BALANCED.aimErrorRad);
-  const [cpuShotPressureError, setCPUShotPressureError] = useState<number>(CPU_SHOT_TUNING_PRESETS.BALANCED.pressureError);
   const [cameraMode, setCameraMode] = useState<'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM'>('BROADCAST');
-  const [stadiumCamTiltShiftEnabled, setStadiumCamTiltShiftEnabled] = useState(true);
   const [teamAUniform, setTeamAUniform] = useState(0);
   const [teamBUniform, setTeamBUniform] = useState(0);
   const [teamAName, setTeamAName] = useState(DEFAULT_HOME_TEAM);
@@ -1103,7 +1093,6 @@ const RetroFootball: React.FC = () => {
   const [windowResolution, setWindowResolution] = useState<WindowResolutionPreset>(() => getStoredWindowResolution());
   const [windowResolutionMessage, setWindowResolutionMessage] = useState('');
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
-  const [autoClearances, setAutoClearances] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
   const [matchSnapshot, setMatchSnapshot] = useState<any | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
@@ -1149,9 +1138,6 @@ const RetroFootball: React.FC = () => {
   const [isFieldVisible, setIsFieldVisible] = useState(true);
   const [isGrassVisible, setIsGrassVisible] = useState(true);
   const [shotBallTrailEnabled, setShotBallTrailEnabled] = useState(true);
-  const [showAIStateOverlay, setShowAIStateOverlay] = useState(false);
-  const [showPositionLabels, setShowPositionLabels] = useState(false);
-  const [showAIStateLabels, setShowAIStateLabels] = useState(false);
   const [showAnimInspector, setShowAnimInspector] = useState(false);
   const [teamAKit, setTeamAKit] = useState<'home' | 'away'>('home');
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
@@ -1950,15 +1936,10 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
       gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
       gameRef.current?.setWeather?.(weather);
-      gameRef.current?.setAIStyle?.(aiStyle);
-      gameRef.current?.setCPUShotTuning?.(cpuShotAimErrorRad, cpuShotPressureError);
       applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
       gameRef.current?.setCameraMode?.(cameraMode);
-      gameRef.current?.setStadiumCamTiltShift?.(stadiumCamTiltShiftEnabled);
       gameRef.current?.setShotBallTrailEnabled?.(shotBallTrailEnabled);
       gameRef.current?.setMenuVisible?.(gameMode === null);
-      gameRef.current?.setShowAIStateOverlay?.(showAIStateOverlay);
-      gameRef.current?.setShowPositionLabels?.(showPositionLabels);
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setTwoPlayerMode?.(false);
@@ -2166,33 +2147,9 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setWeather?.(nextWeather);
   };
 
-  const handleAIStyleChange = (style: 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION') => {
-    setAIStyle(style);
-    gameRef.current?.setAIStyle?.(style);
-    const preset = CPU_SHOT_TUNING_PRESETS[style];
-    setCPUShotAimErrorRad(preset.aimErrorRad);
-    setCPUShotPressureError(preset.pressureError);
-    gameRef.current?.setCPUShotTuning?.(preset.aimErrorRad, preset.pressureError);
-  };
-
-  const handleCPUShotTuningChange = (key: 'aimErrorRad' | 'pressureError', value: number) => {
-    if (key === 'aimErrorRad') {
-      setCPUShotAimErrorRad(value);
-      gameRef.current?.setCPUShotTuning?.(value, cpuShotPressureError);
-      return;
-    }
-    setCPUShotPressureError(value);
-    gameRef.current?.setCPUShotTuning?.(cpuShotAimErrorRad, value);
-  };
-
   const handleCameraChange = (mode: 'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM') => {
     setCameraMode(mode);
     gameRef.current?.setCameraMode(mode);
-  };
-
-  const handleStadiumCamTiltShiftToggle = (enabled: boolean) => {
-    setStadiumCamTiltShiftEnabled(enabled);
-    gameRef.current?.setStadiumCamTiltShift?.(enabled);
   };
 
   const handleUniformChange = (team: 'A' | 'B', index: number) => {
@@ -3235,8 +3192,6 @@ const RetroFootball: React.FC = () => {
                   }
                   // Do not automatically apply a play at startup (per user request).
                   // The practice should start in a standard kickoff formation at the center circle.
-                  setShowPositionLabels(true);
-                  gameRef.current?.setShowPositionLabels?.(true);
                   // play is only active once selected from the in-game play selector
                 }}
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-semibold rounded transition-colors"
@@ -3294,8 +3249,6 @@ const RetroFootball: React.FC = () => {
                   setSelectedPracticePlay(key);
                   setPracticeActive(shouldAutoStart);
                   setPracticeFormation(play.formation);
-                  setShowPositionLabels(true);
-                  gameRef.current?.setShowPositionLabels?.(true);
                   if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
                   if (practiceIsHuman) gameRef.current?.setPaused?.(true);
                   // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start only for CPU practice
@@ -3597,15 +3550,6 @@ const RetroFootball: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                    <label className="mt-3 inline-flex items-center gap-2 text-[10px] text-white/70 uppercase tracking-widest cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="accent-white"
-                        checked={stadiumCamTiltShiftEnabled}
-                        onChange={(event) => handleStadiumCamTiltShiftToggle(event.target.checked)}
-                      />
-                      Tilt-Shift (Stadium Cam)
-                    </label>
                   </div>
 
                   <div>
@@ -3620,23 +3564,6 @@ const RetroFootball: React.FC = () => {
                           } transition-colors`}
                         >
                           {w}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">CPU AI Style</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['BALANCED', 'AGGRESSIVE', 'POSSESSION'] as const).map((style) => (
-                        <button
-                          key={style}
-                          onClick={() => handleAIStyleChange(style)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            aiStyle === style ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {style}
                         </button>
                       ))}
                     </div>
@@ -3744,45 +3671,6 @@ const RetroFootball: React.FC = () => {
                           className="accent-white"
                         />
                         Shot Ball Trail
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showAIStateOverlay}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setShowAIStateOverlay(enabled);
-                            gameRef.current?.setShowAIStateOverlay?.(enabled);
-                          }}
-                          className="accent-white"
-                        />
-                        Show AI State Debug Overlay
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showPositionLabels}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setShowPositionLabels(enabled);
-                            gameRef.current?.setShowPositionLabels?.(enabled);
-                          }}
-                          className="accent-white"
-                        />
-                        Show Position Labels
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showAIStateLabels}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setShowAIStateLabels(enabled);
-                            gameRef.current?.setShowAIStateLabels?.(enabled);
-                          }}
-                          className="accent-white"
-                        />
-                        Show AI State Labels
                       </label>
                     </div>
                   </div>
@@ -3930,23 +3818,6 @@ const RetroFootball: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Auto Clearances</h3>
-                    <p className="text-white/30 text-[9px] mb-2">When ON, your defenders will automatically clear the ball when under heavy pressure in the defensive third.</p>
-                    <label className="inline-flex items-center gap-2 text-[10px] text-white/70 uppercase tracking-widest cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="accent-white"
-                        checked={autoClearances}
-                        onChange={(e) => {
-                          const enabled = e.target.checked;
-                          setAutoClearances(enabled);
-                          gameRef.current?.setAutoClearances?.(enabled);
-                        }}
-                      />
-                      Auto Clearances {autoClearances ? 'ON' : 'OFF'}
-                    </label>
-                  </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
@@ -4135,16 +4006,6 @@ const RetroFootball: React.FC = () => {
       {/* Bottom-right toggle buttons */}
       {!showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
-          <button
-            onClick={() => {
-              const next = !showAIStateOverlay;
-              setShowAIStateOverlay(next);
-              gameRef.current?.setShowAIStateOverlay?.(next);
-            }}
-            className="hidden bg-black/60 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
-          >
-            {showAIStateOverlay ? 'Hide AI State' : '🧠 AI State'}
-          </button>
           <button
             onClick={() => setShowTelemetry((v) => !v)}
             className="hidden bg-black/60 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"

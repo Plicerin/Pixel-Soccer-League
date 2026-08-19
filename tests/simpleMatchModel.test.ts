@@ -1794,6 +1794,61 @@ test("hold-to-charge scales shot power and cancels if the ball is lost", () => {
   assert.equal(lost.model.releaseManualCharge("A"), false, "a cancelled charge must not fire");
 });
 
+test("auto-switch modes actually gate who you control", () => {
+  const stage = (mode: "AUTOMATIC" | "MANUAL" | "LOOSE_BALLS") => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`auto-switch-${mode}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    model.setManualControlEnabled("A", true);
+    model.setAutoSwitchMode("A", mode);
+
+    const outfield = model.getPlayers().filter((p) => p.team === "A" && p.role !== "GK");
+    const picked = outfield[0];
+    const carrier = outfield[3];
+    assert.ok(picked && carrier && picked.id !== carrier.id, "need two distinct outfield players");
+
+    // The player has deliberately selected someone who is not on the ball.
+    (model as unknown as { manualControl: Record<string, { selectedPlayerId: string | null }> })
+      .manualControl.A.selectedPlayerId = picked.id;
+    model.possession = carrier;
+    model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+
+    // Any manual input runs the selection logic.
+    model.setManualMove("A", 1, 0);
+    return { model, pickedId: picked.id, carrierId: carrier.id };
+  };
+
+  const automatic = stage("AUTOMATIC");
+  assert.equal(
+    automatic.model.manualSelectedPlayer("A")?.id,
+    automatic.carrierId,
+    "AUTOMATIC must hand control to the player on the ball",
+  );
+
+  const manual = stage("MANUAL");
+  assert.equal(
+    manual.model.manualSelectedPlayer("A")?.id,
+    manual.pickedId,
+    "MANUAL must never steal the player's selection",
+  );
+
+  // LOOSE_BALLS only switches when nobody is in possession.
+  const loose = stage("LOOSE_BALLS");
+  assert.equal(
+    loose.model.manualSelectedPlayer("A")?.id,
+    loose.pickedId,
+    "LOOSE_BALLS must not switch while a player is on the ball",
+  );
+  loose.model.possession = null;
+  loose.model.setManualMove("A", 1, 0);
+  assert.notEqual(
+    loose.model.manualSelectedPlayer("A")?.id,
+    undefined,
+    "LOOSE_BALLS must switch once the ball is loose",
+  );
+});
+
 test("an aimed pass never falls back to a backwards CPU choice", () => {
   const setup = (placeForwardMate: boolean, placeLateralMate: boolean) => {
     const model = new SimpleMatchModel();

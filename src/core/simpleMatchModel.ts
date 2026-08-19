@@ -121,6 +121,9 @@ type PassTargetOptions = {
 
 type ManualChargeAction = "pass" | "shot";
 
+/** When the game may re-pick which player you control. */
+export type AutoSwitchMode = "AUTOMATIC" | "AIR_BALLS" | "LOOSE_BALLS" | "MANUAL";
+
 type ManualControlState = {
   enabled: boolean;
   selectedPlayerId: string | null;
@@ -128,6 +131,7 @@ type ManualControlState = {
   sprinting: boolean;
   /** Hold-to-charge: null when idle, otherwise the action and its 0..1 fill. */
   charge: { action: ManualChargeAction; progress: number } | null;
+  autoSwitch: AutoSwitchMode;
 };
 
 export type SimplePlayerStats = {
@@ -668,8 +672,8 @@ export class SimpleMatchModel {
   private engineRuntimeToken: string | null = null;
   private engineBootedAt: number | null = null;
   private readonly manualControl: Record<SimpleTeamCode, ManualControlState> = {
-    A: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null },
-    B: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null },
+    A: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null, autoSwitch: "AUTOMATIC" },
+    B: { enabled: false, selectedPlayerId: null, move: { x: 0, z: 0 }, sprinting: false, charge: null, autoSwitch: "AUTOMATIC" },
   };
   private fullLengthPossessionDiagnostics: FullLengthPossessionDiagnostics = {
     noSafeOutletPassFails: 0,
@@ -749,6 +753,18 @@ export class SimpleMatchModel {
       z: clamp(Number.isFinite(z) ? z : 0, -1, 1),
     };
     if (state.enabled) this.ensureManualSelection(team);
+  }
+
+  /**
+   * Which situations may steal control away from the player. The switching
+   * behaviour always existed; this is the selector that drives it.
+   */
+  setAutoSwitchMode(team: SimpleTeamCode, mode: AutoSwitchMode) {
+    this.manualControl[team].autoSwitch = mode;
+  }
+
+  getAutoSwitchMode(team: SimpleTeamCode) {
+    return this.manualControl[team].autoSwitch;
   }
 
   /** Hold-to-sprint. Only the team's currently selected player is boosted. */
@@ -1308,6 +1324,20 @@ export class SimpleMatchModel {
       : null;
   }
 
+  /** Does the current mode allow the game to re-pick the controlled player? */
+  private shouldAutoReselect(team: SimpleTeamCode) {
+    switch (this.manualControl[team].autoSwitch) {
+      case "MANUAL":
+        return false;
+      case "AIR_BALLS":
+        return !!this.ballFlight?.aerial || this.ball.pos.y > this.ballGroundY() + 0.35;
+      case "LOOSE_BALLS":
+        return !this.possession;
+      default:
+        return true;
+    }
+  }
+
   private ensureManualSelection(team: SimpleTeamCode) {
     const state = this.manualControl[team];
     if (!state.enabled) return null;
@@ -1316,6 +1346,12 @@ export class SimpleMatchModel {
       state.selectedPlayerId = null;
       return null;
     }
+    // Keep the player's pick unless the mode permits a switch. A stale id
+    // (substituted or missing player) is always replaced so control cannot be
+    // stranded on nobody.
+    const current = fieldPlayers.find((player) => player.id === state.selectedPlayerId) ?? null;
+    if (current && !this.shouldAutoReselect(team)) return current;
+
     const possessionPlayer = this.possession && this.possession.team === team && this.possession.role !== "GK"
       ? this.possession
       : null;
