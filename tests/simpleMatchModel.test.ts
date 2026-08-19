@@ -1910,15 +1910,15 @@ test("team strength still outranks the coaching dial", () => {
   );
 });
 
-test("an aimed pass never falls back to a backwards CPU choice", () => {
-  const setup = (placeForwardMate: boolean, placeLateralMate: boolean) => {
+test("an aimed pass never picks a receiver off the arrow", () => {
+  const chosen = (placeForwardMate: boolean) => {
     const model = new SimpleMatchModel();
-    model.setSeed(`aimed-pass-${placeForwardMate}-${placeLateralMate}`);
+    model.setSeed(`aimed-pass-${placeForwardMate}`);
     model.startMatch();
     model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
     const api = model as unknown as {
       attackSign: (team: "A" | "B") => number;
-      bestPassTarget: (carrier: unknown, options: unknown) => { name: string; pos: { x: number; z: number } } | null;
+      bestPassTarget: (carrier: unknown, options: unknown) => { pos: { x: number; z: number } } | null;
     };
     const sign = api.attackSign("A");
     const mates = model.getPlayers().filter((p) => p.team === "A" && p.role !== "GK");
@@ -1926,27 +1926,75 @@ test("an aimed pass never falls back to a backwards CPU choice", () => {
     carrier.pos = { x: 0, y: 0, z: 0 };
     carrier.targetPos = { x: 0, z: 0 };
     model.possession = carrier;
-    // Everyone behind by default, so the only way to face forward is to honour the aim.
+    // Everyone behind, so honouring the aim is the only way to face forward.
     mates.slice(1).forEach((p, i) => {
       p.pos = { x: -sign * (7 + i), y: 0, z: (i % 4) * 2 - 3 };
       p.targetPos = { x: p.pos.x, z: p.pos.z };
     });
     if (placeForwardMate) {
-      mates[1].pos = { x: sign * 12, y: 0, z: 1 };
+      mates[1].pos = { x: sign * 12, y: 0, z: 0.5 };
       mates[1].targetPos = { x: mates[1].pos.x, z: mates[1].pos.z };
-    } else if (placeLateralMate) {
-      mates[1].pos = { x: 0, y: 0, z: 10 };
-      mates[1].targetPos = { x: 0, z: 10 };
     }
-    const target = api.bestPassTarget(carrier, { direction: { x: sign, z: 0 }, preferForward: false });
-    assert.ok(target, "an aimed pass must find a target");
-    return (target.pos.x - carrier.pos.x) * sign;
+    const target = api.bestPassTarget(carrier, { direction: { x: sign, z: 0 }, preferForward: false, power: 1 });
+    return { target, sign, carrier };
   };
 
-  assert.ok(setup(true, false) > 0, "a team-mate in the aim cone must be chosen");
-  // The regression: with nobody straight ahead this used to fall through to the
-  // CPU chooser and play the ball backwards while the player held forward.
-  assert.ok(setup(false, true) >= 0, "with a lateral outlet available an aimed pass must not go backwards");
+  const withMate = chosen(true);
+  assert.ok(withMate.target, "a team-mate on the arrow must be chosen");
+  assert.ok(
+    (withMate.target.pos.x - withMate.carrier.pos.x) * withMate.sign > 0,
+    "the chosen receiver must be along the aim, not behind",
+  );
+
+  // With nobody on the arrow it must decline rather than quietly picking
+  // someone off-line; runManualAction then plays the ball into that space.
+  assert.equal(chosen(false).target, null, "no receiver off the arrow may be substituted");
+});
+
+test("a passed ball travels along the aim arrow", () => {
+  // The arrow is a promise. Target-based passing used to break it badly: only
+  // 2% of passes landed within 15 degrees of where the player pointed, and 31%
+  // went more than 90 degrees off (backwards).
+  const errors: number[] = [];
+  for (let seed = 0; seed < 120; seed++) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`arrow-${seed}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      manualControl: Record<string, { selectedPlayerId: string | null; move: { x: number; z: number }; charge: unknown }>;
+      ballFlight: { from: { x: number; z: number }; to: { x: number; z: number } } | null;
+    };
+    model.setManualControlEnabled("A", true);
+    const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+    assert.ok(carrier, "need a carrier");
+    model.possession = carrier;
+    api.manualControl.A.selectedPlayerId = carrier.id;
+    model.ball.pos = { x: carrier.pos.x, y: 0.18, z: carrier.pos.z };
+
+    const angle = (seed / 120) * Math.PI * 2;
+    const aim = { x: Math.cos(angle), z: Math.sin(angle) };
+    api.manualControl.A.move = aim;
+    api.manualControl.A.charge = { action: "pass", progress: 0.5 };
+    model.releaseManualCharge("A");
+
+    const flight = api.ballFlight;
+    if (!flight) continue;
+    const dx = flight.to.x - flight.from.x;
+    const dz = flight.to.z - flight.from.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 0.5) continue;
+    const dot = (dx / length) * aim.x + (dz / length) * aim.z;
+    errors.push((Math.acos(Math.max(-1, Math.min(1, dot))) * 180) / Math.PI);
+  }
+
+  assert.ok(errors.length > 80, `needed a decent sample, got ${errors.length}`);
+  const mean = errors.reduce((a, b) => a + b, 0) / errors.length;
+  const within15 = errors.filter((e) => e <= 15).length / errors.length;
+  const backwards = errors.filter((e) => e > 90).length;
+  assert.ok(mean < 15, `ball must follow the arrow, mean error ${mean.toFixed(1)} degrees`);
+  assert.ok(within15 > 0.75, `most passes must track the arrow, ${(within15 * 100).toFixed(0)}% within 15 degrees`);
+  assert.equal(backwards, 0, `no pass may go backwards relative to the arrow, got ${backwards}`);
 });
 
 test("manual lob gets the ball off the deck and makes it headable", () => {

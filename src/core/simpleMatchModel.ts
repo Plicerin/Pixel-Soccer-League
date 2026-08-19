@@ -128,6 +128,13 @@ type ManualChargeAction = "pass" | "shot";
  */
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
 
+// Aimed passing: how tight the corridor around the arrow is, and how far a
+// tap versus a full charge plays the ball.
+// cos(20 degrees): a receiver must be within 20 degrees of the arrow.
+const AIMED_PASS_MIN_ALIGNMENT = 0.94;
+const AIMED_PASS_MIN_RANGE = 6;
+const AIMED_PASS_MAX_RANGE = 34;
+
 const TEAM_AGGRESSION_DELTAS: Record<TeamAggressionKey, { attack: number; defense: number; tempo: number }> = {
   BALANCED: { attack: 0, defense: 0, tempo: 0 },
   AGGRESSIVE: { attack: 0.15, defense: -0.08, tempo: 0.10 },
@@ -911,6 +918,80 @@ export class SimpleMatchModel {
     }
   }
 
+  /** Distance from a point to the edge of the playable area along a unit ray. */
+  private distanceToPlayableEdge(origin: Vec2, unit: Vec2) {
+    const minX = LEFT_GOAL_X + 1;
+    const maxX = RIGHT_GOAL_X - 1;
+    const minZ = -FIELD_D / 2 + 1;
+    const maxZ = FIELD_D / 2 - 1;
+    let limit = Infinity;
+    if (unit.x > 1e-6) limit = Math.min(limit, (maxX - origin.x) / unit.x);
+    if (unit.x < -1e-6) limit = Math.min(limit, (minX - origin.x) / unit.x);
+    if (unit.z > 1e-6) limit = Math.min(limit, (maxZ - origin.z) / unit.z);
+    if (unit.z < -1e-6) limit = Math.min(limit, (minZ - origin.z) / unit.z);
+    return Math.max(0, Number.isFinite(limit) ? limit : 0);
+  }
+
+  /** How far along the arrow a charged pass is aimed. */
+  private aimedPassRange(power?: number) {
+    const reach = power === undefined
+      ? 0.5
+      : clamp((power - MANUAL_CHARGE_MIN_POWER) / MANUAL_CHARGE_POWER_SPAN, 0, 1);
+    return AIMED_PASS_MIN_RANGE + reach * (AIMED_PASS_MAX_RANGE - AIMED_PASS_MIN_RANGE);
+  }
+
+  /**
+   * Play the ball along the aim arrow into space. Used when no team-mate sits
+   * on the line: the arrow said the ball goes there, so it goes there, and
+   * whoever gets to it first collects it.
+   */
+  private resolveDirectionalPass(carrier: SimplePlayer, direction: Vec2, power?: number, lofted = false) {
+    const length = Math.hypot(direction.x, direction.z);
+    if (length < 0.15) return false;
+    const unit = { x: direction.x / length, z: direction.z / length };
+    const range = this.aimedPassRange(power);
+    const origin = { x: carrier.pos.x, z: carrier.pos.z };
+    // Shorten along the ray to stay in play rather than clamping the endpoint:
+    // clamping bends the ball away from the arrow, which is the whole promise.
+    const reach = Math.min(range, this.distanceToPlayableEdge(origin, unit));
+    const landing = { x: origin.x + unit.x * reach, z: origin.z + unit.z * reach };
+    const distance = dist2(origin, landing);
+    if (distance < 1) return false;
+
+    const stats = this.team(carrier.team);
+    stats.passes += 1;
+    carrier.stats.passes += 1;
+    this.rememberTouch(carrier);
+    this.finalizeActiveReceptionTelemetryForPlayer(carrier, "pass");
+    this.possession = null;
+    this.lastCompletedPass = null;
+
+    const arc = lofted ? MANUAL_LOB_ARC : 0.32;
+    this.startBallFlight(
+      "pass",
+      origin,
+      landing,
+      this.flightDuration(clamp(distance / 24, 0.65, 1.25)),
+      arc,
+      undefined,
+      {
+        aerial: lofted,
+        headerEligible: lofted,
+        sourceAction: lofted ? "manual_lob_space" : "manual_pass_space",
+        attackingTeam: carrier.team,
+        passerId: carrier.id,
+        passerName: carrier.name,
+      },
+    );
+    this.addLiveEvent(carrier.team, "PASS", `${carrier.label} into space`);
+    this.recordEvent("PASS", carrier.team, carrier, {
+      outcome: "into_space",
+      reason: lofted ? "MANUAL_LOB_SPACE" : "MANUAL_PASS_SPACE",
+      distance: +distance.toFixed(2),
+    });
+    return true;
+  }
+
   /** Chip/lob: same targeting as a pass, but lofted so it can be headed. */
   triggerManualLobPass(team: SimpleTeamCode) {
     return this.runManualAction(team, "lob");
@@ -1448,13 +1529,17 @@ export class SimpleMatchModel {
     this.actionTimer = this.nextActionDelay();
     const direction = Math.hypot(state.move.x, state.move.z) > 0.2 ? { ...state.move } : undefined;
     if (action === "pass" || action === "lob") {
-      return this.resolvePass(carrier, pressure, {
+      const played = this.resolvePass(carrier, pressure, {
         preferForward: !direction,
         direction,
         lofted: action === "lob",
         power,
         reason: action === "lob" ? "MANUAL_LOB" : "MANUAL_PASS",
       });
+      if (played || !direction) return played;
+      // Nobody on the arrow: play it into that space rather than quietly
+      // picking a team-mate somewhere else.
+      return this.resolveDirectionalPass(carrier, direction, power, action === "lob");
     }
     // resolveShot returns a GoalEvent, so it is null for every shot that does
     // not score. Reporting that as "false" told callers the button did nothing
@@ -6875,20 +6960,27 @@ export class SimpleMatchModel {
         // outlet, then anything not behind, then simply the best available.
         // Falling through to the CPU chooser (as this used to when the cone was
         // empty) silently turned an aimed forward ball into a backwards pass.
-        const inCone = ranked.filter((candidate) => candidate.alignment >= 0.35);
-        const notBehind = ranked.filter((candidate) => candidate.alignment >= 0);
-        const pool = inCone.length ? inCone : notBehind.length ? notBehind : ranked;
-        // Charge picks the range: a tap finds the nearest outlet, a full hold
-        // reaches for the furthest one along the aim.
-        const power = options.power;
-        if (pool.length && power !== undefined) {
-          const reach = clamp((power - MANUAL_CHARGE_MIN_POWER) / MANUAL_CHARGE_POWER_SPAN, 0, 1);
-          const byDistance = [...pool].sort((a, b) => a.distance - b.distance);
-          const index = Math.min(byDistance.length - 1, Math.round(reach * (byDistance.length - 1)));
-          return byDistance[index].player;
-        }
-        const aimed = pool[0];
-        if (aimed) return aimed.player;
+        // The aim arrow is a promise about where the ball goes, so only a
+        // team-mate genuinely near the aim ray may receive it. A wide cone plus
+        // distance-ranked picking sent 75% of passes more than 45 degrees off
+        // the arrow. If nobody is on the line, return null and let the caller
+        // play the ball into that space instead.
+        const range = this.aimedPassRange(options.power);
+        const corridor = ranked
+          .map((candidate) => {
+            const dx = candidate.player.pos.x - carrier.pos.x;
+            const dz = candidate.player.pos.z - carrier.pos.z;
+            const along = dx * direction.x + dz * direction.z;
+            const lateral = Math.abs(dx * -direction.z + dz * direction.x);
+            return { ...candidate, along, lateral };
+          })
+          // Angular gate, not a fixed corridor: a 4.5u offset is a gentle miss
+          // at 30u range but a 29-degree error at 8u.
+          .filter((candidate) => candidate.along > 1.5 && candidate.alignment >= AIMED_PASS_MIN_ALIGNMENT)
+          // Prefer the one closest to where the charge says the ball lands.
+          .sort((a, b) => (Math.abs(a.along - range) + a.lateral * 1.4) - (Math.abs(b.along - range) + b.lateral * 1.4));
+        if (corridor.length) return corridor[0].player;
+        return null;
       }
     }
     const deliveryTarget = this.bestWideDeliveryTarget(carrier, own);
