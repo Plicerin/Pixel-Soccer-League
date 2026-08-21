@@ -1043,8 +1043,6 @@ const RetroFootball: React.FC = () => {
   const engineRuntimeTokenRef = useRef<string | null>(null);
   const telemetryRecorderRef = useRef<TelemetryRecorder | null>(null);
   const [gameReady, setGameReady] = useState(false);
-  const [lighting, setLighting] = useState('NOON');
-  const [weather, setWeather] = useState<'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY'>('SUNNY');
   const [cameraMode, setCameraMode] = useState<'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM'>('BROADCAST');
   const [teamAUniform, setTeamAUniform] = useState(0);
   const [teamBUniform, setTeamBUniform] = useState(0);
@@ -1922,7 +1920,6 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[teamAName] ?? '', MLS_TEAM_LOGOS[teamBName] ?? '');
       gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
       gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
-      gameRef.current?.setWeather?.(weather);
       applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
       gameRef.current?.setCameraMode?.(cameraMode);
       gameRef.current?.setShotBallTrailEnabled?.(shotBallTrailEnabled);
@@ -2123,16 +2120,6 @@ const RetroFootball: React.FC = () => {
       telemetryRecorderRef.current = null;
     };
   }, []);
-
-  const handleLightingChange = (preset: string) => {
-    setLighting(preset);
-    gameRef.current?.setLighting(preset);
-  };
-
-  const handleWeatherChange = (nextWeather: 'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY') => {
-    setWeather(nextWeather);
-    gameRef.current?.setWeather?.(nextWeather);
-  };
 
   const handleCameraChange = (mode: 'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM') => {
     setCameraMode(mode);
@@ -2886,6 +2873,23 @@ const RetroFootball: React.FC = () => {
         );
       })()}
 
+      {matchSnapshot?.manualRestartPrompt && !showSplash && !isOptionsOpen && !isPaused && (
+        <div
+          data-psl-restart-prompt="true"
+          className="pointer-events-none absolute inset-x-0 bottom-24 z-[120] flex justify-center px-4"
+        >
+          <div className="rounded-lg border border-amber-300/50 bg-black/85 px-5 py-3 text-center shadow-[0_6px_24px_rgba(0,0,0,0.5)]">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+              Your {matchSnapshot.manualRestartPrompt.label}
+            </div>
+            <div className="mt-1 text-[11px] text-white/80">
+              Press <span className="font-bold text-white">SPACE</span> to play it
+              {' '}&middot;{' '}auto in {Math.ceil(matchSnapshot.manualRestartPrompt.secondsRemaining)}s
+            </div>
+          </div>
+        </div>
+      )}
+
       {isPaused && hasActiveMatchSession && !showSplash && !isOptionsOpen && (
         <React.Suspense fallback={null}>
           <PauseOverlay onResume={handleTogglePause} />
@@ -3505,57 +3509,6 @@ const RetroFootball: React.FC = () => {
             {activeTab === 'OPTIONS' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-4">
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Lighting</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {['NOON', 'LATE', 'NIGHT'].map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => handleLightingChange(p)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            lighting === p ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Camera</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['FOLLOW_BEHIND', 'BROADCAST', 'SIDELINE', 'FIXED_ENDZONE', 'GOAL_THREE_QUARTER', 'STADIUM_CAM'] as const).map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => handleCameraChange(m)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            cameraMode === m ? 'bg-white text-black border-white' : 'text-white border-white/40 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {m.replace('_', ' ')}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Weather</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['SUNNY', 'RAINY', 'SNOW', 'WINDY'] as const).map((w) => (
-                        <button
-                          key={w}
-                          onClick={() => handleWeatherChange(w)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            weather === w ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {w}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Audio</h3>
                     <div>

@@ -73,7 +73,10 @@ const MANUAL_LOB_ARC = 1.15;
 const RESTART_TAKER_OUTSIDE_ALLOWANCE = 2.5;
 // How long a human-owned restart waits for the player before the dead-ball
 // watchdog steps in and plays it for them.
-const MANUAL_RESTART_WATCHDOG_SECONDS = 25;
+// Long enough to walk up and take it, short enough that a player who does not
+// realise it is their restart is not left staring at a frozen pitch. Testers
+// read the old 25s leash as the game hanging.
+const MANUAL_RESTART_WATCHDOG_SECONDS = 7;
 // Manual tackling: a contested attempt on a cooldown, not a guaranteed strip.
 // Hold-to-charge: full power after ~0.9s, matching the original charge feel.
 const MANUAL_CHARGE_RATE = 1.1;
@@ -880,6 +883,26 @@ export class SimpleMatchModel {
 
   cancelManualCharge(team: SimpleTeamCode) {
     this.manualControl[team].charge = null;
+  }
+
+  /**
+   * What the player must do to resume play, or null. The hold is invisible
+   * without this: testers saw the pitch stop and assumed the game had frozen.
+   */
+  getManualRestartPrompt() {
+    const restart = this.restartContext;
+    if (!restart || !this.awaitingManualRestart()) return null;
+    const label = restart.restartType === "free_kick" ? "Free kick"
+      : restart.restartType === "corner" ? "Corner"
+      : restart.restartType === "throw_in" ? "Throw-in"
+      : restart.restartType === "goal_kick" ? "Goal kick"
+      : "Restart";
+    return {
+      team: restart.restartTeam,
+      restartType: restart.restartType,
+      label,
+      secondsRemaining: Math.max(0, MANUAL_RESTART_WATCHDOG_SECONDS - this.deadBallStateWallSeconds),
+    };
   }
 
   /** Renderer read-model for the aim arrow and power ring. */

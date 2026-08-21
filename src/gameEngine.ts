@@ -594,6 +594,28 @@ class SimpleGameEngine {
   private readonly cameraLerpPosition = new THREE.Vector3();
   private readonly cameraLookTarget = new THREE.Vector3();
   private readonly broadcastCameraHome = new THREE.Vector3(0, 46, 42);
+  /**
+   * Camera rigs. Every mode used to resolve to the broadcast rig -- the
+   * selector only stored a label -- so testers correctly reported that only
+   * Broadcast worked.
+   *
+   * height/back: the rig's home position. followX/panZ: how much it tracks the
+   * action. fov: lens. lookAhead: how far past the focus it aims.
+   */
+  private readonly cameraRigs: Record<string, { height: number; back: number; followX: number; panZ: number; fov: number; lookAhead: number }> = {
+    BROADCAST: { height: 46, back: 42, followX: 0.70, panZ: 0.45, fov: 29, lookAhead: 0 },
+    // Tighter, lower and closer behind the play.
+    FOLLOW_BEHIND: { height: 26, back: 26, followX: 0.95, panZ: 0.85, fov: 38, lookAhead: 6 },
+    // Low and square on, like a halfway-line camera.
+    SIDELINE: { height: 16, back: 50, followX: 0.35, panZ: 0.12, fov: 26, lookAhead: 0 },
+    // Static wide shot: no tracking at all.
+    FIXED_ENDZONE: { height: 34, back: 58, followX: 0, panZ: 0, fov: 32, lookAhead: 0 },
+    // Raised three-quarter view over the attacking end.
+    GOAL_THREE_QUARTER: { height: 38, back: 30, followX: 0.85, panZ: 0.60, fov: 34, lookAhead: 4 },
+    // Very high and wide, whole pitch in frame.
+    STADIUM_CAM: { height: 74, back: 62, followX: 0.30, panZ: 0.20, fov: 24, lookAhead: 0 },
+  };
+  private cameraMode = 'BROADCAST';
   private cameraFocusInitialized = false;
   private crowdMesh: THREE.InstancedMesh | null = null;
   private readonly crowdBlocks: Array<{
@@ -929,10 +951,11 @@ class SimpleGameEngine {
   getPaused = () => this.paused;
   setSmokeTestMode = (active: boolean) => { this.smokeTestMode = !!active; };
   setOnReset = (callback: () => void) => { this.onReset = callback; };
-  setWeather = (value: string) => { this.model.weather = value; };
-  setLighting = (value: string) => { this.model.lighting = value; };
   setAIStyle = (value: string) => { this.model.aiStyle = value; };
-  setCameraMode = (value: string) => { this.model.cameraMode = value; };
+  setCameraMode = (value: string) => {
+    this.cameraMode = this.cameraRigs[value] ? value : 'BROADCAST';
+    this.model.cameraMode = this.cameraMode;
+  };
   setPracticePlayCompleteCallback = (callback: () => void) => { this.practiceCompleteCallback = callback; };
   setPracticeMode = (enabled: boolean) => {
     this.practiceModeEnabled = !!enabled;
@@ -957,6 +980,9 @@ class SimpleGameEngine {
       sessionActive: !this.splashSceneMode,
       engineRuntimeToken: this.engineRuntimeToken,
       engineBootedAt: this.engineBootedAt,
+      // Drives the on-screen "your restart" prompt. Without it the hold is
+      // invisible and reads as the game freezing.
+      manualRestartPrompt: this.model.getManualRestartPrompt(),
     };
   };
   getIsLive = () => this.model.getMatchSnapshot().isLive;
@@ -3013,18 +3039,20 @@ class SimpleGameEngine {
       );
     }
 
-    const targetFov = 29;
+    const rig = this.cameraRigs[this.cameraMode] ?? this.cameraRigs.BROADCAST;
+
+    const targetFov = rig.fov;
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, THREE.MathUtils.clamp(dt * 2.4, 0.08, 0.22));
       this.camera.updateProjectionMatrix();
     }
 
-    const desiredCamX = THREE.MathUtils.clamp(this.cameraFocusSmoothed.x * 0.7, -FIELD_W * 0.30, FIELD_W * 0.30);
-    const desiredPanZ = THREE.MathUtils.clamp(this.cameraFocusSmoothed.z * 0.45, -FIELD_D * 0.18, FIELD_D * 0.18);
-    this.cameraLerpPosition.set(desiredCamX, this.broadcastCameraHome.y, this.broadcastCameraHome.z + desiredPanZ);
+    const desiredCamX = THREE.MathUtils.clamp(this.cameraFocusSmoothed.x * rig.followX, -FIELD_W * 0.30, FIELD_W * 0.30);
+    const desiredPanZ = THREE.MathUtils.clamp(this.cameraFocusSmoothed.z * rig.panZ, -FIELD_D * 0.18, FIELD_D * 0.18);
+    this.cameraLerpPosition.set(desiredCamX, rig.height, rig.back + desiredPanZ);
     this.camera.position.lerp(this.cameraLerpPosition, THREE.MathUtils.clamp(dt * 4.0, 0.08, 0.28));
 
-    this.cameraLookTarget.set(this.camera.position.x, 0, this.camera.position.z - this.broadcastCameraHome.z);
+    this.cameraLookTarget.set(this.camera.position.x, 0, this.camera.position.z - rig.back - rig.lookAhead);
     this.camera.lookAt(this.cameraLookTarget);
   }
 

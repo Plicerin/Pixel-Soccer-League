@@ -1635,6 +1635,34 @@ test("live events stay consumable after the log hits its cap", () => {
   );
 });
 
+test("a held restart is prompted and never stalls play for long", () => {
+  // Regression: the manual-restart hold waited 25s with no on-screen prompt,
+  // so testers read an ordinary free kick as the game freezing.
+  const model = new SimpleMatchModel();
+  model.setSeed("restart-stall");
+  model.startMatch();
+  model.setManualControlEnabled("A", true);
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    stageFreeKickRestart: (team: string, spot: unknown, lastTouchTeam: string | null, lastTouchPlayerId: string | null) => void;
+  };
+  api.stageFreeKickRestart("A", { x: 5, z: 3 }, "B", null);
+
+  const prompt = model.getManualRestartPrompt();
+  assert.ok(prompt, "a held restart must tell the player it is waiting on them");
+  assert.equal(prompt.team, "A", "the prompt must name the team that was awarded the restart");
+  assert.ok(prompt.label.length > 0, "the prompt needs a human-readable label");
+
+  let seconds = 0;
+  const phase = () => (model.msm.state as { kind: string }).kind;
+  for (let i = 0; i < 60 * 30 && phase() === "ball_out"; i++) {
+    model.step(1 / 60);
+    seconds += 1 / 60;
+  }
+  assert.ok(seconds < 10, `an untaken restart must resume play promptly, took ${seconds.toFixed(1)}s`);
+  assert.equal(model.getManualRestartPrompt(), null, "the prompt must clear once play resumes");
+});
+
 test("a restart awarded to a human team waits for that player to take it", () => {
   const stage = (manual: boolean) => {
     const model = new SimpleMatchModel();
@@ -1646,8 +1674,10 @@ test("a restart awarded to a human team waits for that player to take it", () =>
     if (manual) model.setManualControlEnabled("A", true);
     model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
     api.stageFreeKickRestart("A", { x: 5, z: 3 }, "B", null);
-    // Well past both the 1.5s restart timer and the 6s dead-ball watchdog.
-    for (let i = 0; i < 60 * 10; i++) model.step(1 / 60);
+    // Past the 1.5s restart timer and the 6s CPU dead-ball watchdog, but
+    // inside the human hold, which is deliberately bounded so an untaken
+    // restart cannot stall the match.
+    for (let i = 0; i < 60 * 4; i++) model.step(1 / 60);
     return model;
   };
 

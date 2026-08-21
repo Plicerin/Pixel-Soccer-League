@@ -345,7 +345,7 @@ test('ENH-RENDER-004 player scale is visual-only and bounded', () => {
   assert.match(engine, /const PLAYER_VISUAL_SCALE = 1\.12;/, 'player visual scale must stay conservative and explicit');
   assert.match(engine, /const scale = PLAYER_VISUAL_SCALE \* \(player\.role === 'GK' \? 1\.08 : 1\) \* \(reactionActive \? 1\.16 : 1\) \* \(headerActive \? 1\.08 : 1\);/, 'renderer must apply the readability scale at mesh level only');
   assert.match(constants, /export const PLAYER_RADIUS = 0\.35;/, 'visual scale must not change model collision radius');
-  assert.match(engine, /const targetFov = 29;/, 'visual scale change must not hide a camera FOV change');
+  assert.match(engine, /BROADCAST: \{ height: 46, back: 42, followX: 0\.70, panZ: 0\.45, fov: 29, lookAhead: 0 \}/, 'visual scale change must not hide a camera FOV change');
 });
 
 test('V124 ball trail renders only for enabled shot flights', () => {
@@ -565,10 +565,41 @@ test('broadcast camera pans side to side and up/down without swing rotation', ()
   assert.ok(match, 'expected updateBroadcastCamera implementation');
   const body = match[0];
   assert.match(body, /this\.cameraFocusSmoothed\.z = THREE\.MathUtils\.lerp/, 'camera must smooth touchline-to-touchline ball movement');
-  assert.match(body, /const desiredPanZ = THREE\.MathUtils\.clamp\(this\.cameraFocusSmoothed\.z \* 0\.45, -FIELD_D \* 0\.18, FIELD_D \* 0\.18\)/, 'camera vertical pan must be clamped to avoid swinging too far');
-  assert.match(body, /this\.cameraLerpPosition\.set\(desiredCamX, this\.broadcastCameraHome\.y, this\.broadcastCameraHome\.z \+ desiredPanZ\)/, 'camera must translate vertically without changing height');
-  assert.match(body, /this\.cameraLookTarget\.set\(this\.camera\.position\.x, 0, this\.camera\.position\.z - this\.broadcastCameraHome\.z\)/, 'camera target must translate with camera Z to preserve fixed viewing angle');
+  // Pan strength is now per-rig, but every rig must still be clamped.
+  assert.match(body, /const desiredPanZ = THREE\.MathUtils\.clamp\(this\.cameraFocusSmoothed\.z \* rig\.panZ, -FIELD_D \* 0\.18, FIELD_D \* 0\.18\)/, 'camera vertical pan must be clamped to avoid swinging too far');
+  // Height and standoff come from the active rig; the invariant is that pan
+  // translates the camera without altering the rig's height.
+  assert.match(body, /this\.cameraLerpPosition\.set\(desiredCamX, rig\.height, rig\.back \+ desiredPanZ\)/, 'camera must translate vertically without changing height');
+  assert.match(body, /this\.cameraLookTarget\.set\(this\.camera\.position\.x, 0, this\.camera\.position\.z - rig\.back - rig\.lookAhead\)/, 'camera target must translate with camera Z to preserve fixed viewing angle');
   assert.doesNotMatch(body, /edgeTrackT|lookZ|camZMul|camZClamp|finalThirdT/, 'broadcast camera must not swing or zoom into final thirds');
+});
+
+test('every camera mode is a distinct rig, not just a stored label', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  // setCameraMode used to only store a string the model echoed into
+  // telemetry, so every option rendered as Broadcast.
+  assert.doesNotMatch(engine, /setCameraMode = \(value: string\) => \{ this\.model\.cameraMode = value; \};/, 'camera mode must do more than store a label');
+  assert.match(engine, /this\.cameraMode = this\.cameraRigs\[value\] \? value : 'BROADCAST'/, 'camera mode must resolve to a known rig');
+  assert.match(engine, /const rig = this\.cameraRigs\[this\.cameraMode\] \?\? this\.cameraRigs\.BROADCAST/, 'the camera must read the active rig each frame');
+
+  const table = engine.match(/private readonly cameraRigs[\s\S]*?\n  \};/);
+  assert.ok(table, 'expected a camera rig table');
+  for (const mode of ['BROADCAST', 'FOLLOW_BEHIND', 'SIDELINE', 'FIXED_ENDZONE', 'GOAL_THREE_QUARTER', 'STADIUM_CAM']) {
+    assert.match(table[0], new RegExp(`${mode}: \{`), `${mode} needs its own rig`);
+  }
+  // Distinct heights, or the modes look identical on screen.
+  const heights = [...table[0].matchAll(/height: ([0-9.]+)/g)].map((m) => Number(m[1]));
+  assert.equal(new Set(heights).size, heights.length, `camera rigs must differ in height, got ${heights.join(', ')}`);
+});
+
+test('weather and lighting controls are gone rather than inert', () => {
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  // They only stored values the model echoed into telemetry; nothing rendered
+  // them, so testers reported the settings having no effect.
+  assert.doesNotMatch(engine, /setWeather = /, 'dead weather setter must be removed');
+  assert.doesNotMatch(engine, /setLighting = /, 'dead lighting setter must be removed');
+  assert.doesNotMatch(retro, /handleWeatherChange|handleLightingChange/, 'dead weather/lighting handlers must be removed');
 });
 
 test('V61 renderer does not add extra height to model ball position', () => {
