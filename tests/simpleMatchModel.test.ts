@@ -1868,6 +1868,70 @@ test("switch-to-nearest is bound for both players", () => {
   assert.match(engine, /triggerManualTackle\('A'\)\) this\.model\.selectNearestManualPlayer\('A'\)/, "gamepad X must fall back to switching when there is nobody to tackle");
 });
 
+test("CPU difficulty changes pressure without changing match output", () => {
+  // Two earlier attempts at difficulty failed because they pushed on shot and
+  // pass appetite, which the model governs toward MLS targets and therefore
+  // absorbs or inverts. Difficulty only raises defensive pressure, which is
+  // ungoverned -- this test pins both halves of that.
+  const play = (intensity: number, seedPrefix: string) => {
+    const games = 6;
+    let pressureSum = 0;
+    let pressureSamples = 0;
+    let shots = 0;
+    for (let g = 0; g < games; g++) {
+      const model = new SimpleMatchModel();
+      model.setSeed(`${seedPrefix}-${g}`);
+      model.setHalfDurationSeconds(300);
+      model.setDefenseIntensity("B", intensity);
+      model.startMatch();
+      for (let i = 0; i < 60 * 60 * 12 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+        model.step(1 / 60);
+        const carrier = model.possession;
+        if (!carrier || carrier.team !== "A") continue;
+        pressureSum += model.pressureOnForHarness(carrier);
+        pressureSamples += 1;
+      }
+      const snapshot = model.getMatchSnapshot();
+      shots += snapshot.shotsA + snapshot.shotsB;
+    }
+    return { pressure: pressureSum / Math.max(1, pressureSamples), shots: shots / games };
+  };
+
+  const soft = play(0.6, "difficulty-soft");
+  const hard = play(1.5, "difficulty-hard");
+
+  // The lever must be felt...
+  assert.ok(
+    hard.pressure > soft.pressure * 1.5,
+    `harder difficulty must press far more: ${soft.pressure.toFixed(2)} vs ${hard.pressure.toFixed(2)}`,
+  );
+  // ...without disturbing the governed output the KPI envelope depends on.
+  assert.ok(
+    Math.abs(hard.shots - soft.shots) < soft.shots * 0.25,
+    `difficulty must not change shot volume much: ${soft.shots.toFixed(1)} vs ${hard.shots.toFixed(1)}`,
+  );
+});
+
+test("CPU difficulty presets only ever raise defensive intensity", () => {
+  const model = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(model, /RELAXED: 0\.65/, "a relaxed setting must ease off");
+  assert.match(model, /NORMAL: 1,/, "NORMAL must be the calibrated baseline, exactly 1");
+  assert.match(model, /RUTHLESS: 1\.7/, "the hardest setting must press substantially harder");
+
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  // A human-controlled side must never be handed the CPU's difficulty.
+  assert.match(
+    engine,
+    /setDefenseIntensity\('A', this\.humanControlEnabled \? 1 : intensity\)/,
+    "difficulty must not apply to a human-controlled team",
+  );
+  assert.match(
+    engine,
+    /setDefenseIntensity\('B', this\.twoPlayerMode \? 1 : intensity\)/,
+    "difficulty must not apply to a second human player",
+  );
+});
+
 test("fouls can be switched off for a match", () => {
   const fouls = (enabled: boolean) => {
     const model = new SimpleMatchModel();

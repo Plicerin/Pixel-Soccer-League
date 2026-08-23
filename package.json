@@ -44,7 +44,8 @@
     "tuning:scoreboard": "node scripts/tuning-scoreboard.mjs",
     "eval:cycle": "node scripts/eval-cycle.mjs",
     "eval:guard": "node --import tsx scripts/simple-model-kpi.mjs --guard simple-kpi",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "eval:defense": "node --import tsx scripts/defense-harness.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

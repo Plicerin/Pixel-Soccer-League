@@ -129,6 +129,20 @@ type ManualChargeAction = "pass" | "shot";
  * tuning (getTeamTuning -> FIFA/MLS ratings), never as a replacement, so a
  * stronger side stays stronger at every setting.
  */
+/**
+ * CPU difficulty. Only ever raises how hard the CPU defends -- never touches
+ * shot or pass appetite, which the model governs toward MLS targets and which
+ * therefore absorbs or inverts any change (measured twice, both failed).
+ */
+export type CpuDifficultyKey = "RELAXED" | "NORMAL" | "COMPETITIVE" | "RUTHLESS";
+
+export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
+  RELAXED: 0.65,
+  NORMAL: 1,
+  COMPETITIVE: 1.35,
+  RUTHLESS: 1.7,
+};
+
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
 
 // Aimed passing: how tight the corridor around the arrow is, and how far a
@@ -648,6 +662,12 @@ export class SimpleMatchModel {
   aiStyle = "BALANCED";
   /** Match setting: when false, fouls are never awarded. */
   foulsEnabled = true;
+  /**
+   * Per-team defensive intensity, 1 = current behaviour. Scales how hard this
+   * team presses the opposition carrier. Deliberately NOT a shot/pass lever:
+   * those are governed toward MLS targets and absorb changes.
+   */
+  private readonly defenseIntensity: Record<SimpleTeamCode, number> = { A: 1, B: 1 };
   cameraMode = "BROADCAST";
   lastShotTelemetry: Record<string, unknown> | null = null;
   lastKeeperKickTelemetry: Record<string, unknown> | null = null;
@@ -7779,13 +7799,28 @@ export class SimpleMatchModel {
     if (this.shotOpportunities.length > 5000) this.shotOpportunities.splice(0, this.shotOpportunities.length - 5000);
   }
 
+  /** Defensive intensity for a team. 1 is the calibrated baseline. */
+  setDefenseIntensity(team: SimpleTeamCode, value: number) {
+    this.defenseIntensity[team] = clamp(Number(value) || 1, 0.5, 2);
+  }
+
+  getDefenseIntensity(team: SimpleTeamCode) {
+    return this.defenseIntensity[team];
+  }
+
+  /** Read-only view of pressureOn for the defensive measurement harness. */
+  pressureOnForHarness(player: SimplePlayer) {
+    return this.pressureOn(player);
+  }
+
   private pressureOn(player: SimplePlayer) {
     if (this.keeperWithHandsPossession()?.id === player.id) return 0;
     const opponents = this.players.filter((p) => p.team !== player.team);
     let pressure = 0;
     for (const opponent of opponents) {
       const d = dist2(player.pos, opponent.pos);
-      if (d < 5.5) pressure += (5.5 - d) / 5.5 * (0.65 + opponent.ratings.defense);
+      const intensity = this.defenseIntensity[opponent.team];
+      if (d < 5.5) pressure += (5.5 - d) / 5.5 * (0.65 + opponent.ratings.defense) * intensity;
     }
     return pressure;
   }
