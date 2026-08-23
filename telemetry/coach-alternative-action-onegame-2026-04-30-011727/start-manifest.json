@@ -1,0 +1,15 @@
+﻿{
+    "started":  "2026-04-30 01:17:27",
+    "repoRoot":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League",
+    "runDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727",
+    "launcherLog":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\launcher.log",
+    "stdout":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\runner.out.log",
+    "stderr":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\runner.err.log",
+    "reportJson":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\sim.json",
+    "visualAuditDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\visual-audit",
+    "games":  1,
+    "speed":  1,
+    "timeoutMs":  2400000,
+    "gpuHeadless":  true,
+    "command":  "node scripts\\headless-sim.mjs --games 1 --speed 1 --timeout-ms 2400000 --report-json \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\sim.json\" --gpu-headless --visual-audit --visual-audit-dir \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-alternative-action-onegame-2026-04-30-011727\\visual-audit\""
+}

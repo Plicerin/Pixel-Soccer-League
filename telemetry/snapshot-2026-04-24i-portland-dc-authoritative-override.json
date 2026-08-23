@@ -1,0 +1,56 @@
+{
+  "date": "2026-04-24",
+  "match": "Portland Timbers 3-0 DC United",
+  "session": "ft-1777049942207",
+  "codeState": "322e7db + bf077a9 (authoritative pattern override + multi-touch metric)",
+  "baselines": {
+    "goals": {
+      "actual": 3,
+      "drift": 0.22
+    },
+    "shots": {
+      "actual": 42,
+      "outsideBox": 23
+    }
+  },
+  "patternRoleAlignment_improvements_vs_philly": {
+    "NEAR_POST_RUNNER": {
+      "philly": -4.21,
+      "portlandDC": 2.04,
+      "delta": 6.25,
+      "target": 28,
+      "stillShort": "25.96u"
+    },
+    "FAR_POST_RUNNER": {
+      "philly": -3.12,
+      "portlandDC": 1.44,
+      "delta": 4.56,
+      "target": 28,
+      "stillShort": "26.56u"
+    },
+    "RUNNER": {
+      "philly": 1.34,
+      "portlandDC": -2.16,
+      "delta": -3.5
+    }
+  },
+  "carrierTrajectories": {
+    "avgBLineRatio": 0.91,
+    "straightRuns15": 38,
+    "flippyCarriers": 16,
+    "flips": 158
+  },
+  "multiTouchOppHalf": {
+    "count": 45,
+    "total": 96,
+    "pct": 0.47,
+    "avgDistinct": 1.59
+  },
+  "patternGoals": {
+    "NONE": 1,
+    "WING_ATTACK_RIGHT": 1,
+    "WING_ATTACK_LEFT": 1
+  },
+  "toSTPct": 0.242,
+  "diagnosis": "Authoritative pattern override landed but moved targets only ~5u forward. Player movement bottlenecked by: offside clamps, speed limits, or pattern-inactive samples dominating avg. Carrier B-line (0.91) is bigger visible lever. Next: Phase 2.5 Part 3 — carrier decision modulation."
+}

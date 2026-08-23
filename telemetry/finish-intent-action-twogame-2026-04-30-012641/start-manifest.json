@@ -1,0 +1,15 @@
+﻿{
+    "started":  "2026-04-30 01:26:41",
+    "repoRoot":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League",
+    "runDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641",
+    "launcherLog":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\launcher.log",
+    "stdout":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\runner.out.log",
+    "stderr":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\runner.err.log",
+    "reportJson":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\sim.json",
+    "visualAuditDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\visual-audit",
+    "games":  2,
+    "speed":  1,
+    "timeoutMs":  2400000,
+    "gpuHeadless":  true,
+    "command":  "node scripts\\headless-sim.mjs --games 2 --speed 1 --timeout-ms 2400000 --report-json \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\sim.json\" --gpu-headless --visual-audit --visual-audit-dir \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\visual-audit\""
+}

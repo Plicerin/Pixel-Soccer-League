@@ -1,0 +1,64 @@
+{
+  "label": "coach-quality-guard-2026-05-01-015436-PM",
+  "generatedAt": "2026-05-01T18:00:12.471Z",
+  "options": {
+    "games": 1,
+    "label": "coach-quality-guard-2026-05-01-015436-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-L15XS",
+      "teamA": "Austin FC",
+      "teamB": "LA Galaxy",
+      "score": "0-3",
+      "goals": 3,
+      "shotsTotal": 16,
+      "sotTotal": 3,
+      "longRangeSOT": 2,
+      "backpasses": 0,
+      "patternCrosses": 3,
+      "patternDeliveries": 25,
+      "patternGoals": 0,
+      "coachForceEvents": 92,
+      "coachAuthorityEvents": 76,
+      "forcedShotDecisions": 10,
+      "shotDecisions": 16,
+      "forcedShotShare": 0.625,
+      "avgDefAtGoal": 3,
+      "finalThirdOverloads": 0,
+      "traceH1": 207,
+      "traceH2": 255
+    }
+  ],
+  "games": 1,
+  "avgGoals": 3,
+  "avgShots": 16,
+  "avgSOT": 3,
+  "avgLongRangeSOT": 2,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 25,
+  "avgPatternCrosses": 3,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 92,
+  "avgCoachAuthorityEvents": 76,
+  "forcedShotSharePct": 62.5,
+  "avgDefAtGoal": 3,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 1.23,
+  "traceH1Total": 207,
+  "traceH2Total": 255,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg shots between 18 and 32"
+    ]
+  }
+}

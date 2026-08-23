@@ -1,0 +1,31 @@
+{
+  "projectStart": "2026-04-01T21:17:00-04:00",
+  "manualWorklogPath": "project-hours-worklog.jsonl",
+  "codexCliSessionGapMinutes": 30,
+  "activitySessionGapMinutes": 45,
+  "minimumActivityBlockMinutes": 5,
+  "maximumActivityBlockHours": 3,
+  "activityRoots": [
+    "src",
+    "scripts",
+    "tests",
+    "docs",
+    "public",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "README.md",
+    "HANDOVER.md",
+    "TODO.md"
+  ],
+  "excludePathParts": [
+    ".git",
+    "node_modules",
+    "dist",
+    "telemetry",
+    "psl.db",
+    "psl.db-shm",
+    "psl.db-wal"
+  ]
+}

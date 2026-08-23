@@ -1,0 +1,15 @@
+﻿[
+    "scripts\\headless-sim.mjs",
+    "--games",
+    "2",
+    "--speed",
+    "1",
+    "--timeout-ms",
+    "2400000",
+    "--report-json",
+    "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\sim.json",
+    "--gpu-headless",
+    "--visual-audit",
+    "--visual-audit-dir",
+    "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\finish-intent-action-twogame-2026-04-30-012641\\visual-audit"
+]

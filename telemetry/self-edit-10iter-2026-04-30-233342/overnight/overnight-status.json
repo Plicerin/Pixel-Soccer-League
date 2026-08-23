@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-05-01T03:33:43.152Z",
+  "updatedAt": "2026-05-01T04:28:42.873Z",
+  "state": "completed",
+  "outDir": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight",
+  "simTimeoutMs": 1440000,
+  "completedCycles": 10,
+  "totalCycles": 10,
+  "completedGames": 10,
+  "totalGames": 10,
+  "fixturePlan": [
+    {
+      "gameNumber": 1,
+      "homeTeam": "Houston Dynamo",
+      "awayTeam": "Colorado Rapids"
+    },
+    {
+      "gameNumber": 2,
+      "homeTeam": "Toronto FC",
+      "awayTeam": "Minnesota United"
+    },
+    {
+      "gameNumber": 3,
+      "homeTeam": "Atlanta United",
+      "awayTeam": "Columbus Crew"
+    },
+    {
+      "gameNumber": 4,
+      "homeTeam": "Houston Dynamo",
+      "awayTeam": "New York City FC"
+    },
+    {
+      "gameNumber": 5,
+      "homeTeam": "Vancouver Whitecaps",
+      "awayTeam": "LA Galaxy"
+    },
+    {
+      "gameNumber": 6,
+      "homeTeam": "New England Revolution",
+      "awayTeam": "St. Louis City SC"
+    },
+    {
+      "gameNumber": 7,
+      "homeTeam": "Columbus Crew",
+      "awayTeam": "Austin FC"
+    },
+    {
+      "gameNumber": 8,
+      "homeTeam": "Toronto FC",
+      "awayTeam": "LAFC"
+    },
+    {
+      "gameNumber": 9,
+      "homeTeam": "DC United",
+      "awayTeam": "New England Revolution"
+    },
+    {
+      "gameNumber": 10,
+      "homeTeam": "Columbus Crew",
+      "awayTeam": "Toronto FC"
+    }
+  ],
+  "currentCycle": 10,
+  "currentPhase": null,
+  "currentFixtures": [],
+  "currentSimReport": null,
+  "currentAnalysisReport": null,
+  "commandPlansPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\overnight-command-plan.json",
+  "runnerLogPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\runner.out.log",
+  "lastCompletedCycle": 10,
+  "lastCompletedSessionId": "headless-report:cycle-10-sim.json:0",
+  "lastCompletedScore": "0-0",
+  "failedCycles": [],
+  "error": null,
+  "currentAttempt": null
+}

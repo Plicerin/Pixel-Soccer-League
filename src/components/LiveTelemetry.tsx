@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 interface TeamStats {
   name: string;
@@ -10,8 +10,11 @@ interface TeamStats {
   tackles: number;
   clearances: number;
   fouls: number;
+  penaltiesAwarded: number;
+  penaltiesScored: number;
   corners: number;
   throwIns: number;
+  goalKicks: number;
   gkDistributions: number;
   gkDistCompleted: number;
   possession: number;
@@ -35,6 +38,21 @@ interface LiveTelemetryData {
   isLive: boolean;
   score: { a: number; b: number };
   eventLog: TelemEvent[];
+  shotDecisions?: any[];
+  passDecisions?: any[];
+  possessionDirector?: {
+    active: boolean;
+    team: 'A' | 'B' | '';
+    intent: string;
+    reason: string;
+    targetWidth: number | null;
+    supportDistance: { min: number; median: number; max: number };
+    crossDelaySeconds: { min: number; median: number; max: number };
+    minBoxAttackersBeforeCross: number;
+    currentBoxAttackers: number;
+    dangerousMarkDistance: { median: number; warning: number };
+    action: string;
+  };
 }
 
 interface Props {
@@ -50,8 +68,11 @@ const STAT_ROWS: { key: keyof TeamStats; label: string }[] = [
   { key: 'tackles', label: 'Tackles Won' },
   { key: 'clearances', label: 'Clearances' },
   { key: 'fouls', label: 'Fouls' },
+  { key: 'penaltiesAwarded', label: 'Penalties' },
+  { key: 'penaltiesScored', label: 'Penalty Goals' },
   { key: 'corners', label: 'Corners' },
   { key: 'throwIns', label: 'Throw-Ins' },
+  { key: 'goalKicks', label: 'Goal Kicks' },
   { key: 'gkDistCompleted', label: 'GK Dist (Comp/Att)' },
 ];
 
@@ -76,6 +97,12 @@ export default function LiveTelemetry({ gameRef }: Props) {
   const [data, setData] = useState<LiveTelemetryData | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const eventLog = data?.eventLog ?? [];
+  const shotDecisions = data?.shotDecisions ?? [];
+  const passDecisions = data?.passDecisions ?? [];
+  const reversedEventLog = useMemo(() => [...eventLog].reverse(), [eventLog]);
+  const recentShotDecisions = useMemo(() => [...shotDecisions].reverse().slice(0, 25), [shotDecisions]);
+  const recentPassDecisions = useMemo(() => [...passDecisions].reverse().slice(0, 25), [passDecisions]);
 
   useEffect(() => {
     let raf: number;
@@ -94,13 +121,14 @@ export default function LiveTelemetry({ gameRef }: Props) {
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [data?.eventLog.length]);
+  }, [eventLog.length]);
 
   if (!data) {
     return <div className="text-white/40 text-sm text-center py-8">Waiting for match data…</div>;
   }
 
-  const { teamA, teamB, carrier, eventLog } = data;
+  const { teamA, teamB, carrier } = data;
+  const director = data.possessionDirector;
 
   function copyTelemetry() {
     if (!data) return;
@@ -120,10 +148,50 @@ export default function LiveTelemetry({ gameRef }: Props) {
       const t = new Date(ev.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       lines.push(`[${t}] ${ev.team || '-'} ${ev.action}: ${ev.detail}`);
     }
+    lines.push('');
+    lines.push('--- Shot Decisions ---');
+    for (const d of shotDecisions.slice(-10)) {
+      lines.push(`${d.team} ${d.shooter} (${d.role}) style=${d.style} shouldShoot=${String(d.shouldShoot)} dist=${d.distToGoalYards ?? d.distToGoal ?? '?'} pass=${d.passTarget ?? d.passTargetName ?? '-'}`);
+    }
+    lines.push('');
+    lines.push('--- Pass Decisions ---');
+    for (const d of passDecisions.slice(-10)) {
+      lines.push(`${d.team} ${d.carrier ?? d.passer ?? 'Unknown'} (${d.role ?? d.carrierRole ?? ''}) shouldPass=${String(d.shouldPass)} target=${d.passTarget ?? d.bestPassTarget?.name ?? d.target ?? '-'} progress=${d.bestTargetForwardProg ?? d.passForwardProg ?? '?'}`);
+    }
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+  }
+
+  function renderDecisionLine(decision: any, kind: 'shot' | 'pass', index: number) {
+    const actor = decision.shooter || decision.carrier || decision.passer || 'Unknown';
+    const role = decision.role || decision.carrierRole || '';
+    const teamName = decision.team === 'A' ? teamA.name : decision.team === 'B' ? teamB.name : '-';
+    const primary =
+      kind === 'shot'
+        ? `shoot=${String(decision.shouldShoot)} style=${decision.style || 'AUTO'}`
+        : `pass=${String(decision.shouldPass)} target=${decision.passTarget || decision.passTargetName || decision.bestPassTarget?.name || '-'}`;
+    const secondary =
+      kind === 'shot'
+        ? `dist=${decision.distToGoalYards ?? decision.distToGoal ?? '?'} pressure=${decision.closePressure ?? '?'}`
+        : `prog=${decision.bestTargetForwardProg ?? decision.passForwardProg ?? '?'} pressure=${decision.closePressure ?? decision.nearbyOppPressure ?? '?'}`;
+    return (
+      <div key={`${kind}-${index}`} className="flex items-start gap-2 px-3 py-1 border-b border-white/5 last:border-0 text-[10px]">
+        <span className={`shrink-0 font-bold uppercase w-16 ${decision.team === 'A' ? 'text-cyan-400' : decision.team === 'B' ? 'text-red-400' : 'text-white/50'}`}>
+          {decision.team || '-'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-white/80">
+            {actor}
+            {role ? <span className="text-white/40"> ({role})</span> : null}
+            <span className="text-white/35"> • {teamName}</span>
+          </div>
+          <div className="text-white/45">{primary}</div>
+          <div className="text-white/30">{secondary}</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -215,6 +283,34 @@ export default function LiveTelemetry({ gameRef }: Props) {
         )}
       </div>
 
+      {/* Possession Director */}
+      <div className="border border-amber-400/20 rounded-lg p-3 bg-amber-950/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[9px] text-amber-300/70 uppercase tracking-widest">Director</div>
+          <div className="text-[9px] text-white/35 uppercase tracking-widest">
+            {director?.active ? director.action : 'watching'}
+          </div>
+        </div>
+        {director?.active ? (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+            <div className="text-white/40">Intent</div>
+            <div className="text-white/85 text-right">{director.intent.replaceAll('_', ' ')}</div>
+            <div className="text-white/40">Reason</div>
+            <div className="text-white/65 text-right">{director.reason.replaceAll('_', ' ')}</div>
+            <div className="text-white/40">Target width</div>
+            <div className="text-white/85 text-right">{director.targetWidth ?? '-'}m</div>
+            <div className="text-white/40">Support</div>
+            <div className="text-white/85 text-right">{director.supportDistance.median}m</div>
+            <div className="text-white/40">Box before cross</div>
+            <div className="text-white/85 text-right">{director.currentBoxAttackers}/{director.minBoxAttackersBeforeCross}</div>
+            <div className="text-white/40">Mark danger</div>
+            <div className="text-white/85 text-right">{director.dangerousMarkDistance.median}m</div>
+          </div>
+        ) : (
+          <div className="text-[11px] text-white/30">Waiting for a possession plan</div>
+        )}
+      </div>
+
       {/* Event Log */}
       <div className="border border-white/10 rounded-lg overflow-hidden">
         <div className="px-3 py-1.5 border-b border-white/10 bg-white/5">
@@ -225,7 +321,7 @@ export default function LiveTelemetry({ gameRef }: Props) {
           {eventLog.length === 0 ? (
             <div className="text-[10px] text-white/30 px-3 py-2">No events yet</div>
           ) : (
-            eventLog.slice().reverse().map((ev, i) => (
+            reversedEventLog.map((ev, i) => (
               <div key={i} className="flex items-start gap-2 px-3 py-1 border-b border-white/5 last:border-0 text-[10px]">
                 <span className="text-white/25 shrink-0 tabular-nums w-14">
                   {new Date(ev.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -238,6 +334,36 @@ export default function LiveTelemetry({ gameRef }: Props) {
             ))
           )}
           <div ref={logEndRef} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="border border-white/10 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 border-b border-white/10 bg-white/5">
+            <span className="text-[9px] text-white/50 uppercase tracking-widest">Shot Decisions</span>
+            <span className="text-[9px] text-white/30 ml-2">({shotDecisions.length})</span>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {shotDecisions.length === 0 ? (
+              <div className="text-[10px] text-white/30 px-3 py-2">No shot decisions yet</div>
+            ) : (
+              recentShotDecisions.map((decision, i) => renderDecisionLine(decision, 'shot', i))
+            )}
+          </div>
+        </div>
+
+        <div className="border border-white/10 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 border-b border-white/10 bg-white/5">
+            <span className="text-[9px] text-white/50 uppercase tracking-widest">Pass Decisions</span>
+            <span className="text-[9px] text-white/30 ml-2">({passDecisions.length})</span>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {passDecisions.length === 0 ? (
+              <div className="text-[10px] text-white/30 px-3 py-2">No pass decisions yet</div>
+            ) : (
+              recentPassDecisions.map((decision, i) => renderDecisionLine(decision, 'pass', i))
+            )}
+          </div>
         </div>
       </div>
     </div>

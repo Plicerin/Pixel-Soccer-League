@@ -1,11 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { initGame } from '../gameEngine';
-import FrameViewer from './FrameViewer';
-import AnimationInspector from './AnimationInspector';
-import MatchHistoryDashboard from './MatchHistoryDashboard';
-import LiveTelemetry from './LiveTelemetry';
-import TuningLab from './TuningLab';
-import SeasonHub from './SeasonHub';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Pause, Play } from 'lucide-react';
+import WorldCupHub from './WorldCupHub';
 import {
   buildDriftDashboard,
   clearTelemetryDatabase,
@@ -19,15 +14,62 @@ import {
   recoverLatestMirroredSession,
   TelemetryRecorder,
 } from '../telemetry';
+import { compactLiveDashboardPayload } from '../telemetry/liveDashboardPayload';
+import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
+import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
+import { hasDevServer } from '../runtimeEnv';
+import { createGamepadLatch, pickStandardGamepad } from '../gamepadSelect';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
+import { createWorldCupRecord, deleteWorldCup, saveWorldCup } from '../worldCupManager';
+import {
+  DEFAULT_AWAY_TEAM,
+  DEFAULT_HOME_TEAM,
+  getWorldCupTeamFlagAsset,
+  getWorldCupTeamFlag,
+  PLAYABLE_WORLD_TEAM_KITS,
+  PLAYABLE_WORLD_TEAM_NAMES,
+  resolvePlayableTeamKits,
+  WORLD_CUP_2026_TEAM_NAMES,
+} from '../teamCatalog.js';
+import { getWorldTeamStartingLineup } from '../worldTeamRosters.js';
+import { randomWorldCup2026GroupFixture } from '../worldCup2026Schedule.js';
 
-// Helper: reset positions, draw routes, activate play — called on every play/formation change
+const MatchHistoryDashboard = React.lazy(() => import('./MatchHistoryDashboard'));
+const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
+const FrameViewer = React.lazy(() => import('./FrameViewer'));
+const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
+const PauseOverlay = React.lazy(() => import('./PauseOverlay'));
+const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/**
+ * MATCHES reads the dev-server-only /__db route, and ANIMATIONS / TELEMETRY are
+ * authoring instrumentation. Hide all three in the packaged desktop build so
+ * players never land on a permanently empty tab.
+ */
+const DEV_ONLY_OPTIONS_TABS = ['MATCH_HISTORY', 'FRAME_VIEWER', 'LIVE_TELEMETRY'] as const;
+
+/**
+ * Push each side's coaching intent into the model. It shifts the team's rated
+ * tuning rather than replacing it, so a stronger squad stays stronger at every
+ * setting. Previously this called two engine stubs and did nothing at all.
+ */
+function applyGameAggressionSettings(
+  game: any,
+  teamAAggressiveness: AggressivenessKey,
+  teamBAggressiveness: AggressivenessKey = teamAAggressiveness,
+) {
+  game?.setTeamAggression?.('A', teamAAggressiveness);
+  game?.setTeamAggression?.('B', teamBAggressiveness);
+}
+
+// Helper: reset positions, draw routes, optionally activate play — called on every play/formation change
 function applyPracticePlay(
   gameRef: React.MutableRefObject<any>,
   play: (typeof PRACTICE_PLAYS)[number],
   formation: string,
   aggressivenessKey: AggressivenessKey,
+  shouldActivate = true,
 ) {
   // 1. Deactivate any running play (clears stale player refs before formation rebuild)
   gameRef.current?.deactivatePracticePlay?.();
@@ -36,91 +78,107 @@ function applyPracticePlay(
   // 3. Tune CPU shot accuracy
   const agg = PRACTICE_AGGRESSIVENESS[aggressivenessKey];
   gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
+  applyGameAggressionSettings(gameRef.current, aggressivenessKey);
   // 4. Compute routes from fresh player positions
   const allPlayers = gameRef.current?.getPlayers?.() ?? [];
   const attackSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
   const routes = getPlayRoutes(play, allPlayers, attackSign);
   // 5. Draw arrows + execute play
   gameRef.current?.drawPracticeRoutes?.(routes);
-  gameRef.current?.activatePracticePlay?.(routes, play.template);
+  if (shouldActivate) {
+    gameRef.current?.activatePracticePlay?.(routes, play.template);
+  }
 }
 
-const MLS_TEAM_OPTIONS = [
-  'Atlanta United',  // keep list unchanged – just adding color map below it
-  'Austin FC',
-  'Charlotte FC',
-  'Chicago Fire',
-  'FC Cincinnati',
-  'Colorado Rapids',
-  'Columbus Crew',
-  'DC United',
-  'FC Dallas',
-  'Houston Dynamo',
-  'Inter Miami',
-  'LA Galaxy',
-  'LAFC',
-  'Minnesota United',
-  'CF Montreal',
-  'Nashville SC',
-  'New England Revolution',
-  'New York City FC',
-  'New York Red Bulls',
-  'Orlando City',
-  'Philadelphia Union',
-  'Portland Timbers',
-  'Real Salt Lake',
-  'San Diego FC',
-  'San Jose Earthquakes',
-  'Seattle Sounders',
-  'Sporting Kansas City',
-  'St. Louis City SC',
-  'Toronto FC',
-  'Vancouver Whitecaps',
-];
+const BASE_TEAM_OPTIONS = WORLD_CUP_2026_TEAM_NAMES;
+const EASTER_EGG_TEAM_OPTIONS = ['Italy 1982', 'West Germany 1982'];
 
 const SOCCER_FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'];
 
-const CPU_SHOT_TUNING_PRESETS = {
-  BALANCED: { aimErrorRad: 0.14, pressureError: 0.08 },
-  AGGRESSIVE: { aimErrorRad: 0.18, pressureError: 0.1 },
-  POSSESSION: { aimErrorRad: 0.11, pressureError: 0.06 },
-} as const;
+const MLS_TEAM_KITS = PLAYABLE_WORLD_TEAM_KITS as Record<string, { home: { shirt: number; pants: number }; away: { shirt: number; pants: number } }>;
+const FALLBACK_TEAM_KIT = MLS_TEAM_KITS[DEFAULT_HOME_TEAM] ?? Object.values(MLS_TEAM_KITS)[0];
+const MLS_TEAM_NAMES = PLAYABLE_WORLD_TEAM_NAMES;
+type CpuMatchup = { a: string; b: string };
+type WindowResolutionPreset = '1280x720' | '1366x768' | '1600x900' | '1920x1080';
 
-// Official MLS primary (shirt) and secondary (pants) brand colors
-const MLS_TEAM_KITS: Record<string, { home: { shirt: number; pants: number }; away: { shirt: number; pants: number } }> = {
-  'Atlanta United':          { home: { shirt: 0xC41230, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xC41230 } },
-  'Austin FC':               { home: { shirt: 0x00B140, pants: 0x000000 }, away: { shirt: 0xFFFFFF, pants: 0x00B140 } },
-  'Charlotte FC':            { home: { shirt: 0x1A85C8, pants: 0xCCCCCC }, away: { shirt: 0xFFFFFF, pants: 0x1A85C8 } },
-  'Chicago Fire':            { home: { shirt: 0xC50505, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0xC50505 } },
-  'FC Cincinnati':           { home: { shirt: 0xF4811F, pants: 0x263C7E }, away: { shirt: 0xFFFFFF, pants: 0x263C7E } },
-  'Colorado Rapids':         { home: { shirt: 0x94092E, pants: 0x0086C8 }, away: { shirt: 0xFFFFFF, pants: 0x94092E } },
-  'Columbus Crew':           { home: { shirt: 0xFEDD00, pants: 0x000000 }, away: { shirt: 0x000000, pants: 0xFEDD00 } },
-  'DC United':               { home: { shirt: 0xEF3E42, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xEF3E42 } },
-  'FC Dallas':               { home: { shirt: 0xBF0D3E, pants: 0x002F65 }, away: { shirt: 0xFFFFFF, pants: 0xBF0D3E } },
-  'Houston Dynamo':          { home: { shirt: 0xF4851A, pants: 0x0A2240 }, away: { shirt: 0xFFFFFF, pants: 0xF4851A } },
-  'Inter Miami':             { home: { shirt: 0xF52B8F, pants: 0x231F20 }, away: { shirt: 0xFFFFFF, pants: 0xF52B8F } },
-  'LA Galaxy':               { home: { shirt: 0x00245D, pants: 0xFAD141 }, away: { shirt: 0xFFFFFF, pants: 0x00245D } },
-  'LAFC':                    { home: { shirt: 0x000000, pants: 0xC39E6D }, away: { shirt: 0xFFFFFF, pants: 0x000000 } },
-  'Minnesota United':        { home: { shirt: 0x231F20, pants: 0x8FCFED }, away: { shirt: 0xFFFFFF, pants: 0x231F20 } },
-  'CF Montreal':             { home: { shirt: 0x0B2A6B, pants: 0x0A9FDB }, away: { shirt: 0xFFFFFF, pants: 0x0B2A6B } },
-  'Nashville SC':            { home: { shirt: 0xECE83A, pants: 0x1A2F5D }, away: { shirt: 0x1A2F5D, pants: 0xECE83A } },
-  'New England Revolution':  { home: { shirt: 0x003087, pants: 0xCE0E2D }, away: { shirt: 0xFFFFFF, pants: 0x003087 } },
-  'New York City FC':        { home: { shirt: 0x6CADDF, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0x6CADDF } },
-  'New York Red Bulls':      { home: { shirt: 0xED1C24, pants: 0x23235B }, away: { shirt: 0xFFFFFF, pants: 0xED1C24 } },
-  'Orlando City':            { home: { shirt: 0x633492, pants: 0xFFC224 }, away: { shirt: 0xFFFFFF, pants: 0x633492 } },
-  'Philadelphia Union':      { home: { shirt: 0x072B61, pants: 0xB19F72 }, away: { shirt: 0xFFFFFF, pants: 0x072B61 } },
-  'Portland Timbers':        { home: { shirt: 0x004812, pants: 0xFBEC51 }, away: { shirt: 0xFFFFFF, pants: 0x004812 } },
-  'Real Salt Lake':          { home: { shirt: 0xB22222, pants: 0x013A81 }, away: { shirt: 0xFFFFFF, pants: 0xB22222 } },
-  'San Diego FC':            { home: { shirt: 0x003087, pants: 0xC8A951 }, away: { shirt: 0xFFFFFF, pants: 0x003087 } },
-  'San Jose Earthquakes':    { home: { shirt: 0x0D4DA1, pants: 0x000000 }, away: { shirt: 0xFFFFFF, pants: 0x0D4DA1 } },
-  'Seattle Sounders':        { home: { shirt: 0x5D9732, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0x5D9732 } },
-  'Sporting Kansas City':    { home: { shirt: 0x002B5C, pants: 0x99D9E0 }, away: { shirt: 0xFFFFFF, pants: 0x002B5C } },
-  'St. Louis City SC':       { home: { shirt: 0xC8102E, pants: 0x003087 }, away: { shirt: 0xFFFFFF, pants: 0xC8102E } },
-  'Toronto FC':              { home: { shirt: 0xB81137, pants: 0x313233 }, away: { shirt: 0xFFFFFF, pants: 0xB81137 } },
-  'Vancouver Whitecaps':     { home: { shirt: 0x0B63A0, pants: 0xFFFFFF }, away: { shirt: 0xFFFFFF, pants: 0x0B63A0 } },
-};
+const WINDOW_RESOLUTION_STORAGE_KEY = 'psl.windowResolution';
+const DISPLAY_MODE_STORAGE_KEY = 'psl.displayMode';
 
-const MLS_TEAM_NAMES = Object.keys(MLS_TEAM_KITS);
+/** Windowed uses the resolution presets; fullscreen hides the taskbar. */
+type DisplayMode = 'WINDOWED' | 'FULLSCREEN';
+
+function getStoredDisplayMode(): DisplayMode {
+  try {
+    return window.localStorage.getItem(DISPLAY_MODE_STORAGE_KEY) === 'FULLSCREEN' ? 'FULLSCREEN' : 'WINDOWED';
+  } catch {
+    return 'WINDOWED';
+  }
+}
+
+/**
+ * Borderless fullscreen. Tauri's setFullscreen keeps the webview at the
+ * monitor's resolution and removes the decorations, which is what the tester
+ * wanted: no Windows taskbar over the pitch.
+ */
+async function applyDisplayMode(mode: DisplayMode) {
+  if (!(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) return false;
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().setFullscreen(mode === 'FULLSCREEN');
+  return true;
+}
+const WINDOW_RESOLUTION_PRESETS: ReadonlyArray<{ key: WindowResolutionPreset; label: string; width: number; height: number }> = [
+  { key: '1280x720', label: '1280 × 720', width: 1280, height: 720 },
+  { key: '1366x768', label: '1366 × 768', width: 1366, height: 768 },
+  { key: '1600x900', label: '1600 × 900', width: 1600, height: 900 },
+  { key: '1920x1080', label: '1920 × 1080', width: 1920, height: 1080 },
+];
+const DEFAULT_WINDOW_RESOLUTION: WindowResolutionPreset = '1600x900';
+const INTERACTIVE_PLAYER_MODES_ENABLED = true;
+
+function isWindowResolutionPreset(value: string): value is WindowResolutionPreset {
+  return WINDOW_RESOLUTION_PRESETS.some((preset) => preset.key === value);
+}
+
+function getStoredWindowResolution(): WindowResolutionPreset {
+  try {
+    const stored = window.localStorage.getItem(WINDOW_RESOLUTION_STORAGE_KEY);
+    if (stored && isWindowResolutionPreset(stored)) return stored;
+  } catch {}
+  return DEFAULT_WINDOW_RESOLUTION;
+}
+
+async function applyWindowResolution(preset: WindowResolutionPreset) {
+  const next = WINDOW_RESOLUTION_PRESETS.find((candidate) => candidate.key === preset) ?? WINDOW_RESOLUTION_PRESETS[2];
+  // Resizing while fullscreen would silently fight the display mode.
+  if (getStoredDisplayMode() === 'FULLSCREEN') return;
+  if ((window as any).__TAURI_INTERNALS__) {
+    const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
+    const currentWindow = getCurrentWindow();
+    await currentWindow.setSize(new LogicalSize(next.width, next.height));
+    await currentWindow.center();
+    return;
+  }
+  if (typeof window.resizeTo === 'function') {
+    window.resizeTo(next.width, next.height);
+  }
+}
+
+function randomCpuMatchup(): CpuMatchup {
+  const fixture = randomWorldCup2026GroupFixture();
+  if (fixture) {
+    return {
+      a: fixture.homeTeam,
+      b: fixture.awayTeam,
+    };
+  }
+  const homeIndex = Math.floor(Math.random() * MLS_TEAM_NAMES.length);
+  let awayIndex = Math.floor(Math.random() * Math.max(1, MLS_TEAM_NAMES.length - 1));
+  if (awayIndex >= homeIndex) awayIndex += 1;
+  return {
+    a: MLS_TEAM_NAMES[homeIndex],
+    b: MLS_TEAM_NAMES[awayIndex % MLS_TEAM_NAMES.length],
+  };
+}
 
 function getTeamColor(teamName: string): string {
   const kit = MLS_TEAM_KITS[teamName];
@@ -129,38 +187,42 @@ function getTeamColor(teamName: string): string {
   return `#${hex.toString(16).padStart(6, '0')}`;
 }
 
-const MLS_TEAM_LOGOS: Record<string, string> = {
-  'Atlanta United':          '/assets/logos/atlanta-united.png',
-  'Austin FC':               '/assets/logos/austin-fc.png',
-  'Charlotte FC':            '/assets/logos/charlotte-fc.png',
-  'Chicago Fire':            '/assets/logos/chicago-fire.png',
-  'FC Cincinnati':           '/assets/logos/fc-cincinnati.png',
-  'Colorado Rapids':         '/assets/logos/colorado-rapids.png',
-  'Columbus Crew':           '/assets/logos/columbus-crew.png',
-  'DC United':               '/assets/logos/dc-united.png',
-  'FC Dallas':               '/assets/logos/fc-dallas.png',
-  'Houston Dynamo':          '/assets/logos/houston-dynamo.png',
-  'Inter Miami':             '/assets/logos/inter-miami.png',
-  'LA Galaxy':               '/assets/logos/la-galaxy.png',
-  'LAFC':                    '/assets/logos/lafc.png',
-  'Minnesota United':        '/assets/logos/minnesota-united.png',
-  'CF Montreal':             '/assets/logos/cf-montreal.png',
-  'Nashville SC':            '/assets/logos/nashville-sc.png',
-  'New England Revolution':  '/assets/logos/new-england-revolution.png',
-  'New York City FC':        '/assets/logos/new-york-city-fc.png',
-  'New York Red Bulls':      '/assets/logos/new-york-red-bulls.png',
-  'Orlando City':            '/assets/logos/orlando-city.png',
-  'Philadelphia Union':      '/assets/logos/philadelphia-union.png',
-  'Portland Timbers':        '/assets/logos/portland-timbers.png',
-  'Real Salt Lake':          '/assets/logos/real-salt-lake.png',
-  'San Diego FC':            '/assets/logos/san-diego-fc.png',
-  'San Jose Earthquakes':    '/assets/logos/san-jose-earthquakes.png',
-  'Seattle Sounders':        '/assets/logos/seattle-sounders.png',
-  'Sporting Kansas City':    '/assets/logos/sporting-kc.png',
-  'St. Louis City SC':       '/assets/logos/st-louis-city.png',
-  'Toronto FC':              '/assets/logos/toronto-fc.png',
-  'Vancouver Whitecaps':     '/assets/logos/vancouver-whitecaps.png',
-};
+function getResolvedMatchKits(teamAName: string, teamBName: string, teamAKit: 'home' | 'away', teamBKit: 'home' | 'away') {
+  return resolvePlayableTeamKits(teamAName, teamBName, teamAKit, teamBKit) as {
+    homeKey: 'home' | 'away';
+    awayKey: 'home' | 'away';
+    home: { shirt: number; pants: number };
+    away: { shirt: number; pants: number };
+  };
+}
+
+const MLS_TEAM_LOGOS: Record<string, string> = {};
+
+function ScoreboardFlag({ teamName }: { teamName: string }) {
+  const flag = getWorldCupTeamFlag(teamName);
+  const flagAsset = getWorldCupTeamFlagAsset(teamName);
+  return (
+    <div
+      className="relative h-9 w-11 sm:h-10 sm:w-12 shrink-0 overflow-hidden rounded-[3px] border border-black/15 bg-white grid place-items-center text-[25px] sm:text-[28px] leading-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]"
+      aria-label={`${teamName} flag`}
+      title={`${teamName} flag`}
+    >
+      <span className="leading-none">{flag || shortTeamName(teamName).slice(0, 3)}</span>
+      {flagAsset && (
+        <img
+          src={flagAsset}
+          alt={`${teamName} flag`}
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 /** Pre-Match Setup Screen Component */
 interface PreMatchSetupScreenProps {
@@ -171,6 +233,7 @@ interface PreMatchSetupScreenProps {
   teamAAggressiveness: AggressivenessKey;
   teamBAggressiveness: AggressivenessKey;
   teamAHome: boolean;
+  teamBHome: boolean;
   teamAPreMatchKit: number;
   teamBPreMatchKit: number;
   onTeamANameChange: (name: string) => void;
@@ -180,12 +243,196 @@ interface PreMatchSetupScreenProps {
   onTeamAAggressivenessChange: (agg: AggressivenessKey) => void;
   onTeamBAggressivenessChange: (agg: AggressivenessKey) => void;
   onTeamAHomeChange: (isHome: boolean) => void;
+  onTeamBHomeChange: (isHome: boolean) => void;
   onTeamAPreMatchKitChange: (kit: number) => void;
   onTeamBPreMatchKitChange: (kit: number) => void;
-  onRandomize: () => void;
+  halfLengthMinutes: number;
+  onHalfLengthMinutesChange: (minutes: number) => void;
   onStartMatch: () => void;
+  watchedFixtureMessage: string;
+  teamOptions: string[];
   onClose: () => void;
 }
+
+const PRE_MATCH_SELECT_CLASSNAME = 'bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 pointer-events-auto cursor-pointer relative';
+const PRE_MATCH_HALF_LENGTH_OPTIONS = ['2', '5', '10', '15', '20', '30', '45'];
+const PRE_MATCH_AGGRESSIVENESS_OPTIONS = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
+type MatchKitKey = 'home' | 'away';
+type KickoffSetupOptions = {
+  teamAKit?: MatchKitKey;
+  teamBKit?: MatchKitKey;
+  teamAFormation?: string;
+  teamBFormation?: string;
+  teamAAggressiveness?: AggressivenessKey;
+  teamBAggressiveness?: AggressivenessKey;
+};
+
+function preMatchKitKey(index: number): MatchKitKey {
+  return index === 1 ? 'away' : 'home';
+}
+
+interface TeamSetupSectionProps {
+  team: 'A' | 'B';
+  name: string;
+  formation: string;
+  aggressiveness: AggressivenessKey;
+  isHome: boolean;
+  kitIndex: number;
+  teamOptions: string[];
+  aggressivenessOptions: AggressivenessKey[];
+  onNameChange: (name: string) => void;
+  onFormationChange: (formation: string) => void;
+  onAggressivenessChange: (agg: AggressivenessKey) => void;
+  onKitChange: (kitIndex: number) => void;
+  onHomeChange?: (isHome: boolean) => void;
+}
+
+const TeamSetupSection = React.memo(({
+  team,
+  name,
+  formation,
+  aggressiveness,
+  isHome,
+  kitIndex,
+  teamOptions,
+  aggressivenessOptions,
+  onNameChange,
+  onFormationChange,
+  onAggressivenessChange,
+  onKitChange,
+  onHomeChange,
+}: TeamSetupSectionProps) => {
+  const [lineupOpen, setLineupOpen] = useState(false);
+  const kit = MLS_TEAM_KITS[name] ?? FALLBACK_TEAM_KIT;
+  const selectedKit = kitIndex === 0 ? kit.home : kit.away;
+  const shirtColor = `#${selectedKit.shirt.toString(16).padStart(6, '0')}`;
+  const pantsColor = `#${selectedKit.pants.toString(16).padStart(6, '0')}`;
+  const lineup = useMemo(() => getWorldTeamStartingLineup(name, formation), [name, formation]);
+
+  return (
+    <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4 relative">
+      {/* Team Name and Home/Away */}
+      <div className="flex items-center gap-3 relative z-50">
+        <CustomDropdown
+          id={`prematch-team-${team}-select`}
+          ariaLabel={`${team === 'A' ? 'Team A' : 'Team B'} country`}
+          dataSelect={`prematch-team-${team}`}
+          value={name}
+          onChange={onNameChange}
+          options={teamOptions}
+          className="flex-1 pointer-events-auto z-[80]"
+        />
+        {onHomeChange && (
+          <button
+            type="button"
+            onClick={() => onHomeChange(!isHome)}
+            className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded border transition-colors ${
+              isHome
+                ? 'bg-emerald-500/30 border-emerald-400 text-emerald-300'
+                : 'bg-blue-500/30 border-blue-400 text-blue-300'
+            }`}
+          >
+            {isHome ? '🏠 HOME' : '✈️ AWAY'}
+          </button>
+        )}
+      </div>
+
+      {/* Uniform Kit Selection */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-white/40 text-[11px] uppercase tracking-widest">Kit</label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onKitChange(0)}
+            className={`flex-1 py-2 rounded border text-[11px] font-bold uppercase tracking-widest transition-colors ${
+              kitIndex === 0
+                ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
+                : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
+            }`}
+          >
+            HOME
+          </button>
+          <button
+            type="button"
+            onClick={() => onKitChange(1)}
+            className={`flex-1 py-2 rounded border text-[11px] font-bold uppercase tracking-widest transition-colors ${
+              kitIndex === 1
+                ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
+                : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
+            }`}
+          >
+            AWAY
+          </button>
+        </div>
+        <div
+          className="w-full h-10 rounded border border-white/20"
+          style={{
+            background: `linear-gradient(90deg, ${shirtColor} 50%, ${pantsColor} 50%)`,
+          }}
+          title={`Shirt: ${selectedKit.shirt.toString(16)} | Pants: ${selectedKit.pants.toString(16)}`}
+        />
+      </div>
+
+      {/* Formation */}
+      <div className="flex flex-col gap-1.5 relative z-40">
+        <label className="text-white/40 text-[11px] uppercase tracking-widest">Formation</label>
+        <CustomDropdown
+          id={`prematch-formation-${team}-select`}
+          ariaLabel={`${team === 'A' ? 'Team A' : 'Team B'} formation`}
+          dataSelect={`prematch-formation-${team}`}
+          value={formation}
+          onChange={onFormationChange}
+          options={SOCCER_FORMATION_OPTIONS}
+          className="pointer-events-auto z-[70]"
+        />
+      </div>
+
+      {/* Aggressiveness */}
+      <div className="flex flex-col gap-1.5 relative z-40">
+        <label className="text-white/40 text-[11px] uppercase tracking-widest">Aggressiveness</label>
+        <CustomDropdown
+          id={`prematch-aggressiveness-${team}-select`}
+          ariaLabel={`${team === 'A' ? 'Team A' : 'Team B'} aggressiveness`}
+          dataSelect={`prematch-aggressiveness-${team}`}
+          value={aggressiveness}
+          onChange={(value) => onAggressivenessChange(value as AggressivenessKey)}
+          options={aggressivenessOptions}
+          className="pointer-events-auto z-[70]"
+        />
+      </div>
+
+      {/* Lineup Preview */}
+      <div className="flex flex-col gap-1.5 pointer-events-auto">
+        <label className="text-white/40 text-[11px] uppercase tracking-widest">Starting XI</label>
+        <button
+          type="button"
+          data-psl-lineup-toggle={team}
+          aria-expanded={lineupOpen}
+          aria-controls={`psl-lineup-panel-${team}`}
+          onClick={() => setLineupOpen((open) => !open)}
+          className="bg-zinc-800/50 border border-white/10 rounded p-2 text-white/70 text-[11px] hover:bg-zinc-800 hover:border-white/20 cursor-pointer transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span>{name} Starting XI</span>
+            <span className="text-cyan-300">{lineupOpen ? 'HIDE' : 'VIEW'}</span>
+          </div>
+          <div className="mt-1 text-white/40 uppercase tracking-[0.16em]">{formation} shape</div>
+        </button>
+        {lineupOpen ? (
+          <div id={`psl-lineup-panel-${team}`} data-psl-lineup-panel={team} className="grid grid-cols-1 gap-1 rounded border border-cyan-400/20 bg-black/35 p-2">
+            {lineup.map((player: any) => (
+              <div key={`${player.number}-${player.role}`} className="grid grid-cols-[2rem_3rem_1fr] items-center gap-2 text-[11px]">
+                <span className="text-right font-bold text-cyan-200">{player.number}</span>
+                <span className="font-bold text-white/60">{player.role}</span>
+                <span className="truncate text-white">{player.name}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+});
 
 const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   teamAName,
@@ -195,6 +442,7 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   teamAAggressiveness,
   teamBAggressiveness,
   teamAHome,
+  teamBHome,
   teamAPreMatchKit,
   teamBPreMatchKit,
   onTeamANameChange,
@@ -204,150 +452,86 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
   onTeamAAggressivenessChange,
   onTeamBAggressivenessChange,
   onTeamAHomeChange,
+  onTeamBHomeChange,
   onTeamAPreMatchKitChange,
   onTeamBPreMatchKitChange,
-  onRandomize,
+  halfLengthMinutes,
+  onHalfLengthMinutesChange,
   onStartMatch,
+  watchedFixtureMessage,
+  teamOptions,
   onClose,
 }) => {
-  const aggressivenessOptions = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  const TeamSetupSection: React.FC<{
-    team: 'A' | 'B';
-    name: string;
-    formation: string;
-    aggressiveness: AggressivenessKey;
-    isHome: boolean;
-    kitIndex: number;
-    onNameChange: (name: string) => void;
-    onFormationChange: (formation: string) => void;
-    onAggressivenessChange: (agg: AggressivenessKey) => void;
-    onKitChange: (kitIndex: number) => void;
-    onHomeChange?: (isHome: boolean) => void;
-  }> = ({
-    team,
-    name,
-    formation,
-    aggressiveness,
-    isHome,
-    kitIndex,
-    onNameChange,
-    onFormationChange,
-    onAggressivenessChange,
-    onKitChange,
-    onHomeChange,
-  }) => {
-    const teamColor = getTeamColor(name);
-    const kit = MLS_TEAM_KITS[name] ?? MLS_TEAM_KITS['Inter Miami'];
-    const selectedKit = kitIndex === 0 ? kit.home : kit.away;
-    const shirtColor = `#${selectedKit.shirt.toString(16).padStart(6, '0')}`;
-    const pantsColor = `#${selectedKit.pants.toString(16).padStart(6, '0')}`;
-
-    return (
-      <div className="flex-1 bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-4 relative">
-        {/* Team Name and Home/Away */}
-        <div className="flex items-center gap-3 relative z-50">
-          <CustomDropdown
-            value={name}
-            onChange={onNameChange}
-            options={MLS_TEAM_NAMES}
-            className="flex-1"
-          />
-          {onHomeChange && (
-            <button
-              onClick={() => onHomeChange(!isHome)}
-              className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${
-                isHome
-                  ? 'bg-emerald-500/30 border-emerald-400 text-emerald-300'
-                  : 'bg-blue-500/30 border-blue-400 text-blue-300'
-              }`}
-            >
-              {isHome ? '🏠 HOME' : '✈️ AWAY'}
-            </button>
-          )}
-        </div>
-
-        {/* Uniform Kit Selection */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-white/40 text-[9px] uppercase tracking-widest">Kit</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onKitChange(0)}
-              className={`flex-1 py-2 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                kitIndex === 0
-                  ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
-                  : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
-              }`}
-            >
-              HOME
-            </button>
-            <button
-              onClick={() => onKitChange(1)}
-              className={`flex-1 py-2 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                kitIndex === 1
-                  ? 'bg-cyan-500/40 border-cyan-400 text-cyan-300'
-                  : 'bg-zinc-800 border-white/20 text-white/60 hover:border-white/40'
-              }`}
-            >
-              AWAY
-            </button>
-          </div>
-          <div
-            className="w-full h-10 rounded border border-white/20"
-            style={{
-              background: `linear-gradient(90deg, ${shirtColor} 50%, ${pantsColor} 50%)`,
-            }}
-            title={`Shirt: ${selectedKit.shirt.toString(16)} | Pants: ${selectedKit.pants.toString(16)}`}
-          />
-        </div>
-
-        {/* Formation */}
-        <div className="flex flex-col gap-1.5 relative z-40">
-          <label className="text-white/40 text-[9px] uppercase tracking-widest">Formation</label>
-          <CustomDropdown
-            value={formation}
-            onChange={onFormationChange}
-            options={SOCCER_FORMATION_OPTIONS}
-          />
-        </div>
-
-        {/* Aggressiveness */}
-        <div className="flex flex-col gap-1.5 relative z-40">
-          <label className="text-white/40 text-[9px] uppercase tracking-widest">Aggressiveness</label>
-          <CustomDropdown
-            value={aggressiveness}
-            onChange={onAggressivenessChange}
-            options={aggressivenessOptions}
-          />
-        </div>
-
-        {/* Lineup Preview (placeholder) */}
-        <div className="flex flex-col gap-1.5 pointer-events-auto">
-          <label className="text-white/40 text-[9px] uppercase tracking-widest">Starting XI</label>
-          <div className="bg-zinc-800/50 border border-white/10 rounded p-2 text-white/50 text-[9px] hover:bg-zinc-800 hover:border-white/20 cursor-pointer transition-colors">
-            <div className="text-center py-1">Team {team} Starting Lineup</div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector = [
+      'button:not([disabled])',
+      'select:not([disabled])',
+      'input:not([disabled])',
+      'textarea:not([disabled])',
+      'a[href]',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const focusFirst = () => {
+      const first = dialog.querySelector<HTMLElement>(focusableSelector);
+      (first || dialog).focus();
+    };
+    focusFirst();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((el) => el.offsetParent !== null || el === document.activeElement);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
 
   return (
     <div
-      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-none"
-      onClick={(e) => {
-        // Only close if clicking on the background itself, not the content
+      className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto"
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
-          console.log('Closing modal from background click');
           onClose();
         }
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="prematch-title"
+        tabIndex={-1}
         className="max-w-6xl w-full bg-zinc-950 border border-cyan-500/20 rounded-xl shadow-2xl p-6 flex flex-col gap-6 pointer-events-auto"
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="text-center">
-          <h2 className="text-white text-2xl font-bold uppercase tracking-widest mb-1">Pre-Match Setup</h2>
+          <h2 id="prematch-title" className="text-white text-[11px] font-bold uppercase tracking-widest mb-1 [text-wrap:balance]">Pre-Match Setup</h2>
           <p className="text-white/40 text-[11px] uppercase tracking-widest">Configure teams, formations, and difficulty</p>
         </div>
 
@@ -360,6 +544,8 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
             aggressiveness={teamAAggressiveness}
             isHome={teamAHome}
             kitIndex={teamAPreMatchKit}
+            teamOptions={teamOptions}
+            aggressivenessOptions={PRE_MATCH_AGGRESSIVENESS_OPTIONS}
             onNameChange={onTeamANameChange}
             onFormationChange={onTeamAFormationChange}
             onAggressivenessChange={onTeamAAggressivenessChange}
@@ -371,30 +557,56 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
             name={teamBName}
             formation={teamBFormation}
             aggressiveness={teamBAggressiveness}
-            isHome={false}
+            isHome={teamBHome}
             kitIndex={teamBPreMatchKit}
+            teamOptions={teamOptions}
+            aggressivenessOptions={PRE_MATCH_AGGRESSIVENESS_OPTIONS}
             onNameChange={onTeamBNameChange}
             onFormationChange={onTeamBFormationChange}
             onAggressivenessChange={onTeamBAggressivenessChange}
             onKitChange={onTeamBPreMatchKitChange}
+            onHomeChange={onTeamBHomeChange}
           />
+        </div>
+
+        {/* Match Length */}
+        <div className="bg-zinc-900/80 border border-white/10 rounded-lg p-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-white text-[11px] font-semibold uppercase tracking-[0.25em]">Half Length</div>
+            </div>
+            <div className="w-32">
+              <CustomDropdown
+                id="prematch-half-length-select"
+                ariaLabel="Half length"
+                dataSelect="prematch-half-length"
+                value={`${halfLengthMinutes}`}
+                onChange={(value) => onHalfLengthMinutesChange(Number(value))}
+                options={PRE_MATCH_HALF_LENGTH_OPTIONS}
+                className="w-full pointer-events-auto z-[70]"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
-            onClick={onRandomize}
-            className="flex-1 bg-purple-500/30 border border-purple-400 text-purple-200 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-purple-500/50 transition-colors"
-          >
-            🎲 Randomize All
-          </button>
-          <button
-            onClick={onStartMatch}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onStartMatch();
+            }}
             className="flex-1 bg-cyan-500/40 border border-cyan-400 text-cyan-100 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-cyan-500/60 transition-colors"
           >
-            ⚽ Start Match
+            <span aria-hidden="true">⚽</span> Start Match
           </button>
         </div>
+        {watchedFixtureMessage ? (
+          <div className="text-center text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">
+            {watchedFixtureMessage}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -402,130 +614,517 @@ const PreMatchSetupScreen: React.FC<PreMatchSetupScreenProps> = ({
 
 // Memoize to prevent dropdown from closing on parent re-renders
 const MemoizedPreMatchSetupScreen = React.memo(PreMatchSetupScreen);
+const PRACTICE_SELECT_CLASSNAME = 'bg-zinc-800 border border-white/15 text-white text-xs rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
 
-/** Custom Dropdown Component */
-const CustomDropdown: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
+/** Module-stable modal dropdown using the old button/list interaction without delayed document races. */
+const CustomDropdown = <T extends string>({
+  id,
+  ariaLabel,
+  dataSelect,
+  value,
+  onChange,
+  options,
+  className = '',
+}: {
+  id: string;
+  ariaLabel: string;
+  dataSelect: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: T[];
   className?: string;
-}> = ({ value, onChange, options, className = '' }) => {
+}) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const skipNextClickRef = useRef(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const listboxId = `${id}-listbox`;
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      console.log('handleClickOutside fired, skipNextClickRef:', skipNextClickRef.current);
-      console.log('e.target:', e.target, 'dropdownRef contains target:', dropdownRef.current?.contains(e.target as Node));
+    const selectedIndex = Math.max(0, options.findIndex((option) => option === value));
+    setActiveIndex(selectedIndex);
+  }, [options, value]);
 
-      if (skipNextClickRef.current) {
-        skipNextClickRef.current = false;
-        console.log('Skipping click outside (same event that opened dropdown)');
-        return;
-      }
-
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        console.log('Dropdown click outside detected, closing');
-        setIsOpen(false);
-      }
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeFromOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && dropdownRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
-
-    if (isOpen) {
-      console.log('Dropdown opened, adding document listener');
-      // Delay to ensure we're past the opening event cycle
-      const timeoutId = setTimeout(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-      }, 50);
-
-      return () => {
-        clearTimeout(timeoutId);
-        console.log('Removing document listener');
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
+    document.addEventListener('pointerdown', closeFromOutside, true);
+    return () => {
+      document.removeEventListener('pointerdown', closeFromOutside, true);
+    };
   }, [isOpen]);
 
-  return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
-      <button
-        onMouseDown={(e) => {
-          skipNextClickRef.current = true;
-          console.log('Dropdown button mousedown, setting skip flag');
-        }}
-        onClick={(e) => {
-          console.log('Dropdown button clicked, isOpen:', isOpen);
-          e.stopPropagation();
-          e.preventDefault();
-          setIsOpen(!isOpen);
-        }}
-        className="w-full bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 pointer-events-auto cursor-pointer text-left flex justify-between items-center hover:border-white/40 transition-colors"
-      >
-        <span>{value}</span>
-        <span className="text-[8px] ml-2">{isOpen ? '▲' : '▼'}</span>
-      </button>
+  const selectOption = (option: T) => {
+    onChange(option);
+    setIsOpen(false);
+    requestAnimationFrame(() => buttonRef.current?.focus());
+  };
 
-      {isOpen && (
+  const moveActive = (delta: number) => {
+    setActiveIndex((index) => {
+      if (options.length === 0) return 0;
+      return (index + delta + options.length) % options.length;
+    });
+  };
+
+  return (
+    <div ref={dropdownRef} className={`relative ${className}`}>
+      <button
+        id={id}
+        ref={buttonRef}
+        type="button"
+        data-psl-custom-dropdown="old-modal"
+        data-psl-custom-dropdown-button={dataSelect}
+        data-psl-select={dataSelect}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setIsOpen((open) => !open);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            setIsOpen(false);
+            return;
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsOpen(true);
+            moveActive(1);
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsOpen(true);
+            moveActive(-1);
+            return;
+          }
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (isOpen) {
+              selectOption(options[activeIndex] ?? value);
+            } else {
+              setIsOpen(true);
+            }
+          }
+        }}
+        className="flex w-full items-center justify-between gap-2 rounded border border-white/20 bg-zinc-800 px-2 py-1.5 text-left text-[11px] text-white transition-colors hover:border-white/40 focus:outline-none focus:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+      >
+        <span className="truncate">{value}</span>
+        <span aria-hidden="true" className="text-[8px] leading-none">{isOpen ? '▲' : '▼'}</span>
+      </button>
+      {isOpen ? (
         <div
-          className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-white/20 rounded z-[9999] max-h-48 overflow-y-auto shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
+          id={listboxId}
+          role="listbox"
+          data-psl-custom-dropdown-menu={dataSelect}
+          aria-label={ariaLabel}
+          aria-activedescendant={`${id}-option-${activeIndex}`}
+          className="absolute left-0 right-0 top-full z-[10000] mt-1 max-h-56 overflow-y-auto rounded border border-white/20 bg-zinc-900 shadow-2xl"
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => event.stopPropagation()}
         >
-          {options.map((option) => (
+          {options.map((option, index) => (
             <button
+              id={`${id}-option-${index}`}
               key={option}
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange(option);
-                setIsOpen(false);
+              type="button"
+              role="option"
+              aria-selected={value === option}
+              data-psl-custom-dropdown-option={dataSelect}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                selectOption(option);
               }}
-              className={`w-full text-left px-3 py-2 text-[11px] transition-colors ${
+              className={`block w-full px-3 py-2 text-left text-[11px] transition-colors ${
                 value === option
-                  ? 'bg-cyan-500/40 text-cyan-200'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  ? 'bg-cyan-500/40 text-cyan-100'
+                  : index === activeIndex
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/75 hover:bg-white/10 hover:text-white'
               }`}
             >
               {option}
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
 
+function MenuTeamSelect({
+  label,
+  value,
+  focused,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  focused: boolean;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(Math.max(0, options.indexOf(value)));
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const flag = getWorldCupTeamFlag(value);
+  const flagAsset = getWorldCupTeamFlagAsset(value);
+  const lowerLabel = label.toLowerCase();
+  const buttonId = `main-menu-${lowerLabel}-team-select`;
+  const listboxId = `${buttonId}-listbox`;
+
+  useEffect(() => {
+    setActiveIndex(Math.max(0, options.indexOf(value)));
+  }, [options, value]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeFromOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && dropdownRef.current?.contains(target)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeFromOutside, true);
+    return () => {
+      document.removeEventListener('pointerdown', closeFromOutside, true);
+    };
+  }, [isOpen]);
+
+  const selectTeam = (team: string) => {
+    onChange(team);
+    setIsOpen(false);
+  };
+
+  const moveActive = (delta: number) => {
+    setActiveIndex((index) => {
+      if (options.length === 0) return 0;
+      return (index + delta + options.length) % options.length;
+    });
+  };
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="text-center text-[13px] font-black uppercase leading-none text-white" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.75)' }}>
+        {label}
+      </div>
+      <div ref={dropdownRef} className={`relative h-14 rounded-md border bg-zinc-950/90 shadow-[0_0_0_2px_rgba(0,0,0,0.7),inset_0_0_22px_rgba(255,255,255,0.05)] ${focused ? 'border-white ring-2 ring-lime-300/70' : 'border-white/70'}`}>
+        <div className="pointer-events-none absolute left-4 top-1/2 z-[2] grid h-7 w-10 -translate-y-1/2 place-items-center overflow-hidden rounded-[2px] border border-white/40 bg-white text-[22px] leading-none">
+          <span>{flag || shortTeamName(value).slice(0, 2)}</span>
+          {flagAsset && (
+            <img
+              src={flagAsset}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+        </div>
+        <button
+          id={buttonId}
+          type="button"
+          data-psl-menu-team-select={lowerLabel}
+          aria-label={`${label} team`}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsOpen((open) => !open);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              setIsOpen(false);
+              return;
+            }
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              event.stopPropagation();
+              setIsOpen(true);
+              moveActive(1);
+              return;
+            }
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              event.stopPropagation();
+              setIsOpen(true);
+              moveActive(-1);
+              return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              if (isOpen) {
+                selectTeam(options[activeIndex] ?? value);
+              } else {
+                setIsOpen(true);
+              }
+            }
+          }}
+          className="relative z-[3] h-full w-full rounded-md bg-transparent pl-[72px] pr-12 text-left text-[18px] font-black uppercase leading-none text-white outline-none pointer-events-auto focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          style={{ textShadow: '0 2px 0 rgba(0,0,0,0.8)' }}
+        >
+          <span className="block truncate">{value}</span>
+        </button>
+        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-7 w-7 -translate-y-1/2 text-white" strokeWidth={3} />
+        {isOpen ? (
+          <div
+            id={listboxId}
+            role="listbox"
+            data-psl-menu-team-menu={lowerLabel}
+            aria-label={`${label} team`}
+            aria-activedescendant={`${buttonId}-option-${activeIndex}`}
+            className="absolute left-0 right-0 top-[calc(100%+6px)] z-[10000] max-h-72 overflow-y-auto rounded-md border border-white/70 bg-zinc-950 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.65)]"
+            onPointerDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {options.map((team, index) => (
+              <button
+                id={`${buttonId}-option-${index}`}
+                key={`${label}-${team}`}
+                type="button"
+                role="option"
+                aria-selected={value === team}
+                data-psl-menu-team-option={lowerLabel}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  selectTeam(team);
+                }}
+                className={`block w-full px-4 py-2 text-left text-[13px] font-black uppercase tracking-[0.04em] ${
+                  value === team
+                    ? 'bg-lime-400 text-black'
+                    : index === activeIndex
+                      ? 'bg-white/15 text-white'
+                      : 'text-white hover:bg-white/10'
+                }`}
+              >
+                {team}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function MenuModeButton({
+  children,
+  focused,
+  tone = 'white',
+  onClick,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  focused: boolean;
+  tone?: 'white' | 'muted' | 'amber' | 'green';
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const toneClass =
+    tone === 'amber'
+      ? focused
+        ? 'border-amber-300 bg-amber-500/25 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.28)]'
+        : 'border-amber-400 text-amber-300 hover:bg-amber-500/15'
+      : tone === 'green'
+        ? focused
+          ? 'border-lime-300 bg-lime-500/20 text-lime-300 shadow-[0_0_24px_rgba(132,204,22,0.28)]'
+          : 'border-lime-500 text-lime-400 hover:bg-lime-500/15'
+        : tone === 'muted'
+          ? focused
+            ? 'border-slate-300 bg-slate-500/20 text-slate-200'
+            : 'border-white/35 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+          : focused
+            ? 'border-white bg-white/15 text-white shadow-[0_0_24px_rgba(255,255,255,0.22)]'
+            : 'border-white/80 text-white hover:bg-white/10';
+  const disabledClass = disabled
+    ? 'cursor-not-allowed border-white/20 text-white/25 hover:bg-transparent opacity-70 shadow-none'
+    : '';
+
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`h-[58px] w-full rounded-md border-2 bg-zinc-950/86 text-[19px] font-black uppercase leading-none transition-colors shadow-[0_0_0_2px_rgba(0,0,0,0.75),inset_0_2px_0_rgba(255,255,255,0.14),inset_0_-10px_22px_rgba(255,255,255,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${disabled ? disabledClass : toneClass}`}
+      style={{ textShadow: '0 3px 0 rgba(0,0,0,0.85)' }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function formatScoreboardClock(snapshot: any) {
+  if (!snapshot) return '00:00';
+  const elapsed = Math.max(0, Number(snapshot.elapsedInHalf) || 0);
+  const halfDuration = Math.max(1, Number(snapshot.halfDuration) || 45 * 60);
+  const halfOffset = snapshot.half === 2 ? halfDuration : 0;
+  const totalSeconds = Math.floor(halfOffset + elapsed);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function scoreboardPhaseLabel(snapshot: any) {
+  const phase = snapshot?.phase || 'PRE_MATCH';
+  if (phase === 'FIRST_HALF') return '1H';
+  if (phase === 'SECOND_HALF') return '2H';
+  if (phase === 'HALFTIME') return 'HT';
+  if (phase === 'FULL_TIME') return 'FT';
+  if (phase === 'KICKOFF') return 'KO';
+  return 'PRE';
+}
+
+function shortTeamName(name: string) {
+  return String(name || 'TEAM')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 4)
+    .toUpperCase() || 'TEAM';
+}
+
+function shallowEqualRecord(a: any, b: any) {
+  if (a === b) return true;
+  if (!a || !b) return a === b;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => Object.is(a[key], b[key]));
+}
+
+function matchSnapshotRenderKey(snapshot: any | null) {
+  if (!snapshot) return 'null';
+  return [
+    snapshot.phase,
+    snapshot.half,
+    Math.floor(Number(snapshot.elapsedInHalf ?? 0) * 10),
+    snapshot.scoreA,
+    snapshot.scoreB,
+    snapshot.shotsA,
+    snapshot.shotsB,
+    snapshot.shotsOnTargetA,
+    snapshot.shotsOnTargetB,
+    snapshot.savesA,
+    snapshot.savesB,
+    snapshot.headersA,
+    snapshot.headersB,
+    snapshot.cornersA,
+    snapshot.cornersB,
+    snapshot.throwInsA,
+    snapshot.throwInsB,
+    snapshot.goalKicksA,
+    snapshot.goalKicksB,
+    snapshot.foulsA,
+    snapshot.foulsB,
+    snapshot.offsidesA,
+    snapshot.offsidesB,
+    snapshot.goalLog?.length ?? 0,
+  ].join('|');
+}
+
+function pslDebugLog(...args: unknown[]) {
+  try {
+    if (localStorage.getItem('psl.debug') !== '1') return;
+  } catch {
+    return;
+  }
+  console.info(...args);
+}
+
 const RetroFootball: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<any>(null);
+  const engineRuntimeTokenRef = useRef<string | null>(null);
   const telemetryRecorderRef = useRef<TelemetryRecorder | null>(null);
-  const [lighting, setLighting] = useState('NOON');
-  const [weather, setWeather] = useState<'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY'>('SUNNY');
-  const [aiStyle, setAIStyle] = useState<'BALANCED' | 'AGGRESSIVE' | 'POSSESSION'>('BALANCED');
-  const [cpuShotAimErrorRad, setCPUShotAimErrorRad] = useState<number>(CPU_SHOT_TUNING_PRESETS.BALANCED.aimErrorRad);
-  const [cpuShotPressureError, setCPUShotPressureError] = useState<number>(CPU_SHOT_TUNING_PRESETS.BALANCED.pressureError);
+  const [gameReady, setGameReady] = useState(false);
   const [cameraMode, setCameraMode] = useState<'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM'>('BROADCAST');
-  const [stadiumCamTiltShiftEnabled, setStadiumCamTiltShiftEnabled] = useState(true);
   const [teamAUniform, setTeamAUniform] = useState(0);
   const [teamBUniform, setTeamBUniform] = useState(0);
-  const [teamAName, setTeamAName] = useState('Inter Miami');
-  const [teamBName, setTeamBName] = useState('LA Galaxy');
+  const [teamAName, setTeamAName] = useState(DEFAULT_HOME_TEAM);
+  const [teamBName, setTeamBName] = useState(DEFAULT_AWAY_TEAM);
+  const teamANameRef = useRef(DEFAULT_HOME_TEAM);
+  const teamBNameRef = useRef(DEFAULT_AWAY_TEAM);
+  const activeMatchTeamsRef = useRef<{ a: string; b: string } | null>(null);
+  const [easterEggUnlocked, setEasterEggUnlocked] = useState(false);
   const [teamAFormation, setTeamAFormation] = useState('3-4-3');
   const [teamBFormation, setTeamBFormation] = useState('3-4-3');
   const [teamAAggressiveness, setTeamAAggressiveness] = useState<AggressivenessKey>('BALANCED');
   const [teamBAggressiveness, setTeamBAggressiveness] = useState<AggressivenessKey>('BALANCED');
   const [teamAHome, setTeamAHome] = useState(true);
   const [showPreMatchSetup, setShowPreMatchSetup] = useState(false);
+  const showPreMatchSetupRef = useRef(false);
+  const [watchedFixtureRunning, setWatchedFixtureRunning] = useState(false);
+  const [watchedFixtureMessage, setWatchedFixtureMessage] = useState('');
   const [cpuVsCpuPending, setCpuVsCpuPending] = useState<{ a: string; b: string } | null>(null);
   const [teamAPreMatchKit, setTeamAPreMatchKit] = useState(0); // 0=home, 1=away
   const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
+  const [halfLengthMinutes, setHalfLengthMinutes] = useState(5);
+  const [foulsEnabled, setFoulsEnabled] = useState(true);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
+  const devToolsVisible = useMemo(() => hasDevServer(), []);
+  // A tab persisted from a dev session must not strand a player on a hidden tab.
+  useEffect(() => {
+    if (!devToolsVisible && (DEV_ONLY_OPTIONS_TABS as readonly string[]).includes(activeTab)) {
+      setActiveTab('OPTIONS');
+    }
+  }, [devToolsVisible, activeTab]);
   const [crowdVolume, setCrowdVolume] = useState(0.60);
+  const [windowResolution, setWindowResolution] = useState<WindowResolutionPreset>(() => getStoredWindowResolution());
+  const [windowResolutionMessage, setWindowResolutionMessage] = useState('');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(() => getStoredDisplayMode());
+  const [musicVolume, setMusicVolume] = useState(() => {
+    try {
+      // Number(null) is 0, which is finite and in range -- reading it directly
+      // would start a first-run player in silence instead of at the default.
+      const raw = window.localStorage.getItem('psl.musicVolume');
+      if (raw === null) return 0.5;
+      const stored = Number(raw);
+      return Number.isFinite(stored) && stored >= 0 && stored <= 1 ? stored : 0.5;
+    } catch {
+      return 0.5;
+    }
+  });
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
-  const [autoClearances, setAutoClearances] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
+  const [matchSnapshot, setMatchSnapshot] = useState<any | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [selectedDefensePlayer, setSelectedDefensePlayer] = useState<any>(null);
+  const matchSnapshotRenderKeyRef = useRef('null');
+  const selectedPlayerRef = useRef<any>(null);
+  const selectedDefensePlayerRef = useRef<any>(null);
   const [driftRows, setDriftRows] = useState<any[]>([]);
   const [driftSessionId, setDriftSessionId] = useState<string | null>(null);
   const [driftThresholdPct, setDriftThresholdPct] = useState(10);
@@ -557,21 +1156,26 @@ const RetroFootball: React.FC = () => {
   }>>([]);
   const [movementTrailPaths, setMovementTrailPaths] = useState<Record<string, string>>({});
   const [isLive, setIsLive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isLiveRef = useRef(false);
+  const isPausedRef = useRef(false);
   const [isGroundVisible, setIsGroundVisible] = useState(true);
   const [isFieldVisible, setIsFieldVisible] = useState(true);
   const [isGrassVisible, setIsGrassVisible] = useState(true);
-  const [showAIStateOverlay, setShowAIStateOverlay] = useState(false);
-  const [showPositionLabels, setShowPositionLabels] = useState(false);
-  const [showAIStateLabels, setShowAIStateLabels] = useState(false);
+  const [shotBallTrailEnabled, setShotBallTrailEnabled] = useState(true);
   const [showAnimInspector, setShowAnimInspector] = useState(false);
   const [teamAKit, setTeamAKit] = useState<'home' | 'away'>('home');
   const [teamBKit, setTeamBKit] = useState<'home' | 'away'>('away');
   const [hotSeatMode, setHotSeatMode] = useState(false);
   const [testingMode, setTestingMode] = useState(false);
-  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | 'practice' | null>(null);
+  const [gameMode, setGameMode] = useState<'1p' | '2p' | 'cpu' | 'test' | 'practice' | 'replay' | null>(null);
   const [hasActiveMatchSession, setHasActiveMatchSession] = useState(false);
+  const gameModeRef = useRef<typeof gameMode>(null);
+  const matchSnapshotRef = useRef<any | null>(null);
+  const halftimeAwaitingRef = useRef(false);
   // Practice mode setup state
   const [showPracticeSetup, setShowPracticeSetup] = useState(false);
+  const showPracticeSetupRef = useRef(false);
   const [practiceIsHuman, setPracticeIsHuman] = useState(true);
   const [selectedPracticePlay, setSelectedPracticePlay] = useState<string | null>(null);
   const [practiceActive, setPracticeActive] = useState(false);
@@ -579,10 +1183,7 @@ const RetroFootball: React.FC = () => {
   const [practiceAggressiveness, setPracticeAggressiveness] = useState<AggressivenessKey>('AGGRESSIVE');
   const [showPracticeComplete, setShowPracticeComplete] = useState(false);
   const practiceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [ifpEvents, setIfpEvents] = useState<any[]>([]);
-  const [latestIfpFlash, setLatestIfpFlash] = useState<any>(null);
-  const latestIfpFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ifpSeenCountRef = useRef(0);
+  const practiceStartPauseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allowMainMenu, setAllowMainMenu] = useState(true);
   const [sessionMenuLock, setSessionMenuLock] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -590,13 +1191,11 @@ const RetroFootball: React.FC = () => {
   const splashAdvancedRef = useRef(false);
   const splashAudioStartedRef = useRef(false);
   const splashSceneStartedRef = useRef(false);
-  const [isFullTime, setIsFullTime] = useState(() => {
-    try { return sessionStorage.getItem('psl_fullTime') === '1'; } catch { return false; }
-  });
-  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(() => {
-    try { const s = sessionStorage.getItem('psl_fullTimeScore'); return s ? JSON.parse(s) : null; } catch { return null; }
-  });
+  const [isFullTime, setIsFullTime] = useState(false);
+  const isFullTimeRef = useRef(false);
+  const [fullTimeScore, setFullTimeScore] = useState<{ scoreA: number; scoreB: number; teamA: string; teamB: string; colorA?: string; colorB?: string; shotsA?: number; shotsB?: number; sogA?: number; sogB?: number; savesA?: number; savesB?: number; headersA?: number; headersB?: number; breakawayGoalsA?: number; breakawayGoalsB?: number; goals?: { team: string; playerName: string; shirtNumber: number; matchMinute: number; attackersInBox?: number; defendersInBox?: number; outfieldBoxCrowd?: number; isBreakaway?: boolean }[] } | null>(null);
   const fullTimeReturnArmedRef = useRef(false);
+  const fullTimeCapturedRef = useRef(false);
   const prevIsLive = useRef(false);
 
   // ── Season mode state ─────────────────────────────────────────
@@ -605,18 +1204,179 @@ const RetroFootball: React.FC = () => {
   const seasonReturnRef = useRef(false); // true when returning from a season match
 
   // ── Gamepad menu navigation ───────────────────────────────────
-  const [menuFocusIndex, setMenuFocusIndex] = useState(2); // default to "1 Player vs CPU"
-  const menuFocusRef = useRef(2);
+  const [menuFocusIndex, setMenuFocusIndex] = useState(INTERACTIVE_PLAYER_MODES_ENABLED ? 2 : 4);
+  const menuFocusRef = useRef(INTERACTIVE_PLAYER_MODES_ENABLED ? 2 : 4);
   const menuGpPrev = useRef<boolean[]>(new Array(17).fill(false));
+  const gameplayGpPrev = useRef<boolean[]>(new Array(17).fill(false));
+  const uiGamepadLatch = useRef(createGamepadLatch());
   const menuGpStickCooldown = useRef(0);
-  const handleKickOffRef = useRef<(mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => void>(() => {});
+  const easterEggSequenceRef = useRef('');
+  const handleKickOffRef = useRef<(
+    mode: '1p' | '2p' | 'cpu' | 'test' | 'practice',
+    overrideTeams?: { a: string; b: string },
+    setupOptions?: KickoffSetupOptions,
+  ) => void>(() => {});
+  const handleRealDataReplayStartRef = useRef<() => void>(() => {});
+  const handlePreMatchSetupStartRef = useRef<() => void>(() => {});
+  const handleTogglePauseRef = useRef<() => void>(() => {});
+  const handleContinueHalftimeRef = useRef<(mode?: 'manual' | 'auto_cpu') => void>(() => {});
   const setSeasonModeActiveRef = useRef(setSeasonModeActive);
 
   // Keep ref in sync with state for use in gamepad polling
   useEffect(() => { menuFocusRef.current = menuFocusIndex; }, [menuFocusIndex]);
 
-  const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive;
-  const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=Season, 6=Practice
+  const startMenuVisible = allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !seasonModeActive && !showPreMatchSetup && !showPracticeSetup;
+  const teamOptions = useMemo(
+    () => (easterEggUnlocked ? [...BASE_TEAM_OPTIONS, ...EASTER_EGG_TEAM_OPTIONS] : BASE_TEAM_OPTIONS),
+    [easterEggUnlocked],
+  );
+  const MENU_ITEM_COUNT = 7; // 0=Home, 1=Away, 2=1P, 3=2P, 4=CPU, 5=World Cup, 6=Practice
+  const showScoreboard = hasActiveMatchSession && !showSplash && !isFullTime && !!matchSnapshot && matchSnapshot.phase !== 'PRE_MATCH';
+  const showHalftimeOverlay = showScoreboard && matchSnapshot?.phase === 'HALFTIME';
+  const scoreboardTeamA = matchSnapshot?.teamAName || teamAName;
+  const scoreboardTeamB = matchSnapshot?.teamBName || teamBName;
+  const buildPreMatchAssignment = () => {
+    const panelA = {
+      name: teamAName,
+      formation: teamAFormation,
+      aggressiveness: teamAAggressiveness,
+      kit: preMatchKitKey(teamAPreMatchKit),
+    };
+    const panelB = {
+      name: teamBName,
+      formation: teamBFormation,
+      aggressiveness: teamBAggressiveness,
+      kit: preMatchKitKey(teamBPreMatchKit),
+    };
+    return teamAHome ? { home: panelA, away: panelB } : { home: panelB, away: panelA };
+  };
+
+  const handleTogglePause = () => {
+    const paused = gameRef.current?.togglePaused?.();
+    setIsPausedIfChanged(!!paused);
+  };
+
+  /**
+   * Abandon the current match and go back to the main menu. Testers could only
+   * leave a game mode by closing the application, so this mirrors what the
+   * full-time screen already did -- just reachable mid-match.
+   */
+  const handleQuitToMainMenu = () => {
+    setIsOptionsOpen(false);
+    setIsPausedIfChanged(false);
+    setIsFullTime(false);
+    setFullTimeScore(null);
+    fullTimeCapturedRef.current = false;
+    activeMatchTeamsRef.current = null;
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+    setShowPreMatchSetup(false);
+    setShowPracticeSetup(false);
+    setPracticeActive(false);
+    setSeasonModeActive(false);
+    setAllowMainMenu(true);
+    setSessionMenuLock(false);
+    gameRef.current?.setPaused?.(false);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.clearPracticeRoutes?.();
+    gameRef.current?.resetMatch?.();
+    setGameMode(null);
+    setHasActiveMatchSession(false);
+    gameRef.current?.setMenuVisible?.(true);
+  };
+
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const apply = async () => {
+      try {
+        await applyWindowResolution(windowResolution);
+        if (cancelled) return;
+        try {
+          window.localStorage.setItem(WINDOW_RESOLUTION_STORAGE_KEY, windowResolution);
+        } catch {}
+        setWindowResolutionMessage((window as any).__TAURI_INTERNALS__ ? 'Applied to desktop window.' : 'Applied where the browser allows resizing.');
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Window resolution change failed', error);
+        setWindowResolutionMessage('Window resize failed.');
+      }
+    };
+    void apply();
+    return () => {
+      cancelled = true;
+    };
+  }, [windowResolution]);
+
+  useEffect(() => {
+    gameRef.current?.setMusicVolume?.(musicVolume);
+    try {
+      window.localStorage.setItem('psl.musicVolume', String(musicVolume));
+    } catch {}
+  }, [musicVolume, gameReady]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const apply = async () => {
+      try {
+        const applied = await applyDisplayMode(displayMode);
+        if (cancelled) return;
+        try {
+          window.localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, displayMode);
+        } catch {}
+        if (!applied) {
+          setWindowResolutionMessage('Fullscreen is only available in the desktop build.');
+        } else if (displayMode === 'FULLSCREEN') {
+          setWindowResolutionMessage('Fullscreen on. Resolution presets are disabled.');
+        } else {
+          setWindowResolutionMessage('Windowed.');
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Display mode change failed', error);
+        setWindowResolutionMessage('Display mode change failed.');
+      }
+    };
+    void apply();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayMode]);
+
+  useEffect(() => {
+    if (!startMenuVisible || showSplash || easterEggUnlocked) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!/^[0-9]$/.test(event.key)) return;
+      easterEggSequenceRef.current = `${easterEggSequenceRef.current}${event.key}`.slice(-4);
+      if (easterEggSequenceRef.current === '1982') {
+        setEasterEggUnlocked(true);
+        setTeamAName('Italy 1982');
+        setTeamBName('West Germany 1982');
+        setTeamAKit('home');
+        setTeamBKit('home');
+        setMenuFocusIndex(5);
+        easterEggSequenceRef.current = '';
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [startMenuVisible, showSplash, easterEggUnlocked]);
+
+  useEffect(() => {
+    teamANameRef.current = teamAName;
+  }, [teamAName]);
+
+  useEffect(() => {
+    teamBNameRef.current = teamBName;
+  }, [teamBName]);
 
   // ── Splash screen dismiss handler ──
   useEffect(() => {
@@ -703,26 +1463,26 @@ const RetroFootball: React.FC = () => {
           if (stickX > 0.5 || dpadRight) {
             if (fi === 0) {
               setTeamAName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx + 1) % teamOptions.length];
               });
             } else if (fi === 1) {
               setTeamBName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx + 1) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx + 1) % teamOptions.length];
               });
             }
             menuGpStickCooldown.current = now + 180;
           } else if (stickX < -0.5 || dpadLeft) {
             if (fi === 0) {
               setTeamAName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx - 1 + teamOptions.length) % teamOptions.length];
               });
             } else if (fi === 1) {
               setTeamBName(prev => {
-                const idx = MLS_TEAM_OPTIONS.indexOf(prev);
-                return MLS_TEAM_OPTIONS[(idx - 1 + MLS_TEAM_OPTIONS.length) % MLS_TEAM_OPTIONS.length];
+                const idx = Math.max(0, teamOptions.indexOf(prev));
+                return teamOptions[(idx - 1 + teamOptions.length) % teamOptions.length];
               });
             }
             menuGpStickCooldown.current = now + 180;
@@ -732,11 +1492,10 @@ const RetroFootball: React.FC = () => {
         // A / Cross (0) → select current item
         if (justPressed(0)) {
           setMenuFocusIndex(fi => {
-            if (fi === 2) handleKickOffRef.current('1p');
-            else if (fi === 3) handleKickOffRef.current('2p');
+            if (fi === 2 && INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('1p');
+            else if (fi === 3 && INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('2p');
             else if (fi === 4) {
-              const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-              handleKickOffRef.current('cpu', { a: shuffled[0], b: shuffled[1] });
+              setShowPreMatchSetup(true);
             }
             else if (fi === 5) setSeasonModeActiveRef.current(true);
             else if (fi === 6) setShowPracticeSetup(true);
@@ -744,9 +1503,10 @@ const RetroFootball: React.FC = () => {
           });
         }
 
-        // Start (9) → quick-start 1P
+        // Start (9) → quick-start the first available real mode
         if (justPressed(9)) {
-          handleKickOffRef.current('1p');
+          if (INTERACTIVE_PLAYER_MODES_ENABLED) handleKickOffRef.current('1p');
+          else setShowPreMatchSetup(true);
         }
 
         menuGpPrev.current = btns;
@@ -755,9 +1515,11 @@ const RetroFootball: React.FC = () => {
     };
     rafId = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(rafId);
-  }, [startMenuVisible]);
+  }, [startMenuVisible, easterEggUnlocked]);
 
   const hasActiveMatchSessionRef = useRef(false);
+  const showSplashRef = useRef(showSplash);
+  const liveTuningClearedForSplashRef = useRef(false);
   const prevMatchSnapshotRef = useRef<any | null>(null);
   const autoScanOnPauseRef = useRef(true);
   const lastAutoScanAtRef = useRef(0);
@@ -773,37 +1535,204 @@ const RetroFootball: React.FC = () => {
   }, [hasActiveMatchSession]);
 
   useEffect(() => {
+    showPreMatchSetupRef.current = showPreMatchSetup;
+  }, [showPreMatchSetup]);
+
+  useEffect(() => {
+    showPracticeSetupRef.current = showPracticeSetup;
+  }, [showPracticeSetup]);
+
+  useEffect(() => {
+    isFullTimeRef.current = isFullTime;
+  }, [isFullTime]);
+
+  useEffect(() => {
+    gameModeRef.current = gameMode;
+  }, [gameMode]);
+
+  useEffect(() => {
+    showSplashRef.current = showSplash;
+    if (!showSplash) {
+      liveTuningClearedForSplashRef.current = false;
+    }
+  }, [showSplash]);
+
+  const setMatchSnapshotIfChanged = (snapshot: any | null) => {
+    const key = matchSnapshotRenderKey(snapshot);
+    if (key === matchSnapshotRenderKeyRef.current) return;
+    matchSnapshotRenderKeyRef.current = key;
+    setMatchSnapshot(snapshot);
+  };
+
+  const setSelectedPlayerIfChanged = (next: any | null) => {
+    if (shallowEqualRecord(selectedPlayerRef.current, next)) return;
+    selectedPlayerRef.current = next;
+    setSelectedPlayer(next);
+  };
+
+  const setSelectedDefensePlayerIfChanged = (next: any | null) => {
+    if (shallowEqualRecord(selectedDefensePlayerRef.current, next)) return;
+    selectedDefensePlayerRef.current = next;
+    setSelectedDefensePlayer(next);
+  };
+
+  const setIsPausedIfChanged = (next: boolean) => {
+    if (isPausedRef.current === next) return;
+    isPausedRef.current = next;
+    setIsPaused(next);
+  };
+
+  const setIsLiveIfChanged = (next: boolean) => {
+    if (isLiveRef.current === next) return;
+    isLiveRef.current = next;
+    setIsLive(next);
+  };
+
+  const handleContinueHalftime = (mode: 'manual' | 'auto_cpu' = 'manual') => {
+    const continued = gameRef.current?.continueFromHalftime?.(mode);
+    if (!continued) return;
+    setIsPausedIfChanged(false);
+    const snapshot = gameRef.current?.getMatchSnapshot?.() || null;
+    if (snapshot) {
+      matchSnapshotRef.current = snapshot;
+      halftimeAwaitingRef.current = snapshot.phase === 'HALFTIME';
+      setMatchSnapshotIfChanged(snapshot);
+    }
+  };
+
+  // The halftime card literally reads "Press any key to continue", but nothing
+  // was listening for a key -- only the click handler and the gamepad poller.
+  useEffect(() => {
+    if (!showHalftimeOverlay || gameMode === 'cpu') return;
+    const onKey = (event: KeyboardEvent) => {
+      // Escape still belongs to the options menu, and bare modifiers are not
+      // "a key" from the player's point of view.
+      if (event.key === 'Escape' || event.key === 'Shift' || event.key === 'Control'
+        || event.key === 'Alt' || event.key === 'Meta') return;
+      event.preventDefault();
+      handleContinueHalftimeRef.current('manual');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showHalftimeOverlay, gameMode]);
+
+  useEffect(() => {
+    let rafId = 0;
+    const pollGameplayGamepad = () => {
+      // Same selector the engine uses: slot 0 is often an analog keyboard or a
+      // virtual-pad bus, which is why halftime "press any key" never fired.
+      const gp = pickStandardGamepad(uiGamepadLatch.current, () => {
+        gameplayGpPrev.current = new Array(17).fill(false);
+      });
+      if (!gp) {
+        gameplayGpPrev.current = new Array(17).fill(false);
+        rafId = requestAnimationFrame(pollGameplayGamepad);
+        return;
+      }
+
+      const btns = Array.from(gp.buttons).map((button) => button.pressed);
+      const prev = gameplayGpPrev.current;
+      const justPressed = (index: number) => !!btns[index] && !prev[index];
+
+      const confirmPressed = justPressed(0);
+      const backPressed = justPressed(1);
+      const startPressed = justPressed(9);
+
+      if (!showSplashRef.current) {
+        if (showPreMatchSetupRef.current) {
+          if (confirmPressed) handlePreMatchSetupStartRef.current();
+          if (backPressed) setShowPreMatchSetup(false);
+        } else if (showPracticeSetupRef.current) {
+          if (backPressed) setShowPracticeSetup(false);
+        } else if (hasActiveMatchSessionRef.current && !isFullTimeRef.current) {
+          if (halftimeAwaitingRef.current && (confirmPressed || startPressed)) {
+            handleContinueHalftimeRef.current('manual');
+          } else if (startPressed) {
+            handleTogglePauseRef.current();
+          }
+        }
+      }
+
+      gameplayGpPrev.current = btns;
+      rafId = requestAnimationFrame(pollGameplayGamepad);
+    };
+    rafId = requestAnimationFrame(pollGameplayGamepad);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  useEffect(() => {
+    const recorder = telemetryRecorderRef.current;
+    if (!recorder) return;
+    if (smokeTestActiveRef.current) return;
+    if (showSplash || !hasActiveMatchSession) {
+      void recorder.stop().then(() => {
+        if (telemetryRecorderRef.current === recorder) {
+          telemetryRecorderRef.current = null;
+        }
+      });
+    }
+  }, [hasActiveMatchSession, showSplash]);
+
+  useEffect(() => {
+    const captureFullTime = (snapshot: any, runPostFullTimeWork = false) => {
+      if (!snapshot || smokeTestActiveRef.current || fullTimeCapturedRef.current) return;
+      fullTimeCapturedRef.current = true;
+      setIsFullTime(true);
+      setHasActiveMatchSession(true);
+      setAllowMainMenu(false);
+      setSessionMenuLock(true);
+      const teamA = snapshot.teamAName || activeMatchTeamsRef.current?.a || teamANameRef.current;
+      const teamB = snapshot.teamBName || activeMatchTeamsRef.current?.b || teamBNameRef.current;
+      const tuningBundle = gameRef.current?.getTuningBundle?.();
+      const visibleHeaderEvents = Array.isArray(tuningBundle?.headerAnimationEvents) ? tuningBundle.headerAnimationEvents : [];
+      const visibleHeadersA = visibleHeaderEvents.filter((event: any) => event?.team === 'A').length;
+      const visibleHeadersB = visibleHeaderEvents.filter((event: any) => event?.team === 'B').length;
+      const ftScore = {
+        scoreA: snapshot.scoreA,
+        scoreB: snapshot.scoreB,
+        teamA,
+        teamB,
+        shotsA: snapshot.shotsA,
+        shotsB: snapshot.shotsB,
+        sogA: snapshot.shotsOnTargetA,
+        sogB: snapshot.shotsOnTargetB,
+        savesA: snapshot.savesA,
+        savesB: snapshot.savesB,
+        headersA: visibleHeadersA,
+        headersB: visibleHeadersB,
+        goals: snapshot.goalLog || [],
+        colorA: getTeamColor(teamA),
+        colorB: getTeamColor(teamB),
+      };
+      setFullTimeScore(ftScore);
+      try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore)); } catch {}
+      gameRef.current?.setMenuVisible?.(false);
+      gameRef.current?.setScoreBugVisible?.(false);
+      if (runPostFullTimeWork) {
+        mirrorMatchSummary();
+        // AUTOMATION: Seed baselines and auto-apply recommendations
+        import('../telemetry/mls2025-baselines').then(m =>
+          m.seedMLS2025Baselines && m.seedMLS2025Baselines()
+        ).then(() =>
+          generateDriftRecommendations({ thresholdPct: 10 })
+        );
+      }
+    };
+
     const interval = setInterval(() => {
       if (gameRef.current) {
         const currentIsLive = gameRef.current.getIsLive();
         const snapshot = gameRef.current.getMatchSnapshot?.() || null;
+        setIsPausedIfChanged(!!gameRef.current.getPaused?.());
+        if (snapshot) {
+          matchSnapshotRef.current = snapshot;
+          halftimeAwaitingRef.current = snapshot.phase === 'HALFTIME';
+          setMatchSnapshotIfChanged(snapshot);
+        }
 
-        if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
-          setIsFullTime(true);
-          setHasActiveMatchSession(true);
-          setAllowMainMenu(false);
-          setSessionMenuLock(true);
-          const ftScore = {
-            scoreA: snapshot.scoreA,
-            scoreB: snapshot.scoreB,
-            teamA: snapshot.teamAName || teamAName,
-            teamB: snapshot.teamBName || teamBName,
-            shotsA: snapshot.shotsA,
-            shotsB: snapshot.shotsB,
-            sogA: snapshot.shotsOnTargetA,
-            sogB: snapshot.shotsOnTargetB,
-            savesA: snapshot.savesA,
-            savesB: snapshot.savesB,
-            headersA: snapshot.headersA,
-            headersB: snapshot.headersB,
-            goals: snapshot.goalLog || [],
-            colorA: getTeamColor(snapshot.teamAName || teamAName),
-            colorB: getTeamColor(snapshot.teamBName || teamBName),
-          };
-          setFullTimeScore(ftScore);
-          try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore)); } catch {}
-          gameRef.current?.setMenuVisible?.(false);
-          gameRef.current?.setScoreBugVisible?.(false);
+        if (snapshot?.phase === 'FULL_TIME' && !smokeTestActiveRef.current && !fullTimeCapturedRef.current) {
+          const phaseTransitionMissedOrCurrent = prevMatchSnapshotRef.current?.phase !== 'FULL_TIME';
+          captureFullTime(snapshot, phaseTransitionMissedOrCurrent);
         }
 
         if (snapshot && prevMatchSnapshotRef.current) {
@@ -820,35 +1749,7 @@ const RetroFootball: React.FC = () => {
               to: { phase: snapshot.phase, half: snapshot.half },
             });
             if (snapshot.phase === 'FULL_TIME' && !smokeTestActiveRef.current) {
-              setIsFullTime(true);
-              const ftScore2 = {
-                scoreA: snapshot.scoreA,
-                scoreB: snapshot.scoreB,
-                teamA: snapshot.teamAName || teamAName,
-                teamB: snapshot.teamBName || teamBName,
-                shotsA: snapshot.shotsA,
-                shotsB: snapshot.shotsB,
-                sogA: snapshot.shotsOnTargetA,
-                sogB: snapshot.shotsOnTargetB,
-                savesA: snapshot.savesA,
-                savesB: snapshot.savesB,
-                headersA: snapshot.headersA,
-                headersB: snapshot.headersB,
-                goals: snapshot.goalLog || [],
-                colorA: getTeamColor(snapshot.teamAName || teamAName),
-                colorB: getTeamColor(snapshot.teamBName || teamBName),
-              };
-              setFullTimeScore(ftScore2);
-              try { sessionStorage.setItem('psl_fullTime', '1'); sessionStorage.setItem('psl_fullTimeScore', JSON.stringify(ftScore2)); } catch {}
-              gameRef.current?.setMenuVisible?.(false);
-              gameRef.current?.setScoreBugVisible?.(false);
-              mirrorMatchSummary();
-                // AUTOMATION: Seed baselines and auto-apply recommendations
-                import('../telemetry/mls2025-baselines').then(m =>
-                  m.seedMLS2025Baselines && m.seedMLS2025Baselines()
-                ).then(() =>
-                  generateDriftRecommendations({ thresholdPct: 10 })
-                );
+              captureFullTime(snapshot, true);
             }
           }
           const prevShotSeq = prev.lastShotTelemetry?.seq ?? 0;
@@ -866,7 +1767,7 @@ const RetroFootball: React.FC = () => {
 
         if (prevIsLive.current && !currentIsLive) {
           // Play just ended
-          setSelectedPlayer(gameRef.current.getSelectedPlayerStats());
+          setSelectedPlayerIfChanged(gameRef.current.getSelectedPlayerStats());
           telemetryRecorderRef.current?.recordEvent('play_stopped', {
             phase: snapshot?.phase,
             elapsedInHalf: snapshot?.elapsedInHalf,
@@ -879,7 +1780,7 @@ const RetroFootball: React.FC = () => {
           }
           
           gameRef.current.selectRandomDefensePlayer();
-          setSelectedDefensePlayer(gameRef.current.getSelectedDefensePlayerStats());
+          setSelectedDefensePlayerIfChanged(gameRef.current.getSelectedDefensePlayerStats());
         }
         if (!prevIsLive.current && currentIsLive) {
           // Only lock menu when a real active session is underway.
@@ -894,58 +1795,118 @@ const RetroFootball: React.FC = () => {
         prevIsLive.current = currentIsLive;
         if (snapshot) prevMatchSnapshotRef.current = snapshot;
         
-        // Only update stats if live, otherwise keep the selected player
-        if (currentIsLive) {
-          setSelectedPlayer(gameRef.current.getSelectedPlayerStats());
-          setSelectedDefensePlayer(gameRef.current.getSelectedDefensePlayerStats());
-        } else {
-          // Always try to update
-          setSelectedPlayer(gameRef.current.getSelectedPlayerStats());
-          setSelectedDefensePlayer(gameRef.current.getSelectedDefensePlayerStats());
-        }
-        setIsLive(currentIsLive);
+        setSelectedPlayerIfChanged(gameRef.current.getSelectedPlayerStats());
+        setSelectedDefensePlayerIfChanged(gameRef.current.getSelectedDefensePlayerStats());
+        setIsLiveIfChanged(currentIsLive);
       }
     }, 100);
     return () => clearInterval(interval);
   }, []);
 
   // ── Dashboard telemetry bridge (separate effect, always mounts) ──
+  // Everything below feeds dev tooling: the /__tuning and /__db routes live in
+  // the Vite dev/preview middleware, and psl-tuning{,-history} in localStorage
+  // is read only by public/dashboard.html. In the packaged desktop build none
+  // of it exists, so the 2s serialize-and-post loop would burn frame budget
+  // for nothing.
   useEffect(() => {
+    if (!hasDevServer()) return;
     let dashChannel: BroadcastChannel | null = null;
     try { dashChannel = new BroadcastChannel('psl-telemetry'); } catch {}
-    console.log('[PSL] Dashboard bridge useEffect MOUNTED');
+    // Default to BroadcastChannel + fetch. The websocket relay is optional because
+    // repeated reconnect loops can stall the live browser session if port 8081 is absent.
+    const enableDashWs = (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('dashboardTransport') === 'ws' || localStorage.getItem('psl-dashboard-transport') === 'ws';
+      } catch {
+        return false;
+      }
+    })();
+    let dashWs: WebSocket | null = null;
+    let dashWsStopped = false;
+    const dashWsUrl = `ws://${window.location.hostname || 'localhost'}:8081`;
+    const connectDashboardWs = () => {
+      if (!enableDashWs || dashWsStopped || typeof WebSocket === 'undefined') return;
+      try {
+        dashWs = new WebSocket(dashWsUrl);
+        dashWs.onopen = () => pslDebugLog('[PSL-Bridge] WebSocket connected:', dashWsUrl);
+        dashWs.onclose = () => {
+          dashWs = null;
+        };
+        dashWs.onerror = () => {
+          try { dashWs?.close(); } catch {}
+        };
+      } catch {}
+    };
+    const sendDashboardWs = (payload: unknown) => {
+      if (!enableDashWs || dashWs?.readyState !== WebSocket.OPEN) return;
+      try { dashWs.send(JSON.stringify(payload)); } catch {}
+    };
+    connectDashboardWs();
+    pslDebugLog('[PSL] Dashboard bridge useEffect MOUNTED');
     let prevPhase = '';
     let _dashTick = 0;
     const dashInterval = setInterval(() => {
       _dashTick++;
       // Skip broadcasting during splash/menu — only track real matches
-      if (!hasActiveMatchSessionRef.current) {
-        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: no active match session');
+      if (showSplashRef.current) {
+        if (!liveTuningClearedForSplashRef.current) {
+          liveTuningClearedForSplashRef.current = true;
+          try { fetch('/__tuning/clear', { method: 'POST', keepalive: true }).catch(() => {}); } catch {}
+        }
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: splash screen visible');
         return;
       }
+      if (!hasActiveMatchSessionRef.current) {
+        if (!liveTuningClearedForSplashRef.current) {
+          liveTuningClearedForSplashRef.current = true;
+          try { fetch('/__tuning/clear', { method: 'POST', keepalive: true }).catch(() => {}); } catch {}
+        }
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: no active match session');
+        return;
+      }
+      liveTuningClearedForSplashRef.current = false;
       const g = (window as any).__gameRef;
       if (!g) {
-        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: __gameRef not set');
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: __gameRef not set');
         return;
       }
 
       const snap2 = g.getMatchSnapshot?.();
+      // Engine-level guard: splash-scene demos have sessionActive=false. Skip them
+      // even if React's hasActiveMatchSession ref is stale (e.g. after HMR remount).
+      if (snap2?.sessionActive === false) {
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: splash-scene demo (sessionActive=false)');
+        return;
+      }
       const phase = snap2?.phase || '';
       const isPhaseChange = phase !== prevPhase;
 
-      const bundle = g.getTuningBundle?.();
-      if (!bundle) {
-        if (_dashTick % 10 === 0) console.log('[PSL-Bridge] skip: getTuningBundle returned null, phase=', phase);
+      const rawBundle = g.getTuningBundle?.();
+      if (!rawBundle) {
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: getTuningBundle returned null, phase=', phase);
+        return;
+      }
+      const bundleMatchId = snap2?.matchId || (rawBundle as any).matchId || (rawBundle as any).metadata?.matchId || null;
+      const defaultSplashGhostLive =
+        rawBundle.teamA?.name === 'Inter Miami'
+        && rawBundle.teamB?.name === 'LA Galaxy'
+        && !bundleMatchId;
+      if (defaultSplashGhostLive) {
+        if (_dashTick % 10 === 0) pslDebugLog('[PSL-Bridge] skip: default splash ghost without match id');
         return;
       }
       const live2 = g.getLiveTelemetry?.();
-      const payload = { type: 'tuning', bundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: true };
+      const payload = compactLiveDashboardPayload({ type: 'tuning', bundle: rawBundle, snapshot: snap2, live: live2, ts: Date.now(), sessionActive: snap2?.sessionActive !== false });
+      const bundle = payload.bundle;
 
       // Live in-memory channels: send every tick (2s) so dashboard gets data quickly
       if (_dashTick % 5 === 0) {
-        console.log('[PSL-Bridge] posting tick=' + _dashTick + ' phase=' + phase + ' isLive=' + snap2?.isLive + ' score=' + bundle.teamA?.score + '-' + bundle.teamB?.score);
+        pslDebugLog('[PSL-Bridge] posting tick=' + _dashTick + ' phase=' + phase + ' isLive=' + snap2?.isLive + ' score=' + bundle.teamA?.score + '-' + bundle.teamB?.score);
       }
       try { dashChannel?.postMessage(payload); } catch (e) { console.warn('[PSL-Bridge] BroadcastChannel post failed:', e); }
+      sendDashboardWs(payload);
       try { (window as any).sendDashboardUpdate?.('tuning', bundle, snap2); } catch (e) {}
 
       // Expensive disk/network ops: rate-limit to once every 20s or on phase change
@@ -953,48 +1914,47 @@ const RetroFootball: React.FC = () => {
       if (!shouldSync) return;
 
       if (isPhaseChange) {
-        console.log(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
-        try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
-          try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
-        }
+        pslDebugLog(`[Dashboard] Phase changed to: ${phase}, Score: ${bundle.teamA.score} - ${bundle.teamB.score}`);
+      }
+      try { localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch (e) {
+        try { localStorage.removeItem('psl-tuning-history'); localStorage.setItem('psl-tuning', JSON.stringify(payload)); } catch {}
       }
 
       // Server relay: reduce frequency via fetch
       try { fetch('/__tuning/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {}); } catch {}
       
       // Auto-save when match reaches FULL_TIME
-      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME') {
+      // Skip splash-scene demos (sessionActive=false when splashSceneMode is on) — those are ghost matches.
+      // Skip smoke-test runs — they save through the smoke-test runner directly,
+      // and they produce malformed stats (e.g. 0 shots) that pollute the dashboard.
+      if (phase === 'FULL_TIME' && prevPhase !== 'FULL_TIME' && snap2?.sessionActive !== false && !smokeTestActiveRef.current) {
         // Save to SQLite via server endpoint
         try {
-          const a = bundle.teamA, b = bundle.teamB;
+          const fullBundle = rawBundle;
+          const a = fullBundle.teamA, b = fullBundle.teamB;
+          const matchId = snap2?.matchId || null;
+          const defaultSplashGhost =
+            a?.name === 'Inter Miami'
+            && b?.name === 'LA Galaxy'
+            && !matchId
+            && !(fullBundle as any).matchId
+            && !(fullBundle as any).metadata?.matchId;
+          if (defaultSplashGhost) {
+            console.warn('[PSL] skipped ghost full-time row: Inter Miami vs LA Galaxy without match id');
+            prevPhase = phase;
+            return;
+          }
+          if (matchId && !(fullBundle as any).matchId) (fullBundle as any).matchId = matchId;
           fetch('/__db/match-result', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session_id: snap2?.sessionId || `ft-${Date.now()}`,
-              timestamp: Date.now(),
-              team_a_name: a?.name || '',
-              team_b_name: b?.name || '',
-              team_a_formation: a?.formation || '',
-              team_b_formation: b?.formation || '',
-              score_a: a?.score ?? 0,
-              score_b: b?.score ?? 0,
-              shots_a: a?.shots ?? 0,
-              shots_b: b?.shots ?? 0,
-              shots_on_target_a: a?.shotsOnTarget ?? 0,
-              shots_on_target_b: b?.shotsOnTarget ?? 0,
-              saves_a: a?.saves ?? 0,
-              saves_b: b?.saves ?? 0,
-              headers_a: 0,
-              headers_b: 0,
-              possession_a: a?.possession ?? 50,
-              phase: 'FULL_TIME',
-              half: 2,
-              elapsed_in_half: snap2?.elapsedInHalf ?? 300,
-              bundle_json: JSON.stringify(bundle),
-            }),
+            body: JSON.stringify(buildMatchResultPayload({
+              bundle: fullBundle,
+              snapshot: snap2,
+              fallbackSessionId: `ft-${Date.now()}`,
+            })),
           }).then(r => {
-            if (r.ok) console.log('[PSL] Match saved to SQLite:', a?.name, a?.score, '-', b?.score, b?.name);
+            if (r.ok) pslDebugLog(`[PSL] Match saved ${matchId || '(no id)'}: ${a?.name} ${a?.score}-${b?.score} ${b?.name}`);
             else console.warn('[PSL] SQLite save failed:', r.status);
           }).catch(e => console.warn('[PSL] SQLite save error:', e));
         } catch (e) { console.warn('[PSL] SQLite save error:', e); }
@@ -1007,7 +1967,7 @@ const RetroFootball: React.FC = () => {
             teamB: bundle.teamB?.name,
             scoreA: bundle.teamA?.score ?? 0,
             scoreB: bundle.teamB?.score ?? 0,
-            bundle,
+            bundle: rawBundle,
           };
           history.push(entry);
           while (history.length > 50) history.shift();
@@ -1018,31 +1978,61 @@ const RetroFootball: React.FC = () => {
     }, 2000);
     return () => {
       clearInterval(dashInterval);
+      dashWsStopped = true;
+      try { dashWs?.close(); } catch {}
       try { dashChannel?.close(); } catch {}
     };
   }, []);
 
   useEffect(() => {
-    if (containerRef.current && !gameRef.current) {
+    let cancelled = false;
+    const bootGame = async () => {
+      if (!containerRef.current) return;
+      if (gameRef.current && engineRuntimeTokenRef.current !== ENGINE_RUNTIME_TOKEN) {
+        telemetryRecorderRef.current?.stop?.().catch?.(() => {});
+        telemetryRecorderRef.current = null;
+        try {
+          gameRef.current.dispose?.();
+        } catch {}
+        gameRef.current = null;
+        setGameReady(false);
+      }
+      if (gameRef.current) return;
+      try {
+        performance.mark('psl:game-engine-import:start');
+      } catch {}
+      const { initGame } = await import('../gameEngine');
+      try {
+        performance.mark('psl:game-engine-import:end');
+        performance.measure('psl:game-engine-import', 'psl:game-engine-import:start', 'psl:game-engine-import:end');
+      } catch {}
+      if (cancelled || !containerRef.current || gameRef.current) return;
       gameRef.current = initGame(containerRef.current);
+      gameRef.current?.setEngineRuntimeToken?.(ENGINE_RUNTIME_TOKEN);
+      engineRuntimeTokenRef.current = ENGINE_RUNTIME_TOKEN;
+      setGameReady(true);
       (window as any).pslGame = gameRef.current;
-      const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-      const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+      const urlParams = new URLSearchParams(window.location.search);
+      const useNewArchitecture = urlParams.has('newarch');
+      gameRef.current?.setUseNewArchitecture?.(useNewArchitecture);
+      if (useNewArchitecture) {
+        gameRef.current?.setShowOrchTelemetry?.(true);
+      }
+      const resolvedKits = getResolvedMatchKits(teamAName, teamBName, teamAKit, teamBKit);
+      const kitA = resolvedKits.home;
+      const kitB = resolvedKits.away;
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
       gameRef.current?.setTeamNames?.(teamAName, teamBName);
       gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[teamAName] ?? '', MLS_TEAM_LOGOS[teamBName] ?? '');
       gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
       gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
-      gameRef.current?.setWeather?.(weather);
-      gameRef.current?.setAIStyle?.(aiStyle);
-      gameRef.current?.setCPUShotTuning?.(cpuShotAimErrorRad, cpuShotPressureError);
+      applyGameAggressionSettings(gameRef.current, teamAAggressiveness, teamBAggressiveness);
       gameRef.current?.setCameraMode?.(cameraMode);
-      gameRef.current?.setStadiumCamTiltShift?.(stadiumCamTiltShiftEnabled);
+      gameRef.current?.setShotBallTrailEnabled?.(shotBallTrailEnabled);
       gameRef.current?.setMenuVisible?.(gameMode === null);
-      gameRef.current?.setShowAIStateOverlay?.(showAIStateOverlay);
-      gameRef.current?.setShowPositionLabels?.(showPositionLabels);
       gameRef.current?.setTestingMode?.(false);
       gameRef.current?.setHotSeatMode?.(false);
+      gameRef.current?.setTwoPlayerMode?.(false);
       gameRef.current?.setCpuVsCpu?.(false);
       gameRef.current?.setPracticePlayCompleteCallback?.(() => {
         if (practiceCompleteTimerRef.current) clearTimeout(practiceCompleteTimerRef.current);
@@ -1067,6 +2057,7 @@ const RetroFootball: React.FC = () => {
 
       // Expose game API on window for automation / telemetry scripts
       (window as any).__gameRef = gameRef.current;
+      (window as any).game = gameRef.current;
       (window as any).__gameRef.setSmokeTestMode = (active: boolean) => {
         smokeTestActiveRef.current = active;
         // Pause/resume the React telemetry recorder to avoid double-recording
@@ -1077,6 +2068,9 @@ const RetroFootball: React.FC = () => {
           splashAdvancedRef.current = true;
           setAllowMainMenu(false);
           setHasActiveMatchSession(true);
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(false);
+          gameRef.current?.setScoreBugVisible?.(true);
           telemetryRecorderRef.current?.stop();
         } else if (!telemetryRecorderRef.current?.isRecording()) {
           const rec = new TelemetryRecorder();
@@ -1085,24 +2079,60 @@ const RetroFootball: React.FC = () => {
           telemetryRecorderRef.current = rec;
         }
       };
-
-      if (!telemetryRecorderRef.current) {
-        const recorder = new TelemetryRecorder();
-        recorder.setContext({
-          teamAName,
-          teamBName,
-          teamAFormation,
-          teamBFormation,
-          notes: 'Telemetry capture armed; gameplay starts only after mode selection',
-        });
-        recorder.start(() => gameRef.current, 500);
-        telemetryRecorderRef.current = recorder;
-      }
+      (window as any).__pslUiTest = {
+        applySmokeFixtureSetup: async (fixture: { homeTeam: string; awayTeam: string; formationA: string; formationB: string }) => {
+          teamANameRef.current = fixture.homeTeam;
+          teamBNameRef.current = fixture.awayTeam;
+          activeMatchTeamsRef.current = { a: fixture.homeTeam, b: fixture.awayTeam };
+          fullTimeCapturedRef.current = false;
+          setShowSplash(false);
+          splashAdvancedRef.current = true;
+          setShowPreMatchSetup(false);
+          setShowPracticeSetup(false);
+          setHasActiveMatchSession(true);
+          setAllowMainMenu(false);
+          setSessionMenuLock(true);
+          setIsFullTime(false);
+          setFullTimeScore(null);
+          setTeamAName(fixture.homeTeam);
+          setTeamBName(fixture.awayTeam);
+          setTeamAFormation(fixture.formationA);
+          setTeamBFormation(fixture.formationB);
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(false);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        },
+        openWorldCupMode: (team?: string) => {
+          if (team) {
+            deleteWorldCup();
+            saveWorldCup(createWorldCupRecord(team));
+          }
+          setShowSplash(false);
+          splashAdvancedRef.current = true;
+          setIsOptionsOpen(false);
+          setShowPracticeSetup(false);
+          setShowPreMatchSetup(false);
+          setHasActiveMatchSession(false);
+          setAllowMainMenu(true);
+          setSessionMenuLock(false);
+          setIsFullTime(false);
+          setFullTimeScore(null);
+          try {
+            sessionStorage.removeItem('psl_fullTime');
+            sessionStorage.removeItem('psl_fullTimeScore');
+          } catch {}
+          gameRef.current?.setSplashSceneMode?.(false);
+          gameRef.current?.setMenuVisible?.(true);
+          setSeasonModeActive(true);
+        },
+      };
 
       gameRef.current?.setOnReset?.(() => {
         // Always clear full-time overlay and UI latches
-        setIsLive(false);
+        setIsLiveIfChanged(false);
         setIsFullTime(false);
+        fullTimeCapturedRef.current = false;
+        activeMatchTeamsRef.current = null;
         try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
         setFullTimeScore(null);
         prevIsLive.current = false;
@@ -1123,6 +2153,7 @@ const RetroFootball: React.FC = () => {
         setTestingMode(false);
         gameRef.current?.setHotSeatMode?.(false);
         gameRef.current?.setTestingMode?.(false);
+        gameRef.current?.setTwoPlayerMode?.(false);
         gameRef.current?.setCpuVsCpu?.(false);
         gameRef.current?.setPracticeMode?.(false);
         gameRef.current?.clearPracticeRoutes?.();
@@ -1135,34 +2166,39 @@ const RetroFootball: React.FC = () => {
           timestamp: Date.now(),
         }).then(() => {
           rec.stop().then(() => {
-            const nextRec = new TelemetryRecorder();
-            nextRec.setContext({
-              teamAName,
-              teamBName,
-              teamAFormation,
-              teamBFormation,
-              notes: 'Session restarted via R key',
-            });
-            nextRec.start(() => gameRef.current, 500);
-            telemetryRecorderRef.current = nextRec;
+            telemetryRecorderRef.current = null;
           });
         });
       });
 
       installTelemetryDebugApi();
       installSmokeTestApi();
-    }
+    };
+    void bootGame();
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        halftimeAwaitingRef.current
+        && hasActiveMatchSessionRef.current
+        && !showSplashRef.current
+        && gameModeRef.current !== 'cpu'
+        && !e.repeat
+      ) {
+        e.preventDefault();
+        handleContinueHalftime('manual');
+        return;
+      }
       if (e.key === 'Escape') {
         setIsOptionsOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      cancelled = true;
+      setGameReady(false);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [ENGINE_RUNTIME_TOKEN]);
 
   useEffect(() => {
     gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
@@ -1177,8 +2213,9 @@ const RetroFootball: React.FC = () => {
   }, [teamAName, teamBName, teamAFormation, teamBFormation]);
 
   useEffect(() => {
-    const kitA = (MLS_TEAM_KITS[teamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[teamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(teamAName, teamBName, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
     gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
     gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
   }, [teamAName, teamBName, teamAKit, teamBKit]);
@@ -1190,43 +2227,9 @@ const RetroFootball: React.FC = () => {
     };
   }, []);
 
-  const handleLightingChange = (preset: string) => {
-    setLighting(preset);
-    gameRef.current?.setLighting(preset);
-  };
-
-  const handleWeatherChange = (nextWeather: 'SUNNY' | 'RAINY' | 'SNOW' | 'WINDY') => {
-    setWeather(nextWeather);
-    gameRef.current?.setWeather?.(nextWeather);
-  };
-
-  const handleAIStyleChange = (style: 'BALANCED' | 'AGGRESSIVE' | 'POSSESSION') => {
-    setAIStyle(style);
-    gameRef.current?.setAIStyle?.(style);
-    const preset = CPU_SHOT_TUNING_PRESETS[style];
-    setCPUShotAimErrorRad(preset.aimErrorRad);
-    setCPUShotPressureError(preset.pressureError);
-    gameRef.current?.setCPUShotTuning?.(preset.aimErrorRad, preset.pressureError);
-  };
-
-  const handleCPUShotTuningChange = (key: 'aimErrorRad' | 'pressureError', value: number) => {
-    if (key === 'aimErrorRad') {
-      setCPUShotAimErrorRad(value);
-      gameRef.current?.setCPUShotTuning?.(value, cpuShotPressureError);
-      return;
-    }
-    setCPUShotPressureError(value);
-    gameRef.current?.setCPUShotTuning?.(cpuShotAimErrorRad, value);
-  };
-
   const handleCameraChange = (mode: 'FOLLOW_BEHIND' | 'BROADCAST' | 'SIDELINE' | 'FIXED_ENDZONE' | 'GOAL_THREE_QUARTER' | 'STADIUM_CAM') => {
     setCameraMode(mode);
     gameRef.current?.setCameraMode(mode);
-  };
-
-  const handleStadiumCamTiltShiftToggle = (enabled: boolean) => {
-    setStadiumCamTiltShiftEnabled(enabled);
-    gameRef.current?.setStadiumCamTiltShift?.(enabled);
   };
 
   const handleUniformChange = (team: 'A' | 'B', index: number) => {
@@ -1235,31 +2238,59 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setUniform(team, index);
   };
 
-  const handleKickOff = (mode: '1p' | '2p' | 'cpu' | 'test' | 'practice', overrideTeams?: { a: string; b: string }) => {
+  const handleKickOff = (
+    mode: '1p' | '2p' | 'cpu' | 'test' | 'practice',
+    overrideTeams?: { a: string; b: string },
+    setupOptions: KickoffSetupOptions = {},
+  ) => {
+    if (!gameRef.current) {
+      setWatchedFixtureMessage('Game engine loading. Try again in a moment.');
+      return;
+    }
+    gameRef.current?.unlockGameplayAudio?.();
+    const isInteractivePlayerMode = mode === '1p' || mode === '2p';
     const isHotSeat = mode === '2p';
     const isCpu = mode === 'cpu';
     const isTesting = mode === 'test';
     const isPractice = mode === 'practice';
-    const nextTeamAName = overrideTeams?.a ?? teamAName;
-    const nextTeamBName = overrideTeams?.b ?? teamBName;
-    if (overrideTeams) {
-      setTeamAName(overrideTeams.a);
-      setTeamBName(overrideTeams.b);
+    const kickoffTeams = overrideTeams ?? { a: teamAName, b: teamBName };
+    const nextTeamAName = kickoffTeams.a;
+    const nextTeamBName = kickoffTeams.b;
+    const nextTeamAKit = setupOptions.teamAKit ?? teamAKit;
+    const nextTeamBKit = setupOptions.teamBKit ?? teamBKit;
+    const nextTeamAFormation = setupOptions.teamAFormation ?? teamAFormation;
+    const nextTeamBFormation = setupOptions.teamBFormation ?? teamBFormation;
+    const nextTeamAAggressiveness = setupOptions.teamAAggressiveness ?? teamAAggressiveness;
+    const nextTeamBAggressiveness = setupOptions.teamBAggressiveness ?? teamBAggressiveness;
+    activeMatchTeamsRef.current = { a: nextTeamAName, b: nextTeamBName };
+    fullTimeCapturedRef.current = false;
+    if (overrideTeams || isCpu) {
+      setTeamAName(nextTeamAName);
+      setTeamBName(nextTeamBName);
     }
+    if (setupOptions.teamAKit) setTeamAKit(nextTeamAKit);
+    if (setupOptions.teamBKit) setTeamBKit(nextTeamBKit);
+    if (setupOptions.teamAFormation) setTeamAFormation(nextTeamAFormation);
+    if (setupOptions.teamBFormation) setTeamBFormation(nextTeamBFormation);
+    if (setupOptions.teamAAggressiveness) setTeamAAggressiveness(nextTeamAAggressiveness);
+    if (setupOptions.teamBAggressiveness) setTeamBAggressiveness(nextTeamBAggressiveness);
 
-    const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(nextTeamAName, nextTeamBName, nextTeamAKit, nextTeamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
     gameRef.current?.setTeamNames?.(nextTeamAName, nextTeamBName);
+    gameRef.current?.setTeamFormations?.(nextTeamAFormation, nextTeamBFormation);
     gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[nextTeamAName] ?? '', MLS_TEAM_LOGOS[nextTeamBName] ?? '');
     gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
     gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+    applyGameAggressionSettings(gameRef.current, nextTeamAAggressiveness, nextTeamBAggressiveness);
 
     const shouldShowAIOverlay = isCpu || isTesting;
     setGameMode(mode);
     setHasActiveMatchSession(true);
     setAllowMainMenu(false);
     setSessionMenuLock(true);
-    setHotSeatMode(isHotSeat || isTesting);
+    setHotSeatMode(isInteractivePlayerMode || isTesting);
     setTestingMode(isTesting);
 
     const kickoffTelemetry = async () => {
@@ -1272,8 +2303,8 @@ const RetroFootball: React.FC = () => {
       recorder.setContext({
         teamAName: nextTeamAName,
         teamBName: nextTeamBName,
-        teamAFormation,
-        teamBFormation,
+        teamAFormation: nextTeamAFormation,
+        teamBFormation: nextTeamBFormation,
         notes: 'Fresh session at kickoff',
       });
       await recorder.start(() => gameRef.current, 500);
@@ -1283,7 +2314,7 @@ const RetroFootball: React.FC = () => {
         mode,
         cpuVsCpu: isCpu,
         testingMode: isTesting,
-        hotSeatMode: isHotSeat || isTesting,
+        hotSeatMode: isInteractivePlayerMode || isTesting,
         teamAName: nextTeamAName,
         teamBName: nextTeamBName,
       });
@@ -1299,45 +2330,198 @@ const RetroFootball: React.FC = () => {
     };
     void kickoffTelemetry();
     // AI state overlay is off by default; user can toggle it manually
-    gameRef.current?.setHotSeatMode?.(isHotSeat || isTesting);
+    gameRef.current?.setHotSeatMode?.(isInteractivePlayerMode || isTesting);
+    gameRef.current?.setTwoPlayerMode?.(isHotSeat);
     gameRef.current?.setTestingMode?.(isTesting);
     gameRef.current?.setCpuVsCpu?.(isCpu);
     gameRef.current?.setPracticeMode?.(isPractice);
     if (isPractice) {
       gameRef.current?.setTestingMode?.(true);
       gameRef.current?.setHotSeatMode?.(true);
+      gameRef.current?.setTwoPlayerMode?.(false);
     }
     gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setSplashSceneMode?.(false);
     gameRef.current?.setMenuVisible?.(false);
     gameRef.current?.startKickoffPresentation?.(true);
+    setIsPausedIfChanged(false);
     setIsFullTime(false);
     setFullTimeScore(null);
     try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
   };
 
   const handlePreMatchSetupStart = () => {
+    if (!gameRef.current) {
+      setWatchedFixtureMessage('Game engine loading. Try again in a moment.');
+      return;
+    }
     setShowPreMatchSetup(false);
+    const assignment = buildPreMatchAssignment();
+    const kickoffTeams = { a: assignment.home.name, b: assignment.away.name };
+    setTeamAHome(true);
     // Apply aggressiveness presets to the CPU shot tuning
-    const aggressASet = PRACTICE_AGGRESSIVENESS[teamAAggressiveness];
-    const aggressBSet = PRACTICE_AGGRESSIVENESS[teamBAggressiveness];
+    const aggressASet = PRACTICE_AGGRESSIVENESS[assignment.home.aggressiveness];
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
+    gameRef.current?.setFoulsEnabled?.(foulsEnabled);
     // Start the match with CPU vs CPU mode
-    handleKickOff('cpu', { a: teamAName, b: teamBName });
+    handleKickOff('cpu', kickoffTeams, {
+      teamAKit: assignment.home.kit,
+      teamBKit: assignment.away.kit,
+      teamAFormation: assignment.home.formation,
+      teamBFormation: assignment.away.formation,
+      teamAAggressiveness: assignment.home.aggressiveness,
+      teamBAggressiveness: assignment.away.aggressiveness,
+    });
   };
 
-  const handlePreMatchSetupRandomize = () => {
-    const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-    setTeamAName(shuffled[0]);
-    setTeamBName(shuffled[1]);
-    setTeamAFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
-    setTeamBFormation(SOCCER_FORMATION_OPTIONS[Math.floor(Math.random() * SOCCER_FORMATION_OPTIONS.length)]);
-    setTeamAAggressiveness(Object.keys(PRACTICE_AGGRESSIVENESS)[Math.floor(Math.random() * 3)] as AggressivenessKey);
-    setTeamBAggressiveness(Object.keys(PRACTICE_AGGRESSIVENESS)[Math.floor(Math.random() * 3)] as AggressivenessKey);
-    setTeamAUniform(Math.floor(Math.random() * 2)); // 0=home, 1=away
+  const handleRealDataReplayStart = () => {
+    if (!gameRef.current) {
+      setWatchedFixtureMessage('Game engine loading. Try again in a moment.');
+      return;
+    }
+    setGameMode('replay');
+    setHasActiveMatchSession(true);
+    setAllowMainMenu(false);
+    setSessionMenuLock(true);
+    setHotSeatMode(false);
+    setTestingMode(false);
+    gameRef.current?.setHotSeatMode?.(false);
+    gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setTwoPlayerMode?.(false);
+    gameRef.current?.setCpuVsCpu?.(false);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setSplashSceneMode?.(false);
+    gameRef.current?.setMenuVisible?.(false);
+    gameRef.current?.setRealDataReplayMode?.(true);
+    setIsFullTime(false);
+    setFullTimeScore(null);
+    fullTimeCapturedRef.current = false;
+    activeMatchTeamsRef.current = { a: teamANameRef.current, b: teamBNameRef.current };
+  };
+
+  const handleRunWatchedFixture = async () => {
+    if (watchedFixtureRunning) return;
+    if (!gameRef.current) {
+      setWatchedFixtureMessage('Game engine loading. Try again in a moment.');
+      return;
+    }
+    const runner = (window as any).pslSmokeTest?.runFixture;
+    if (typeof runner !== 'function') {
+      setWatchedFixtureMessage('Fixture runner unavailable. Reload the page.');
+      return;
+    }
+
+    const assignment = buildPreMatchAssignment();
+    const fixtureTeams = { a: assignment.home.name, b: assignment.away.name };
+    setTeamAHome(true);
+    activeMatchTeamsRef.current = { a: fixtureTeams.a, b: fixtureTeams.b };
+    fullTimeCapturedRef.current = false;
+    setShowPreMatchSetup(false);
+    setWatchedFixtureRunning(true);
+    setWatchedFixtureMessage(`Watching ${fixtureTeams.a} vs ${fixtureTeams.b}`);
+
+    const aggressASet = PRACTICE_AGGRESSIVENESS[assignment.home.aggressiveness];
+    const resolvedKits = getResolvedMatchKits(fixtureTeams.a, fixtureTeams.b, assignment.home.kit, assignment.away.kit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
+    setTeamAName(fixtureTeams.a);
+    setTeamBName(fixtureTeams.b);
+    setTeamAFormation(assignment.home.formation);
+    setTeamBFormation(assignment.away.formation);
+    setTeamAAggressiveness(assignment.home.aggressiveness);
+    setTeamBAggressiveness(assignment.away.aggressiveness);
+    setTeamAKit(assignment.home.kit);
+    setTeamBKit(assignment.away.kit);
+    gameRef.current?.setTeamNames?.(fixtureTeams.a, fixtureTeams.b);
+    gameRef.current?.setTeamFormations?.(assignment.home.formation, assignment.away.formation);
+    gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[fixtureTeams.a] ?? '', MLS_TEAM_LOGOS[fixtureTeams.b] ?? '');
+    gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
+    gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+    gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
+    applyGameAggressionSettings(gameRef.current, assignment.home.aggressiveness, assignment.away.aggressiveness);
+    gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
+    gameRef.current?.setFoulsEnabled?.(foulsEnabled);
+    setGameMode('cpu');
+    setHasActiveMatchSession(true);
+    setAllowMainMenu(false);
+    setSessionMenuLock(true);
+    setHotSeatMode(false);
+    setTestingMode(false);
+    gameRef.current?.setHotSeatMode?.(false);
+    gameRef.current?.setTestingMode?.(false);
+    gameRef.current?.setTwoPlayerMode?.(false);
+    gameRef.current?.setCpuVsCpu?.(true);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.splashMusicStop?.();
+    gameRef.current?.setMenuVisible?.(false);
+    gameRef.current?.setPaused?.(false);
+    setIsPausedIfChanged(false);
+    setIsFullTime(false);
+    setFullTimeScore(null);
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+
+    try {
+      const fixtureHalfSeconds = halfLengthMinutes * 60;
+      const fixtureSpeedMul = computeWatchedFixtureSpeedMul(fixtureHalfSeconds);
+      const result = await runner({
+        homeTeam: fixtureTeams.a,
+        awayTeam: fixtureTeams.b,
+        formationA: assignment.home.formation,
+        formationB: assignment.away.formation,
+        halfSeconds: fixtureHalfSeconds,
+        speedMul: fixtureSpeedMul,
+        timeoutMs: computeFixtureTimeoutMs({ halfSeconds: fixtureHalfSeconds, speedMul: fixtureSpeedMul }),
+      });
+
+      if (!result) {
+        setWatchedFixtureMessage('Fixture run did not start.');
+      } else if (result.timedOut) {
+        const clock = `${result.phase} ${result.elapsedInHalf?.toFixed?.(1) ?? '0.0'}s`;
+        if (result.timeoutReason === 'clock_too_slow' || result.timeoutReason === 'clock_stalled') {
+          setWatchedFixtureMessage(`Clock stalled at ${clock}`);
+        } else {
+          setWatchedFixtureMessage(`Timed out at ${clock}`);
+        }
+      } else {
+        try {
+          const watchedSnapshot = gameRef.current?.getMatchSnapshot?.() || null;
+          const watchedBundle = gameRef.current?.getTuningBundle?.() || null;
+          // Not gated on hasDevServer(): this path only runs from the
+          // pslSmokeTest fixture runner, which is dev-harness-only anyway.
+          if (watchedSnapshot?.phase === 'FULL_TIME' && watchedBundle) {
+            fetch('/__db/match-result', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(buildMatchResultPayload({
+                bundle: watchedBundle,
+                snapshot: watchedSnapshot,
+                fallbackSessionId: `ft-${Date.now()}`,
+              })),
+            }).catch(e => console.warn('[PSL] watched fixture SQLite save error:', e));
+          }
+        } catch (e) {
+          console.warn('[PSL] watched fixture SQLite save error:', e);
+        }
+        setWatchedFixtureMessage(`Final ${result.teamA} ${result.scoreA}-${result.scoreB} ${result.teamB}`);
+      }
+    } catch (error) {
+      setWatchedFixtureMessage(`Fixture failed: ${String(error)}`);
+    } finally {
+      setWatchedFixtureRunning(false);
+    }
   };
 
   // Keep gamepad menu refs in sync
   handleKickOffRef.current = handleKickOff;
+  handleRealDataReplayStartRef.current = handleRealDataReplayStart;
+  handlePreMatchSetupStartRef.current = handlePreMatchSetupStart;
+  handleTogglePauseRef.current = handleTogglePause;
+  handleContinueHalftimeRef.current = handleContinueHalftime;
   setSeasonModeActiveRef.current = setSeasonModeActive;
 
   useEffect(() => {
@@ -1349,8 +2533,9 @@ const RetroFootball: React.FC = () => {
 
     const nextTeamAName = teamAName;
     const nextTeamBName = teamBName;
-    const kitA = (MLS_TEAM_KITS[nextTeamAName] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-    const kitB = (MLS_TEAM_KITS[nextTeamBName] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+    const resolvedKits = getResolvedMatchKits(nextTeamAName, nextTeamBName, teamAKit, teamBKit);
+    const kitA = resolvedKits.home;
+    const kitB = resolvedKits.away;
 
     if (showSplash) {
       gameRef.current?.setTeamNames?.(nextTeamAName, nextTeamBName);
@@ -1360,14 +2545,39 @@ const RetroFootball: React.FC = () => {
       gameRef.current?.setTeamFormations?.(teamAFormation, teamBFormation);
       gameRef.current?.setHotSeatMode?.(false);
       gameRef.current?.setTestingMode?.(false);
+      gameRef.current?.setTwoPlayerMode?.(false);
       gameRef.current?.setCpuVsCpu?.(true);
       gameRef.current?.setSplashSceneMode?.(true);
       gameRef.current?.setScoreBugVisible?.(false);
       gameRef.current?.setMenuVisible?.(false);
 
       if (!splashSceneStartedRef.current) {
+        // Prevent ghost CPU-vs-CPU restarts from HMR remounts or duplicate tabs.
+        // Guards:
+        //  1. Match already active / at FULL_TIME → don't auto-start.
+        //  2. sessionStorage flag for prior full-time: if user hit full-time on a
+        //     manual match recently, splash overlay could be stale. HMR remount
+        //     resets showSplash to true but we must not kick off a demo behind it.
+        //  3. Session-scoped recent-auto-start flag (5 min cooldown).
+        const snapshot = gameRef.current?.getMatchSnapshot?.() || null;
+        const alreadyActive = snapshot?.phase === 'FIRST_HALF'
+          || snapshot?.phase === 'HALFTIME'
+          || snapshot?.phase === 'SECOND_HALF';
+        const atFullTime = snapshot?.phase === 'FULL_TIME';
+        let recentSplashRan = false;
+        let priorFullTime = false;
+        try {
+          const last = Number(sessionStorage.getItem('psl_splashAutoStartAt') || 0);
+          recentSplashRan = last > 0 && (Date.now() - last) < 5 * 60 * 1000;
+          priorFullTime = sessionStorage.getItem('psl_fullTime') === '1';
+        } catch {}
+        // Splash auto-demo permanently disabled: the background CPU-vs-CPU
+        // match was the source of "ghost" Miami-LA rows in the DB and made
+        // the splash visually noisy. Splash is now a static screen — no
+        // match runs behind it. Mark started so guards downstream still
+        // know we visited this branch.
+        void alreadyActive; void atFullTime; void recentSplashRan; void priorFullTime;
         splashSceneStartedRef.current = true;
-        gameRef.current?.startKickoffPresentation?.(true);
       }
       return;
     }
@@ -1423,13 +2633,13 @@ const RetroFootball: React.FC = () => {
         </div>
         <div className="text-white text-[11px] font-semibold mb-1">{p.name} ({p.role})</div>
         <div className="grid grid-cols-2 gap-2 text-[10px] text-white/70 mb-2">
-          <div>SPD: {p.stats.speed.toFixed(2)}</div>
-          <div>STR: {p.stats.strength.toFixed(2)}</div>
-          <div>CAT: {p.stats.catching.toFixed(2)}</div>
-          <div>TAK: {p.stats.tackle.toFixed(2)}</div>
+          <div>SPD: {Number(p.stats?.speed ?? 0).toFixed(2)}</div>
+          <div>STR: {Number(p.stats?.strength ?? 0).toFixed(2)}</div>
+          <div>CAT: {Number(p.stats?.catching ?? 0).toFixed(2)}</div>
+          <div>TAK: {Number(p.stats?.tackle ?? 0).toFixed(2)}</div>
         </div>
         <div className="border-t border-white/10 pt-2 text-[10px]">
-          <div className="text-white/50 uppercase tracking-wide mb-1">MLS 2025 Team Modifier</div>
+          <div className="text-white/50 uppercase tracking-wide mb-1">Team Modifier</div>
           {p.mls2025 ? (
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white/75">
               <div>Quality PPG: {(p.mls2025.quality.ppg * 100).toFixed(0)}%</div>
@@ -1488,42 +2698,6 @@ const RetroFootball: React.FC = () => {
     if (!isOptionsOpen || activeTab !== 'STATS') return;
     refreshDriftDashboard();
   }, [isOptionsOpen, activeTab, driftThresholdPct]);
-
-  // Poll ISOLATED_FORWARD_PASS events during CPU vs CPU
-  useEffect(() => {
-    if (gameMode !== 'cpu' || !hasActiveMatchSession) return;
-    // Reset for this game session — clear both React state and window arrays
-    (window as any).ISOLATED_FORWARD_PASS_EVENTS = [];
-    (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS = [];
-    (window as any)._ISOLATED_FORWARD_PASS_TOTAL = 0;
-    ifpSeenCountRef.current = 0;
-    setIfpEvents([]);
-    setLatestIfpFlash(null);
-    const id = window.setInterval(() => {
-      const resolved: any[] = (window as any).ISOLATED_FORWARD_PASS_RESOLVED_EVENTS ?? [];
-      const pending: any[] = (window as any).ISOLATED_FORWARD_PASS_EVENTS ?? [];
-      // Flash on newly resolved events
-      if (resolved.length > ifpSeenCountRef.current) {
-        const latest = resolved[resolved.length - 1];
-        if (latest) {
-          if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
-          setLatestIfpFlash({ ...latest });
-          latestIfpFlashTimerRef.current = setTimeout(() => setLatestIfpFlash(null), 3500);
-        }
-        ifpSeenCountRef.current = resolved.length;
-      }
-      // Log shows resolved + any still-pending (newest first, max 8)
-      const all = [
-        ...resolved.map(e => ({ ...e })),
-        ...pending.filter(e => e.outcome === 'PENDING').map(e => ({ ...e })),
-      ];
-      setIfpEvents(all.slice(-8).reverse());
-    }, 300);
-    return () => {
-      window.clearInterval(id);
-      if (latestIfpFlashTimerRef.current) clearTimeout(latestIfpFlashTimerRef.current);
-    };
-  }, [gameMode, hasActiveMatchSession]);
 
   // Poll telemetry counts while the floating window is open
   useEffect(() => {
@@ -1745,6 +2919,138 @@ const RetroFootball: React.FC = () => {
     <div className="relative w-screen h-screen overflow-hidden bg-black font-mono">
       <div ref={containerRef} className="w-full h-full" />
 
+      {showScoreboard && (() => {
+        const colorA = getTeamColor(scoreboardTeamA);
+        const colorB = getTeamColor(scoreboardTeamB);
+        const phase = scoreboardPhaseLabel(matchSnapshot);
+        const oldPhaseLabel = phase === '1H' ? '1ST HALF' : phase === '2H' ? '2ND HALF' : phase;
+        return (
+          <div className="absolute top-5 left-1/2 z-[120] w-[min(92vw,720px)] -translate-x-1/2 pointer-events-none">
+            <div
+              data-psl-scoreboard="live"
+              className="relative h-[68px] w-full min-w-0 sm:min-w-[560px] overflow-hidden rounded-md border border-white/10 bg-white shadow-[0_6px_28px_rgba(0,0,0,0.65)] flex items-stretch font-sans text-black"
+            >
+              <div
+                className="absolute left-0 top-0 z-[2] h-[3px] w-full"
+                style={{ background: `linear-gradient(90deg, ${colorA} 0 50%, ${colorB} 50% 100%)` }}
+              />
+              <div className="flex-1 min-w-0 flex items-center justify-end gap-2 sm:gap-3 px-2 sm:px-5">
+                <div className="min-w-0 text-right">
+                  <div className="text-[9px] sm:text-[10px] leading-none uppercase tracking-[0.12em] text-black/55">Home</div>
+                  <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamA}</div>
+                  <div className="sm:hidden text-[13px] font-extrabold uppercase leading-tight text-black">{shortTeamName(scoreboardTeamA)}</div>
+                </div>
+                <ScoreboardFlag teamName={scoreboardTeamA} />
+                <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
+                  {matchSnapshot?.scoreA ?? 0}
+                </div>
+              </div>
+              <div className="w-[108px] sm:w-32 shrink-0 flex flex-col items-center justify-center gap-[3px] border-x border-black/10 bg-white px-2">
+                <div className="text-[24px] sm:text-[26px] leading-none font-bold tabular-nums tracking-[0.04em] text-black" style={{ fontFamily: 'var(--font-score-clock)' }}>
+                  {formatScoreboardClock(matchSnapshot)}
+                </div>
+                <div className="text-[9px] sm:text-[10px] leading-none font-semibold uppercase tracking-[0.12em] text-black/70">
+                  {oldPhaseLabel}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-start gap-2 sm:gap-3 px-2 sm:px-5">
+                <div className="min-w-[28px] text-center text-[32px] sm:text-[34px] leading-none font-black tabular-nums text-black">
+                  {matchSnapshot?.scoreB ?? 0}
+                </div>
+                <ScoreboardFlag teamName={scoreboardTeamB} />
+                <div className="min-w-0 text-left">
+                  <div className="text-[9px] sm:text-[10px] leading-none uppercase tracking-[0.12em] text-black/55">Away</div>
+                  <div className="hidden sm:block truncate text-[15px] font-extrabold uppercase leading-tight text-black">{scoreboardTeamB}</div>
+                  <div className="sm:hidden text-[13px] font-extrabold uppercase leading-tight text-black">{shortTeamName(scoreboardTeamB)}</div>
+                </div>
+              </div>
+            </div>
+            {hasActiveMatchSession && matchSnapshot?.phase !== 'FULL_TIME' && matchSnapshot?.phase !== 'HALFTIME' && (
+              <button
+                type="button"
+                data-psl-pause-button="match"
+                onClick={handleTogglePause}
+                className="pointer-events-auto absolute right-0 top-[76px] inline-flex h-10 items-center gap-2 rounded-md border border-white/15 bg-black/80 px-3 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-[0_4px_18px_rgba(0,0,0,0.45)] hover:bg-black focus:outline-none focus:ring-2 focus:ring-white/60"
+                aria-pressed={isPaused}
+              >
+                {isPaused ? <Play size={15} strokeWidth={2.5} /> : <Pause size={15} strokeWidth={2.5} />}
+                {isPaused ? 'Resume' : 'Pause'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {matchSnapshot?.manualRestartPrompt && !showSplash && !isOptionsOpen && !isPaused && (
+        <div
+          data-psl-restart-prompt="true"
+          className="pointer-events-none absolute inset-x-0 bottom-24 z-[120] flex justify-center px-4"
+        >
+          <div className="rounded-lg border border-amber-300/50 bg-black/85 px-5 py-3 text-center shadow-[0_6px_24px_rgba(0,0,0,0.5)]">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+              Your {matchSnapshot.manualRestartPrompt.label}
+            </div>
+            <div className="mt-1 text-[11px] text-white/80">
+              Press <span className="font-bold text-white">SPACE</span> to play it
+              {' '}&middot;{' '}auto in {Math.ceil(matchSnapshot.manualRestartPrompt.secondsRemaining)}s
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPaused && hasActiveMatchSession && !showSplash && !isOptionsOpen && (
+        <React.Suspense fallback={null}>
+          <PauseOverlay onResume={handleTogglePause} onQuitToMenu={handleQuitToMainMenu} />
+        </React.Suspense>
+      )}
+
+      {showHalftimeOverlay && (() => {
+        const firstHalfGoals = (matchSnapshot.goalLog || []).filter((goal: any) => Number(goal?.matchMinute || 0) <= 45);
+        return (
+          <div
+            data-psl-halftime-overlay="true"
+            className="absolute inset-0 z-[150] flex items-center justify-center bg-black/45 px-4"
+            onClick={() => gameMode !== 'cpu' && handleContinueHalftime('manual')}
+          >
+            <div className="w-[min(92vw,520px)] rounded-md border-[5px] border-black bg-white px-8 py-7 text-center font-mono text-slate-950 shadow-[0_18px_60px_rgba(0,0,0,0.65)]">
+              <div className="text-[42px] leading-none font-black uppercase tracking-[0.16em] text-amber-400">Half Time</div>
+              <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                <div className="min-w-0 text-right">
+                  <div className="truncate text-[13px] font-bold uppercase tracking-[0.12em] text-slate-500">{scoreboardTeamA}</div>
+                  <div className="text-[52px] leading-none font-black tabular-nums">{matchSnapshot.scoreA ?? 0}</div>
+                </div>
+                <div className="text-[30px] font-black text-slate-300">-</div>
+                <div className="min-w-0 text-left">
+                  <div className="truncate text-[13px] font-bold uppercase tracking-[0.12em] text-slate-500">{scoreboardTeamB}</div>
+                  <div className="text-[52px] leading-none font-black tabular-nums">{matchSnapshot.scoreB ?? 0}</div>
+                </div>
+              </div>
+              <div className="my-5 h-px bg-slate-200" />
+              <div className="text-[12px] font-black uppercase tracking-[0.16em] text-slate-400">Goal Scorers</div>
+              <div className="mt-3 min-h-[44px] space-y-1 text-[13px] font-bold text-slate-700">
+                {firstHalfGoals.length > 0 ? firstHalfGoals.map((goal: any, index: number) => (
+                  <div key={`${goal.playerName || goal.scorer || index}-${index}`}>
+                    {goal.matchMinute}' {goal.playerName || goal.scorer || 'Goal'} <span className="text-slate-400">({goal.team === 'A' ? scoreboardTeamA : scoreboardTeamB})</span>
+                  </div>
+                )) : (
+                  <div className="text-slate-400">No goals</div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="mt-6 w-full rounded border border-slate-300 bg-white px-4 py-3 text-[13px] font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (gameMode !== 'cpu') handleContinueHalftime('manual');
+                }}
+              >
+                {gameMode === 'cpu' ? 'Second half starting...' : 'Press any key to continue'}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Splash Screen ── */}
       {showSplash && (
         <div
@@ -1757,9 +3063,9 @@ const RetroFootball: React.FC = () => {
             {/* Logo */}
             <div style={{ animation: 'splashFadeIn 0.6s ease-out 0.5s both' }}>
               <img
-                src="/assets/pixel-soccer-league.webp"
+                src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-80 drop-shadow-[0_4px_20px_rgba(34,197,94,0.3)]"
+                className="w-[40rem] max-w-[92vw] drop-shadow-[0_4px_14px_rgba(34,197,94,0.14)]"
               />
             </div>
 
@@ -1796,130 +3102,108 @@ const RetroFootball: React.FC = () => {
         </div>
       )}
       {/* Mode Select Screen */}
-      {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
-            {/* Title */}
-            <div className="flex flex-col items-center">
+      {!showSplash && allowMainMenu && !hasActiveMatchSession && !isFullTime && !sessionMenuLock && !showPracticeSetup && !showPreMatchSetup && (
+        <div className="absolute inset-0 z-50 overflow-y-auto overflow-x-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(34,197,94,0.05),rgba(34,197,94,0.02)_18%,transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72)_82%)]" />
+          <div className="relative z-[2] flex min-h-full w-full items-center justify-center px-5 py-5">
+            <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-3">
               <img
-                src="/assets/pixel-soccer-league.webp"
+                src="/assets/Pixel%20Soccer%20League2.png"
                 alt="Pixel Soccer League"
-                className="w-72 drop-shadow-lg"
+                className="w-[36rem] max-w-[78vw] max-h-[18vh] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
               />
-            </div>
 
-            {/* Team selectors */}
-            <div className="w-full flex flex-col gap-3">
-              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 0 ? 'ring-2 ring-white/60' : ''}`}>
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Home</span>
-                <select
+              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                <MenuTeamSelect
+                  label="Home"
                   value={teamAName}
-                  onChange={(e) => setTeamAName(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-white/20 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-white/50"
-                >
-                  {MLS_TEAM_OPTIONS.map((team) => (
-                    <option key={`ms-a-${team}`} value={team}>{team}</option>
-                  ))}
-                </select>
-                {menuFocusIndex === 0 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
-              </div>
-              <div className={`flex items-center gap-3 rounded px-1 py-0.5 transition-all ${menuFocusIndex === 1 ? 'ring-2 ring-white/60' : ''}`}>
-                <span className="text-white/40 text-[10px] uppercase w-16 shrink-0">Away</span>
-                <select
+                  focused={menuFocusIndex === 0}
+                  options={teamOptions}
+                  onChange={setTeamAName}
+                />
+                <MenuTeamSelect
+                  label="Away"
                   value={teamBName}
-                  onChange={(e) => setTeamBName(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-white/20 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-white/50"
-                >
-                  {MLS_TEAM_OPTIONS.map((team) => (
-                    <option key={`ms-b-${team}`} value={team}>{team}</option>
-                  ))}
-                </select>
-                {menuFocusIndex === 1 && <span className="text-white/30 text-[8px]">◀ ▶</span>}
+                  focused={menuFocusIndex === 1}
+                  options={teamOptions}
+                  onChange={setTeamBName}
+                />
               </div>
-            </div>
 
-            {/* Mode buttons */}
-            <div className="w-full flex flex-col gap-3">
-              <p className="text-white/30 text-[9px] uppercase tracking-widest text-center">Select Mode</p>
-              <button
-                onClick={() => handleKickOff('1p')}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 2 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
-                }`}
-              >
-                1 Player vs CPU
-              </button>
-              <button
-                onClick={() => handleKickOff('2p')}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 3 ? 'bg-white text-black border-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
-                }`}
-              >
-                2 Players — Hot Seat
-              </button>
-              <button
-                onClick={() => {
-                  const shuffled = MLS_TEAM_NAMES.slice().sort(() => Math.random() - 0.5);
-                  setTeamAName(shuffled[0]);
-                  setTeamBName(shuffled[1]);
-                  setShowPreMatchSetup(true);
-                }}
-                className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                  menuFocusIndex === 4 ? 'bg-white/80 text-black border-white' : 'border-white/20 text-white/50 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                CPU vs CPU
-              </button>
-              <div className="border-t border-white/10 pt-3 flex flex-col gap-3">
-                <button
-                  onClick={() => setSeasonModeActive(true)}
-                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 5 ? 'bg-amber-500/40 text-amber-200 border-amber-400' : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
-                  }`}
+              {easterEggUnlocked && (
+                <div className="rounded border border-amber-300/60 bg-amber-500/15 px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.18em] text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.18)]">
+                  1982 Final Unlocked
+                </div>
+              )}
+
+              <div className="mt-2 text-center text-[16px] font-black uppercase leading-none text-white" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.85)' }}>
+                Select Mode
+              </div>
+              {!gameReady && (
+                <div className="text-center text-[10px] font-black uppercase tracking-[0.18em] text-lime-200/70">
+                  Loading game engine...
+                </div>
+              )}
+              <div className="flex w-full flex-col gap-3">
+                <MenuModeButton focused={menuFocusIndex === 2} tone={INTERACTIVE_PLAYER_MODES_ENABLED ? 'white' : 'muted'} disabled={!INTERACTIVE_PLAYER_MODES_ENABLED} onClick={() => handleKickOff('1p')}>
+                  1 Player vs CPU
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 3} tone={INTERACTIVE_PLAYER_MODES_ENABLED ? 'white' : 'muted'} disabled={!INTERACTIVE_PLAYER_MODES_ENABLED} onClick={() => handleKickOff('2p')}>
+                  2 Players - Hot Seat
+                </MenuModeButton>
+                <MenuModeButton
+                  focused={menuFocusIndex === 4}
+                  onClick={() => setShowPreMatchSetup(true)}
                 >
-                  Season Mode
-                </button>
-                <button
-                  onClick={() => setShowPracticeSetup(true)}
-                  className={`w-full py-3 border text-xs uppercase tracking-widest rounded transition-colors ${
-                    menuFocusIndex === 6 ? 'bg-emerald-500/40 text-emerald-200 border-emerald-400' : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
-                  }`}
-                >
+                  CPU vs CPU
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 5} tone="amber" onClick={() => setSeasonModeActive(true)}>
+                  World Cup Mode
+                </MenuModeButton>
+                <MenuModeButton focused={menuFocusIndex === 6} tone="green" onClick={() => setShowPracticeSetup(true)}>
                   Practice
-                </button>
+                </MenuModeButton>
               </div>
-            </div>
 
-            <p className="text-white/20 text-[9px] uppercase tracking-widest">Press [ESC] in-game for options</p>
+              <p className="mt-2 text-center text-[11px] font-black uppercase leading-none text-lime-300/70" style={{ textShadow: '0 3px 0 rgba(0,0,0,0.9)' }}>
+                Press [ESC] in-game for options
+              </p>
+            </div>
           </div>
         </div>
 
       )}
 
-      {/* Season Hub Overlay */}
+      {/* World Cup Hub Overlay */}
       {seasonModeActive && !hasActiveMatchSession && !isFullTime && (
-        <SeasonHub
+        <WorldCupHub
           onPlayMatch={(home, away) => {
-            // Set up teams for the season match
+            gameRef.current?.unlockGameplayAudio?.();
+            // Set up teams for the World Cup match
             setTeamAName(home);
             setTeamBName(away);
             seasonReturnRef.current = true;
             // Brief timeout to let team name state propagate before kickoff
             setTimeout(() => {
-              const kitA = (MLS_TEAM_KITS[home] ?? MLS_TEAM_KITS['Inter Miami'])[teamAKit];
-              const kitB = (MLS_TEAM_KITS[away] ?? MLS_TEAM_KITS['Inter Miami'])[teamBKit];
+              const resolvedKits = getResolvedMatchKits(home, away, teamAKit, teamBKit);
+              const kitA = resolvedKits.home;
+              const kitB = resolvedKits.away;
               gameRef.current?.setTeamNames?.(home, away);
               gameRef.current?.setTeamLogos?.(MLS_TEAM_LOGOS[home] ?? '', MLS_TEAM_LOGOS[away] ?? '');
               gameRef.current?.setTeamColors?.('A', kitA.shirt, kitA.pants);
               gameRef.current?.setTeamColors?.('B', kitB.shirt, kitB.pants);
+              activeMatchTeamsRef.current = { a: home, b: away };
+              fullTimeCapturedRef.current = false;
               setGameMode('1p');
               setHasActiveMatchSession(true);
               setAllowMainMenu(false);
               setSessionMenuLock(true);
               gameRef.current?.setHotSeatMode?.(false);
               gameRef.current?.setTestingMode?.(false);
+              gameRef.current?.setTwoPlayerMode?.(false);
               gameRef.current?.setCpuVsCpu?.(false);
               gameRef.current?.splashMusicStop?.();
+              gameRef.current?.setSplashSceneMode?.(false);
               gameRef.current?.setMenuVisible?.(false);
               gameRef.current?.startKickoffPresentation?.(true);
               setIsFullTime(false);
@@ -1946,13 +3230,14 @@ const RetroFootball: React.FC = () => {
 
             {/* Team selector */}
             <div className="flex flex-col gap-1">
-              <label className="text-white/40 text-[9px] uppercase tracking-widest">Team</label>
+              <label htmlFor="practice-setup-team-select" className="text-white/40 text-[9px] uppercase tracking-widest">Team</label>
               <select
+                id="practice-setup-team-select"
                 value={teamAName}
                 onChange={(e) => setTeamAName(e.target.value)}
-                className="bg-zinc-800 border border-white/20 text-white text-xs rounded px-2 py-2 focus:outline-none focus:border-emerald-400"
+                className={`${PRACTICE_SELECT_CLASSNAME} text-xs px-2 py-2 border-white/20`}
               >
-                {MLS_TEAM_OPTIONS.map((team) => (
+                {teamOptions.map((team) => (
                   <option key={team} value={team}>{team}</option>
                 ))}
               </select>
@@ -1963,12 +3248,14 @@ const RetroFootball: React.FC = () => {
               <label className="text-white/40 text-[9px] uppercase tracking-widest">Controlled By</label>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setPracticeIsHuman(true)}
                   className={`flex-1 py-2 border text-xs rounded transition-colors ${practiceIsHuman ? 'bg-emerald-500/40 border-emerald-400 text-emerald-200' : 'border-white/20 text-white/50 hover:bg-white/10'}`}
                 >
                   Human
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPracticeIsHuman(false)}
                   className={`flex-1 py-2 border text-xs rounded transition-colors ${!practiceIsHuman ? 'bg-emerald-500/40 border-emerald-400 text-emerald-200' : 'border-white/20 text-white/50 hover:bg-white/10'}`}
                 >
@@ -1980,26 +3267,31 @@ const RetroFootball: React.FC = () => {
             {/* Begin / Cancel */}
             <div className="flex gap-2 pt-1">
               <button
+                type="button"
                 onClick={() => setShowPracticeSetup(false)}
                 className="flex-1 py-2 border border-white/20 text-white/50 text-xs rounded hover:bg-white/10 transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
+                  const isHumanPractice = practiceIsHuman;
                   setSelectedPracticePlay(null);
                   setPracticeActive(false);
                   setPracticeFormation('4-4-2'); // default practice start formation
                   setShowPracticeSetup(false);
                   handleKickOff('practice');
+                  gameRef.current?.setCpuVsCpu?.(!isHumanPractice);
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  if (isHumanPractice) {
+                    practiceStartPauseRef.current = setTimeout(() => {
+                      gameRef.current?.setPaused?.(true);
+                    }, 0);
+                  }
                   // Do not automatically apply a play at startup (per user request).
                   // The practice should start in a standard kickoff formation at the center circle.
-                  setTimeout(() => {
-                    if (!practiceIsHuman) gameRef.current?.setCpuVsCpu?.(true);
-                    setShowPositionLabels(true);
-                    gameRef.current?.setShowPositionLabels?.(true);
-                    // play is only active once selected from the in-game play selector
-                  }, 600);
+                  // play is only active once selected from the in-game play selector
                 }}
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-semibold rounded transition-colors"
               >
@@ -2016,63 +3308,6 @@ const RetroFootball: React.FC = () => {
           <div className="px-8 py-3 bg-emerald-500 text-white text-sm font-bold rounded-full tracking-[0.2em] uppercase shadow-2xl border border-emerald-300/60 animate-pulse">
             Play Set
           </div>
-        </div>
-      )}
-
-      {/* Isolated Forward Pass Overlay — CPU vs CPU only */}
-      {gameMode === 'cpu' && hasActiveMatchSession && (
-        <div className="absolute top-16 left-4 z-40 pointer-events-none flex flex-col gap-1.5 w-60">
-          {/* Always-visible header */}
-          <div className="bg-black/70 border border-orange-500/40 rounded-lg px-3 py-2">
-            <div className="flex items-center justify-between">
-              <span className="text-orange-300 text-[9px] font-bold uppercase tracking-widest">Isolated Fwd Pass</span>
-              <span className="text-orange-200 text-[9px] tabular-nums">
-                {(window as any)._ISOLATED_FORWARD_PASS_TOTAL ?? 0} total
-              </span>
-            </div>
-            {ifpEvents.length === 0 && (
-              <div className="text-white/30 text-[8px] mt-1">Listening for events…</div>
-            )}
-          </div>
-
-          {/* Flash badge for latest resolved event */}
-          {latestIfpFlash && (() => {
-            const outcomeColor =
-              latestIfpFlash.outcome === 'INTERCEPTED' ? 'bg-red-600/90 border-red-400'
-              : latestIfpFlash.outcome === 'SELF_CAUGHT' ? 'bg-amber-500/90 border-amber-300'
-              : 'bg-emerald-600/90 border-emerald-400';
-            return (
-              <div className={`px-3 py-2 ${outcomeColor} border text-white text-[10px] font-bold rounded-lg shadow-xl animate-pulse`}>
-                <div>{latestIfpFlash.carrierName} ({latestIfpFlash.carrierRole})</div>
-                <div className="opacity-80 text-[9px]">→ {latestIfpFlash.passTargetName}</div>
-                <div className="mt-1 text-[9px] font-normal opacity-90">
-                  {latestIfpFlash.outcome}
-                  {latestIfpFlash.shotPossible ? ' · shot was on' : ' · no shot geom'}
-                  {' · '}P={latestIfpFlash.closePressure}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Log of last 8 events */}
-          {ifpEvents.length > 0 && (
-            <div className="bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 flex flex-col gap-0.5">
-              {ifpEvents.map((ev, i) => {
-                const dot =
-                  ev.outcome === 'INTERCEPTED' ? 'bg-red-400'
-                  : ev.outcome === 'SELF_CAUGHT' ? 'bg-amber-400'
-                  : ev.outcome === 'COMPLETED' ? 'bg-emerald-400'
-                  : 'bg-white/20';
-                return (
-                  <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/70">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-                    <span className="truncate">{ev.carrierName} ({ev.carrierRole})</span>
-                    <span className="shrink-0 text-white/40">{ev.outcome ?? '…'}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 
@@ -2095,8 +3330,9 @@ const RetroFootball: React.FC = () => {
 
             {/* Play selector */}
             <div className="flex flex-col gap-0.5">
-              <label className="text-white/40 text-[8px] uppercase tracking-widest">Play</label>
+              <label htmlFor="practice-play-select" className="text-white/40 text-[8px] uppercase tracking-widest">Play</label>
               <select
+                id="practice-play-select"
                 value={selectedPracticePlay ?? 'none'}
                 onChange={(e) => {
                   const key = e.target.value;
@@ -2108,27 +3344,18 @@ const RetroFootball: React.FC = () => {
                     return;
                   }
                   const play = PRACTICE_PLAYS.find(p => p.key === key)!;
+                  const shouldAutoStart = !practiceIsHuman;
                   setSelectedPracticePlay(key);
-                  setPracticeActive(true);
+                  setPracticeActive(shouldAutoStart);
                   setPracticeFormation(play.formation);
-                  setShowPositionLabels(true);
-                  gameRef.current?.setShowPositionLabels?.(true);
-                  // Ensure players are in their formation positions before calculating routes
-                  gameRef.current?.setTeamFormations?.(play.formation, play.formation);
-                  const players = gameRef.current?.getPlayers?.() || [];
-                  const sortedPlayers = [...players].sort((a, b) => (a.id || 0) - (b.id || 0));
-                  const atkSign = gameRef.current?.getTeamAAttackSign?.() ?? 1;
-                  const routes = getPlayRoutes(play, sortedPlayers, atkSign);
-                  gameRef.current?.drawPracticeRoutes?.(routes);
-                  gameRef.current?.activatePracticePlay?.(routes, play.template);
-                  // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  if (practiceIsHuman) gameRef.current?.setPaused?.(true);
+                  // Snap players + ball to starting positions, redraw routes from snapped positions, and auto-start only for CPU practice
                   gameRef.current?.resetAndStartPracticePlay?.(() => {
-                    const freshPlayers = gameRef.current?.getPlayers?.() || [];
-                    const sorted = [...freshPlayers].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
-                    return getPlayRoutes(play, sorted, gameRef.current?.getTeamAAttackSign?.() ?? 1);
+                    applyPracticePlay(gameRef, play, play.formation, practiceAggressiveness, shouldAutoStart);
                   });
                 }}
-                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+                className={PRACTICE_SELECT_CLASSNAME}
               >
                 <option value="none" className="text-white/50 italic">None Selected</option>
                 {Object.entries(categoryGroups).map(([cat, plays]) => (
@@ -2146,19 +3373,26 @@ const RetroFootball: React.FC = () => {
 
             {/* Formation selector */}
             <div className="flex flex-col gap-0.5">
-              <label className="text-white/40 text-[8px] uppercase tracking-widest">Formation</label>
+              <label htmlFor="practice-formation-select" className="text-white/40 text-[8px] uppercase tracking-widest">Formation</label>
               <select
+                id="practice-formation-select"
                 value={practiceFormation}
                 onChange={(e) => {
                   const f = e.target.value;
                   setPracticeFormation(f);
                   if (currentPlay) {
-                    applyPracticePlay(gameRef, currentPlay, f, practiceAggressiveness);
+                    const shouldAutoStart = !practiceIsHuman;
+                    setPracticeActive(shouldAutoStart);
+                    if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                    if (practiceIsHuman) gameRef.current?.setPaused?.(true);
+                    gameRef.current?.resetAndStartPracticePlay?.(() => {
+                      applyPracticePlay(gameRef, currentPlay, f, practiceAggressiveness, shouldAutoStart);
+                    });
                   } else {
                     gameRef.current?.setTeamFormations?.(f, f);
                   }
                 }}
-                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+                className={PRACTICE_SELECT_CLASSNAME}
               >
                 {['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3'].map(f => (
                   <option key={f} value={f}>{f}</option>
@@ -2168,8 +3402,9 @@ const RetroFootball: React.FC = () => {
 
             {/* Aggressiveness selector */}
             <div className="flex flex-col gap-0.5">
-              <label className="text-white/40 text-[8px] uppercase tracking-widest">Aggressiveness</label>
+              <label htmlFor="practice-aggressiveness-select" className="text-white/40 text-[8px] uppercase tracking-widest">Aggressiveness</label>
               <select
+                id="practice-aggressiveness-select"
                 value={practiceAggressiveness}
                 onChange={(e) => {
                   const key = e.target.value as AggressivenessKey;
@@ -2177,13 +3412,31 @@ const RetroFootball: React.FC = () => {
                   const agg = PRACTICE_AGGRESSIVENESS[key] as any;
                   gameRef.current?.setCPUShotTuning?.(agg.aimErrorRad, agg.pressureError);
                 }}
-                className="bg-zinc-800 border border-white/15 text-white text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-emerald-400"
+                className={PRACTICE_SELECT_CLASSNAME}
               >
                 {(Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[]).map(k => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
             </div>
+            {practiceIsHuman && selectedPracticePlay && !practiceActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  const currentPlay = PRACTICE_PLAYS.find(p => p.key === selectedPracticePlay);
+                  if (!currentPlay) return;
+                  if (practiceStartPauseRef.current) clearTimeout(practiceStartPauseRef.current);
+                  setPracticeActive(true);
+                  gameRef.current?.setPaused?.(false);
+                  gameRef.current?.resetAndStartPracticePlay?.(() => {
+                    applyPracticePlay(gameRef, currentPlay, practiceFormation, practiceAggressiveness, true);
+                  });
+                }}
+                className="mt-1 py-2 border border-emerald-400/60 text-emerald-100 bg-emerald-500/20 text-xs rounded hover:bg-emerald-500/30 transition-colors"
+              >
+                Start Play
+              </button>
+            )}
           </div>
         );
       })()}
@@ -2209,31 +3462,51 @@ const RetroFootball: React.FC = () => {
         // Bar colors: use originals but add outline for visibility
         const barColorA = fullTimeScore.colorA || '#38bdf8';
         const barColorB = fullTimeScore.colorB || '#fb7185';
+        const resultLabel = fullTimeScore.scoreA > fullTimeScore.scoreB
+          ? `${fullTimeScore.teamA} Wins`
+          : fullTimeScore.scoreB > fullTimeScore.scoreA
+            ? `${fullTimeScore.teamB} Wins`
+            : 'Draw';
         return (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-6 px-8 py-10 bg-white rounded-2xl shadow-2xl min-w-[320px]" style={{ border: '5px solid #000' }}>
-            <div className="text-amber-500 text-3xl font-extrabold tracking-widest uppercase animate-pulse">Full Time</div>
-            <div className="flex items-center gap-6">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-gray-500 text-[10px] uppercase tracking-widest">{fullTimeScore.teamA}</span>
-                <span className="text-gray-900 text-5xl font-black">{fullTimeScore.scoreA}</span>
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/55 px-3 py-5 backdrop-blur-sm">
+          <div
+            className="flex w-[min(96vw,760px)] max-h-[calc(100vh-32px)] flex-col overflow-y-auto bg-white px-8 py-7 shadow-2xl rounded-xl"
+            style={{ outline: '5px solid #000' }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="full-time-title"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
+              <div>
+                <div id="full-time-title" className="text-amber-500 text-3xl font-extrabold tracking-widest uppercase">Full Time</div>
+                <div className="mt-1 text-[11px] font-black uppercase tracking-[0.22em] text-gray-400">{resultLabel}</div>
               </div>
-              <span className="text-gray-300 text-2xl font-light">{'-'}</span>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-gray-500 text-[10px] uppercase tracking-widest">{fullTimeScore.teamB}</span>
-                <span className="text-gray-900 text-5xl font-black">{fullTimeScore.scoreB}</span>
-              </div>
+              <div className="rounded border border-gray-300 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">Final</div>
             </div>
-            <div className="text-gray-500 text-xs">
-              {fullTimeScore.scoreA > fullTimeScore.scoreB
-                ? `${fullTimeScore.teamA} Wins!`
-                : fullTimeScore.scoreB > fullTimeScore.scoreA
-                ? `${fullTimeScore.teamB} Wins!`
-                : 'Draw'}
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center gap-3">
+                  <ScoreboardFlag teamName={fullTimeScore.teamA} />
+                  <span className="min-w-0 break-words text-[12px] font-black uppercase leading-tight tracking-[0.12em] text-gray-500">{fullTimeScore.teamA}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: barColorA }} />
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-gray-950 text-6xl font-black leading-none tabular-nums">{fullTimeScore.scoreA}</span>
+                <span className="text-gray-300 text-3xl font-light">{'-'}</span>
+                <span className="text-gray-950 text-6xl font-black leading-none tabular-nums">{fullTimeScore.scoreB}</span>
+              </div>
+              <div className="min-w-0 text-right">
+                <div className="mb-2 flex items-center justify-end gap-3">
+                  <span className="min-w-0 break-words text-[12px] font-black uppercase leading-tight tracking-[0.12em] text-gray-500">{fullTimeScore.teamB}</span>
+                  <ScoreboardFlag teamName={fullTimeScore.teamB} />
+                </div>
+                <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: barColorB }} />
+              </div>
             </div>
             {(fullTimeScore.shotsA != null || fullTimeScore.shotsB != null) && (
-              <div className="w-full border-t border-gray-200 pt-4 flex flex-col gap-2">
-                <div className="text-gray-400 text-[9px] uppercase tracking-widest text-center mb-1">Match Stats</div>
+              <div className="mt-6 w-full border-t border-gray-200 pt-4 flex flex-col gap-2">
+                <div className="text-gray-400 text-[10px] font-black uppercase tracking-widest text-center mb-1">Match Stats</div>
                 {[
                   ['Shots', fullTimeScore.shotsA, fullTimeScore.shotsB],
                   ['On Target', fullTimeScore.sogA, fullTimeScore.sogB],
@@ -2245,30 +3518,34 @@ const RetroFootball: React.FC = () => {
                     const b = Number(valB) || 0;
                     const total = a + b || 1;
                     return (
-                      <div key={String(label)} className="flex items-center gap-2 text-xs">
-                        <span className="text-gray-700 w-8 text-right tabular-nums">{a}</span>
-                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden flex" style={{ outline: '1px solid #d1d5db' }}>
-                          <div className="h-full rounded-l-full" style={{ width: `${(a / total) * 100}%`, backgroundColor: barColorA }} />
-                          <div className="h-full rounded-r-full" style={{ width: `${(b / total) * 100}%`, backgroundColor: barColorB }} />
+                      <div key={String(label)} className="grid grid-cols-[2.5rem_1fr_5.5rem_1fr_2.5rem] items-center gap-2 text-xs">
+                        <span className="text-gray-800 text-right font-black tabular-nums">{a}</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-gray-200">
+                          <div className="ml-auto h-full rounded-full" style={{ width: `${(a / total) * 100}%`, backgroundColor: barColorA }} />
                         </div>
-                        <span className="text-gray-700 w-8 tabular-nums">{b}</span>
-                        <span className="text-gray-400 w-16 text-[10px]">{label}</span>
+                        <span className="text-center text-[10px] font-black uppercase tracking-[0.12em] text-gray-400">{label}</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-gray-200">
+                          <div className="h-full rounded-full" style={{ width: `${(b / total) * 100}%`, backgroundColor: barColorB }} />
+                        </div>
+                        <span className="text-gray-800 font-black tabular-nums">{b}</span>
                       </div>
                     );
                   })}
               </div>
             )}
             {fullTimeScore.goals && fullTimeScore.goals.length > 0 && (
-              <div className="w-full border-t border-gray-200 pt-4 flex flex-col gap-1">
-                <div className="text-gray-400 text-[9px] uppercase tracking-widest text-center mb-2">Goal Scorers</div>
+              <div className="mt-5 w-full border-t border-gray-200 pt-4">
+                <div className="text-gray-400 text-[10px] font-black uppercase tracking-widest text-center mb-3">Goal Scorers</div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {fullTimeScore.goals.map((g, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[11px]">
-                    <span className="text-gray-400 w-8 text-right tabular-nums">{g.matchMinute}{"'"}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-gray-100" style={{ color: g.team === 'A' ? safeColorA : safeColorB }}>
+                  <div key={i} className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-[11px]">
+                    <span className="text-gray-400 w-8 text-right font-black tabular-nums">{g.matchMinute}{"'"}</span>
+                    <span className="truncate font-black" style={{ color: g.team === 'A' ? safeColorA : safeColorB }}>
                       {g.shirtNumber > 0 ? `#${g.shirtNumber} ` : ''}{g.playerName}
                     </span>
                   </div>
                 ))}
+                </div>
               </div>
             )}
             <button
@@ -2289,6 +3566,8 @@ const RetroFootball: React.FC = () => {
 
                 setIsFullTime(false);
                 setFullTimeScore(null);
+                fullTimeCapturedRef.current = false;
+                activeMatchTeamsRef.current = null;
                 try { sessionStorage.removeItem('psl_fullTime'); sessionStorage.removeItem('psl_fullTimeScore'); } catch {}
                 setAllowMainMenu(!seasonModeActive);
                 setSessionMenuLock(false);
@@ -2299,7 +3578,7 @@ const RetroFootball: React.FC = () => {
                   gameRef.current?.setMenuVisible?.(true);
                 }
               }}
-              className="mt-2 w-full py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest rounded hover:bg-gray-900 hover:text-white transition-colors"
+              className="mt-6 w-full rounded border border-gray-300 py-3 text-xs font-black uppercase tracking-widest text-gray-700 transition-colors hover:bg-gray-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
             >
               {seasonModeActive ? 'Return to Season' : 'Return to Main Menu'}
             </button>
@@ -2316,99 +3595,40 @@ const RetroFootball: React.FC = () => {
                 <button onClick={() => setActiveTab('OPTIONS')} className={`text-white text-sm ${activeTab === 'OPTIONS' ? 'font-bold' : 'text-white/40'}`}>OPTIONS</button>
                 <button onClick={() => setActiveTab('CONTROLS')} className={`text-white text-sm ${activeTab === 'CONTROLS' ? 'font-bold' : 'text-white/40'}`}>CONTROLS</button>
                 <button onClick={() => setActiveTab('STATS')} className={`text-white text-sm ${activeTab === 'STATS' ? 'font-bold' : 'text-white/40'}`}>STATS</button>
-                <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
-                <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
+                {devToolsVisible && (
+                  <>
+                    <button onClick={() => setActiveTab('MATCH_HISTORY')} className={`text-white text-sm ${activeTab === 'MATCH_HISTORY' ? 'font-bold' : 'text-white/40'}`}>MATCHES</button>
+                    <button onClick={() => setActiveTab('FRAME_VIEWER')} className={`text-white text-sm ${activeTab === 'FRAME_VIEWER' ? 'font-bold' : 'text-white/40'}`}>ANIMATIONS</button>
+                  </>
+                )}
                 <button onClick={() => setActiveTab('HOW_TO_PLAY')} className={`text-white text-sm ${activeTab === 'HOW_TO_PLAY' ? 'font-bold' : 'text-white/40'}`}>HOW TO PLAY</button>
-                <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
+                {devToolsVisible && (
+                  <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
+                )}
               </div>
+              <div className="flex items-center gap-3">
+                {hasActiveMatchSession && (
+                  <button
+                    type="button"
+                    data-psl-quit-to-menu="options"
+                    onClick={handleQuitToMainMenu}
+                    className="rounded border border-white/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 transition-colors hover:border-red-400 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  >
+                    Quit to Main Menu
+                  </button>
+                )}
               <button 
                 onClick={() => setIsOptionsOpen(false)}
                 className="text-white/40 hover:text-white transition-colors"
               >
                 [ESC] CLOSE
               </button>
+              </div>
             </div>
 
             {activeTab === 'OPTIONS' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-4">
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Lighting</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {['NOON', 'LATE', 'NIGHT'].map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => handleLightingChange(p)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            lighting === p ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Camera</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['FOLLOW_BEHIND', 'BROADCAST', 'SIDELINE', 'FIXED_ENDZONE', 'GOAL_THREE_QUARTER', 'STADIUM_CAM'] as const).map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => handleCameraChange(m)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            cameraMode === m ? 'bg-white text-black border-white' : 'text-white border-white/40 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {m.replace('_', ' ')}
-                        </button>
-                      ))}
-                    </div>
-                    <label className="mt-3 inline-flex items-center gap-2 text-[10px] text-white/70 uppercase tracking-widest cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="accent-white"
-                        checked={stadiumCamTiltShiftEnabled}
-                        onChange={(event) => handleStadiumCamTiltShiftToggle(event.target.checked)}
-                      />
-                      Tilt-Shift (Stadium Cam)
-                    </label>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Weather</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['SUNNY', 'RAINY', 'SNOW', 'WINDY'] as const).map((w) => (
-                        <button
-                          key={w}
-                          onClick={() => handleWeatherChange(w)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            weather === w ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {w}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">CPU AI Style</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(['BALANCED', 'AGGRESSIVE', 'POSSESSION'] as const).map((style) => (
-                        <button
-                          key={style}
-                          onClick={() => handleAIStyleChange(style)}
-                          className={`px-3 py-1.5 text-[10px] border rounded ${
-                            aiStyle === style ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
-                          } transition-colors`}
-                        >
-                          {style}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Audio</h3>
                     <div>
@@ -2430,10 +3650,91 @@ const RetroFootball: React.FC = () => {
                         className="w-full accent-white"
                       />
                     </div>
+                    <div className="mt-3">
+                      <div className="text-[9px] text-white/60 uppercase tracking-widest mb-1">Match</div>
+                      <button
+                        type="button"
+                        data-psl-fouls-toggle="true"
+                        onClick={() => {
+                          const next = !foulsEnabled;
+                          setFoulsEnabled(next);
+                          gameRef.current?.setFoulsEnabled?.(next);
+                        }}
+                        className="rounded border border-white/20 px-3 py-1.5 text-[10px] uppercase tracking-widest text-white transition-colors hover:border-white"
+                      >
+                        Fouls {foulsEnabled ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[9px] text-white/60 uppercase tracking-widest mb-1">
+                        <span>Music Volume</span>
+                        <span>{musicVolume === 0 ? 'Off' : `${Math.round(musicVolume * 100)}%`}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={musicVolume}
+                        onChange={(e) => setMusicVolume(Number(e.target.value))}
+                        className="w-full accent-white"
+                        aria-label="Music volume"
+                      />
+                      <button
+                        type="button"
+                        data-psl-music-toggle="true"
+                        onClick={() => setMusicVolume((v) => (v === 0 ? 0.5 : 0))}
+                        className="mt-2 rounded border border-white/20 px-3 py-1.5 text-[10px] uppercase tracking-widest text-white transition-colors hover:border-white"
+                      >
+                        Music {musicVolume === 0 ? 'Off' : 'On'}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
+                  <div>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Display</h3>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-white/30 text-[9px]">The desktop build uses a fixed window. Change size with presets instead of free resizing.</div>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {(['WINDOWED', 'FULLSCREEN'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            data-psl-display-mode={mode}
+                            onClick={() => setDisplayMode(mode)}
+                            className={`px-3 py-1.5 text-[10px] border rounded transition-colors ${
+                              displayMode === mode ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                            }`}
+                          >
+                            {mode === 'FULLSCREEN' ? 'Fullscreen' : 'Windowed'}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {WINDOW_RESOLUTION_PRESETS.map((preset) => (
+                          <button
+                            disabled={displayMode === 'FULLSCREEN'}
+                            key={preset.key}
+                            onClick={() => setWindowResolution(preset.key)}
+                            className={`px-3 py-1.5 text-[10px] border rounded ${
+                              windowResolution === preset.key ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                            } transition-colors`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-white/30 text-[9px] uppercase tracking-widest">
+                        Current: {WINDOW_RESOLUTION_PRESETS.find((preset) => preset.key === windowResolution)?.label ?? windowResolution}
+                      </div>
+                      {windowResolutionMessage && (
+                        <div className="text-emerald-300/70 text-[9px] uppercase tracking-widest">{windowResolutionMessage}</div>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Environment</h3>
                     <div className="flex flex-col gap-2">
@@ -2476,41 +3777,15 @@ const RetroFootball: React.FC = () => {
                       <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={showAIStateOverlay}
+                          checked={shotBallTrailEnabled}
                           onChange={(e) => {
                             const enabled = e.target.checked;
-                            setShowAIStateOverlay(enabled);
-                            gameRef.current?.setShowAIStateOverlay?.(enabled);
+                            setShotBallTrailEnabled(enabled);
+                            gameRef.current?.setShotBallTrailEnabled?.(enabled);
                           }}
                           className="accent-white"
                         />
-                        Show AI State Debug Overlay
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showPositionLabels}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setShowPositionLabels(enabled);
-                            gameRef.current?.setShowPositionLabels?.(enabled);
-                          }}
-                          className="accent-white"
-                        />
-                        Show Position Labels
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-[10px] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showAIStateLabels}
-                          onChange={(e) => {
-                            const enabled = e.target.checked;
-                            setShowAIStateLabels(enabled);
-                            gameRef.current?.setShowAIStateLabels?.(enabled);
-                          }}
-                          className="accent-white"
-                        />
-                        Show AI State Labels
+                        Shot Ball Trail
                       </label>
                     </div>
                   </div>
@@ -2518,7 +3793,7 @@ const RetroFootball: React.FC = () => {
 
                 <div className="flex flex-col gap-4">
                   <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">MLS Teams</h3>
+                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">World Teams</h3>
                     <div className="flex flex-col gap-2">
                       <label className="text-white/60 text-[9px] uppercase">Home</label>
                       <select
@@ -2526,7 +3801,7 @@ const RetroFootball: React.FC = () => {
                         onChange={(e) => setTeamAName(e.target.value)}
                         className="bg-zinc-800 border border-white/20 text-white text-[10px] rounded px-2 py-1"
                       >
-                        {MLS_TEAM_OPTIONS.map((team) => (
+                        {teamOptions.map((team) => (
                           <option key={`a-${team}`} value={team}>{team}</option>
                         ))}
                       </select>
@@ -2546,7 +3821,7 @@ const RetroFootball: React.FC = () => {
                         onChange={(e) => setTeamBName(e.target.value)}
                         className="bg-zinc-800 border border-white/20 text-white text-[10px] rounded px-2 py-1"
                       >
-                        {MLS_TEAM_OPTIONS.map((team) => (
+                        {teamOptions.map((team) => (
                           <option key={`b-${team}`} value={team}>{team}</option>
                         ))}
                       </select>
@@ -2658,23 +3933,6 @@ const RetroFootball: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Auto Clearances</h3>
-                    <p className="text-white/30 text-[9px] mb-2">When ON, your defenders will automatically clear the ball when under heavy pressure in the defensive third.</p>
-                    <label className="inline-flex items-center gap-2 text-[10px] text-white/70 uppercase tracking-widest cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="accent-white"
-                        checked={autoClearances}
-                        onChange={(e) => {
-                          const enabled = e.target.checked;
-                          setAutoClearances(enabled);
-                          gameRef.current?.setAutoClearances?.(enabled);
-                        }}
-                      />
-                      Auto Clearances {autoClearances ? 'ON' : 'OFF'}
-                    </label>
-                  </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
@@ -2772,33 +4030,65 @@ const RetroFootball: React.FC = () => {
                       <span>{p.name} ({p.role})</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-white/60">
-                      <div>SPD: {p.stats.speed.toFixed(2)}</div>
-                      <div>STR: {p.stats.strength.toFixed(2)}</div>
-                      <div>CAT: {p.stats.catching.toFixed(2)}</div>
-                      <div>TAK: {p.stats.tackle.toFixed(2)}</div>
+                      <div>SPD: {Number(p.stats?.speed ?? 0).toFixed(2)}</div>
+                      <div>STR: {Number(p.stats?.strength ?? 0).toFixed(2)}</div>
+                      <div>CAT: {Number(p.stats?.catching ?? 0).toFixed(2)}</div>
+                      <div>TAK: {Number(p.stats?.tackle ?? 0).toFixed(2)}</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : activeTab === 'MATCH_HISTORY' ? (
-              <MatchHistoryDashboard />
+              <React.Suspense fallback={<div className="text-[10px] text-white/50">Loading match history...</div>}>
+                <MatchHistoryDashboard />
+              </React.Suspense>
             ) : activeTab === 'HOW_TO_PLAY' ? (
               <div className="max-w-lg mx-auto flex flex-col gap-6">
                 <div>
-                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Controls</h3>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Player 1 — Home</h3>
                   <div className="grid grid-cols-2 gap-y-2 text-[11px]">
-                    <div className="text-white/60">WASD / ARROWS</div>
+                    <div className="text-white/60">W A S D</div>
                     <div className="text-white text-right">MOVE PLAYER</div>
-                    <div className="text-white/60">H</div>
-                    <div className="text-white text-right">KICK OFF / RESTART</div>
-                    <div className="text-white/60">SPACEBAR</div>
-                    <div className="text-white text-right">PASS / SELECT TARGET</div>
+                    <div className="text-white/60">LEFT SHIFT (HOLD)</div>
+                    <div className="text-white text-right">SPRINT</div>
+                    <div className="text-white/60">SPACEBAR / G</div>
+                    <div className="text-white text-right">PASS — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">C</div>
+                    <div className="text-white text-right">LOB / CHIP PASS</div>
+                    <div className="text-white/60">F</div>
+                    <div className="text-white text-right">SHOOT — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">R</div>
+                    <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">Q / E</div>
                     <div className="text-white text-right">SWITCH HOME PLAYER</div>
+                    <div className="text-white/60">V</div>
+                    <div className="text-white text-right">SWITCH TO NEAREST</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">Player 2 — Away</h3>
+                  <div className="grid grid-cols-2 gap-y-2 text-[11px]">
+                    <div className="text-white/60">ARROW KEYS</div>
+                    <div className="text-white text-right">MOVE PLAYER</div>
+                    <div className="text-white/60">RIGHT SHIFT (HOLD)</div>
+                    <div className="text-white text-right">SPRINT</div>
+                    <div className="text-white/60">,</div>
+                    <div className="text-white text-right">PASS — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">;</div>
+                    <div className="text-white text-right">LOB / CHIP PASS</div>
+                    <div className="text-white/60">.</div>
+                    <div className="text-white text-right">SHOOT — HOLD TO CHARGE, AIM WITH MOVEMENT</div>
+                    <div className="text-white/60">/</div>
+                    <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">[ / ]</div>
                     <div className="text-white text-right">SWITCH AWAY PLAYER</div>
-                    <div className="text-white/60">R</div>
-                    <div className="text-white text-right">RESET GAME</div>
+                    <div className="text-white/60">'</div>
+                    <div className="text-white text-right">SWITCH TO NEAREST</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">General</h3>
+                  <div className="grid grid-cols-2 gap-y-2 text-[11px]">
                     <div className="text-white/60">ESC</div>
                     <div className="text-white text-right">OPTIONS MENU</div>
                   </div>
@@ -2806,38 +4096,28 @@ const RetroFootball: React.FC = () => {
                 <div>
                   <h3 className="text-white/40 text-[10px] font-bold mb-3 uppercase tracking-widest">How to Play</h3>
                   <div className="text-white/70 text-[11px] leading-relaxed space-y-2">
-                    <p>You control the <span className="text-white font-bold">highlighted player</span> on your team. Use WASD or arrow keys to move around the pitch.</p>
-                    <p>When your team has the ball, press <span className="text-white font-bold">SPACEBAR</span> to pass to a nearby teammate. Run toward the opponent{'\u2019'}s goal and your player will shoot automatically when in range.</p>
+                    <p>You control the <span className="text-white font-bold">highlighted player</span> on your team. Player 1 moves with <span className="text-white font-bold">WASD</span>; in two-player matches Player 2 moves with the <span className="text-white font-bold">arrow keys</span>.</p>
+                    <p>When your team has the ball, use movement to aim, then press <span className="text-white font-bold">SPACEBAR</span> to pass or <span className="text-white font-bold">F</span> to shoot. When defending, press <span className="text-white font-bold">R</span> near the ball carrier to tackle.</p>
                     <p>Use <span className="text-white font-bold">Q / E</span> to cycle through your home-team players and <span className="text-white font-bold">[ / ]</span> to cycle away-team players.</p>
-                    <p>Press <span className="text-white font-bold">H</span> to kick off at the start of each half or after a goal.</p>
-                    <p>Press <span className="text-white font-bold">R</span> to reset the match at any time.</p>
+                    <p>Kick-offs, restarts and resetting the match are handled from the on-screen buttons and the <span className="text-white font-bold">OPTIONS</span> menu.</p>
                   </div>
                 </div>
               </div>
             ) : activeTab === 'LIVE_TELEMETRY' ? (
-              <LiveTelemetry gameRef={gameRef} />
+              <React.Suspense fallback={<div className="text-[10px] text-white/50">Loading telemetry...</div>}>
+                <LiveTelemetry gameRef={gameRef} />
+              </React.Suspense>
             ) : (
               <div className="max-h-[70vh] overflow-y-auto">
-                <FrameViewer>
-                  <div className="col-span-2">
-                    <AnimationInspector embedded />
-                  </div>
-                </FrameViewer>
+                <React.Suspense fallback={<div className="text-[10px] text-white/50">Loading animation tools...</div>}>
+                  <FrameViewer>
+                    <div className="col-span-2">
+                      <AnimationInspector embedded />
+                    </div>
+                  </FrameViewer>
+                </React.Suspense>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Press ESC Hint */}
-      {!isOptionsOpen && (
-        <div className="absolute top-4 left-4 flex flex-col gap-4 pointer-events-none">
-          <div className="bg-black/40 px-3 py-1.5 rounded border border-white/10 backdrop-blur-sm ml-[0px]">
-            <p className="text-white/40 text-[9px] uppercase tracking-widest">Press [ESC] for Options</p>
-          </div>
-          
-          <div className="pointer-events-auto ml-[0px]">
-            <TuningLab gameRef={gameRef} />
           </div>
         </div>
       )}
@@ -2846,22 +4126,24 @@ const RetroFootball: React.FC = () => {
       {!showSplash && !isOptionsOpen && (
         <div className="absolute bottom-4 right-4 z-40 flex gap-2">
           <button
-            onClick={() => {
-              const next = !showAIStateOverlay;
-              setShowAIStateOverlay(next);
-              gameRef.current?.setShowAIStateOverlay?.(next);
-            }}
-            className="hidden bg-black/60 border border-amber-500/40 hover:border-amber-400 text-amber-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
-          >
-            {showAIStateOverlay ? 'Hide AI State' : '🧠 AI State'}
-          </button>
-          <button
             onClick={() => setShowTelemetry((v) => !v)}
             className="hidden bg-black/60 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 text-[9px] uppercase tracking-widest px-3 py-1.5 rounded backdrop-blur-sm transition-colors"
           >
             {showTelemetry ? 'Hide Telemetry' : '⚡ Telemetry'}
           </button>
 
+        </div>
+      )}
+
+      {!showSplash && !hasActiveMatchSession && watchedFixtureMessage && (
+        <div
+          data-psl-watched-fixture-status="compact"
+          className="absolute bottom-4 left-4 z-30 max-w-[min(360px,calc(100vw-32px))] px-4 py-2 bg-black/75 border border-emerald-400/40 rounded-lg backdrop-blur-sm pointer-events-none"
+        >
+          <div className="text-[9px] uppercase tracking-[0.24em] text-emerald-200">
+            {watchedFixtureRunning ? 'Watched Fixture Running' : 'Watched Fixture'}
+          </div>
+          <div className="text-[10px] text-white/85 mt-1">{watchedFixtureMessage}</div>
         </div>
       )}
 
@@ -3081,8 +4363,11 @@ const RetroFootball: React.FC = () => {
           teamAAggressiveness={teamAAggressiveness}
           teamBAggressiveness={teamBAggressiveness}
           teamAHome={teamAHome}
+          teamBHome={!teamAHome}
           teamAPreMatchKit={teamAPreMatchKit}
           teamBPreMatchKit={teamBPreMatchKit}
+          halfLengthMinutes={halfLengthMinutes}
+          onHalfLengthMinutesChange={setHalfLengthMinutes}
           onTeamANameChange={setTeamAName}
           onTeamBNameChange={setTeamBName}
           onTeamAFormationChange={setTeamAFormation}
@@ -3090,10 +4375,12 @@ const RetroFootball: React.FC = () => {
           onTeamAAggressivenessChange={setTeamAAggressiveness}
           onTeamBAggressivenessChange={setTeamBAggressiveness}
           onTeamAHomeChange={setTeamAHome}
+          onTeamBHomeChange={(isHome) => setTeamAHome(!isHome)}
           onTeamAPreMatchKitChange={setTeamAPreMatchKit}
           onTeamBPreMatchKitChange={setTeamBPreMatchKit}
-          onRandomize={handlePreMatchSetupRandomize}
           onStartMatch={handlePreMatchSetupStart}
+          watchedFixtureMessage={watchedFixtureMessage}
+          teamOptions={teamOptions}
           onClose={() => setShowPreMatchSetup(false)}
         />
       )}

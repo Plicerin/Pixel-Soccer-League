@@ -31,6 +31,16 @@ export interface MatchSnapshotRow {
   passesCompletedB?: number;
   foulsA?: number;
   foulsB?: number;
+  penaltiesAwardedA?: number;
+  penaltiesAwardedB?: number;
+  penaltiesScoredA?: number;
+  penaltiesScoredB?: number;
+  penaltiesSavedA?: number;
+  penaltiesSavedB?: number;
+  penaltiesMissedA?: number;
+  penaltiesMissedB?: number;
+  penaltyXgA?: number;
+  penaltyXgB?: number;
   cornersA?: number;
   cornersB?: number;
   throwInsA?: number;

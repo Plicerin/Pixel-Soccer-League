@@ -1,0 +1,66 @@
+{
+  "status": "complete",
+  "gamesCompleted": 1,
+  "totals": {
+    "games": 1,
+    "goals": 0,
+    "shots": 3,
+    "sog": 2,
+    "corners": 3,
+    "passes": 70,
+    "passComp": 61
+  },
+  "fixture": [
+    {
+      "game": 1,
+      "score": "0-0",
+      "shots": "2-1",
+      "sog": "1-1",
+      "corners": "1-2",
+      "possession": "54-46"
+    }
+  ],
+  "telemetryCoach": {
+    "gamePlan": 1,
+    "fullControl": 42,
+    "deliverySuppressed": {},
+    "shotSuppressed": {
+      "long_central_striker_shot": 7
+    }
+  },
+  "events": {
+    "coachIssued": 65,
+    "coachDelivery": 2,
+    "coachWait": 3,
+    "tempoRelease": 0,
+    "delivery": 5,
+    "cross": 0,
+    "holdDelivery": 57,
+    "shot": 3,
+    "blocked": 0,
+    "strikerEscape": 5,
+    "finishArmed": 1,
+    "finishShot": 0,
+    "finishHeld": 1
+  },
+  "deliveryRoles": {
+    "WALL": 2,
+    "FAR_POST": 2,
+    "RUNNER": 1
+  },
+  "deliveryStyles": {
+    "WALL": 3,
+    "DRIVEN": 2
+  },
+  "holdReasons": {
+    "coach_waiting_for_runner": 37,
+    "waiting_for_setup_touch": 12,
+    "waiting_for_box_runners": 8
+  },
+  "shotRoles": {
+    "SHOT": 3
+  },
+  "blockedSecondary": {},
+  "avgShotDist": 13.07,
+  "avgBlockedDist": 0
+}

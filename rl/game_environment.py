@@ -20,11 +20,24 @@ class PSLGameEnvironment:
     def _get_game_state(self) -> Dict[str, Any]:
         """Fetch current game state from server"""
         try:
-            response = requests.get(f"{self.server_url}/recover-latest", timeout=5)
+            # Use database API to get latest match
+            response = requests.get(f"{self.server_url}/__db/matches?limit=1", timeout=15)
             if response.status_code == 200:
-                return response.json()
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    match = data[0]
+                    # Parse bundle_json if it exists
+                    if 'bundle_json' in match and isinstance(match['bundle_json'], str):
+                        match['bundle'] = json.loads(match['bundle_json'])
+                    return match
+        except requests.exceptions.Timeout:
+            pass  # Suppress timeout warnings
+        except requests.exceptions.ConnectionError:
+            pass  # Suppress connection errors
+        except json.JSONDecodeError:
+            pass  # Suppress JSON errors
         except Exception as e:
-            print(f"Error fetching game state: {e}")
+            pass  # Suppress other errors
         return None
 
     def _extract_state_vector(self, game_state: Dict) -> np.ndarray:
@@ -38,37 +51,26 @@ class PSLGameEnvironment:
             return state
 
         try:
-            # Ball position (3 dims)
-            ball = game_state.get('ball', {})
-            state[0:3] = [ball.get('x', 0), ball.get('y', 0), ball.get('z', 0)]
+            # Extract from database format
+            state[0] = float(game_state.get('score_a', 0))
+            state[1] = float(game_state.get('score_b', 0))
+            state[2] = float(game_state.get('possession_a', 50))
+            state[3] = float(game_state.get('shots_a', 0))
+            state[4] = float(game_state.get('shots_b', 0))
+            state[5] = float(game_state.get('shots_on_target_a', 0))
+            state[6] = float(game_state.get('shots_on_target_b', 0))
+            state[7] = float(game_state.get('elapsed_in_half', 0)) / 300.0
+            state[8] = 1.0 if game_state.get('phase') == 'FULL_TIME' else 0.0
 
-            # Ball velocity (3 dims)
-            state[3:6] = [
-                ball.get('vx', 0),
-                ball.get('vy', 0),
-                ball.get('vz', 0)
-            ]
-
-            # Player positions (up to 22 players, 2 coords each = 44 dims)
-            players = game_state.get('players', [])
-            for i, player in enumerate(players[:22]):
-                idx = 6 + (i * 2)
-                state[idx] = player.get('x', 0)
-                state[idx + 1] = player.get('z', 0)
-
-            # Game state flags (remaining dims)
-            # Possession (1 dim)
-            state[50] = 1.0 if game_state.get('possession') == 'A' else 0.0
-
-            # Score differential (1 dim)
-            state[51] = float(game_state.get('scoreA', 0) - game_state.get('scoreB', 0))
-
-            # Time (1 dim, normalized 0-1)
-            elapsed = game_state.get('elapsed', 0)
-            state[52] = min(elapsed / 300.0, 1.0)
+            # Bundle data if available
+            if 'bundle' in game_state:
+                bundle = game_state['bundle']
+                state[10] = float(bundle.get('teamA', {}).get('possession', 50))
+                state[11] = float(bundle.get('teamA', {}).get('shotsOnTarget', 0))
+                state[12] = float(bundle.get('teamB', {}).get('shotsOnTarget', 0))
 
         except Exception as e:
-            print(f"Error extracting state: {e}")
+            pass  # Suppress errors
 
         return state
 
@@ -95,7 +97,7 @@ class PSLGameEnvironment:
         3 = move to position
         """
         self.steps += 1
-        time.sleep(0.1)  # Small delay to allow game to progress
+        time.sleep(0.5)  # Wait for game to process frame
 
         game_state = self._get_game_state()
         if game_state is None:

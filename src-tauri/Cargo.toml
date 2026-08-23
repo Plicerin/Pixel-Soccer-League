@@ -1,0 +1,35 @@
+[package]
+name = "pixel-soccer-league-desktop"
+version = "0.4.8"
+description = "Desktop wrapper for Pixel Soccer League"
+authors = ["Plicerin"]
+license = "UNLICENSED"
+repository = "https://github.com/Plicerin/Pixel-Soccer-League"
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "pixel_soccer_league_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.3", features = [] }
+
+# The Rust side is only a webview host, so trade compile time for a much
+# smaller shipped binary. Nothing here is on a gameplay hot path.
+#
+# Deliberately NOT panic = "abort": tao wraps every Windows event-loop
+# dispatch in catch_unwind (platform_impl/windows/event_loop/runner.rs) so a
+# panic in a handler unwinds out of the Win32 callback instead of crossing the
+# FFI boundary, which is UB. Aborting defeats that and turns any panic into a
+# silent process exit with no stderr and no Application Error event.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

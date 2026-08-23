@@ -1,0 +1,67 @@
+{
+  "label": "coach-metrica-events-2026-05-01-05-56-30-PM",
+  "generatedAt": "2026-05-01T22:02:04.790Z",
+  "options": {
+    "games": 1,
+    "label": "coach-metrica-events-2026-05-01-05-56-30-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-SJYK5",
+      "teamA": "Sporting Kansas City",
+      "teamB": "St. Louis City SC",
+      "score": "0-0",
+      "goals": 0,
+      "shotsTotal": 15,
+      "sotTotal": 4,
+      "longRangeSOT": 3,
+      "backpasses": 0,
+      "patternCrosses": 0,
+      "patternDeliveries": 0,
+      "patternGoals": 0,
+      "coachForceEvents": 24,
+      "coachAuthorityEvents": 21,
+      "coachCarrierControlEvents": 275,
+      "forcedShotDecisions": 9,
+      "shotDecisions": 15,
+      "forcedShotShare": 0.6,
+      "avgDefAtGoal": null,
+      "finalThirdOverloads": 0,
+      "traceH1": 236,
+      "traceH2": 195
+    }
+  ],
+  "games": 1,
+  "avgGoals": 0,
+  "avgShots": 15,
+  "avgSOT": 4,
+  "avgLongRangeSOT": 3,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 0,
+  "avgPatternCrosses": 0,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 24,
+  "avgCoachAuthorityEvents": 21,
+  "avgCoachCarrierControlEvents": 275,
+  "forcedShotSharePct": 60,
+  "avgDefAtGoal": null,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 0.83,
+  "traceH1Total": 236,
+  "traceH2Total": 195,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg goals >= 1.0",
+      "avg shots between 18 and 32"
+    ]
+  }
+}

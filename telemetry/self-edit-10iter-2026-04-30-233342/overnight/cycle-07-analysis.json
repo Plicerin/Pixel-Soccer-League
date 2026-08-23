@@ -1,0 +1,2165 @@
+{
+  "generatedAt": "2026-05-01T04:12:19.898Z",
+  "match": {
+    "sessionId": "headless-report:cycle-07-sim.json:0",
+    "matchId": "headless-cycle-07-sim.json-0",
+    "timestamp": 1777608733625,
+    "teamA": "Columbus Crew",
+    "teamB": "Austin FC",
+    "score": "0-0",
+    "shotsA": 3,
+    "shotsB": 1,
+    "shotsOnTargetA": 0,
+    "shotsOnTargetB": 0
+  },
+  "counts": {
+    "events": 9420,
+    "passLog": 59,
+    "midfieldSupport": 2797,
+    "carrierTraces": 512,
+    "attackerZoneTraces": 436,
+    "positionOwnerSamples": 4153,
+    "kickoffPasses": 2,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "shotSnapshots": 4,
+    "shotOnTargetSnapshots": 0,
+    "shotDecisions": 4,
+    "passDecisions": 59,
+    "turnovers": 8,
+    "interceptions": 4,
+    "fouls": 6,
+    "tackles": 5
+  },
+  "passProfile": {
+    "A": {
+      "team": "Columbus Crew",
+      "total": 29,
+      "avgProgress": -0.77,
+      "backwardPct": 41.4,
+      "forwardPct": 51.7,
+      "lateralPct": 6.9,
+      "topRoles": {
+        "ST": {
+          "total": 15,
+          "backward": 10,
+          "forward": 4,
+          "lateral": 1
+        },
+        "CM": {
+          "total": 5,
+          "backward": 1,
+          "forward": 4,
+          "lateral": 0
+        },
+        "RB": {
+          "total": 4,
+          "backward": 0,
+          "forward": 3,
+          "lateral": 1
+        },
+        "CB": {
+          "total": 2,
+          "backward": 0,
+          "forward": 2,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 2,
+          "backward": 0,
+          "forward": 2,
+          "lateral": 0
+        },
+        "LB": {
+          "total": 1,
+          "backward": 1,
+          "forward": 0,
+          "lateral": 0
+        }
+      }
+    },
+    "B": {
+      "team": "Austin FC",
+      "total": 30,
+      "avgProgress": 1.27,
+      "backwardPct": 33.3,
+      "forwardPct": 56.7,
+      "lateralPct": 10,
+      "topRoles": {
+        "CM": {
+          "total": 10,
+          "backward": 2,
+          "forward": 6,
+          "lateral": 2
+        },
+        "ST": {
+          "total": 6,
+          "backward": 1,
+          "forward": 5,
+          "lateral": 0
+        },
+        "LB": {
+          "total": 4,
+          "backward": 3,
+          "forward": 1,
+          "lateral": 0
+        },
+        "LM": {
+          "total": 4,
+          "backward": 2,
+          "forward": 2,
+          "lateral": 0
+        },
+        "CB": {
+          "total": 3,
+          "backward": 1,
+          "forward": 2,
+          "lateral": 0
+        },
+        "RM": {
+          "total": 2,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 0
+        },
+        "DM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        }
+      }
+    }
+  },
+  "passDecisionSummary": {
+    "total": 59,
+    "attackerBackpassesInFinalThird": 8,
+    "attackerBackpassesInBox": 0,
+    "directBlockerPassDecisions": 0,
+    "topHoldReasons": {
+      "none": 29,
+      "carry_preferred": 16,
+      "striker_blocked_shot_escape": 9,
+      "reject_advanced_no_recycle": 5
+    },
+    "recentAttackerBackpasses": [
+      {
+        "timestamp": 1777608417478,
+        "team": "A",
+        "passer": "Wessam Abou Ali",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": false,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 13.25,
+        "carrierZ": -4.7,
+        "passSkill": 0.7702597230562857,
+        "dribbleSkill": 0.9327141873833047,
+        "passLaneTraffic": 0.55,
+        "passFrontBlockerLateral": 1.18,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 16.28,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Darlington Nagbe",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 7.3,
+        "forwardProg": -7.3,
+        "passNearestOppDist": 2.04,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608419915,
+        "team": "A",
+        "passer": "Max Arfsten",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": 20.57,
+        "carrierZ": -0.58,
+        "passSkill": 0.6433104113743617,
+        "dribbleSkill": 0.8908943769636546,
+        "passLaneTraffic": 1.55,
+        "passFrontBlockerLateral": 1.22,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 9.27,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0.56,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 18,
+        "boxDecisionLoopCount": 5,
+        "boxDecisionLoopSeconds": 0.13,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.81,
+        "strikerHesitationLoops": 26,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 4,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Darlington Nagbe",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 11.1,
+        "forwardProg": -8.9,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": false,
+        "strikerHesitationShotForce": true
+      },
+      {
+        "timestamp": 1777608421571,
+        "team": "A",
+        "passer": "Wessam Abou Ali",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": false,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": 20.61,
+        "carrierZ": -3.81,
+        "passSkill": 0.7702597230562857,
+        "dribbleSkill": 0.9327141873833047,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 9.65,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0.81,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 26,
+        "boxDecisionLoopCount": 2,
+        "boxDecisionLoopSeconds": 0.03,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.97,
+        "strikerHesitationLoops": 31,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 5,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Darlington Nagbe",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 10.8,
+        "forwardProg": -9.9,
+        "passNearestOppDist": 1.1,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": false,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608500480,
+        "team": "B",
+        "passer": "Brandon Vazquez",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -12.16,
+        "carrierZ": -2.63,
+        "passSkill": 0.6630505255143658,
+        "dribbleSkill": 0.8565284337351582,
+        "passLaneTraffic": 1.1,
+        "passFrontBlockerLateral": 1.17,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 3,
+        "nearestMidfieldSupportDist": 3.59,
+        "keeperDistToCarrier": 16.99,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Diego Rubio",
+        "targetRole": "CM",
+        "passStyle": "BACK",
+        "passDist": 3.6,
+        "forwardProg": -3.1,
+        "passNearestOppDist": 1.98,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608580636,
+        "team": "A",
+        "passer": "Max Arfsten",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -11.34,
+        "carrierZ": 0.24,
+        "passSkill": 0.6433104113743617,
+        "dribbleSkill": 0.8908943769636546,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 17.63,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Diego Rossi",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 11.9,
+        "forwardProg": -9.4,
+        "passNearestOppDist": 6.72,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608598637,
+        "team": "A",
+        "passer": "Max Arfsten",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -13.49,
+        "carrierZ": -0.96,
+        "passSkill": 0.6433104113743617,
+        "dribbleSkill": 0.8908943769636546,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 15.51,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.06,
+        "strikerHesitationLoops": 2,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 4,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.16,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Wessam Abou Ali",
+        "targetRole": "ST",
+        "passStyle": "BACK",
+        "passDist": 4.8,
+        "forwardProg": -4.7,
+        "passNearestOppDist": 6.3,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608599668,
+        "team": "A",
+        "passer": "Wessam Abou Ali",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_CENTRAL",
+        "carrierX": -12.6,
+        "carrierZ": 0.22,
+        "passSkill": 0.7702597230562857,
+        "dribbleSkill": 0.9327141873833047,
+        "passLaneTraffic": 0.55,
+        "passFrontBlockerLateral": 2.07,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 1,
+        "nearestMidfieldSupportDist": 4.37,
+        "keeperDistToCarrier": 16.37,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": true,
+        "finalThirdRecycleVeto": true,
+        "advancedNoRecycleCooldown": 0.47,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0,
+        "strikerHesitationLoops": 0,
+        "strikerHesitationZone": false,
+        "activePatternTouchCount": 1,
+        "activePatternTouchFloor": 3,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.28,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Dylan Chambost",
+        "targetRole": "RM",
+        "passStyle": "BACK",
+        "passDist": 4.4,
+        "forwardProg": -4.1,
+        "passNearestOppDist": 2.46,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      },
+      {
+        "timestamp": 1777608621950,
+        "team": "A",
+        "passer": "Wessam Abou Ali",
+        "passerRole": "ST",
+        "decisionBranch": "SIMPLE",
+        "closePressure": 0,
+        "inFinalThird": true,
+        "insidePenaltyArea": false,
+        "inShootingLane": true,
+        "carrierZone": "FINAL_THIRD_HALFSPACE",
+        "carrierX": -15.34,
+        "carrierZ": 3.7,
+        "passSkill": 0.7702597230562857,
+        "dribbleSkill": 0.9327141873833047,
+        "passLaneTraffic": 0,
+        "passFrontBlockerLateral": null,
+        "passDirectBlocker": false,
+        "midfieldSupportCount": 0,
+        "nearestMidfieldSupportDist": null,
+        "keeperDistToCarrier": 14.45,
+        "preferredShotWindowOpen": false,
+        "supportedShotWindowOpen": false,
+        "earlyCentralShotWindow": false,
+        "faceToFaceWithKeeper": false,
+        "tooCloseToKeeperCarryPenalty": false,
+        "overcarriedCentralChance": false,
+        "badAngleCloseRangeShotVeto": false,
+        "keeperProximityShotForce": false,
+        "goalmouthDwellSeconds": 0,
+        "goalmouthIdleSeconds": 0,
+        "goalmouthNoActionCount": 0,
+        "boxDecisionLoopCount": 0,
+        "boxDecisionLoopSeconds": 0,
+        "anyBoxBackpassVeto": false,
+        "advancedNoRecycleVeto": false,
+        "finalThirdRecycleVeto": false,
+        "advancedNoRecycleCooldown": 0,
+        "boxIndecisionShotForce": false,
+        "strikerHesitationSeconds": 0.38,
+        "strikerHesitationLoops": 12,
+        "strikerHesitationZone": true,
+        "activePatternTouchCount": 2,
+        "activePatternTouchFloor": 2,
+        "patternTouchFloorPassRequired": false,
+        "patternNeedsTouchBeforeShot": false,
+        "patternShotQualityPenalty": 0.34,
+        "wideCarrierCutbackWindow": false,
+        "deadPocketCarrier": false,
+        "deadPocketNoHold": false,
+        "deadPocketShotWindow": false,
+        "crossTargetAvailable": false,
+        "centralCutbackPassAvailable": false,
+        "missedShotWindowOpen": false,
+        "decisionType": "AI_SIMPLE",
+        "simpleModel": true,
+        "target": "Diego Rossi",
+        "targetRole": "LM",
+        "passStyle": "BACK",
+        "passDist": 6.2,
+        "forwardProg": -5.6,
+        "passNearestOppDist": 6.83,
+        "hasForwardPassOption": false,
+        "shouldPass": true,
+        "forceRecycle": true,
+        "holdReason": "striker_blocked_shot_escape",
+        "telemetryCoachSuppressedShot": true,
+        "strikerHesitationShotForce": false
+      }
+    ]
+  },
+  "shotDecisionSummary": {
+    "total": 4,
+    "forcedShots": 0,
+    "selectedShots": 1,
+    "desperationShots": 0,
+    "goalLineForces": 0,
+    "longRangeDecisions": 3,
+    "pressuredLongRangeDecisions": 2,
+    "aiSimpleDecisions": 3,
+    "aiSimpleBrokenRows": 0,
+    "forcedAiSimpleBrokenRows": 0,
+    "aiSimpleBrokenPct": 0,
+    "recentForcedShots": []
+  },
+  "movement": {
+    "carrierTraceCount": 512,
+    "attackerZoneTraceCount": 436,
+    "carriersTracked": 17,
+    "totalForwardCarrySamples": 242,
+    "totalLateralFlips": 75,
+    "totalSwitchRequests": 61,
+    "totalBlockedSwitches": 61,
+    "totalCarryLockSamples": 204,
+    "avgForwardProgressPerFlip": 1.07,
+    "facingMovementMismatchPct": 16.8,
+    "desiredSteerMismatchPct": 11.1,
+    "topZigzagOffenders": [
+      {
+        "carrier": "Brandon Vazquez",
+        "team": "B",
+        "role": "ST",
+        "traces": 43,
+        "forwardCarrySamples": 31,
+        "lateralFlips": 11,
+        "lateralFlipRate": 0.37,
+        "switchRequests": 4,
+        "blockedSwitches": 4,
+        "carryLockSamples": 7,
+        "avgForwardProgressPerFlip": 1.11,
+        "facingMovementMismatchPct": 27.5,
+        "desiredSteerMismatchPct": 20.9
+      },
+      {
+        "carrier": "Osman Bukari",
+        "team": "B",
+        "role": "RM",
+        "traces": 44,
+        "forwardCarrySamples": 23,
+        "lateralFlips": 10,
+        "lateralFlipRate": 0.45,
+        "switchRequests": 2,
+        "blockedSwitches": 2,
+        "carryLockSamples": 9,
+        "avgForwardProgressPerFlip": 1.02,
+        "facingMovementMismatchPct": 11.6,
+        "desiredSteerMismatchPct": 4.7
+      },
+      {
+        "carrier": "Max Arfsten",
+        "team": "A",
+        "role": "ST",
+        "traces": 54,
+        "forwardCarrySamples": 23,
+        "lateralFlips": 9,
+        "lateralFlipRate": 0.41,
+        "switchRequests": 10,
+        "blockedSwitches": 10,
+        "carryLockSamples": 37,
+        "avgForwardProgressPerFlip": 2.06,
+        "facingMovementMismatchPct": 17,
+        "desiredSteerMismatchPct": 19.2
+      },
+      {
+        "carrier": "Myrto Uzuni",
+        "team": "B",
+        "role": "LM",
+        "traces": 31,
+        "forwardCarrySamples": 25,
+        "lateralFlips": 9,
+        "lateralFlipRate": 0.38,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.02,
+        "facingMovementMismatchPct": 44.8,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Malte Amundsen",
+        "team": "A",
+        "role": "RB",
+        "traces": 64,
+        "forwardCarrySamples": 20,
+        "lateralFlips": 8,
+        "lateralFlipRate": 0.42,
+        "switchRequests": 26,
+        "blockedSwitches": 26,
+        "carryLockSamples": 2,
+        "avgForwardProgressPerFlip": 0.59,
+        "facingMovementMismatchPct": 7.9,
+        "desiredSteerMismatchPct": 12.7
+      },
+      {
+        "carrier": "Diego Rubio",
+        "team": "B",
+        "role": "CM",
+        "traces": 42,
+        "forwardCarrySamples": 26,
+        "lateralFlips": 7,
+        "lateralFlipRate": 0.28,
+        "switchRequests": 3,
+        "blockedSwitches": 3,
+        "carryLockSamples": 28,
+        "avgForwardProgressPerFlip": 2.59,
+        "facingMovementMismatchPct": 24.2,
+        "desiredSteerMismatchPct": 16.7
+      },
+      {
+        "carrier": "Oleksandr Svatok",
+        "team": "B",
+        "role": "LB",
+        "traces": 45,
+        "forwardCarrySamples": 16,
+        "lateralFlips": 5,
+        "lateralFlipRate": 0.33,
+        "switchRequests": 7,
+        "blockedSwitches": 7,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0.21,
+        "facingMovementMismatchPct": 4.5,
+        "desiredSteerMismatchPct": 2.2
+      },
+      {
+        "carrier": "Wessam Abou Ali",
+        "team": "A",
+        "role": "ST",
+        "traces": 57,
+        "forwardCarrySamples": 24,
+        "lateralFlips": 4,
+        "lateralFlipRate": 0.17,
+        "switchRequests": 2,
+        "blockedSwitches": 2,
+        "carryLockSamples": 55,
+        "avgForwardProgressPerFlip": 0.75,
+        "facingMovementMismatchPct": 17.4,
+        "desiredSteerMismatchPct": 13
+      }
+    ]
+  },
+  "boxBehavior": {
+    "totalBoxTraces": 5,
+    "playersTracked": 2,
+    "topBoxLoiterers": [
+      {
+        "player": "Max Arfsten",
+        "team": "A",
+        "role": "ST",
+        "traces": 1,
+        "maxBoxDwellSeconds": 0.5,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      },
+      {
+        "player": "Myrto Uzuni",
+        "team": "B",
+        "role": "LM",
+        "traces": 4,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      }
+    ]
+  },
+  "shotSupport": [
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Wessam Abou Ali",
+      "shooterRole": "ST",
+      "nearestMid": 7.2,
+      "secondMid": 18.4
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 1,
+      "shooter": "Julio Cascante",
+      "shooterRole": "CB",
+      "nearestMid": 4.5,
+      "secondMid": 8.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 2,
+      "shooter": "Malte Amundsen",
+      "shooterRole": "RB",
+      "nearestMid": 9.8,
+      "secondMid": 12
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 43,
+      "shooter": "Max Arfsten",
+      "shooterRole": "ST",
+      "nearestMid": 25.5,
+      "secondMid": 32.2
+    }
+  ],
+  "shape": {
+    "A": {
+      "team": "Columbus Crew",
+      "snapshots": 58,
+      "avgWidth": 16.71,
+      "minWidth": 4.2,
+      "maxWidth": 28.9,
+      "avgDepth": 27.48,
+      "avgCompactness": 10.08,
+      "avgAbsAvgZ": 1.43,
+      "centerLockedPct": 91.4,
+      "narrowPct": 58.6,
+      "centerAndNarrowPct": 55.2
+    },
+    "B": {
+      "team": "Austin FC",
+      "snapshots": 58,
+      "avgWidth": 20.53,
+      "minWidth": 5.8,
+      "maxWidth": 34.7,
+      "avgDepth": 25.69,
+      "avgCompactness": 10.03,
+      "avgAbsAvgZ": 1.61,
+      "centerLockedPct": 84.5,
+      "narrowPct": 41.4,
+      "centerAndNarrowPct": 32.8
+    }
+  },
+  "roleCentrality": {
+    "A": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    },
+    "B": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    }
+  },
+  "positionOwners": {
+    "samples": 4153,
+    "byTeam": {
+      "A": {
+        "PHASE_HOME": 1218,
+        "BOX_COVER": 430,
+        "PATTERN_ROLE": 167,
+        "WIDE_HOME": 23,
+        "BOX_CRASH": 20,
+        "STRUCTURED_ATTACK": 75,
+        "DANGER_MARK": 113,
+        "COLLAPSE_DEFEND": 6
+      },
+      "B": {
+        "WIDE_HOME": 21,
+        "PHASE_HOME": 1172,
+        "BOX_COVER": 469,
+        "DANGER_MARK": 78,
+        "COLLAPSE_DEFEND": 1,
+        "PATTERN_ROLE": 151,
+        "STRUCTURED_ATTACK": 193,
+        "BOX_CRASH": 16
+      }
+    },
+    "wide": {
+      "A": {
+        "samples": 851,
+        "avgAbsZ": 4.19,
+        "avgTargetAbsZ": 7.7,
+        "byOwner": {
+          "PHASE_HOME": 469,
+          "BOX_COVER": 174,
+          "PATTERN_ROLE": 73,
+          "WIDE_HOME": 23,
+          "BOX_CRASH": 12,
+          "STRUCTURED_ATTACK": 24,
+          "DANGER_MARK": 74,
+          "COLLAPSE_DEFEND": 2
+        }
+      },
+      "B": {
+        "samples": 841,
+        "avgAbsZ": 5.29,
+        "avgTargetAbsZ": 7.4,
+        "byOwner": {
+          "WIDE_HOME": 21,
+          "BOX_COVER": 194,
+          "PHASE_HOME": 456,
+          "DANGER_MARK": 28,
+          "PATTERN_ROLE": 67,
+          "STRUCTURED_ATTACK": 65,
+          "BOX_CRASH": 10
+        }
+      }
+    }
+  },
+  "eventStream": {
+    "totalShots": 4,
+    "onTargetShots": 0,
+    "goals": 0,
+    "longRangeOnTargetCount": 0,
+    "closeRangeBadAngleCount": 0,
+    "toePokesOnTargetCount": 0,
+    "attackerResetPassCount": 12,
+    "longRangeOnTarget": [],
+    "closeRangeBadAngles": [],
+    "toePokesOnTarget": [],
+    "attackerResetPasses": [
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "WALL",
+        "progress": -2.4,
+        "distToGoal": 23.5
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -7.3,
+        "distToGoal": 19.5
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -8.9,
+        "distToGoal": 12.2
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -9.9,
+        "distToGoal": 12.2
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "LM",
+        "style": "WALL",
+        "progress": -12.7,
+        "distToGoal": 22.9
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -3.1,
+        "distToGoal": 20.6
+      },
+      {
+        "minute": 1,
+        "team": "B",
+        "role": "LM",
+        "style": "BACK",
+        "progress": -7.2,
+        "distToGoal": 12.9
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -9.4,
+        "distToGoal": 21.5
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": 0.7,
+        "distToGoal": 33.2
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4.7,
+        "distToGoal": 19.3
+      },
+      {
+        "minute": 42,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4.1,
+        "distToGoal": 20.2
+      },
+      {
+        "minute": 43,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -5.6,
+        "distToGoal": 17.5
+      }
+    ]
+  },
+  "baselines": {
+    "global": {
+      "totalGoals": {
+        "simulated": 0,
+        "baseline": 2.78,
+        "drift": -2.78
+      },
+      "totalShots": {
+        "simulated": 4,
+        "baseline": 26.2,
+        "drift": -22.2
+      },
+      "totalShotsOnTarget": {
+        "simulated": 0,
+        "baseline": 9.4,
+        "drift": -9.4
+      },
+      "totalCorners": {
+        "simulated": 2,
+        "baseline": 8,
+        "drift": -6
+      }
+    },
+    "teamComparison": [
+      {
+        "team": "Columbus Crew",
+        "simulated": {
+          "goals": 0,
+          "shots": 3,
+          "shotsOnTarget": 0,
+          "passCompletionPct": 0,
+          "possessionPct": 48,
+          "corners": 0
+        },
+        "baseline": null
+      },
+      {
+        "team": "Austin FC",
+        "simulated": {
+          "goals": 0,
+          "shots": 1,
+          "shotsOnTarget": 0,
+          "passCompletionPct": 0,
+          "possessionPct": 52,
+          "corners": 2
+        },
+        "baseline": {
+          "goals": 1.88,
+          "shots": 12.9,
+          "shotsOnTarget": 4.6,
+          "passCompletionPct": 75,
+          "possessionPct": 49,
+          "corners": 3.9
+        }
+      }
+    ]
+  },
+  "phaseTime": {
+    "A": {
+      "samples": 250,
+      "buildupPct": 3.2,
+      "progressionPct": 66.8,
+      "chanceCreationPct": 23.6,
+      "finishPct": 6.4
+    },
+    "B": {
+      "samples": 262,
+      "buildupPct": 3.1,
+      "progressionPct": 67.6,
+      "chanceCreationPct": 25.6,
+      "finishPct": 3.8
+    }
+  },
+  "passByZone": {
+    "evaluated": {
+      "FINAL_THIRD_HALFSPACE": 4,
+      "FINAL_THIRD_CENTRAL": 5,
+      "BUILDUP_HALFSPACE": 22,
+      "BUILDUP_WIDE": 3,
+      "BUILDUP_CENTRAL": 25
+    },
+    "executed": {
+      "FINAL_THIRD_HALFSPACE": 4,
+      "FINAL_THIRD_CENTRAL": 5,
+      "BUILDUP_HALFSPACE": 17,
+      "BUILDUP_WIDE": 3,
+      "BUILDUP_CENTRAL": 9
+    }
+  },
+  "rolePositions": {
+    "A": [
+      {
+        "role": "LM",
+        "samples": 46,
+        "avgX": -1.52,
+        "avgAbsZ": 10.85,
+        "avgDistToGoal": 28.59,
+        "oppHalfSamples": 20,
+        "avgForwardXInOppHalf": 5.18,
+        "finalThirdSamples": 6,
+        "avgAbsZInFinalThird": 5.09
+      },
+      {
+        "role": "RM",
+        "samples": 34,
+        "avgX": 7.16,
+        "avgAbsZ": 9.87,
+        "avgDistToGoal": 22.42,
+        "oppHalfSamples": 26,
+        "avgForwardXInOppHalf": 12.46,
+        "finalThirdSamples": 19,
+        "avgAbsZInFinalThird": 9.64
+      },
+      {
+        "role": "ST",
+        "samples": 173,
+        "avgX": 5.26,
+        "avgAbsZ": 5.51,
+        "avgDistToGoal": 23.17,
+        "oppHalfSamples": 125,
+        "avgForwardXInOppHalf": 10.7,
+        "finalThirdSamples": 54,
+        "avgAbsZInFinalThird": 6.99
+      }
+    ],
+    "B": [
+      {
+        "role": "LM",
+        "samples": 53,
+        "avgX": -7.96,
+        "avgAbsZ": 5.97,
+        "avgDistToGoal": 20.83,
+        "oppHalfSamples": 36,
+        "avgForwardXInOppHalf": 15.3,
+        "finalThirdSamples": 22,
+        "avgAbsZInFinalThird": 6.88
+      },
+      {
+        "role": "RM",
+        "samples": 59,
+        "avgX": -0.95,
+        "avgAbsZ": 9.15,
+        "avgDistToGoal": 21.31,
+        "oppHalfSamples": 31,
+        "avgForwardXInOppHalf": 12.93,
+        "finalThirdSamples": 42,
+        "avgAbsZInFinalThird": 10.31
+      },
+      {
+        "role": "ST",
+        "samples": 71,
+        "avgX": -1.51,
+        "avgAbsZ": 4.65,
+        "avgDistToGoal": 23.25,
+        "oppHalfSamples": 37,
+        "avgForwardXInOppHalf": 10.61,
+        "finalThirdSamples": 17,
+        "avgAbsZInFinalThird": 5.56
+      }
+    ]
+  },
+  "patterns": {
+    "totalStarts": 57,
+    "totalEnds": 55,
+    "typesPerTeam": {
+      "A": {
+        "CENTRAL_COMBO": 7,
+        "COUNTER_ATTACK": 10,
+        "PATIENT_BUILDUP": 4,
+        "WING_ATTACK_RIGHT": 4,
+        "WING_ATTACK_LEFT": 4
+      },
+      "B": {
+        "CENTRAL_COMBO": 5,
+        "WING_ATTACK_LEFT": 7,
+        "PATIENT_BUILDUP": 5,
+        "COUNTER_ATTACK": 8,
+        "WING_ATTACK_RIGHT": 3
+      }
+    },
+    "distinctTypesA": 5,
+    "distinctTypesB": 5,
+    "avgDurationByType": {
+      "CENTRAL_COMBO": 10.26,
+      "WING_ATTACK_LEFT": 5.13,
+      "COUNTER_ATTACK": 3.57,
+      "PATIENT_BUILDUP": 2.3,
+      "WING_ATTACK_RIGHT": 5.55
+    },
+    "endReasonCounts": {
+      "possession_lost": 41,
+      "invalidated": 14
+    },
+    "shotsByActivePattern": {
+      "CENTRAL_COMBO": 1,
+      "WING_ATTACK_LEFT": 2,
+      "COUNTER_ATTACK": 1
+    },
+    "goalsByActivePattern": {},
+    "patternsPerTeamA": 29,
+    "patternsPerTeamB": 28
+  },
+  "patternRoleAlignment": {
+    "WALL": {
+      "samples": 41,
+      "avgForwardX": 2.68,
+      "avgAbsZ": 2.81,
+      "avgDistToGoal": 23.12
+    },
+    "RUNNER": {
+      "samples": 145,
+      "avgForwardX": 5.15,
+      "avgAbsZ": 5.3,
+      "avgDistToGoal": 22.71
+    },
+    "NEAR_POST_RUNNER": {
+      "samples": 64,
+      "avgForwardX": 2.71,
+      "avgAbsZ": 7.88,
+      "avgDistToGoal": 22.18
+    },
+    "FAR_POST_RUNNER": {
+      "samples": 48,
+      "avgForwardX": 0.36,
+      "avgAbsZ": 8.64,
+      "avgDistToGoal": 20.26
+    },
+    "CARRIER": {
+      "samples": 41,
+      "avgForwardX": -1.28,
+      "avgAbsZ": 5.72,
+      "avgDistToGoal": 22.84
+    }
+  },
+  "carrierTrajectories": {
+    "totalSegments": 42,
+    "avgBLineRatio": 0.75,
+    "straightRunsOver15Units": 9,
+    "byLineRunSegments": [
+      {
+        "carrier": "Besard Sabovic",
+        "team": "B",
+        "duration": 8.91,
+        "directDist": 33.1,
+        "pathLength": 38.5,
+        "bLineRatio": 0.86
+      },
+      {
+        "carrier": "Max Arfsten",
+        "team": "A",
+        "duration": 3.75,
+        "directDist": 25.9,
+        "pathLength": 26.3,
+        "bLineRatio": 0.98
+      },
+      {
+        "carrier": "Wessam Abou Ali",
+        "team": "A",
+        "duration": 7.5,
+        "directDist": 18.5,
+        "pathLength": 18.8,
+        "bLineRatio": 0.98
+      },
+      {
+        "carrier": "Max Arfsten",
+        "team": "A",
+        "duration": 2.63,
+        "directDist": 17.8,
+        "pathLength": 18.2,
+        "bLineRatio": 0.97
+      },
+      {
+        "carrier": "Besard Sabovic",
+        "team": "B",
+        "duration": 2.63,
+        "directDist": 17.2,
+        "pathLength": 18.1,
+        "bLineRatio": 0.95
+      },
+      {
+        "carrier": "Wessam Abou Ali",
+        "team": "A",
+        "duration": 1.87,
+        "directDist": 16.9,
+        "pathLength": 16.9,
+        "bLineRatio": 1
+      },
+      {
+        "carrier": "Max Arfsten",
+        "team": "A",
+        "duration": 3,
+        "directDist": 16.3,
+        "pathLength": 17.5,
+        "bLineRatio": 0.93
+      },
+      {
+        "carrier": "Brandon Vazquez",
+        "team": "B",
+        "duration": 3.38,
+        "directDist": 16.2,
+        "pathLength": 17.6,
+        "bLineRatio": 0.92
+      }
+    ],
+    "curlingSegments": 3,
+    "totalFlips": 47,
+    "totalFlippyCarriers": 2,
+    "flipsByTeam": {
+      "A": 21,
+      "B": 26
+    },
+    "flipsByTeamHalf": {
+      "A1": 11,
+      "A2": 10,
+      "B1": 17,
+      "B2": 9
+    },
+    "flipsByDirection": {
+      "L2R": 20,
+      "R2L": 27
+    },
+    "segmentsByTeam": {
+      "A": 20,
+      "B": 22
+    },
+    "segmentsByDirection": {
+      "L2R": 21,
+      "R2L": 21
+    },
+    "segmentsByTeamHalf": {
+      "A1": 11,
+      "A2": 9,
+      "B1": 13,
+      "B2": 9
+    }
+  },
+  "multiTouchOppHalf": {
+    "totalSequences": 27,
+    "multiTouchOppHalfCount": 14,
+    "totalOppHalfTouches": 79,
+    "avgDistinctPlayersPerSequence": 1.93,
+    "exampleSequences": [
+      {
+        "team": "A",
+        "players": [
+          "Osman Bukari",
+          "CM",
+          "Darlington Nagbe",
+          "Max Arfsten",
+          "Wessam Abou Ali",
+          "ST"
+        ],
+        "touchCount": 19,
+        "firstTouchAt": 3.09
+      },
+      {
+        "team": "B",
+        "players": [
+          "Oleksandr Svatok",
+          "Mikkel Desler",
+          "CB"
+        ],
+        "touchCount": 4,
+        "firstTouchAt": 54.5
+      },
+      {
+        "team": "B",
+        "players": [
+          "Brandon Vazquez",
+          "Julio Cascante"
+        ],
+        "touchCount": 2,
+        "firstTouchAt": 69.72
+      },
+      {
+        "team": "B",
+        "players": [
+          "Myrto Uzuni",
+          "Mikkel Desler",
+          "Brandon Vazquez",
+          "Diego Rubio"
+        ],
+        "touchCount": 10,
+        "firstTouchAt": 79.59
+      },
+      {
+        "team": "A",
+        "players": [
+          "Malte Amundsen",
+          "Wessam Abou Ali"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 112.94
+      },
+      {
+        "team": "A",
+        "players": [
+          "Oleksandr Svatok",
+          "ST",
+          "Max Arfsten",
+          "Malte Amundsen",
+          "RB"
+        ],
+        "touchCount": 5,
+        "firstTouchAt": 124
+      }
+    ]
+  },
+  "finalThirdOverloads": {
+    "A": {
+      "totalBuckets": 34,
+      "bucketsWithOverload": 3,
+      "maxAttackersInBucket": 3
+    },
+    "B": {
+      "totalBuckets": 36,
+      "bucketsWithOverload": 11,
+      "maxAttackersInBucket": 3
+    }
+  },
+  "dangerMarking": {
+    "samples": 88,
+    "byTeam": {
+      "A": {
+        "samples": 40,
+        "marked": 24,
+        "unmarked": 16,
+        "markedPct": 60,
+        "avgNearestDefenderDist": 3.3,
+        "worstSamples": [
+          {
+            "t": 117.8,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 4.2,
+            "nearestDefenderDist": 10.37,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 118.5,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 3.5,
+            "nearestDefenderDist": 10.18,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 116.3,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 6.8,
+            "nearestDefenderDist": 9.13,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 117,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 5.3,
+            "nearestDefenderDist": 9.12,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 115.6,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "BYLINE",
+            "distToGoal": 8.3,
+            "nearestDefenderDist": 9.08,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 114.9,
+            "player": "Wessam Abou Ali",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 9.9,
+            "nearestDefenderDist": 6.76,
+            "patternRole": "NEAR_POST_RUNNER"
+          }
+        ]
+      },
+      "B": {
+        "samples": 48,
+        "marked": 27,
+        "unmarked": 21,
+        "markedPct": 56.3,
+        "avgNearestDefenderDist": 3.08,
+        "worstSamples": [
+          {
+            "t": 159.5,
+            "player": "Osman Bukari",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.6,
+            "nearestDefenderDist": 7.94,
+            "patternRole": "FAR_POST_RUNNER"
+          },
+          {
+            "t": 55.4,
+            "player": "Brandon Vazquez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.1,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 52.9,
+            "player": "Brandon Vazquez",
+            "role": "ST",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.4,
+            "nearestDefenderDist": 7.09,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 60.3,
+            "player": "Myrto Uzuni",
+            "role": "LM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 11.2,
+            "nearestDefenderDist": 6.29,
+            "patternRole": "RUNNER"
+          },
+          {
+            "t": 160.4,
+            "player": "Osman Bukari",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 17.5,
+            "nearestDefenderDist": 6.28,
+            "patternRole": "FAR_POST_RUNNER"
+          },
+          {
+            "t": 177.7,
+            "player": "Osman Bukari",
+            "role": "RM",
+            "zone": "FINAL_THIRD_HALFSPACE",
+            "distToGoal": 18.6,
+            "nearestDefenderDist": 5.88,
+            "patternRole": "CARRIER"
+          }
+        ]
+      }
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goalCount": 0,
+    "avgDefendersInBox": 0,
+    "avgAttackersInBox": 0,
+    "distribution": {},
+    "samples": []
+  },
+  "shotBoxDefense": {
+    "shots": 4,
+    "avgDefendersInBox": 5.25,
+    "avgDefendersInCorridor": 4.5,
+    "emptyBoxShots": 0,
+    "emptyCorridorShots": 0,
+    "samples": [
+      {
+        "t": 11.1,
+        "team": "A",
+        "shooter": "Wessam Abou Ali",
+        "shooterRole": "ST",
+        "ballX": 19.8,
+        "ballZ": -5.3,
+        "defendersInBox": 5,
+        "defendersInCorridor": 6
+      },
+      {
+        "t": 63,
+        "team": "B",
+        "shooter": "Julio Cascante",
+        "shooterRole": "CB",
+        "ballX": -20.3,
+        "ballZ": -7.3,
+        "defendersInBox": 7,
+        "defendersInCorridor": 5
+      },
+      {
+        "t": 134.9,
+        "team": "A",
+        "shooter": "Malte Amundsen",
+        "shooterRole": "RB",
+        "ballX": 19.5,
+        "ballZ": -10.6,
+        "defendersInBox": 3,
+        "defendersInCorridor": 1
+      },
+      {
+        "t": 229.9,
+        "team": "A",
+        "shooter": "Max Arfsten",
+        "shooterRole": "ST",
+        "ballX": -17.7,
+        "ballZ": -3.6,
+        "defendersInBox": 6,
+        "defendersInCorridor": 6
+      }
+    ]
+  },
+  "kickoffGoalCorrelation": {
+    "kickoffPasses": 2,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "byTeam": {
+      "A": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Max Arfsten",
+            "role": "ST",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      },
+      "B": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Osman Bukari",
+            "role": "RM",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      }
+    }
+  },
+  "patternTempo": {
+    "CENTRAL_COMBO": {
+      "count": 12,
+      "multiTouchCount": 3,
+      "avgTouches": 1.33,
+      "avgDuration": 4.58,
+      "avgPace": -3.01,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        2.5,
+        6
+      ],
+      "expectedLabel": "short sharp",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "COUNTER_ATTACK": {
+      "count": 18,
+      "multiTouchCount": 4,
+      "avgTouches": 1.17,
+      "avgDuration": 6.34,
+      "avgPace": -4.83,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        4,
+        12
+      ],
+      "expectedLabel": "fast direct",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "PATIENT_BUILDUP": {
+      "count": 9,
+      "multiTouchCount": 0,
+      "avgTouches": 0.78,
+      "avgDuration": 0,
+      "avgPace": null,
+      "expectedTouches": [
+        3,
+        7
+      ],
+      "expectedPace": [
+        1,
+        4
+      ],
+      "expectedLabel": "deliberate",
+      "touchFit": "TOO_FEW",
+      "paceFit": "no_multi_touch_data"
+    },
+    "WING_ATTACK_RIGHT": {
+      "count": 7,
+      "multiTouchCount": 2,
+      "avgTouches": 1,
+      "avgDuration": 3.92,
+      "avgPace": -6.5,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_LEFT": {
+      "count": 11,
+      "multiTouchCount": 1,
+      "avgTouches": 0.73,
+      "avgDuration": 8.15,
+      "avgPace": 0.61,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "TOO_SLOW"
+    }
+  },
+  "neoPlays": {
+    "outcomeWindowSeconds": 8,
+    "totalStarts": 57,
+    "totalDeliveries": 11,
+    "totalShotCreatingDeliveries": 5,
+    "totalGoalCreatingDeliveries": 0,
+    "effectivenessPct": 45.5,
+    "goalRatePct": 0,
+    "byPlay": {
+      "GIVE_AND_GO": {
+        "playName": "GIVE_AND_GO",
+        "patternTypes": {
+          "CENTRAL_COMBO": 16
+        },
+        "starts": 12,
+        "deliveries": 4,
+        "crosses": 0,
+        "shotCreatingDeliveries": 3,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 75,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "A",
+            "t": 3.1,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Darlington Nagbe",
+            "passerRole": "CARRIER",
+            "target": "Max Arfsten",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": 8,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 4.3,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Max Arfsten",
+            "passerRole": "WALL",
+            "target": "Wessam Abou Ali",
+            "targetRole": "RUNNER",
+            "style": "WALL",
+            "shotWithinSeconds": 6.8,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 6.8,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Darlington Nagbe",
+            "passerRole": "CARRIER",
+            "target": "Max Arfsten",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": 4.3,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 83.6,
+            "patternType": "CENTRAL_COMBO",
+            "passer": "Diego Rubio",
+            "passerRole": "NONE",
+            "target": "Brandon Vazquez",
+            "targetRole": "WALL",
+            "style": "WALL",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "WING_ATTACK_LEFT": {
+        "playName": "WING_ATTACK_LEFT",
+        "patternTypes": {
+          "WING_ATTACK_LEFT": 11
+        },
+        "starts": 11,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "COUNTER_ATTACK": {
+        "playName": "COUNTER_ATTACK",
+        "patternTypes": {
+          "COUNTER_ATTACK": 18
+        },
+        "starts": 18,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "PATIENT_BUILDUP": {
+        "playName": "PATIENT_BUILDUP",
+        "patternTypes": {
+          "PATIENT_BUILDUP": 9
+        },
+        "starts": 9,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "WING_ATTACK_RIGHT": {
+        "playName": "WING_ATTACK_RIGHT",
+        "patternTypes": {
+          "WING_ATTACK_RIGHT": 8
+        },
+        "starts": 7,
+        "deliveries": 1,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 213.6,
+            "patternType": "WING_ATTACK_RIGHT",
+            "passer": "Ilie Sánchez Farres",
+            "passerRole": null,
+            "target": "Myrto Uzuni",
+            "targetRole": "FAR_POST_RUNNER",
+            "style": "LONG_LOFTED",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      },
+      "STRUCTURED_WING_ATTACK": {
+        "playName": "STRUCTURED_WING_ATTACK",
+        "patternTypes": {
+          "STRUCTURED_WING_ATTACK": 6
+        },
+        "starts": 0,
+        "deliveries": 6,
+        "crosses": 4,
+        "shotCreatingDeliveries": 2,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 33.3,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "A",
+            "t": 10.6,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Darlington Nagbe",
+            "passerRole": null,
+            "target": "Wessam Abou Ali",
+            "targetRole": "NEAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 0.5,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 10.6,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Darlington Nagbe",
+            "passerRole": null,
+            "target": "Wessam Abou Ali",
+            "targetRole": "NEAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": 0.5,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "A",
+            "t": 112.9,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Malte Amundsen",
+            "passerRole": null,
+            "target": "Wessam Abou Ali",
+            "targetRole": "NEAR_POST",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 159.5,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Brandon Vazquez",
+            "passerRole": null,
+            "target": "Diego Rubio",
+            "targetRole": "CUTBACK",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 159.5,
+            "patternType": "STRUCTURED_WING_ATTACK",
+            "passer": "Brandon Vazquez",
+            "passerRole": null,
+            "target": "Diego Rubio",
+            "targetRole": "CUTBACK",
+            "style": "DRIVEN",
+            "shotWithinSeconds": null,
+            "goalWithinSeconds": null
+          }
+        ]
+      }
+    }
+  },
+  "patternCrosses": {
+    "total": 2,
+    "deliveries": 11,
+    "longLofted": 0,
+    "driven": 2,
+    "samples": [
+      {
+        "team": "A",
+        "passer": "Darlington Nagbe",
+        "target": "Wessam Abou Ali",
+        "targetRole": "NEAR_POST",
+        "style": "DRIVEN",
+        "crossDist": 6.8
+      },
+      {
+        "team": "B",
+        "passer": "Brandon Vazquez",
+        "target": "Diego Rubio",
+        "targetRole": "CUTBACK",
+        "style": "DRIVEN",
+        "crossDist": 14.8
+      }
+    ]
+  },
+  "kpis": {
+    "baselineFit": {
+      "score": 16,
+      "inputs": {
+        "goals": 0,
+        "shots": 4,
+        "shotsOnTarget": 0,
+        "longRangeSot": 0,
+        "corners": 2
+      },
+      "target": "one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3",
+      "grade": "red"
+    },
+    "soccerStructure": {
+      "score": 65.8,
+      "inputs": {
+        "widthA": 16.71,
+        "widthB": 20.53,
+        "centerAndNarrowWorst": 55.2,
+        "finalThirdOverloadShare": 19.7,
+        "dangerMarkedPct": 58,
+        "shotCorridorDefenders": 4.5,
+        "emptyBoxShotPct": 0,
+        "avgPatternTouches": 1,
+        "realCrosses": 2
+      },
+      "target": "soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5",
+      "grade": "red"
+    },
+    "tuningEfficiency": {
+      "score": 74.3,
+      "inputs": {
+        "forcedShotSharePct": 0,
+        "attackerBackpasses": 8,
+        "zigzagFlips": 75,
+        "directBlockerPasses": 0,
+        "brokenShotRowsPct": 0
+      },
+      "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
+      "grade": "watch"
+    },
+    "overall": {
+      "score": 52,
+      "grade": "red"
+    }
+  },
+  "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+    "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+    "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+    "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band.",
+    "Carrier zigzagging is still present. Reduce repeated lateral sign flips by holding the current carry lane longer and tightening the link between desired heading, facing heading, and actual movement heading."
+  ]
+}

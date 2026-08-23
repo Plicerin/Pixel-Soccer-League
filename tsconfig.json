@@ -22,5 +22,14 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src-tauri/target",
+    "src-tauri/gen",
+    "telemetry",
+    "telemetry-snapshots.json",
+    "model_backup"
+  ]
 }

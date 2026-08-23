@@ -1,0 +1,1302 @@
+{
+  "generatedAt": "2026-05-03T11:56:11.195Z",
+  "match": {
+    "sessionId": "headless-report:nashville-stl-kickoff-fix3.json:0",
+    "matchId": "headless-nashville-stl-kickoff-fix3.json-0",
+    "timestamp": 1777809366364,
+    "teamA": "Nashville SC",
+    "teamB": "St. Louis City SC",
+    "score": "0-0",
+    "shotsA": 8,
+    "shotsB": 2,
+    "shotsOnTargetA": 1,
+    "shotsOnTargetB": 1
+  },
+  "counts": {
+    "events": 3177,
+    "passLog": 75,
+    "midfieldSupport": 0,
+    "carrierTraces": 225,
+    "attackerZoneTraces": 336,
+    "positionOwnerSamples": 2360,
+    "kickoffPasses": 1,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "shotSnapshots": 8,
+    "shotOnTargetSnapshots": 0,
+    "shotDecisions": 10,
+    "passDecisions": 49,
+    "turnovers": 18,
+    "interceptions": 0,
+    "fouls": 0,
+    "tackles": 0
+  },
+  "passProfile": {
+    "A": {
+      "team": "Nashville SC",
+      "total": 37,
+      "avgProgress": -0.54,
+      "backwardPct": 27,
+      "forwardPct": 10.8,
+      "lateralPct": 62.2,
+      "topRoles": {
+        "CM": {
+          "total": 15,
+          "backward": 4,
+          "forward": 1,
+          "lateral": 10
+        },
+        "ST": {
+          "total": 9,
+          "backward": 3,
+          "forward": 3,
+          "lateral": 3
+        },
+        "RM": {
+          "total": 6,
+          "backward": 3,
+          "forward": 0,
+          "lateral": 3
+        },
+        "LB": {
+          "total": 2,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 2
+        },
+        "RB": {
+          "total": 2,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 2
+        },
+        "CB": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        },
+        "DM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        },
+        "LM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        }
+      }
+    },
+    "B": {
+      "team": "St. Louis City SC",
+      "total": 38,
+      "avgProgress": 0.07,
+      "backwardPct": 7.9,
+      "forwardPct": 15.8,
+      "lateralPct": 76.3,
+      "topRoles": {
+        "DM": {
+          "total": 9,
+          "backward": 0,
+          "forward": 3,
+          "lateral": 6
+        },
+        "CB": {
+          "total": 8,
+          "backward": 1,
+          "forward": 1,
+          "lateral": 6
+        },
+        "ST": {
+          "total": 7,
+          "backward": 2,
+          "forward": 0,
+          "lateral": 5
+        },
+        "CM": {
+          "total": 7,
+          "backward": 0,
+          "forward": 2,
+          "lateral": 5
+        },
+        "RB": {
+          "total": 3,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 3
+        },
+        "LB": {
+          "total": 2,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 2
+        },
+        "LM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        },
+        "RM": {
+          "total": 1,
+          "backward": 0,
+          "forward": 0,
+          "lateral": 1
+        }
+      }
+    }
+  },
+  "passDecisionSummary": {
+    "total": 49,
+    "attackerBackpassesInFinalThird": 0,
+    "attackerBackpassesInBox": 0,
+    "directBlockerPassDecisions": 0,
+    "topHoldReasons": {
+      "none": 49
+    },
+    "recentAttackerBackpasses": []
+  },
+  "shotDecisionSummary": {
+    "total": 10,
+    "forcedShots": 8,
+    "selectedShots": 2,
+    "desperationShots": 0,
+    "goalLineForces": 0,
+    "longRangeDecisions": 8,
+    "pressuredLongRangeDecisions": 8,
+    "aiSimpleDecisions": 0,
+    "aiSimpleBrokenRows": 0,
+    "forcedAiSimpleBrokenRows": 0,
+    "aiSimpleBrokenPct": 0,
+    "recentForcedShots": [
+      {
+        "minute": 6.7,
+        "team": "A",
+        "shooter": "Jacob Shaffelburg",
+        "role": "RM",
+        "distYards": 49.1,
+        "pressure": 9,
+        "style": "CURLED"
+      },
+      {
+        "minute": 7.9,
+        "team": "A",
+        "shooter": "Jacob Shaffelburg",
+        "role": "RM",
+        "distYards": 47,
+        "pressure": 9,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 17.8,
+        "team": "A",
+        "shooter": "Sam Surridge",
+        "role": "ST",
+        "distYards": 46.8,
+        "pressure": 5,
+        "style": "CURLED"
+      },
+      {
+        "minute": 32.3,
+        "team": "B",
+        "shooter": "Cedric Teuchert",
+        "role": "CM",
+        "distYards": 33,
+        "pressure": 7,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 40.4,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "role": "CM",
+        "distYards": 48.9,
+        "pressure": 7,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 43.8,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "role": "CM",
+        "distYards": 43.4,
+        "pressure": 7,
+        "style": "CURLED"
+      },
+      {
+        "minute": 45,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "role": "CM",
+        "distYards": 46.1,
+        "pressure": 7,
+        "style": "LACES_DRIVE"
+      },
+      {
+        "minute": 56.4,
+        "team": "A",
+        "shooter": "Sam Surridge",
+        "role": "ST",
+        "distYards": 39.5,
+        "pressure": 7,
+        "style": "LACES_DRIVE"
+      }
+    ]
+  },
+  "movement": {
+    "carrierTraceCount": 225,
+    "attackerZoneTraceCount": 336,
+    "carriersTracked": 20,
+    "totalForwardCarrySamples": 0,
+    "totalLateralFlips": 0,
+    "totalSwitchRequests": 0,
+    "totalBlockedSwitches": 0,
+    "totalCarryLockSamples": 0,
+    "avgForwardProgressPerFlip": 0,
+    "facingMovementMismatchPct": 0,
+    "desiredSteerMismatchPct": 0,
+    "topZigzagOffenders": [
+      {
+        "carrier": "Joe Willis",
+        "team": "A",
+        "role": "GK",
+        "traces": 51,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Bryan Acosta",
+        "team": "A",
+        "role": "CM",
+        "traces": 40,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Sam Surridge",
+        "team": "A",
+        "role": "ST",
+        "traces": 29,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Jacob Shaffelburg",
+        "team": "A",
+        "role": "RM",
+        "traces": 22,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Marcel Hartel",
+        "team": "B",
+        "role": "DM",
+        "traces": 18,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Cedric Teuchert",
+        "team": "B",
+        "role": "CM",
+        "traces": 14,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "João Klauss de Mello",
+        "team": "B",
+        "role": "ST",
+        "traces": 13,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      },
+      {
+        "carrier": "Conrad Wallem",
+        "team": "B",
+        "role": "CB",
+        "traces": 9,
+        "forwardCarrySamples": 0,
+        "lateralFlips": 0,
+        "lateralFlipRate": 0,
+        "switchRequests": 0,
+        "blockedSwitches": 0,
+        "carryLockSamples": 0,
+        "avgForwardProgressPerFlip": 0,
+        "facingMovementMismatchPct": 0,
+        "desiredSteerMismatchPct": 0
+      }
+    ]
+  },
+  "boxBehavior": {
+    "totalBoxTraces": 2,
+    "playersTracked": 1,
+    "topBoxLoiterers": [
+      {
+        "player": "Sam Surridge",
+        "team": "A",
+        "role": "ST",
+        "traces": 2,
+        "maxBoxDwellSeconds": 0,
+        "maxBoxIdleSeconds": 0,
+        "maxBoxCampSeconds": 0,
+        "crowdedSamples": 0,
+        "crowdedPct": 0
+      }
+    ]
+  },
+  "shotSupport": [
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Jacob Shaffelburg",
+      "shooterRole": "RM",
+      "nearestMid": 12.9,
+      "secondMid": 15.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Jacob Shaffelburg",
+      "shooterRole": "RM",
+      "nearestMid": 15.5,
+      "secondMid": 15.9
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 0,
+      "shooter": "Sam Surridge",
+      "shooterRole": "ST",
+      "nearestMid": 12.2,
+      "secondMid": 16.5
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Cedric Teuchert",
+      "shooterRole": "CM",
+      "nearestMid": 6.9,
+      "secondMid": 16.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Bryan Acosta",
+      "shooterRole": "CM",
+      "nearestMid": 6.2,
+      "secondMid": 9.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Bryan Acosta",
+      "shooterRole": "CM",
+      "nearestMid": 10.1,
+      "secondMid": 13.7
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Bryan Acosta",
+      "shooterRole": "CM",
+      "nearestMid": 10,
+      "secondMid": 10.6
+    },
+    {
+      "type": "SHOT_POSITION_SNAPSHOT",
+      "minute": 44,
+      "shooter": "Sam Surridge",
+      "shooterRole": "ST",
+      "nearestMid": 10.9,
+      "secondMid": 13.5
+    }
+  ],
+  "shape": {
+    "A": {
+      "team": "Nashville SC",
+      "snapshots": 22,
+      "avgWidth": 16.48,
+      "minWidth": 10.5,
+      "maxWidth": 23.2,
+      "avgDepth": 16.77,
+      "avgCompactness": 7.14,
+      "avgAbsAvgZ": 1.06,
+      "centerLockedPct": 95.5,
+      "narrowPct": 50,
+      "centerAndNarrowPct": 50
+    },
+    "B": {
+      "team": "St. Louis City SC",
+      "snapshots": 22,
+      "avgWidth": 16.65,
+      "minWidth": 8.8,
+      "maxWidth": 24.1,
+      "avgDepth": 22.24,
+      "avgCompactness": 8.06,
+      "avgAbsAvgZ": 1.51,
+      "centerLockedPct": 90.9,
+      "narrowPct": 45.5,
+      "centerAndNarrowPct": 40.9
+    }
+  },
+  "roleCentrality": {
+    "A": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    },
+    "B": {
+      "wideTouches": 0,
+      "centralTouches": 0,
+      "wideTouchShareVsCentral": null,
+      "wideShots": 0,
+      "centralShots": 0,
+      "wideShotShareVsCentral": null
+    }
+  },
+  "positionOwners": {
+    "samples": 2360,
+    "byTeam": {
+      "A": {
+        "ROLE_SLOT": 596,
+        "WIDE_HOME": 346,
+        "STRUCTURED_ATTACK": 194,
+        "CARRIER": 44
+      },
+      "B": {
+        "ROLE_SLOT": 762,
+        "WIDE_HOME": 291,
+        "STRUCTURED_ATTACK": 105,
+        "CARRIER": 22
+      }
+    },
+    "wide": {
+      "A": {
+        "samples": 472,
+        "avgAbsZ": 5.81,
+        "avgTargetAbsZ": 5.49,
+        "byOwner": {
+          "ROLE_SLOT": 235,
+          "WIDE_HOME": 180,
+          "STRUCTURED_ATTACK": 46,
+          "CARRIER": 11
+        }
+      },
+      "B": {
+        "samples": 472,
+        "avgAbsZ": 5.11,
+        "avgTargetAbsZ": 4.67,
+        "byOwner": {
+          "ROLE_SLOT": 332,
+          "WIDE_HOME": 95,
+          "STRUCTURED_ATTACK": 44,
+          "CARRIER": 1
+        }
+      }
+    }
+  },
+  "eventStream": {
+    "totalShots": 10,
+    "onTargetShots": 0,
+    "goals": 0,
+    "longRangeOnTargetCount": 0,
+    "closeRangeBadAngleCount": 0,
+    "toePokesOnTargetCount": 0,
+    "attackerResetPassCount": 8,
+    "longRangeOnTarget": [],
+    "closeRangeBadAngles": [],
+    "toePokesOnTarget": [],
+    "attackerResetPasses": [
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "RM",
+        "style": "BACK",
+        "progress": -3.4,
+        "distToGoal": 30.1
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "RM",
+        "style": "BACK",
+        "progress": -5,
+        "distToGoal": 27.8
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "RM",
+        "style": "BACK",
+        "progress": -4.8,
+        "distToGoal": 29.5
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4.7,
+        "distToGoal": 26.2
+      },
+      {
+        "minute": 0,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -3.9,
+        "distToGoal": 23.7
+      },
+      {
+        "minute": 44,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4.9,
+        "distToGoal": 31.8
+      },
+      {
+        "minute": 44,
+        "team": "B",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4.9,
+        "distToGoal": 32.3
+      },
+      {
+        "minute": 44,
+        "team": "A",
+        "role": "ST",
+        "style": "BACK",
+        "progress": -4,
+        "distToGoal": 28.4
+      }
+    ]
+  },
+  "baselines": {
+    "global": {
+      "totalGoals": {
+        "simulated": 0,
+        "baseline": 2.78,
+        "drift": -2.78
+      },
+      "totalShots": {
+        "simulated": 10,
+        "baseline": 26.2,
+        "drift": -16.2
+      },
+      "totalShotsOnTarget": {
+        "simulated": 2,
+        "baseline": 9.4,
+        "drift": -7.4
+      },
+      "totalCorners": {
+        "simulated": 0,
+        "baseline": 8,
+        "drift": -8
+      }
+    },
+    "teamComparison": [
+      {
+        "team": "Nashville SC",
+        "simulated": {
+          "goals": 0,
+          "shots": 8,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 0,
+          "possessionPct": 72,
+          "corners": 0
+        },
+        "baseline": {
+          "goals": 1.92,
+          "shots": 13.1,
+          "shotsOnTarget": 4.5,
+          "passCompletionPct": 75,
+          "possessionPct": 49,
+          "corners": 3.9
+        }
+      },
+      {
+        "team": "St. Louis City SC",
+        "simulated": {
+          "goals": 0,
+          "shots": 2,
+          "shotsOnTarget": 1,
+          "passCompletionPct": 0,
+          "possessionPct": 28,
+          "corners": 0
+        },
+        "baseline": {
+          "goals": 1.88,
+          "shots": 12.9,
+          "shotsOnTarget": 4.4,
+          "passCompletionPct": 75,
+          "possessionPct": 48,
+          "corners": 3.8
+        }
+      }
+    ]
+  },
+  "phaseTime": {
+    "A": {
+      "samples": 154,
+      "buildupPct": 35.7,
+      "progressionPct": 63,
+      "chanceCreationPct": 1.3,
+      "finishPct": 0
+    },
+    "B": {
+      "samples": 71,
+      "buildupPct": 7,
+      "progressionPct": 78.9,
+      "chanceCreationPct": 14.1,
+      "finishPct": 0
+    }
+  },
+  "passByZone": {
+    "evaluated": {
+      "BUILDUP_HALFSPACE": 26,
+      "BUILDUP_CENTRAL": 19,
+      "FINAL_THIRD_HALFSPACE": 4
+    },
+    "executed": {
+      "BUILDUP_HALFSPACE": 26,
+      "BUILDUP_CENTRAL": 19,
+      "FINAL_THIRD_HALFSPACE": 4
+    }
+  },
+  "rolePositions": {
+    "A": [
+      {
+        "role": "ST",
+        "samples": 168,
+        "avgX": -3.87,
+        "avgAbsZ": 4.64,
+        "avgDistToGoal": 34.95,
+        "oppHalfSamples": 44,
+        "avgForwardXInOppHalf": 5.95,
+        "finalThirdSamples": 5,
+        "avgAbsZInFinalThird": 1.08
+      }
+    ],
+    "B": [
+      {
+        "role": "ST",
+        "samples": 168,
+        "avgX": 1.33,
+        "avgAbsZ": 6.99,
+        "avgDistToGoal": 28.25,
+        "oppHalfSamples": 83,
+        "avgForwardXInOppHalf": 4.65,
+        "finalThirdSamples": 11,
+        "avgAbsZInFinalThird": 8.6
+      }
+    ]
+  },
+  "patterns": {
+    "totalStarts": 17,
+    "totalEnds": 17,
+    "typesPerTeam": {
+      "A": {
+        "CENTRAL_COMBO": 6,
+        "WING_ATTACK_LEFT": 1,
+        "GIVE_AND_GO": 1
+      },
+      "B": {
+        "CENTRAL_COMBO": 5,
+        "GIVE_AND_GO": 4
+      }
+    },
+    "distinctTypesA": 3,
+    "distinctTypesB": 2,
+    "avgDurationByType": {
+      "CENTRAL_COMBO": 4.62,
+      "WING_ATTACK_LEFT": 0.78,
+      "GIVE_AND_GO": 1.03
+    },
+    "endReasonCounts": {
+      "intent_changed": 11,
+      "possession_lost": 6
+    },
+    "shotsByActivePattern": {
+      "CENTRAL_COMBO": 6,
+      "GIVE_AND_GO": 4
+    },
+    "goalsByActivePattern": {},
+    "patternsPerTeamA": 8,
+    "patternsPerTeamB": 9
+  },
+  "patternRoleAlignment": {
+    "SUPPORT": {
+      "samples": 57,
+      "avgForwardX": -0.9,
+      "avgAbsZ": 4.92,
+      "avgDistToGoal": 30.11
+    },
+    "CARRIER": {
+      "samples": 22,
+      "avgForwardX": 0.5,
+      "avgAbsZ": 6.18,
+      "avgDistToGoal": 27.87
+    }
+  },
+  "carrierTrajectories": {
+    "totalSegments": 11,
+    "avgBLineRatio": 0.33,
+    "straightRunsOver15Units": 0,
+    "byLineRunSegments": [],
+    "curlingSegments": 3,
+    "totalFlips": 26,
+    "totalFlippyCarriers": 4,
+    "flipsByTeam": {
+      "A": 18,
+      "B": 8
+    },
+    "flipsByTeamHalf": {
+      "A1": 9,
+      "A2": 9,
+      "B1": 5,
+      "B2": 3
+    },
+    "flipsByDirection": {
+      "L2R": 5,
+      "R2L": 12
+    },
+    "segmentsByTeam": {
+      "A": 6,
+      "B": 5
+    },
+    "segmentsByDirection": {
+      "L2R": 3,
+      "R2L": 5
+    },
+    "segmentsByTeamHalf": {
+      "A1": 3,
+      "A2": 3,
+      "B1": 2,
+      "B2": 3
+    }
+  },
+  "multiTouchOppHalf": {
+    "totalSequences": 18,
+    "multiTouchOppHalfCount": 12,
+    "totalOppHalfTouches": 106,
+    "avgDistinctPlayersPerSequence": 2.56,
+    "exampleSequences": [
+      {
+        "team": "A",
+        "players": [
+          "Jacob Shaffelburg",
+          "TEAM",
+          "Sam Surridge",
+          "RM",
+          "ST",
+          "Tyler Boyd"
+        ],
+        "touchCount": 17,
+        "firstTouchAt": 0.001
+      },
+      {
+        "team": "B",
+        "players": [
+          "TEAM",
+          "Marcel Hartel",
+          "Conrad Wallem"
+        ],
+        "touchCount": 13,
+        "firstTouchAt": 22.56
+      },
+      {
+        "team": "B",
+        "players": [
+          "TEAM",
+          "Conrad Wallem",
+          "Marcel Hartel",
+          "CB"
+        ],
+        "touchCount": 6,
+        "firstTouchAt": 32.62
+      },
+      {
+        "team": "B",
+        "players": [
+          "Chris Durkin",
+          "João Klauss de Mello",
+          "TEAM",
+          "Conrad Wallem",
+          "Cedric Teuchert",
+          "Marcel Hartel",
+          "Eduard Löwen",
+          "Rasmus Alm",
+          "Timo Baumgartl"
+        ],
+        "touchCount": 23,
+        "firstTouchAt": 151.341
+      },
+      {
+        "team": "A",
+        "players": [
+          "TEAM",
+          "Bryan Acosta"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 163.66
+      },
+      {
+        "team": "B",
+        "players": [
+          "TEAM",
+          "Marcel Hartel"
+        ],
+        "touchCount": 3,
+        "firstTouchAt": 164.69
+      }
+    ]
+  },
+  "finalThirdOverloads": {
+    "A": {
+      "totalBuckets": 4,
+      "bucketsWithOverload": 0,
+      "maxAttackersInBucket": 1
+    },
+    "B": {
+      "totalBuckets": 9,
+      "bucketsWithOverload": 0,
+      "maxAttackersInBucket": 1
+    }
+  },
+  "dangerMarking": {
+    "samples": 7,
+    "byTeam": {
+      "A": {
+        "samples": 4,
+        "marked": 2,
+        "unmarked": 2,
+        "markedPct": 50,
+        "avgNearestDefenderDist": 4.43,
+        "worstSamples": [
+          {
+            "t": 209.7,
+            "player": "Sam Surridge",
+            "role": "ST",
+            "zone": "BOX_CENTRAL",
+            "distToGoal": 5.8,
+            "nearestDefenderDist": 10.91,
+            "patternRole": "NONE"
+          },
+          {
+            "t": 209,
+            "player": "Sam Surridge",
+            "role": "ST",
+            "zone": "BOX_CENTRAL",
+            "distToGoal": 9.7,
+            "nearestDefenderDist": 5.42,
+            "patternRole": "NONE"
+          }
+        ]
+      },
+      "B": {
+        "samples": 3,
+        "marked": 3,
+        "unmarked": 0,
+        "markedPct": 100,
+        "avgNearestDefenderDist": 0.99,
+        "worstSamples": []
+      }
+    }
+  },
+  "defendersInBoxAtGoal": {
+    "goalCount": 0,
+    "avgDefendersInBox": 0,
+    "avgAttackersInBox": 0,
+    "distribution": {},
+    "samples": []
+  },
+  "shotBoxDefense": {
+    "shots": 8,
+    "avgDefendersInBox": 0,
+    "avgDefendersInCorridor": 0,
+    "emptyBoxShots": 8,
+    "emptyCorridorShots": 8,
+    "samples": [
+      {
+        "t": 6.7,
+        "team": "A",
+        "shooter": "Jacob Shaffelburg",
+        "shooterRole": "RM",
+        "ballX": 6.4,
+        "ballZ": 5,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 7.9,
+        "team": "A",
+        "shooter": "Jacob Shaffelburg",
+        "shooterRole": "RM",
+        "ballX": 7.5,
+        "ballZ": 1.7,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 17.8,
+        "team": "A",
+        "shooter": "Sam Surridge",
+        "shooterRole": "ST",
+        "ballX": 7.6,
+        "ballZ": -10.4,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 182.3,
+        "team": "B",
+        "shooter": "Cedric Teuchert",
+        "shooterRole": "CM",
+        "ballX": 15.1,
+        "ballZ": -6.4,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 190.4,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "shooterRole": "CM",
+        "ballX": -6.5,
+        "ballZ": 2.5,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 193.8,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "shooterRole": "CM",
+        "ballX": -9.6,
+        "ballZ": 4.2,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 195,
+        "team": "A",
+        "shooter": "Bryan Acosta",
+        "shooterRole": "CM",
+        "ballX": -8,
+        "ballZ": -0.9,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      },
+      {
+        "t": 206.4,
+        "team": "A",
+        "shooter": "Sam Surridge",
+        "shooterRole": "ST",
+        "ballX": -11.7,
+        "ballZ": -0.5,
+        "defendersInBox": 0,
+        "defendersInCorridor": 0
+      }
+    ]
+  },
+  "kickoffGoalCorrelation": {
+    "kickoffPasses": 1,
+    "kickoffReceives": 2,
+    "goalScorerEvents": 0,
+    "byTeam": {
+      "A": {
+        "passes": 1,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Jacob Shaffelburg",
+            "role": "RM",
+            "intendedTargets": 1,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 1,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      },
+      "B": {
+        "passes": 0,
+        "receives": 1,
+        "goals": 0,
+        "sameAsLatestKickoffReceiverGoals": 0,
+        "sameAsLatestKickoffReceiverPct": 0,
+        "receivers": [
+          {
+            "player": "Conrad Wallem",
+            "role": "CB",
+            "intendedTargets": 0,
+            "actualReceives": 1,
+            "matchedExpectedReceives": 0,
+            "goalsAfterLatestKickoffReceive": 0,
+            "avgSecondsFromReceiveToGoal": 0
+          }
+        ],
+        "scorers": [],
+        "samples": []
+      }
+    }
+  },
+  "patternTempo": {
+    "CENTRAL_COMBO": {
+      "count": 11,
+      "multiTouchCount": 6,
+      "avgTouches": 2.73,
+      "avgDuration": 4.89,
+      "avgPace": -0.34,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        2.5,
+        6
+      ],
+      "expectedLabel": "short sharp",
+      "touchFit": "OK",
+      "paceFit": "TOO_SLOW"
+    },
+    "WING_ATTACK_LEFT": {
+      "count": 1,
+      "multiTouchCount": 0,
+      "avgTouches": 0,
+      "avgDuration": 0,
+      "avgPace": null,
+      "expectedTouches": [
+        2,
+        4
+      ],
+      "expectedPace": [
+        3,
+        8
+      ],
+      "expectedLabel": "quick deliver",
+      "touchFit": "TOO_FEW",
+      "paceFit": "no_multi_touch_data"
+    },
+    "GIVE_AND_GO": {
+      "count": 5,
+      "multiTouchCount": 3,
+      "avgTouches": 1.8,
+      "avgDuration": 1.08,
+      "avgPace": -0.83,
+      "expectedTouches": null,
+      "expectedPace": null,
+      "expectedLabel": null,
+      "touchFit": "n/a",
+      "paceFit": "n/a"
+    }
+  },
+  "neoPlays": {
+    "outcomeWindowSeconds": 8,
+    "totalStarts": 17,
+    "totalDeliveries": 2,
+    "totalShotCreatingDeliveries": 2,
+    "totalGoalCreatingDeliveries": 0,
+    "effectivenessPct": 100,
+    "goalRatePct": 0,
+    "byPlay": {
+      "GIVE_AND_GO": {
+        "playName": "GIVE_AND_GO",
+        "patternTypes": {
+          "CENTRAL_COMBO": 11,
+          "GIVE_AND_GO": 5
+        },
+        "starts": 16,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "WING_ATTACK_LEFT": {
+        "playName": "WING_ATTACK_LEFT",
+        "patternTypes": {
+          "WING_ATTACK_LEFT": 1
+        },
+        "starts": 1,
+        "deliveries": 0,
+        "crosses": 0,
+        "shotCreatingDeliveries": 0,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 0,
+        "goalRatePct": 0,
+        "samples": []
+      },
+      "ORCH_DIRECT": {
+        "playName": "ORCH_DIRECT",
+        "patternTypes": {
+          "ORCH_DIRECT": 2
+        },
+        "starts": 0,
+        "deliveries": 2,
+        "crosses": 2,
+        "shotCreatingDeliveries": 2,
+        "goalCreatingDeliveries": 0,
+        "effectivenessPct": 100,
+        "goalRatePct": 0,
+        "samples": [
+          {
+            "team": "B",
+            "t": 28.8,
+            "patternType": "ORCH_DIRECT",
+            "passer": null,
+            "passerRole": null,
+            "target": null,
+            "targetRole": null,
+            "style": null,
+            "shotWithinSeconds": 6.5,
+            "goalWithinSeconds": null
+          },
+          {
+            "team": "B",
+            "t": 28.8,
+            "patternType": "ORCH_DIRECT",
+            "passer": null,
+            "passerRole": null,
+            "target": null,
+            "targetRole": null,
+            "style": null,
+            "shotWithinSeconds": 6.5,
+            "goalWithinSeconds": null
+          }
+        ]
+      }
+    }
+  },
+  "patternCrosses": {
+    "total": 1,
+    "deliveries": 2,
+    "longLofted": 0,
+    "driven": 0,
+    "samples": [
+      {
+        "team": "B"
+      }
+    ]
+  },
+  "kpis": {
+    "baselineFit": {
+      "score": 16,
+      "inputs": {
+        "goals": 0,
+        "shots": 10,
+        "shotsOnTarget": 2,
+        "longRangeSot": 0,
+        "corners": 0
+      },
+      "target": "one-match MLS stat fit: goals ~2-3, shots ~26, SOT ~9, corners ~8, long-range SOT <=3",
+      "grade": "red"
+    },
+    "soccerStructure": {
+      "score": 49,
+      "inputs": {
+        "widthA": 16.48,
+        "widthB": 16.65,
+        "centerAndNarrowWorst": 50,
+        "finalThirdOverloadShare": 0,
+        "dangerMarkedPct": 71.4,
+        "shotCorridorDefenders": 0,
+        "emptyBoxShotPct": 100,
+        "avgPatternTouches": 1.51,
+        "realCrosses": 1
+      },
+      "target": "soccer-like structure: width >=18, center+narrow <=35%, overload share >=25%, danger marking >=78%, shot corridor defenders >=1.2, empty-box shots <=35%, pattern touches >=2, real crosses >=5",
+      "grade": "red"
+    },
+    "tuningEfficiency": {
+      "score": 75,
+      "inputs": {
+        "forcedShotSharePct": 80,
+        "attackerBackpasses": 0,
+        "zigzagFlips": 0,
+        "directBlockerPasses": 0,
+        "brokenShotRowsPct": 0
+      },
+      "target": "low-tweak debt: forced shots <=55%, final-third backpasses <=18, lateral flips <=90, direct-blocker passes <=70, broken rows <=10%",
+      "grade": "watch"
+    },
+    "overall": {
+      "score": 46.7,
+      "grade": "red"
+    }
+  },
+  "recommendations": [
+    "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+    "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+    "Danger-zone attackers are still too often unmarked. Tighten goal-side marking assignments for box, cutback, and far-post runners without pulling the ball presser out of shape.",
+    "Too many shots are arriving with an empty defensive box. Keep one presser, but pull two non-pressing defenders into the goal corridor when the carrier reaches shooting range.",
+    "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+    "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+    "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band."
+  ]
+}

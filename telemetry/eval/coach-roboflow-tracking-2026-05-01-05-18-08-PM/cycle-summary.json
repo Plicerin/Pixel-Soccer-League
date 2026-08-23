@@ -1,0 +1,67 @@
+{
+  "label": "coach-roboflow-tracking-2026-05-01-05-18-08-PM",
+  "generatedAt": "2026-05-01T21:23:46.603Z",
+  "options": {
+    "games": 1,
+    "label": "coach-roboflow-tracking-2026-05-01-05-18-08-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-IZISQ",
+      "teamA": "Portland Timbers",
+      "teamB": "Charlotte FC",
+      "score": "2-1",
+      "goals": 3,
+      "shotsTotal": 9,
+      "sotTotal": 6,
+      "longRangeSOT": 6,
+      "backpasses": 0,
+      "patternCrosses": 0,
+      "patternDeliveries": 0,
+      "patternGoals": 0,
+      "coachForceEvents": 19,
+      "coachAuthorityEvents": 16,
+      "coachCarrierControlEvents": 558,
+      "forcedShotDecisions": 6,
+      "shotDecisions": 9,
+      "forcedShotShare": 0.6666666666666666,
+      "avgDefAtGoal": 3.3333333333333335,
+      "finalThirdOverloads": 0,
+      "traceH1": 207,
+      "traceH2": 176
+    }
+  ],
+  "games": 1,
+  "avgGoals": 3,
+  "avgShots": 9,
+  "avgSOT": 6,
+  "avgLongRangeSOT": 6,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 0,
+  "avgPatternCrosses": 0,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 19,
+  "avgCoachAuthorityEvents": 16,
+  "avgCoachCarrierControlEvents": 558,
+  "forcedShotSharePct": 66.67,
+  "avgDefAtGoal": 3.33,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 0.85,
+  "traceH1Total": 207,
+  "traceH2Total": 176,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg shots between 18 and 32",
+      "forced shot share <= 65%"
+    ]
+  }
+}

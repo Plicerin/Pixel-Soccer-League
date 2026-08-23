@@ -1,0 +1,83 @@
+{
+  "date": "2026-04-24",
+  "match": "St. Louis City SC 2-2 Charlotte FC",
+  "session": "ft-1777040551722",
+  "phase": "Phase 2.5 baseline — pattern engine live for first match",
+  "patternEngine": {
+    "totalStarts": 313,
+    "totalEnds": 312,
+    "distinctTypesA": 3,
+    "distinctTypesB": 3,
+    "typesA": {
+      "PATIENT_BUILDUP": 72,
+      "WING_ATTACK_RIGHT": 137,
+      "WING_ATTACK_LEFT": 16
+    },
+    "typesB": {
+      "PATIENT_BUILDUP": 40,
+      "WING_ATTACK_RIGHT": 24,
+      "WING_ATTACK_LEFT": 24
+    },
+    "avgDurationByType": {
+      "PATIENT_BUILDUP": 3.43,
+      "WING_ATTACK_RIGHT": 2.03,
+      "COUNTER_ATTACK": 9.66,
+      "WING_ATTACK_LEFT": 9.26
+    },
+    "endReasons": {
+      "possession_change": 146,
+      "invalidated": 166
+    },
+    "shotsByPattern": {
+      "NONE": 11,
+      "WING_ATTACK_LEFT": 7,
+      "PATIENT_BUILDUP": 12,
+      "WING_ATTACK_RIGHT": 8
+    },
+    "goalsByPatternRaw": {
+      "NONE": 3,
+      "PATIENT_BUILDUP": 2,
+      "WING_ATTACK_LEFT": 1,
+      "WING_ATTACK_RIGHT": 2
+    }
+  },
+  "baselines": {
+    "goals": {
+      "actual": 4,
+      "drift": 1.22
+    },
+    "shots": {
+      "actual": 38,
+      "drift": 11.8
+    },
+    "corners": {
+      "actual": 0,
+      "drift": -8
+    }
+  },
+  "shotDecisions": {
+    "total": 38,
+    "forced": 37,
+    "passChanceZero": 38
+  },
+  "passDecisions": {
+    "total": 898,
+    "hasForward": 63,
+    "shouldPass": 93,
+    "hasForwardPct": 0.07
+  },
+  "actualPasses": {
+    "total": 140,
+    "fwd": 91,
+    "back": 40,
+    "toST": 15,
+    "toSTPct": 0.107
+  },
+  "bugs": [
+    "A: possession tracking only detects once-per-team at match start — COUNTER_ATTACK broken",
+    "B: WING_ATTACK_RIGHT 2s duration (too short, flip-flop)",
+    "C: WING_ATTACK_LEFT 9s duration (outlier — skewed avg by few long runs)",
+    "D: analyzer double-counts goals (shot.detail.goal + GOAL event loop)"
+  ],
+  "verdict": "Pattern engine scaffolding validated. Events emit. Correlates with shots/goals. 4 bugs to fix before Phase 2.5 Part 2 (role-driven behavior)."
+}

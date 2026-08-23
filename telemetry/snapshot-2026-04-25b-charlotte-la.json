@@ -1,0 +1,58 @@
+{
+  "date": "2026-04-25",
+  "match": "Charlotte FC 1-1 LA Galaxy",
+  "matchId": "M-OMX2P",
+  "fsmMode": "A2 + H2 reset",
+  "baselines": {
+    "goals": 2,
+    "goalsDrift": -0.78,
+    "shotsDrift": -14.2,
+    "sotDrift": -1.4,
+    "longRangeSOT": 6,
+    "corners": 0
+  },
+  "passes": {
+    "backpasses": 145,
+    "note": "lowest ever"
+  },
+  "patterns": {
+    "A": 111,
+    "B": 110,
+    "note": "over-firing post-reset"
+  },
+  "patternGoals": {
+    "COUNTER": 1,
+    "WING_L": 1,
+    "total": "2/2"
+  },
+  "carrier": {
+    "totalFlips": 60,
+    "note": "lowest ever"
+  },
+  "carrierH2vsH1": {
+    "A": {
+      "H1seg": 10,
+      "H1flip": 7,
+      "H2seg": 17,
+      "H2flip": 14,
+      "H1perSeg": 0.7,
+      "H2perSeg": 0.82,
+      "ratio": 1.17
+    },
+    "B": {
+      "H1seg": 14,
+      "H1flip": 23,
+      "H2seg": 27,
+      "H2flip": 16,
+      "H1perSeg": 1.64,
+      "H2perSeg": 0.59,
+      "ratio": 0.36
+    },
+    "verdict": "INVERTED for B; H2 effect weaker than M5 sample"
+  },
+  "possessions": 179,
+  "defendersAtGoal": {
+    "avgDef": 2,
+    "goals": 2
+  }
+}

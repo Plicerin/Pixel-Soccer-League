@@ -1,0 +1,110 @@
+{
+  "date": "2026-04-23c",
+  "match": "Charlotte FC 3-5 St. Louis City SC",
+  "session": "ft-1776986275468",
+  "codeState": {
+    "afterFixes": [
+      "striker-de-privileging-removed",
+      "striker-forward-run-10@0.65",
+      "LW/RW-forward-run-7",
+      "cutback-chain-complete",
+      "anyBoxBackpassVeto-exempt-cutback",
+      "resolveShotNow-0.15",
+      "CB-forceShotRoleAllowed-no-penaltyArea"
+    ]
+  },
+  "mlsBaselines": {
+    "goals": {
+      "actual": 8,
+      "baseline": 2.78,
+      "drift": 5.22
+    },
+    "shots": {
+      "actual": 48,
+      "baseline": 26.2,
+      "drift": 21.8
+    },
+    "sot": {
+      "actual": 34,
+      "baseline": 9.4,
+      "drift": 24.6
+    },
+    "sotRate": {
+      "actual": 0.71,
+      "baseline": 0.36,
+      "drift": 0.35
+    },
+    "corners": {
+      "actual": 2,
+      "baseline": 8,
+      "drift": -6
+    }
+  },
+  "shotDecisions": {
+    "total": 48,
+    "forced": 47,
+    "passChanceZero": 46,
+    "passChancePos": 2,
+    "outsideBox": 26,
+    "insideBox": 22
+  },
+  "passDecisions": {
+    "total": 927,
+    "hasForward": 72,
+    "hasForwardPct": 0.078,
+    "blocker": 430,
+    "shouldPass": 60,
+    "shouldPassPct": 0.065
+  },
+  "roleStatsShots": {
+    "A": {
+      "CB": 4,
+      "RM": 7,
+      "ST": 5,
+      "LM": 4,
+      "CM": 1
+    },
+    "B": {
+      "CB": 6,
+      "RM": 7,
+      "ST": 9,
+      "LM": 5,
+      "CM": 0
+    }
+  },
+  "shape": {
+    "A": {
+      "avgWidth": 16.58,
+      "centerNarrowPct": 55.9
+    },
+    "B": {
+      "avgWidth": 16.43,
+      "centerNarrowPct": 55.9
+    }
+  },
+  "actualPasses": {
+    "total": 109,
+    "fwd": 86,
+    "lat": 8,
+    "back": 15,
+    "fwdPct": 0.79
+  },
+  "stCarrierSample_distToGoal": [
+    39.3,
+    37.5,
+    35.3,
+    32.5
+  ],
+  "eventCounts": {
+    "MIDFIELD_SUPPORT": 6539,
+    "PASS": 109,
+    "SHOT": 48,
+    "GOAL": 8,
+    "FOUL": 6,
+    "CORNER_ESCAPE_WATCHDOG": 1,
+    "BOX_DECISION_LOOP": 112
+  },
+  "diagnosis": "Strikers STILL not ahead of carrier (ST at distToGoal=35-39 = midfield). Forward options 7.8%. Root: tacticalBlend=0.36 dilutes ST forward-run fix. Need gameEngine ST enforcement post-blend like winger width.",
+  "cbShooting": "CB shots: A=4, B=6. CBs still force-shoot via face-to-face or in-box paths.",
+  "sotRateHigh": "SOT 71% vs 36% real — shots too clean, goalkeeper save model weak"
+}

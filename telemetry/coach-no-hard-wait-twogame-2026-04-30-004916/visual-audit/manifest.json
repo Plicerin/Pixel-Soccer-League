@@ -1,0 +1,2620 @@
+{
+  "generatedAt": "2026-04-30T05:00:03.044Z",
+  "summary": {
+    "games": 2,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00825_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 82.5,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.39,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00825_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 82.5,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.39,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00825_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 82.5,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.39,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00874_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 87.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00889_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 88.94,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.97,
+          "nearestDefenderDist": 0.95
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00874_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 87.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00874_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 87.44,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00889_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 88.94,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.97,
+          "nearestDefenderDist": 0.95
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00889_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 88.94,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.97,
+          "nearestDefenderDist": 0.95
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00925_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 92.53,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.12,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00925_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 92.53,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.12,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00925_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 92.53,
+        "half": 1,
+        "minute": 1,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.12,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00970_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 97.03,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00990_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 99,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.36,
+          "nearestDefenderDist": 2.69
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00970_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 97.03,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00970_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 97.03,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00990_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 99,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.36,
+          "nearestDefenderDist": 2.69
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00990_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 99,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Myrto Uzuni",
+          "target": "Osman Bukari",
+          "collector": "Osman Bukari",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.36,
+          "nearestDefenderDist": 2.69
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00282_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 28.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00299_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 29.91,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.22,
+          "nearestDefenderDist": 1.66
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00282_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 28.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00282_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 28.19,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00299_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 29.91,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.22,
+          "nearestDefenderDist": 1.66
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00299_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 29.91,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Chris Durkin",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.22,
+          "nearestDefenderDist": 1.66
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00758_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 75.78,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.76,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00758_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 75.78,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.76,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00758_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 75.78,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 15.76,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01106_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 110.62,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.99,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01106_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 110.62,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.99,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01133_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 113.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 10.91,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01106_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 110.62,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "HEADER",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 12.99,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01133_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 113.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 10.91,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01156_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 115.56,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01133_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 113.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "CB",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "VOLLEY",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 10.91,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01169_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 116.87,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.91,
+          "nearestDefenderDist": 2.51
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01156_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 115.56,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01156_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 115.56,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01169_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 116.87,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.91,
+          "nearestDefenderDist": 2.51
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01169_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 116.87,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Timo Baumgartl",
+          "target": "Rasmus Alm",
+          "collector": "Rasmus Alm",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.91,
+          "nearestDefenderDist": 2.51
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01321_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 132.09,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01321_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 132.09,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01321_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 132.09,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.59,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01457_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01457_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01457_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 145.66,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.42,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01493_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 149.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.23,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01493_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 149.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.23,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01493_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 149.31,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.23,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h1_t00337_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 33.72,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.83,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h1_t00337_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 33.72,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.83,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h1_t00337_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 33.72,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.83,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h1_t00505_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 50.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.53,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h1_t00505_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 50.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.53,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h1_t00505_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 50.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.53,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h1_t00545_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 54.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.93,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h1_t00545_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 54.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.93,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h1_t00545_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 54.47,
+        "half": 1,
+        "minute": 0,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.93,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00197_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 19.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00211_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 21.13,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": "Raheem Edwards",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.65,
+          "nearestDefenderDist": 2.2
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00197_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 19.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00197_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 19.69,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00211_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 21.13,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": "Raheem Edwards",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.65,
+          "nearestDefenderDist": 2.2
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00211_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 21.13,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": "Raheem Edwards",
+          "collectorRole": "LM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 2.65,
+          "nearestDefenderDist": 2.2
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00330_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 33.03,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00348_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 34.84,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.29,
+          "nearestDefenderDist": 3.71
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00330_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 33.03,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00330_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 33.03,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00348_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 34.84,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.29,
+          "nearestDefenderDist": 3.71
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00348_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 34.84,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": false,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Eric Maxim Choupo-Moting",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 4.29,
+          "nearestDefenderDist": 3.71
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00415_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 41.5,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00415_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 41.5,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00415_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 41.5,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Dylan Nealis",
+          "target": "Raheem Edwards",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t00670_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 67,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.49,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t00670_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 67,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.49,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t00670_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 67,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.49,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t01242_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 124.19,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t01242_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 124.19,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t01242_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 124.19,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "B",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 20.87,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t01331_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 133.06,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.41,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t01331_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 133.06,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.41,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t01331_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 133.06,
+        "half": 2,
+        "minute": 44,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 21.41,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t01403_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 140.28,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g02_h2_t01421_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 142.13,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 6.16,
+          "nearestDefenderDist": 4.22
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t01403_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 140.28,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t01403_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 140.28,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g02_h2_t01421_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 142.13,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 6.16,
+          "nearestDefenderDist": 4.22
+        }
+      }
+    },
+    {
+      "gameIndex": 2,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g02_h2_t01421_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 142.13,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "RM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "WIDE_OUTLET",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "SELF_CAUGHT",
+          "matchedTarget": true,
+          "passer": "Raheem Edwards",
+          "target": "Dylan Nealis",
+          "collector": "Dylan Nealis",
+          "collectorRole": "RM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 6.16,
+          "nearestDefenderDist": 4.22
+        }
+      }
+    }
+  ]
+}

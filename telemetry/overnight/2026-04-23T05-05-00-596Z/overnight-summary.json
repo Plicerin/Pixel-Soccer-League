@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-04-23T05:05:00.597Z",
+  "options": {
+    "cycles": 1,
+    "gamesPerCycle": 1,
+    "mode": "smoke",
+    "speed": 32,
+    "halfSeconds": 60,
+    "speedExplicit": false,
+    "homeTeam": "",
+    "awayTeam": "",
+    "formationA": "",
+    "formationB": "",
+    "outDir": ""
+  },
+  "outDir": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-00-596Z",
+  "cycles": [
+    {
+      "cycle": 1,
+      "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-00-596Z\\cycle-01-sim.json",
+      "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\overnight\\2026-04-23T05-05-00-596Z\\cycle-01-analysis.json",
+      "sessionId": "ft-1776920665067",
+      "score": "3-1",
+      "recommendations": [
+        "Long-range shot accuracy is still too clean. Push more off-frame bias onto 20+ yard attempts, especially central shots and pressured strikes.",
+        "Final-third recycling is still too common. Tighten attacker backpass vetoes and extend the carry-or-shoot window before resets are allowed.",
+        "Shape is still too central. Strengthen weak-side width anchors and reduce carrier-gravity pull on wide roles and midfield support.",
+        "Too much of the final action still comes through central roles. Encourage wider occupation and more wing-led creation before the finish.",
+        "Corner volume is still unrealistically low. Review deflection, blocked-shot, and out-of-play logic so wider attacks can produce restarts naturally.",
+        "Some shots still lack second-wave support. Nudge nearby midfielders to arrive a little earlier into the edge-of-box support band."
+      ]
+    }
+  ]
+}

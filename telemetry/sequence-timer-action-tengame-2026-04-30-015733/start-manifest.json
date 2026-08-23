@@ -1,0 +1,15 @@
+﻿{
+    "started":  "2026-04-30 01:57:33",
+    "repoRoot":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League",
+    "runDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733",
+    "launcherLog":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\launcher.log",
+    "stdout":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\runner.out.log",
+    "stderr":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\runner.err.log",
+    "reportJson":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\sim.json",
+    "visualAuditDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\visual-audit",
+    "games":  10,
+    "speed":  1,
+    "timeoutMs":  2400000,
+    "gpuHeadless":  true,
+    "command":  "node scripts\\headless-sim.mjs --games 10 --speed 1 --timeout-ms 2400000 --report-json \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\sim.json\" --gpu-headless --visual-audit --visual-audit-dir \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-timer-action-tengame-2026-04-30-015733\\visual-audit\""
+}

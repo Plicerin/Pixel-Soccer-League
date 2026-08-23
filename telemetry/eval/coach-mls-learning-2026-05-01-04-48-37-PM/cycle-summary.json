@@ -1,0 +1,66 @@
+{
+  "label": "coach-mls-learning-2026-05-01-04-48-37-PM",
+  "generatedAt": "2026-05-01T20:54:13.370Z",
+  "options": {
+    "games": 1,
+    "label": "coach-mls-learning-2026-05-01-04-48-37-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-HMOXL",
+      "teamA": "San Jose Earthquakes",
+      "teamB": "Charlotte FC",
+      "score": "1-0",
+      "goals": 1,
+      "shotsTotal": 10,
+      "sotTotal": 3,
+      "longRangeSOT": 2,
+      "backpasses": 0,
+      "patternCrosses": 0,
+      "patternDeliveries": 0,
+      "patternGoals": 0,
+      "coachForceEvents": 16,
+      "coachAuthorityEvents": 13,
+      "coachCarrierControlEvents": 430,
+      "forcedShotDecisions": 3,
+      "shotDecisions": 10,
+      "forcedShotShare": 0.3,
+      "avgDefAtGoal": 3,
+      "finalThirdOverloads": 0,
+      "traceH1": 246,
+      "traceH2": 196
+    }
+  ],
+  "games": 1,
+  "avgGoals": 1,
+  "avgShots": 10,
+  "avgSOT": 3,
+  "avgLongRangeSOT": 2,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 0,
+  "avgPatternCrosses": 0,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 16,
+  "avgCoachAuthorityEvents": 13,
+  "avgCoachCarrierControlEvents": 430,
+  "forcedShotSharePct": 30,
+  "avgDefAtGoal": 3,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 0.8,
+  "traceH1Total": 246,
+  "traceH2Total": 196,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg shots between 18 and 32"
+    ]
+  }
+}

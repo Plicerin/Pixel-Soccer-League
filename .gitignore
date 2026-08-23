@@ -1,6 +1,8 @@
 node_modules/
 build/
 dist/
+src-tauri/target/
+src-tauri/gen/
 coverage/
 .DS_Store
 *.log
@@ -11,6 +13,15 @@ coverage/
 match-results.json
 telemetry-batches.ndjson
 telemetry-snapshots.json
+telemetry-snapshots.ndjson
+telemetry/archive/
+telemetry/*.json
+telemetry/*.md
+telemetry/*.pid
+telemetry/*.png
+telemetry/*.jpg
+telemetry/*.jpeg
+telemetry/visual-captures/
 keeper-experience.ndjson
 shot-events.ndjson
 tmp-rl-train-log.jsonl
@@ -19,6 +30,13 @@ tmp-rl-train-log.jsonl
 psl.db
 psl.db-shm
 psl.db-wal
+
+# Public sample tracking datasets used for local analysis
+data/metrica-sample-data/
+
+# Regenerate with `node scripts/build-metrica-replay.mjs` when the replay
+# viewer needs it. Never commit: it is 13 MB and ships in the installer.
+public/data/
 
 # Temporary patcher scripts
 tmp-*.cjs
@@ -31,8 +49,19 @@ __pycache__/
 .pytest_cache/
 
 # RL models and logs
-rl/models/
+rl/models/*.h5
+rl/models/training_stats.json
 rl/logs/
 
 # VSCode
 .claude/worktrees/
+.vscode/
+.idea/
+Thumbs.db
+*.tmp
+*.swp
+
+# Generated smoke-test output (screenshots, captures, per-team JSON)
+telemetry/worldcup-screenshots/
+telemetry/worldcup-smoke/
+telemetry/worldcup-ui-captures/

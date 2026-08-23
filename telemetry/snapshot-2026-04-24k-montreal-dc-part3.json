@@ -1,0 +1,48 @@
+{
+  "date": "2026-04-24",
+  "match": "CF Montreal 2-3 DC United",
+  "status": "PHASE 2.5 PART 3 LIVE — carrier cross override firing",
+  "patternCrosses": {
+    "total": 11,
+    "longLofted": 11,
+    "driven": 0,
+    "allTargetedCUTBACK": true,
+    "sameReceiver": "Kwadwo Opoku"
+  },
+  "goals": {
+    "WING_ATTACK_RIGHT": 3,
+    "WING_ATTACK_LEFT": 1,
+    "COUNTER_ATTACK": 1,
+    "total": 5,
+    "allInPatterns": true
+  },
+  "carrierTrajectories": {
+    "avgBLineRatio": 0.91,
+    "straight15": 44,
+    "flippyCarriers": 26,
+    "flips": 216
+  },
+  "multiTouchOppHalf": {
+    "count": 34,
+    "total": 90,
+    "pct": 0.38,
+    "avgDistinct": 1.47
+  },
+  "patternRoleAlignment": {
+    "NEAR_POST": -2.94,
+    "FAR_POST": -9.07,
+    "RUNNER": -0.18,
+    "CARRIER": -4.65
+  },
+  "bugs": [
+    "All 11 crosses go to CUTBACK_RECEIVER (Opoku) — selector too biased",
+    "Tom Pearce (CB) tagged as CARRIER in WING_ATTACK — pattern assigns CARRIER to both ball-holder AND winger-by-role",
+    "Zigzag up: 216 flips, 26 flippy carriers",
+    "Team B: 0 crosses (only Team A reached crossing zone)",
+    "FAR_POST_RUNNER avg fwdX -9.07 worst yet"
+  ],
+  "fixed": [
+    "CARRIER role only assigned to actual ball holder",
+    "Cross target uses weighted scoring + randomization"
+  ]
+}

@@ -1,0 +1,9 @@
+﻿{
+    "outDir":  "telemetry\\self-edit-10iter-2026-04-30-233342",
+    "step":  "self-edit-loop",
+    "overnightDir":  "telemetry\\self-edit-10iter-2026-04-30-233342\\overnight",
+    "findingsPath":  "telemetry\\self-edit-10iter-2026-04-30-233342\\overnight\\overnight-findings.json",
+    "state":  "failed",
+    "updatedAt":  "2026-05-01T00:28:43.1090566-04:00",
+    "exitCode":  1
+}

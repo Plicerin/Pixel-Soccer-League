@@ -1,28 +1,19 @@
 /**
- * Season Manager — generates MLS-style season schedules, tracks standings,
+ * Season Manager — generates world-team season schedules, tracks standings,
  * and simulates CPU-vs-CPU games that the player doesn't play.
  */
+import {
+  WORLD_CUP_2026_TEAM_GROUPS,
+  WORLD_CUP_2026_TEAM_NAMES,
+  WORLD_CUP_2026_TEAMS,
+} from './teamCatalog.js';
 
-// ── Conference data ───────────────────────────────────────────────────
-export const MLS_EASTERN: string[] = [
-  'Atlanta United', 'Charlotte FC', 'Chicago Fire', 'FC Cincinnati',
-  'Columbus Crew', 'DC United', 'Inter Miami', 'CF Montreal',
-  'Nashville SC', 'New England Revolution', 'New York City FC',
-  'New York Red Bulls', 'Orlando City', 'Philadelphia Union', 'Toronto FC',
-];
+// ── World-team data ───────────────────────────────────────────────────
+export const ALL_WORLD_TEAMS = WORLD_CUP_2026_TEAM_NAMES;
+export const WORLD_TEAM_GROUPS = WORLD_CUP_2026_TEAM_GROUPS;
 
-export const MLS_WESTERN: string[] = [
-  'Austin FC', 'Colorado Rapids', 'FC Dallas', 'Houston Dynamo',
-  'LA Galaxy', 'LAFC', 'Minnesota United', 'Portland Timbers',
-  'Real Salt Lake', 'San Diego FC', 'San Jose Earthquakes',
-  'Seattle Sounders', 'Sporting Kansas City', 'St. Louis City SC',
-  'Vancouver Whitecaps',
-];
-
-export const ALL_MLS_TEAMS = [...MLS_EASTERN, ...MLS_WESTERN];
-
-export function getConference(team: string): 'Eastern' | 'Western' {
-  return MLS_EASTERN.includes(team) ? 'Eastern' : 'Western';
+export function getTeamGroup(team: string): string {
+  return WORLD_CUP_2026_TEAMS.find((entry) => entry.name === team)?.group || 'World';
 }
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -37,7 +28,7 @@ export interface SeasonFixture {
 
 export interface TeamStanding {
   team: string;
-  conference: 'Eastern' | 'Western';
+  conference: string;
   gp: number;
   w: number;
   d: number;
@@ -65,19 +56,14 @@ export interface SeasonRecord {
 // ── Schedule generation ───────────────────────────────────────────────
 
 /**
- * Generate a balanced MLS schedule.
- * - Each team plays every other team once (29 games) — alternating home/away.
- * - Games are distributed across matchdays (15 games per matchday = all 30 teams play).
+ * Generate a balanced world-team schedule.
+ * - Each team plays every other team once, alternating home/away.
+ * - Games are distributed across matchdays so all teams play each round.
  */
 function generateSchedule(playerTeam: string): SeasonFixture[] {
-  const teams = [...ALL_MLS_TEAMS];
-  const n = teams.length; // 30
+  const teams = [...ALL_WORLD_TEAMS];
+  const n = teams.length;
   const fixtures: SeasonFixture[] = [];
-
-  // Round-robin: each team plays each other once = n*(n-1)/2 = 435 total games
-  // But that's 29 games per team. MLS full season is 34, but for playability
-  // we'll do a single round-robin (29 games each).
-  // With 30 teams, a round-robin needs exactly 29 rounds, each with 15 games.
 
   // Use the circle method for scheduling:
   // Fix team[0], rotate the rest.
@@ -126,9 +112,9 @@ function generateSchedule(playerTeam: string): SeasonFixture[] {
 // ── Standings initialization ──────────────────────────────────────────
 
 function initializeStandings(): TeamStanding[] {
-  return ALL_MLS_TEAMS.map(team => ({
+  return ALL_WORLD_TEAMS.map(team => ({
     team,
-    conference: getConference(team),
+    conference: getTeamGroup(team),
     gp: 0, w: 0, d: 0, l: 0,
     gf: 0, ga: 0, gd: 0, pts: 0,
   }));
@@ -138,7 +124,7 @@ function initializeStandings(): TeamStanding[] {
 
 export function createSeasonRecord(playerTeam: string): SeasonRecord {
   const schedule = generateSchedule(playerTeam);
-  const totalMatchdays = ALL_MLS_TEAMS.length - 1; // 29
+  const totalMatchdays = ALL_WORLD_TEAMS.length - 1;
 
   return {
     id: `season-${Date.now()}`,
@@ -262,7 +248,7 @@ export function advanceMatchday(season: SeasonRecord): boolean {
 /** Get sorted standings for a conference (or all). */
 export function getSortedStandings(
   season: SeasonRecord,
-  conference?: 'Eastern' | 'Western',
+  conference?: string,
 ): TeamStanding[] {
   let standings = season.standings;
   if (conference) {
@@ -289,7 +275,17 @@ export function saveSeason(season: SeasonRecord): void {
 export function loadSeason(): SeasonRecord | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed) return null;
+    const teams = new Set(ALL_WORLD_TEAMS);
+    const hasUnknownTeam = !teams.has(parsed.playerTeam)
+      || !Array.isArray(parsed.standings)
+      || parsed.standings.some((standing: TeamStanding) => !teams.has(standing.team));
+    if (hasUnknownTeam) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }

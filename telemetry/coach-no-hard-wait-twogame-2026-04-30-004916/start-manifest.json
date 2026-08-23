@@ -1,0 +1,15 @@
+﻿{
+    "started":  "2026-04-30 00:49:16",
+    "repoRoot":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League",
+    "runDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916",
+    "launcherLog":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\launcher.log",
+    "stdout":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\runner.out.log",
+    "stderr":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\runner.err.log",
+    "reportJson":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\sim.json",
+    "visualAuditDir":  "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\visual-audit",
+    "games":  2,
+    "speed":  1,
+    "timeoutMs":  2400000,
+    "gpuHeadless":  true,
+    "command":  "node scripts\\headless-sim.mjs --games 2 --speed 1 --timeout-ms 2400000 --report-json \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\sim.json\" --gpu-headless --visual-audit --visual-audit-dir \"C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\coach-no-hard-wait-twogame-2026-04-30-004916\\visual-audit\""
+}

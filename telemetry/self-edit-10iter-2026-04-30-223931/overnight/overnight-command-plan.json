@@ -1,0 +1,472 @@
+[
+  {
+    "cycle": 1,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 1,
+        "homeTeam": "Portland Timbers",
+        "awayTeam": "Columbus Crew"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-01-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 2,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 2,
+        "homeTeam": "Nashville SC",
+        "awayTeam": "Inter Miami"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-02-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 3,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 3,
+        "homeTeam": "St. Louis City SC",
+        "awayTeam": "San Jose Earthquakes"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-03-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 4,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 4,
+        "homeTeam": "Minnesota United",
+        "awayTeam": "San Jose Earthquakes"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-04-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 5,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 5,
+        "homeTeam": "Charlotte FC",
+        "awayTeam": "Real Salt Lake"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-05-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 6,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 6,
+        "homeTeam": "San Jose Earthquakes",
+        "awayTeam": "Austin FC"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-06-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 7,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 7,
+        "homeTeam": "Chicago Fire",
+        "awayTeam": "Toronto FC"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-07-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 8,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 8,
+        "homeTeam": "New York City FC",
+        "awayTeam": "LA Galaxy"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-08-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 9,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 9,
+        "homeTeam": "Portland Timbers",
+        "awayTeam": "Austin FC"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-09-analysis.json"
+      ]
+    }
+  },
+  {
+    "cycle": 10,
+    "fixturesPath": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-fixtures.json",
+    "fixtures": [
+      {
+        "gameNumber": 10,
+        "homeTeam": "Houston Dynamo",
+        "awayTeam": "San Diego FC"
+      }
+    ],
+    "simReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-sim.json",
+    "analysisReport": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-analysis.json",
+    "sim": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "scripts/headless-sim.mjs",
+        "--mode",
+        "tuning",
+        "--games",
+        "1",
+        "--speed",
+        "1",
+        "--half-seconds",
+        "150",
+        "--gpu-headless",
+        "--timeout-ms",
+        "1440000",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-sim.json",
+        "--url",
+        "http://127.0.0.1:3002/?telemetryCoach=1&coachAggression=85&defenseAggression=55",
+        "--fixtures-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-fixtures.json"
+      ]
+    },
+    "analyze": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/telemetry-analyze-latest.mjs",
+        "--latest",
+        "--report-json",
+        "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\self-edit-10iter-2026-04-30-223931\\overnight\\cycle-10-analysis.json"
+      ]
+    }
+  }
+]

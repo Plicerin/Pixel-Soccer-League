@@ -1,0 +1,26 @@
+{
+  "date": "2026-04-24",
+  "match": "Inter Miami 0-2 LA Galaxy",
+  "shortMatch": true,
+  "patternRoleAlignment": {
+    "NEAR_POST": -1.54,
+    "FAR_POST": -2.93,
+    "RUNNER": 2.61
+  },
+  "carrierTrajectories": {
+    "avgBLineRatio": 0.94,
+    "straight15": 22,
+    "flips": 61,
+    "topRun": "Weigandt A 38.4u in 4.33s ratio 1.00 (PERFECTLY STRAIGHT)"
+  },
+  "multiTouch": {
+    "count": 21,
+    "total": 46,
+    "avgDistinct": 1.5
+  },
+  "patternGoals": {
+    "COUNTER_ATTACK": 1,
+    "WING_ATTACK_LEFT": 1
+  },
+  "conclusion": "3 matches confirm positioning override too weak to overcome carrier B-line. Move to Part 3: carrier decision modulation."
+}

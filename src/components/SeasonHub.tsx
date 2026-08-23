@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { SeasonRecord, TeamStanding, SeasonFixture } from '../seasonManager';
 import {
-  ALL_MLS_TEAMS,
-  getConference,
+  ALL_WORLD_TEAMS,
+  WORLD_TEAM_GROUPS,
+  getTeamGroup,
   createSeasonRecord,
   saveSeason,
   deleteSeason,
@@ -16,6 +17,7 @@ import {
   advanceMatchday,
   getSortedStandings,
 } from '../seasonManager';
+import { DEFAULT_HOME_TEAM } from '../teamCatalog.js';
 
 interface SeasonHubProps {
   /** Start the player's match in the game engine. */
@@ -33,9 +35,9 @@ type HubView = 'team_select' | 'matchday' | 'standings' | 'schedule';
 export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearLastMatchResult }: SeasonHubProps) {
   const [season, setSeason] = useState<SeasonRecord | null>(() => loadSeason());
   const [view, setView] = useState<HubView>(season ? 'matchday' : 'team_select');
-  const [selectedTeam, setSelectedTeam] = useState('Inter Miami');
+  const [selectedTeam, setSelectedTeam] = useState(DEFAULT_HOME_TEAM);
   const [matchdaySimmed, setMatchdaySimmed] = useState(false);
-  const [viewStandingsConf, setViewStandingsConf] = useState<'Eastern' | 'Western' | 'All'>('All');
+  const [viewStandingsConf, setViewStandingsConf] = useState<string>('All');
   const [scheduleViewMatchday, setScheduleViewMatchday] = useState<number | null>(null);
 
   // ── Consume match result from engine ──────────────────────────
@@ -113,7 +115,7 @@ export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearL
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-6 w-full max-w-md px-6">
-          <img src="/assets/pixel-soccer-league.webp" alt="Pixel Soccer League" className="w-72 drop-shadow-lg" />
+          <img src="/assets/Pixel%20Soccer%20League2.png" alt="Pixel Soccer League" className="w-[36rem] max-w-[92vw] drop-shadow-lg" />
           <div className="text-amber-400 text-xl font-extrabold tracking-widest uppercase">Season Mode</div>
 
           {season && (
@@ -134,41 +136,25 @@ export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearL
           <div className="w-full flex flex-col gap-3">
             <div className="text-white/40 text-[10px] uppercase tracking-widest text-center">Select Your Team</div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-[320px] overflow-y-auto pr-1">
-              {/* Eastern */}
-              <div>
-                <div className="text-amber-400/70 text-[9px] uppercase tracking-widest mb-1 sticky top-0 bg-black/80 py-0.5">Eastern Conference</div>
-                {ALL_MLS_TEAMS.filter(t => getConference(t) === 'Eastern').map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setSelectedTeam(t)}
-                    className={`w-full text-left text-[11px] py-1 px-2 rounded transition-colors ${
-                      selectedTeam === t
-                        ? 'bg-amber-400/20 text-amber-300 font-bold'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              {/* Western */}
-              <div>
-                <div className="text-amber-400/70 text-[9px] uppercase tracking-widest mb-1 sticky top-0 bg-black/80 py-0.5">Western Conference</div>
-                {ALL_MLS_TEAMS.filter(t => getConference(t) === 'Western').map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setSelectedTeam(t)}
-                    className={`w-full text-left text-[11px] py-1 px-2 rounded transition-colors ${
-                      selectedTeam === t
-                        ? 'bg-amber-400/20 text-amber-300 font-bold'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-h-[320px] overflow-y-auto pr-1">
+              {WORLD_TEAM_GROUPS.map((group) => (
+                <div key={group}>
+                  <div className="text-amber-400/70 text-[9px] uppercase tracking-widest mb-1 sticky top-0 bg-black/80 py-0.5">{group}</div>
+                  {ALL_WORLD_TEAMS.filter(t => getTeamGroup(t) === group).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setSelectedTeam(t)}
+                      className={`w-full text-left text-[11px] py-1 px-2 rounded transition-colors ${
+                        selectedTeam === t
+                          ? 'bg-amber-400/20 text-amber-300 font-bold'
+                          : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
 
             <button
@@ -313,7 +299,7 @@ export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearL
   if (view === 'standings') {
     const standings = viewStandingsConf === 'All'
       ? getSortedStandings(season)
-      : getSortedStandings(season, viewStandingsConf as 'Eastern' | 'Western');
+      : getSortedStandings(season, viewStandingsConf);
 
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
@@ -325,9 +311,9 @@ export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearL
             </button>
           </div>
 
-          {/* Conference filter */}
+          {/* Team-group filter */}
           <div className="flex gap-2 w-full">
-            {(['All', 'Eastern', 'Western'] as const).map(conf => (
+            {(['All', ...WORLD_TEAM_GROUPS] as const).map(conf => (
               <button
                 key={conf}
                 onClick={() => setViewStandingsConf(conf)}

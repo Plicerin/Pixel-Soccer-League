@@ -1,0 +1,1900 @@
+{
+  "generatedAt": "2026-04-30T05:45:52.577Z",
+  "summary": {
+    "games": 1,
+    "reportJson": "C:\\Users\\vrock\\Documents\\Pixel Soccer League\\telemetry\\sequence-touch-action-onegame-2026-04-30-014020\\sim.json",
+    "url": "http://127.0.0.1:4173/"
+  },
+  "entries": [
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00553_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 55.25,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00563_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.68,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_SHOT_p00.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t00563_DIRECTOR_FINISH_BOOST_p00.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00553_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 55.25,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00553_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 55.25,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00563_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.68,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_SHOT_p12.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t00563_DIRECTOR_FINISH_BOOST_p12.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00563_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": false,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Carles Gil Pareja",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.68,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.78
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00563_STRUCTURED_FINISH_INTENT_SHOT_p24.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "STRUCTURED_FINISH_INTENT_SHOT",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t00563_DIRECTOR_FINISH_BOOST_p24.jpg",
+      "event": {
+        "t": 56.31,
+        "half": 1,
+        "minute": 0,
+        "type": "DIRECTOR_FINISH_BOOST",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 11,
+          "closePressure": 2,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h1_t01005_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 100.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Will Sands",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h1_t01005_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 100.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Will Sands",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h1_t01005_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 100.53,
+        "half": 1,
+        "minute": 1,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Carles Gil Pareja",
+          "target": "Will Sands",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00143_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 14.34,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00143_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 14.34,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00143_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 14.34,
+        "half": 2,
+        "minute": 42,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "LACES_DRIVE",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 19.17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00215_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 21.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00222_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.66,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.9,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00215_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 21.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00222_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.66,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.9,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00215_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 21.53,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "A",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00222_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "DRIVEN",
+          "realCross": true,
+          "outcome": "COMPLETED",
+          "matchedTarget": true,
+          "passer": "Ignatius Ganago",
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 0.66,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": 1.2
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00222_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 22.16,
+        "half": 2,
+        "minute": 42,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 16.9,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00430_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 43,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00442_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 44.16,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 31.6,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00430_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 43,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00430_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 43,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00442_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 44.16,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 31.6,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00442_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 44.16,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 31.6,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00577_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 57.69,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Jackson Yueill",
+          "collector": "Jackson Yueill",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00586_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 58.56,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 33.6,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00577_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 57.69,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Jackson Yueill",
+          "collector": "Jackson Yueill",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00586_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 58.56,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 33.6,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00577_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 57.69,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Jackson Yueill",
+          "collector": "Jackson Yueill",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00586_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 58.56,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 33.6,
+          "closePressure": 1,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p00.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p12.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00665_SHOT_BLOCKED_p24.jpg",
+      "event": {
+        "t": 66.53,
+        "half": 2,
+        "minute": 43,
+        "type": "SHOT_BLOCKED",
+        "team": "A",
+        "role": "ST",
+        "detail": {
+          "patternType": null,
+          "targetRole": null,
+          "style": "CURLED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 17,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00883_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 88.31,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00897_STRUCTURED_DELIVERY_RESOLVED_p00.jpg",
+      "event": {
+        "t": 89.66,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.15,
+          "nearestDefenderDist": 2.55
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00883_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 88.31,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00883_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 88.31,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00897_STRUCTURED_DELIVERY_RESOLVED_p12.jpg",
+      "event": {
+        "t": 89.66,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.15,
+          "nearestDefenderDist": 2.55
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00897_STRUCTURED_DELIVERY_RESOLVED_p24.jpg",
+      "event": {
+        "t": 89.66,
+        "half": 2,
+        "minute": 43,
+        "type": "STRUCTURED_DELIVERY_RESOLVED",
+        "team": "B",
+        "role": "LM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "FAR_POST",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": "INTERCEPTED",
+          "matchedTarget": false,
+          "passer": "Liel Abada",
+          "target": "Wilfried Zaha",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": "CM",
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": 3.15,
+          "nearestDefenderDist": 2.55
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t00972_STRUCTURED_ATTACK_DELIVERY_p00.jpg",
+      "event": {
+        "t": 97.22,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ashley Westwood",
+          "target": "Liel Abada",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t00972_STRUCTURED_ATTACK_DELIVERY_p12.jpg",
+      "event": {
+        "t": 97.22,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ashley Westwood",
+          "target": "Liel Abada",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t00972_STRUCTURED_ATTACK_DELIVERY_p24.jpg",
+      "event": {
+        "t": 97.22,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_ATTACK_DELIVERY",
+        "team": "B",
+        "role": "TEAM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "NONE",
+          "style": "LONG_LOFTED",
+          "realCross": true,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": "Ashley Westwood",
+          "target": "Liel Abada",
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01318_STRUCTURED_FINISH_INTENT_ARMED_p00.jpg",
+      "event": {
+        "t": 131.84,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "anchor",
+      "offsetSec": 0,
+      "image": "frames/g01_h2_t01330_STRUCTURED_FINISH_INTENT_HELD_p00.jpg",
+      "event": {
+        "t": 132.97,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.5,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01318_STRUCTURED_FINISH_INTENT_ARMED_p12.jpg",
+      "event": {
+        "t": 131.84,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 1.2,
+      "image": "frames/g01_h2_t01330_STRUCTURED_FINISH_INTENT_HELD_p12.jpg",
+      "event": {
+        "t": 132.97,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.5,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01318_STRUCTURED_FINISH_INTENT_ARMED_p24.jpg",
+      "event": {
+        "t": 131.84,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_ARMED",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": "PLACED",
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": "Alhassan Yusuf",
+          "collector": "Alhassan Yusuf",
+          "collectorRole": null,
+          "distToGoal": null,
+          "closePressure": null,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    },
+    {
+      "gameIndex": 1,
+      "phase": "followup",
+      "offsetSec": 2.4,
+      "image": "frames/g01_h2_t01330_STRUCTURED_FINISH_INTENT_HELD_p24.jpg",
+      "event": {
+        "t": 132.97,
+        "half": 2,
+        "minute": 44,
+        "type": "STRUCTURED_FINISH_INTENT_HELD",
+        "team": "A",
+        "role": "CM",
+        "detail": {
+          "patternType": null,
+          "targetRole": "CUTBACK",
+          "style": null,
+          "realCross": null,
+          "outcome": null,
+          "matchedTarget": null,
+          "passer": null,
+          "target": null,
+          "collector": null,
+          "collectorRole": null,
+          "distToGoal": 29.5,
+          "closePressure": 0,
+          "ballDistFromIntendedPoint": null,
+          "nearestDefenderDist": null
+        }
+      }
+    }
+  ]
+}

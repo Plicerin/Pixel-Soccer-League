@@ -1,0 +1,112 @@
+{
+  "date": "2026-04-24",
+  "match": "Charlotte FC 0-4 Chicago Fire",
+  "session": "ft-1777034183441",
+  "phase": "Phase 1 validation match 3 of 3",
+  "codeState": "Phase 1 + S1.2 direction fix + THREAT block widened & strengthened",
+  "baselines": {
+    "goals": {
+      "actual": 4,
+      "baseline": 2.78,
+      "drift": 1.22
+    },
+    "shots": {
+      "actual": 33,
+      "baseline": 26.2,
+      "drift": 6.8
+    },
+    "sot": {
+      "actual": 20,
+      "baseline": 9.4,
+      "drift": 10.6
+    },
+    "corners": {
+      "actual": 0,
+      "baseline": 8,
+      "drift": -8
+    }
+  },
+  "shotDecisions": {
+    "total": 33,
+    "forced": 32,
+    "passChanceZero": 32,
+    "outside": 22
+  },
+  "passDecisions": {
+    "total": 895,
+    "hasForward": 118,
+    "shouldPass": 130,
+    "blocker": 387,
+    "hasForwardPct": 0.132,
+    "shouldPassPct": 0.145
+  },
+  "actualPasses": {
+    "total": 171,
+    "fwd": 135,
+    "back": 31,
+    "toST": 24,
+    "toSTPct": 0.14
+  },
+  "phaseTime": {
+    "A": {
+      "buildup": 7,
+      "progression": 51,
+      "chance": 33.5,
+      "finish": 8.5
+    },
+    "B": {
+      "buildup": 5.9,
+      "progression": 63.7,
+      "chance": 29.4,
+      "finish": 1
+    }
+  },
+  "rolePositions": {
+    "A": {
+      "ST": {
+        "x": 6.34,
+        "absZ": 3
+      },
+      "LM": {
+        "x": 1.71,
+        "absZ": 5.89
+      },
+      "RM": {
+        "x": 1.49,
+        "absZ": 5.02
+      }
+    },
+    "B": {
+      "ST": {
+        "x": 6.54,
+        "absZ": 3.21
+      },
+      "LM": {
+        "x": -4.58,
+        "absZ": 4.74
+      },
+      "RM": {
+        "x": 6.7,
+        "absZ": 5.55
+      }
+    }
+  },
+  "cbShots": {
+    "A": 0,
+    "B": 0
+  },
+  "goalLog": [
+    "B RM#11 Mueller m15",
+    "B RM#8 Zinckernagel m48",
+    "B RM#8 Zinckernagel m67",
+    "B ST#10 Cuypers m81"
+  ],
+  "gates3match": {
+    "G1_1": "PASS 3/3",
+    "G1_2": "FAIL (ST avg 4.5,-1.4,6.4 vs target 15 — metric includes buildup)",
+    "G1_3": "FAIL 3/3 (|z| 5-7 vs 12)",
+    "G1_4": "PASS 3/3",
+    "G1_5": "BORDERLINE 14.5/13/14% vs 15%"
+  },
+  "verdict": "NOT VALIDATED. G1.2 trending correct direction. G1.3 stuck. Metric refinement + one more enforcement layer needed."
+}

@@ -1,0 +1,65 @@
+{
+  "label": "coach-quality-guard-2026-05-01-020214-PM",
+  "generatedAt": "2026-05-01T18:07:56.998Z",
+  "options": {
+    "games": 1,
+    "label": "coach-quality-guard-2026-05-01-020214-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-HF90R",
+      "teamA": "Charlotte FC",
+      "teamB": "Chicago Fire",
+      "score": "0-0",
+      "goals": 0,
+      "shotsTotal": 24,
+      "sotTotal": 2,
+      "longRangeSOT": 2,
+      "backpasses": 0,
+      "patternCrosses": 2,
+      "patternDeliveries": 9,
+      "patternGoals": 0,
+      "coachForceEvents": 65,
+      "coachAuthorityEvents": 54,
+      "forcedShotDecisions": 15,
+      "shotDecisions": 24,
+      "forcedShotShare": 0.625,
+      "avgDefAtGoal": null,
+      "finalThirdOverloads": 0,
+      "traceH1": 235,
+      "traceH2": 219
+    }
+  ],
+  "games": 1,
+  "avgGoals": 0,
+  "avgShots": 24,
+  "avgSOT": 2,
+  "avgLongRangeSOT": 2,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 9,
+  "avgPatternCrosses": 2,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 65,
+  "avgCoachAuthorityEvents": 54,
+  "forcedShotSharePct": 62.5,
+  "avgDefAtGoal": null,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 0.93,
+  "traceH1Total": 235,
+  "traceH2Total": 219,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg goals >= 1.0",
+      "avg SOT >= 3.0"
+    ]
+  }
+}

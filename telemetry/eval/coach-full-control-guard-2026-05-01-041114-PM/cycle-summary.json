@@ -1,0 +1,66 @@
+{
+  "label": "coach-full-control-guard-2026-05-01-041114-PM",
+  "generatedAt": "2026-05-01T20:16:42.395Z",
+  "options": {
+    "games": 1,
+    "label": "coach-full-control-guard-2026-05-01-041114-PM",
+    "compareTo": "",
+    "home": "",
+    "away": "",
+    "halfSeconds": 150,
+    "fsm": "",
+    "url": "",
+    "guard": "coach-authority"
+  },
+  "matches": [
+    {
+      "matchId": "M-AVZ2M",
+      "teamA": "New England Revolution",
+      "teamB": "FC Cincinnati",
+      "score": "1-1",
+      "goals": 2,
+      "shotsTotal": 13,
+      "sotTotal": 2,
+      "longRangeSOT": 2,
+      "backpasses": 0,
+      "patternCrosses": 0,
+      "patternDeliveries": 0,
+      "patternGoals": 0,
+      "coachForceEvents": 188,
+      "coachAuthorityEvents": 103,
+      "forcedShotDecisions": 10,
+      "shotDecisions": 13,
+      "forcedShotShare": 0.7692307692307693,
+      "avgDefAtGoal": 2.5,
+      "finalThirdOverloads": 0,
+      "traceH1": 288,
+      "traceH2": 203
+    }
+  ],
+  "games": 1,
+  "avgGoals": 2,
+  "avgShots": 13,
+  "avgSOT": 2,
+  "avgLongRangeSOT": 2,
+  "avgBackpasses": 0,
+  "avgPatternDeliveries": 0,
+  "avgPatternCrosses": 0,
+  "avgPatternGoals": 0,
+  "avgCoachForceEvents": 188,
+  "avgCoachAuthorityEvents": 103,
+  "forcedShotSharePct": 76.92,
+  "avgDefAtGoal": 2.5,
+  "avgFinalThirdOverloads": 0,
+  "traceH2overH1": 0.7,
+  "traceH1Total": 288,
+  "traceH2Total": 203,
+  "guard": {
+    "name": "coach-authority",
+    "passed": false,
+    "failures": [
+      "avg shots between 18 and 32",
+      "avg SOT >= 3.0",
+      "forced shot share <= 65%"
+    ]
+  }
+}

@@ -39,6 +39,16 @@ input[type="file"]{display:none}
 .stat-card .label{font-size:.7rem;color:var(--fg2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
 .stat-card .value{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
 .stat-card .sub{font-size:.65rem;color:var(--fg3);margin-top:1px}
+.stat-card.kpi-pass{border-top:2px solid var(--accent-green)}
+.stat-card.kpi-watch{border-top:2px solid var(--accent-yellow)}
+.stat-card.kpi-fail{border-top:2px solid var(--accent-red)}
+.kpi-table{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:10px}
+.kpi-table th,.kpi-table td{padding:5px 8px;border-bottom:1px solid var(--bg3);text-align:left}
+.kpi-table th{color:var(--fg2);font-weight:700;text-transform:uppercase;font-size:.65rem;letter-spacing:.04em}
+.kpi-pill{display:inline-block;min-width:44px;text-align:center;border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:800;text-transform:uppercase}
+.kpi-pill.pass{background:#12351d;color:#86efac}
+.kpi-pill.watch{background:#3b2f0b;color:#fde68a}
+.kpi-pill.fail{background:#3b1111;color:#fca5a5}
 
 /* ── Comparison bar ── */
 .comp-bar{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:.72rem}
@@ -66,7 +76,7 @@ input[type="file"]{display:none}
 .ev-type.PASS{background:#1e3a5f;color:#60a5fa}.ev-type.SHOT{background:#5f1e1e;color:#f87171}
 .ev-type.TACKLE{background:#1e5f2e;color:#4ade80}.ev-type.INTERCEPTION{background:#4a1e5f;color:#c084fc}
 .ev-type.FOUL{background:#5f4a1e;color:#fbbf24}.ev-type.CLEARANCE{background:#1e4a5f;color:#22d3ee}
-.ev-type.RECOVERY{background:#2e5f1e;color:#86efac}
+.ev-type.RECOVERY{background:#2e5f1e;color:#86efac}.ev-type.MIDFIELD_SUPPORT{background:#7c3aed;color:#f5f3ff}
 
 /* ── Role stats ── */
 .role-select{margin-bottom:10px}
@@ -147,6 +157,16 @@ input[type="file"]{display:none}
   </div>
 </div>
 
+<!-- ══════ 1b. KPI REPORT ══════ -->
+<div class="panel full-width" id="panelKpis">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-green)"></span>KPI REPORT<button class="copy-btn" onclick="copySection('kpis')">Copy</button></div>
+  <div class="panel-body">
+    <div class="stat-row" id="kpiStats"></div>
+    <div id="kpiDetails"></div>
+    <div id="kpiFlags" class="flags"></div>
+  </div>
+</div>
+
 <!-- ══════ 2. MATCH FLOW TIMELINE ══════ -->
 <div class="panel full-width" id="panelTimeline">
   <div class="panel-header"><span class="dot" style="background:var(--accent-blue)"></span>MATCH FLOW TIMELINE<button class="copy-btn" onclick="copySection('timeline')">Copy</button></div>
@@ -213,7 +233,24 @@ input[type="file"]{display:none}
   </div>
 </div>
 
-<!-- ══════ 6. SPATIAL INTELLIGENCE ══════ -->
+<!-- ══════ 6. SHOT DECISION TELEMETRY ══════ -->
+<div class="panel full-width" id="panelShotDecisions">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-yellow)"></span>SHOT DECISION TELEMETRY<button class="copy-btn" onclick="copySection('shotDecisions')">Copy</button></div>
+  <div class="panel-body">
+    <div id="shotDecisionList"></div>
+  </div>
+</div>
+
+<!-- ══════ 7. PASS DECISION TELEMETRY ══════ -->
+<div class="panel full-width" id="panelPassDecisions">
+  <div class="panel-header"><span class="dot" style="background:var(--accent-cyan)"></span>PASS DECISION TELEMETRY<button class="copy-btn" onclick="copySection('passDecisions')">Copy</button></div>
+  <div class="panel-body">
+    <div id="passDecisionList"></div>
+  </div>
+</div>
+
+
+<!-- ══════ 8. SPATIAL INTELLIGENCE ══════ -->
 <div class="panel" id="panelSpatial">
   <div class="panel-header"><span class="dot" style="background:var(--accent-brown)"></span>SPATIAL INTELLIGENCE<button class="copy-btn" onclick="copySection('spatial')">Copy</button></div>
   <div class="panel-body">
@@ -280,55 +317,56 @@ input[type="file"]{display:none}
 
 <script>
 
-// ══════ WEBSOCKET CLIENT FOR LIVE UPDATES ══════
-// WebSocket client for live updates from ws-server.js
+// ══════ OPTIONAL WEBSOCKET CLIENT FOR LIVE UPDATES ══════
+// Default transport is BroadcastChannel. WebSocket is opt-in via ?transport=ws.
 (function() {
-  const WS_URL = 'ws://localhost:8081';
+  const params = new URLSearchParams(location.search);
+  if (params.get('transport') !== 'ws') return;
+  const WS_URL = `ws://${location.hostname || 'localhost'}:8081`;
   let ws;
   let reconnectTimeout = null;
+  let reconnectDelayMs = 2000;
   function connectWS() {
     ws = new WebSocket(WS_URL);
     ws.onopen = () => {
       console.log('[PSL-Dashboard] WebSocket connected:', WS_URL);
+      reconnectDelayMs = 2000;
       document.getElementById('liveDot').style.display = '';
       document.getElementById('statusText').textContent = 'Live connection established';
     };
     ws.onmessage = (event) => {
-      // Debug: log raw message size and content type
       try {
-        const rawLen = event.data?.length || 0;
-        console.log('[PSL-Debug] WS message received. Size:', rawLen, 'bytes');
-        // Try to parse JSON
         const msg = JSON.parse(event.data);
-        console.log('[PSL-Debug] Parsed message type:', msg.type, 'Keys:', Object.keys(msg));
-        // Optionally log a sample of the payload
-        if (msg.type === 'tuning') {
-          console.log('[PSL-Debug] Tuning bundle keys:', Object.keys(msg.bundle || {}));
-          if (msg.bundle) {
-            console.log('[PSL-Debug] TeamA:', msg.bundle.teamA?.name, 'score:', msg.bundle.teamA?.score, '| TeamB:', msg.bundle.teamB?.name, 'score:', msg.bundle.teamB?.score);
-          }
-        }
-        // Expecting { type: 'tuning', ...payload } or { type: 'event', ... }
         if (msg.type === 'tuning' && shouldAcceptLivePayload(msg)) {
           if (!_historyModeActive) setDFromPayload(msg);
-        } else if (msg.type === 'event' && msg.event) {
-          // Optionally handle single event updates here
-          // For now, just log
-          console.log('[PSL-Dashboard] Live event:', msg.event);
+        } else if (msg.type === 'event' && (msg.event || msg.snapshot?.event)) {
+          const liveEv = { ...(msg.event || msg.snapshot.event) };
+          if (D && Array.isArray(D.events)) {
+            D.events.push(liveEv);
+          } else if (D) {
+            D.events = [liveEv];
+          } else {
+            D = { events: [liveEv] };
+          }
+          liveEv.minute = liveEv.minute ?? getEventMinute(liveEv, D.metadata);
+          renderEventList();
+          renderTimeline();
         }
-      } catch (e) {
-        console.warn('[PSL-Dashboard] WebSocket message error:', e, 'Raw event:', event.data?.slice?.(0, 200));
-      }
+      } catch {}
     };
     ws.onclose = () => {
-      console.warn('[PSL-Dashboard] WebSocket closed. Reconnecting in 2s...');
       document.getElementById('liveDot').style.display = 'none';
-      document.getElementById('statusText').textContent = 'Reconnecting to live server...';
-      if (!reconnectTimeout) reconnectTimeout = setTimeout(connectWS, 2000);
+      document.getElementById('statusText').textContent = 'WebSocket disconnected; retrying...';
+      if (!reconnectTimeout) {
+        reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = null;
+          connectWS();
+        }, reconnectDelayMs);
+        reconnectDelayMs = Math.min(reconnectDelayMs * 2, 15000);
+      }
     };
-    ws.onerror = (err) => {
-      console.error('[PSL-Dashboard] WebSocket error:', err);
-      ws.close();
+    ws.onerror = () => {
+      try { ws.close(); } catch {}
     };
   }
   connectWS();
@@ -338,6 +376,180 @@ input[type="file"]{display:none}
    DATA LAYER
    ═══════════════════════════════════════════════════════════ */
 /* ─── Copy section helper ─── */
+function getEventSecondsInHalf(ev, metadata) {
+  const halfDur = metadata?.halfDuration ?? 2700;
+  const regularHalfDur = 45 * 60;
+  const rawT = typeof ev.t === 'number' && !Number.isNaN(ev.t) ? ev.t : null;
+  const rawElapsed = typeof ev.elapsedInHalf === 'number' && !Number.isNaN(ev.elapsedInHalf)
+    ? ev.elapsedInHalf
+    : (typeof ev.detail?.elapsedInHalf === 'number' && !Number.isNaN(ev.detail.elapsedInHalf) ? ev.detail.elapsedInHalf : null);
+  const rawMinute = typeof ev.minute === 'number' && !Number.isNaN(ev.minute) ? ev.minute : null;
+
+  if (rawElapsed !== null) {
+    return clamp(rawElapsed, 0, halfDur);
+  }
+  if (rawT !== null) {
+    if (rawT <= halfDur + 1) {
+      return clamp(rawT, 0, halfDur);
+    }
+    if (rawT <= regularHalfDur + 1) {
+      return clamp(rawT * (halfDur / regularHalfDur), 0, halfDur);
+    }
+    return clamp(rawT, 0, halfDur);
+  }
+  if (rawMinute !== null) {
+    const totalActualDuration = halfDur * 2;
+    const totalScaledSec = clamp(rawMinute * 60, 0, 90 * 60) * (totalActualDuration / (90 * 60));
+    if (ev.half === 2) {
+      return clamp(totalScaledSec - halfDur, 0, halfDur);
+    }
+    return clamp(totalScaledSec, 0, halfDur);
+  }
+  return 0;
+}
+
+function getEventSecondsTotal(ev, metadata) {
+  const halfDur = metadata?.halfDuration ?? 2700;
+  return (ev.half === 2 ? halfDur : 0) + getEventSecondsInHalf(ev, metadata);
+}
+
+function getEventMinute(ev, metadata) {
+  return Math.floor(getEventSecondsTotal(ev, metadata) / 60);
+}
+
+function formatEventTime(ev, metadata) {
+  const totalSec = getEventSecondsTotal(ev, metadata);
+  const min = Math.floor(totalSec / 60);
+  const sec = Math.floor(totalSec % 60);
+  return `${min}:${String(sec).padStart(2, '0')}`;
+}
+
+function getMatchDurationInfo() {
+  const halfSeconds = Math.max(1, Number(D?.metadata?.runtimeHalfDuration ?? snap?.runtimeHalfDuration ?? D?.metadata?.halfDuration ?? snap?.halfDuration ?? 2700) || 2700);
+  const runtimeMinutes = Math.max(1 / 60, (halfSeconds * 2) / 60);
+  return {
+    halfSeconds,
+    halfMinutes: halfSeconds / 60,
+    runtimeMinutes,
+    matchMinutes: 90,
+    durationFactor: runtimeMinutes / 90,
+  };
+}
+
+function fmtRate(value, digits = 1) {
+  const n = Number(value) || 0;
+  return n.toFixed(digits);
+}
+
+const RUNTIME_BASE_EXPECTED_RAW = {
+  goals: { min: 2.0, max: 4.0, target: 2.8 },
+  xg: { min: 2.0, max: 4.0, target: 2.8 },
+  shots: { min: 20, max: 35, target: 26 },
+  shotsOnTarget: { min: 7, max: 16, target: 9.5 },
+  passes: { min: 900, max: 954, target: 927 },
+  completedPasses: { min: 729, max: 756, target: 742.5 },
+};
+
+function expectedRawRange(metric) {
+  const duration = getMatchDurationInfo();
+  const factor = Math.max(1 / 90, Number(duration?.durationFactor) || 1);
+  const base = RUNTIME_BASE_EXPECTED_RAW[metric] || { min: 0, max: 0, target: 0 };
+  return {
+    min: base.min * factor,
+    max: base.max * factor,
+    target: base.target * factor,
+  };
+}
+
+function fmtExpectedRange(metric, digits = 1) {
+  const range = expectedRawRange(metric);
+  return `${fmtRate(range.min, digits)}-${fmtRate(range.max, digits)}`;
+}
+
+function getRawKpiTotals() {
+  if (!D) return null;
+  const a = D.teamA || {};
+  const b = D.teamB || {};
+  const passes = Number(a.passes || 0) + Number(b.passes || 0);
+  const passCompletions = Number(a.passesCompleted || a.passCompletions || 0) + Number(b.passesCompleted || b.passCompletions || 0);
+  const shots = Number(a.shots || 0) + Number(b.shots || 0);
+  const shotsOnTarget = Number(a.shotsOnTarget || 0) + Number(b.shotsOnTarget || 0);
+  const phase = D.metadata?.matchPhase || D.phase || snap?.phase || '';
+  return {
+    goals: Number(a.score || 0) + Number(b.score || 0),
+    shots,
+    shotsOnTarget,
+    passes,
+    completedPasses: passCompletions,
+    saves: Number(a.saves || 0) + Number(b.saves || 0),
+    passCompletionPct: passes ? (passCompletions / passes) * 100 : 0,
+    shotDecisions: Array.isArray(D.shotDecisions) ? D.shotDecisions.length : 0,
+    shotOpportunities: Array.isArray(D.shotOpportunities) ? D.shotOpportunities.length : 0,
+    zeroShotFullTime: phase === 'FULL_TIME' && shots === 0,
+    phase,
+  };
+}
+
+function getRawKpiRows() {
+  const totals = getRawKpiTotals();
+  if (!totals) return [];
+  return [
+    buildRawKpiRow('goals', 'Goals', totals.goals),
+    buildRawKpiRow('shots', 'Shots', totals.shots, totals.zeroShotFullTime),
+    buildRawKpiRow('shotsOnTarget', 'On Target', totals.shotsOnTarget, totals.zeroShotFullTime),
+    buildRawKpiRow('completedPasses', 'Completed Passes', totals.completedPasses),
+    buildRawKpiRow('passes', 'Passes', totals.passes),
+  ];
+}
+
+function buildRawKpiRow(metric, label, value, forceFail = false) {
+  const expected = expectedRawRange(metric);
+  const status = forceFail ? 'fail' : classifyRawKpi(value, expected, metric);
+  return {
+    metric,
+    label,
+    value,
+    expected,
+    drift: value - expected.target,
+    status,
+  };
+}
+
+function classifyRawKpi(value, expected, metric) {
+  if (value >= expected.min && value <= expected.max) return 'pass';
+  if (metric === 'shotsOnTarget' && value < expected.min * 0.5) return 'fail';
+  const span = Math.max(0.35, expected.max - expected.min);
+  const lowWatch = Math.max(0, expected.min - span);
+  const highWatch = expected.max + span;
+  if (metric === 'goals' && value === 0 && expected.target < 0.75) return 'watch';
+  if (value >= lowWatch && value <= highWatch) return 'watch';
+  return 'fail';
+}
+
+function kpiScore(rows, totals) {
+  const weights = { goals: 0.20, shots: 0.25, shotsOnTarget: 0.25, passes: 0.20 };
+  let score = rows.reduce((sum, row) => {
+    const value = row.status === 'pass' ? 100 : row.status === 'watch' ? 65 : 0;
+    return sum + value * (weights[row.metric] || 0);
+  }, 0);
+  score += totals?.zeroShotFullTime ? 0 : 10;
+  return Math.round(score);
+}
+
+function kpiGrade(score) {
+  if (score >= 85) return 'pass';
+  if (score >= 70) return 'watch';
+  return 'fail';
+}
+
+function kpiPill(status) {
+  return `<span class="kpi-pill ${status}">${status}</span>`;
+}
+
+function kpiCard(label, value, sub, status) {
+  return `<div class="stat-card kpi-${status}"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+}
+
 function copySection(key) {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
@@ -345,6 +557,7 @@ function copySection(key) {
   let text = '';
 
   if (key === 'overview') {
+    const duration = getMatchDurationInfo();
     const xgA = ((a.shotsOnTarget||0)*0.35+((a.shots||0)-(a.shotsOnTarget||0))*0.05).toFixed(2);
     const xgB = ((b.shotsOnTarget||0)*0.35+((b.shots||0)-(b.shotsOnTarget||0))*0.05).toFixed(2);
     const intA = a.roleStats ? Object.values(a.roleStats).reduce((s,r)=>s+(r.interceptions||0),0) : 0;
@@ -353,24 +566,45 @@ function copySection(key) {
     const transB = (D.transitions||[]).filter(t=>t.team==='B').length;
     text = [
       `MATCH OVERVIEW — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
-      `xG: ${xgA} – ${xgB}`,
+      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated clock: 90 min`,
+      `Runtime-scaled expected raw totals: goals ${fmtExpectedRange('goals')} | shots ${fmtExpectedRange('shots')} | SOT ${fmtExpectedRange('shotsOnTarget')} | passes ${fmtExpectedRange('passes')}`,
+      `xG raw: ${xgA} – ${xgB}`,
+      `xG runtime-scaled expected raw total: ${fmtExpectedRange('xg')}`,
       `Possession: ${a.possession??50}% – ${b.possession??50}%`,
-      `Shots / SOT: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
+      `Shots / SOT raw: ${a.shots}/${a.shotsOnTarget} – ${b.shots}/${b.shotsOnTarget}`,
+      `Shots / SOT runtime-scaled expected raw totals: ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`,
       `Pass %: ${pct(a.passesCompleted,a.passes)} – ${pct(b.passesCompleted,b.passes)}`,
+      `Completed passes runtime-scaled expected raw total: ${fmtExpectedRange('completedPasses')}`,
+      `Passes runtime-scaled expected raw total: ${fmtExpectedRange('passes')}`,
       `Def Actions: ${(a.tackles||0)+intA} – ${(b.tackles||0)+intB}`,
       `Transitions: ${transA} \u2013 ${transB}`,
       `Saves: ${a.saves} – ${b.saves}`,
-      `Shots bar: ${a.shots||0} – ${b.shots||0}`,
-      `SOT bar: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
-      `Passes bar: ${a.passes||0} – ${b.passes||0}`,
+      `Shots bar raw: ${a.shots||0} – ${b.shots||0}`,
+      `SOT bar raw: ${a.shotsOnTarget||0} – ${b.shotsOnTarget||0}`,
+      `Passes bar raw: ${a.passes||0} – ${b.passes||0}`,
       `Tackles bar: ${a.tackles||0} – ${b.tackles||0}`,
       `Fouls bar: ${a.fouls||0} – ${b.fouls||0}`,
+      `Free kicks bar: ${a.freeKicks||0} – ${b.freeKicks||0}`,
       `Transitions bar: ${transA} – ${transB}`,
       `Offsides bar: ${a.offsides||0} – ${b.offsides||0}`,
       `Corners bar: ${a.corners||0} – ${b.corners||0}`,
     ].join('\n');
+  } else if (key === 'kpis') {
+    const duration = getMatchDurationInfo();
+    const totals = getRawKpiTotals();
+    const rows = getRawKpiRows();
+    const score = kpiScore(rows, totals);
+    text = [
+      `KPI REPORT — ${nameA} ${a.score??0} – ${b.score??0} ${nameB}`,
+      `Runtime: ${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min (${fmtRate(duration.halfMinutes, duration.halfMinutes % 1 ? 1 : 0)} min halves); simulated match: 90 min`,
+      `Baseline Fit: ${score}/100 (${kpiGrade(score)})`,
+      `Zero-shot full-time guard: ${totals?.zeroShotFullTime ? 'FAIL' : 'PASS'}`,
+      ...rows.map(row => `${row.label}: ${row.value} vs ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)} expected raw (${row.status}, drift ${fmtRate(row.drift)})`),
+      `Pass completion: ${fmtRate(totals?.passCompletionPct || 0)}%`,
+      `Shot decisions / opportunities: ${totals?.shotDecisions || 0} / ${totals?.shotOpportunities || 0}`,
+    ].join('\n');
   } else if (key === 'timeline') {
-    const evs = D.events || [];
+    const evs = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
     const shots = evs.filter(e=>e.type==='SHOT');
     const tackles = evs.filter(e=>e.type==='TACKLE');
     const fouls = evs.filter(e=>e.type==='FOUL');
@@ -381,7 +615,7 @@ function copySection(key) {
       `Shots: ${shotA.length} (A) / ${shotB.length} (B)`,
       `Tackles: ${tackles.filter(e=>e.team==='A').length} (A) / ${tackles.filter(e=>e.team==='B').length} (B)`,
       `Fouls: ${fouls.filter(e=>e.team==='A').length} (A) / ${fouls.filter(e=>e.team==='B').length} (B)`,
-      ...shots.map(s=>`  Shot @${s.minute ?? '?'}' [${s.team}] ${s.detail?.onTarget ? 'ON TARGET' : 'off target'}${s.detail?.isGoal ? ' GOAL' : ''}`),
+      ...shots.map(s=>`  Shot @${formatEventTime(s, D.metadata)} [${s.team}] ${s.detail?.onTarget ? 'ON TARGET' : 'off target'}${s.detail?.isGoal ? ' GOAL' : ''}`),
     ].join('\n');
   } else if (key === 'teamstyle') {
     const tab = activeTeamStyleTab;
@@ -471,13 +705,77 @@ function copySection(key) {
         `Fouls: ${r.fouls}  Fouled: ${r.fouled}`,
       ].join('\n');
     }
+  } else if (key === 'passDecisions') {
+    const decisions = Array.isArray(D.passDecisions) ? D.passDecisions : [];
+    text = [`PASS DECISIONS — ${nameA} vs ${nameB}`];
+    if (!decisions.length) {
+      text.push('No pass decision telemetry recorded.');
+    } else {
+      text.push(`Total decisions: ${decisions.length}`);
+      text.push(...decisions.slice(-50).reverse().map(d => {
+        const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+        const parts = [
+          `team:${d.team||'?'}`,
+          `passer:${d.passer||d.passerRole||'?'}`,
+          `target:${d.target||'?'}`,
+          `style:${d.passStyle||'PASS'}`,
+          `passChance:${d.passChance != null ? d.passChance : 'null'}`,
+          `forwardProg:${d.forwardProg != null ? d.forwardProg : 'null'}`,
+          `passDist:${d.passDist != null ? d.passDist : 'null'}`,
+          `inFinalThird:${d.inFinalThird}`,
+          `insidePenaltyArea:${d.insidePenaltyArea}`,
+          `hasForwardPassOption:${d.hasForwardPassOption != null ? d.hasForwardPassOption : 'null'}`,
+          `passSkill:${d.passSkill != null ? d.passSkill : 'null'}`,
+          `progressivePass:${d.progressivePass != null ? d.progressivePass : 'null'}`,
+          `decisionType:${d.decisionType || 'UNKNOWN'}`,
+        ];
+        return `${timeLabel} [${d.team||'?'}] ${parts.join(' · ')}`;
+      }));
+    }
+    text = text.join('\n');
   } else if (key === 'events') {
     const evs = D.events || [];
     const visible = evs.filter(e=>activeEventFilters.has(e.type));
     text = [
       `EVENT STREAM — ${nameA} vs ${nameB} (${visible.length} events shown)`,
-      ...visible.slice(0,200).map(e=>`${String(e.minute??'?').padStart(3,'\u00a0')}'  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
+      ...visible.slice(0,200).map(e=>`${formatEventTime(e, D.metadata)}  [${e.team||'?'}]  ${e.type}  ${e.detail?JSON.stringify(e.detail):''}`),
     ].join('\n');
+  } else if (key === 'shotDecisions') {
+    const decisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+    text = [`SHOT DECISIONS — ${nameA} vs ${nameB}`];
+    if (!decisions.length) {
+      text.push('No shot decision telemetry recorded.');
+    } else {
+      text.push(`Total decisions: ${decisions.length}`);
+      text.push(...decisions.slice(-50).reverse().map(d => {
+        const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+        const isLowEv = d.shotChance != null && d.passChance != null && d.shotChance < d.passChance;
+        const isBelowThreshold = d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot;
+        const parts = [
+          `team:${d.team||'?'}`,
+          `shooter:${d.shooter||d.role||'?'}`,
+          `style:${d.style||'SHOT'}`,
+          `shotChance:${d.shotChance != null ? d.shotChance : 'null'}`,
+          `passChance:${d.passChance != null ? d.passChance : 'null'}`,
+          `threshold:${d.shotThreshold != null ? d.shotThreshold : 'null'}`,
+          `lowEv:${isLowEv}`,
+          `belowThreshold:${isBelowThreshold}`,
+          `passTarget:${d.passTarget != null ? d.passTarget : 'null'}`,
+          `hasForwardPassOption:${d.hasForwardPassOption != null ? d.hasForwardPassOption : 'null'}`,
+          `onFlank:${d.onFlank != null ? d.onFlank : 'null'}`,
+          `supportIncomingSuppression:${d.supportIncomingSuppression != null ? d.supportIncomingSuppression : 'null'}`,
+          `flankShotPenalty:${d.flankShotPenalty != null ? d.flankShotPenalty : 'null'}`,
+          `tightAnglePenalty:${d.tightAnglePenalty != null ? d.tightAnglePenalty : 'null'}`,
+          `reboundSuppression:${d.reboundSuppression != null ? d.reboundSuppression : 'null'}`,
+          `forceShotNow:${d.forceShotNow != null ? d.forceShotNow : 'null'}`,
+          `desperationShot:${d.desperationShot != null ? d.desperationShot : 'null'}`,
+          `shouldShoot:${d.shouldShoot != null ? d.shouldShoot : 'null'}`,
+          `decisionType:${d.decisionType || 'UNKNOWN'}`,
+        ];
+        return `${timeLabel} [${d.team||'?'}] ${parts.join(' · ')}`;
+      }));
+    }
+    text = text.join('\n');
   } else if (key === 'spatial') {
     text = `SPATIAL INTELLIGENCE — ${nameA} vs ${nameB}\n(Heatmap/shape data is visual; see shapeA/shapeB arrays in saved JSON)`;
   } else if (key === 'positioning') {
@@ -651,8 +949,9 @@ async function setDFromPayload(payload) {
   D = payload.bundle || payload;
   snap = payload.snapshot || null;
   live = payload.live || null;
-  if (D && D.sessionId) {
-    const dbEvents = await fetchTelemetryEvents(D.sessionId);
+  const sessionId = D?.sessionId || D?.metadata?.sessionId || snap?.sessionId || null;
+  if (D && sessionId) {
+    const dbEvents = await fetchTelemetryEvents(sessionId);
     if (dbEvents.length > 0) D.events = dbEvents;
   }
   lastUpdate = Date.now();
@@ -661,6 +960,7 @@ async function setDFromPayload(payload) {
 
 function hasMeaningfulMatchState(bundle, snapshot, livePayload) {
   if (!bundle) return false;
+  if (bundle.sessionActive === false) return false;
   if (snapshot?.isLive || livePayload?.isLive) return true;
   if ((snapshot?.elapsedInHalf || 0) > 0.5) return true;
   if ((snapshot?.scoreA || 0) !== 0 || (snapshot?.scoreB || 0) !== 0) return true;
@@ -730,8 +1030,14 @@ setInterval(() => {
       const nextD = g.getTuningBundle?.();
       const nextSnap = g.getMatchSnapshot?.();
       const nextLive = g.getLiveTelemetry?.();
-      if (hasMeaningfulMatchState(nextD, nextSnap, nextLive)) {
-        setDFromPayload({ bundle: nextD, snapshot: nextSnap, live: nextLive });
+      const openerPayload = {
+        bundle: nextD,
+        snapshot: nextSnap,
+        live: nextLive,
+        sessionActive: nextD?.sessionActive,
+      };
+      if (shouldAcceptLivePayload(openerPayload)) {
+        setDFromPayload(openerPayload);
         $('debugText').textContent = 'via window.opener';
         return;
       }
@@ -770,25 +1076,7 @@ const f1 = n => Number(n || 0).toFixed(1);
 const f0 = n => Math.round(n || 0);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-const LOGO_MAP = {
-  'Atlanta United':'atlanta-united','Austin FC':'austin-fc',
-  'CF Montreal':'cf-montreal','CF Montr\u00e9al':'cf-montreal',
-  'Charlotte FC':'charlotte-fc','Chicago Fire':'chicago-fire',
-  'Colorado Rapids':'colorado-rapids','Columbus Crew':'columbus-crew',
-  'DC United':'dc-united','FC Cincinnati':'fc-cincinnati',
-  'FC Dallas':'fc-dallas','Houston Dynamo':'houston-dynamo',
-  'Inter Miami':'inter-miami','LA Galaxy':'la-galaxy','LAFC':'lafc',
-  'Minnesota United':'minnesota-united','Nashville SC':'nashville-sc',
-  'New England Revolution':'new-england-revolution',
-  'New York City FC':'new-york-city-fc','New York Red Bulls':'new-york-red-bulls',
-  'Orlando City':'orlando-city','Philadelphia Union':'philadelphia-union',
-  'Portland Timbers':'portland-timbers','Real Salt Lake':'real-salt-lake',
-  'San Diego FC':'san-diego-fc','San Jose Earthquakes':'san-jose-earthquakes',
-  'Seattle Sounders':'seattle-sounders','Sporting Kansas City':'sporting-kc',
-  'Sporting KC':'sporting-kc','St. Louis City SC':'st-louis-city',
-  'St. Louis City':'st-louis-city','Toronto FC':'toronto-fc',
-  'Vancouver Whitecaps':'vancouver-whitecaps',
-};
+const LOGO_MAP = {};
 function teamLogo(name, cls) {
   const slug = LOGO_MAP[name];
   return slug ? `<img src="assets/logos/${slug}.png" class="${cls || 'team-logo'}" alt="">` : '';
@@ -847,6 +1135,7 @@ function renderOverview() {
   if (!D) return;
   const a = D.teamA, b = D.teamB;
   const nameA = a.name || 'Team A', nameB = b.name || 'Team B';
+  const duration = getMatchDurationInfo();
   $('scoreline').innerHTML =
     `<span style="display:flex;align-items:center;gap:8px">${teamLogo(nameA,'team-logo-lg')}<span>${nameA}</span></span>` +
     `<span style="padding:0 20px;font-variant-numeric:tabular-nums">${a.score ?? 0}&thinsp;—&thinsp;${b.score ?? 0}</span>` +
@@ -866,10 +1155,13 @@ function renderOverview() {
   const transB = (D.transitions || []).filter(t => t.team === 'B').length;
 
   $('overviewStats').innerHTML = [
-    statCard('xG', `${xgA} — ${xgB}`),
+    statCard('Runtime', `${fmtRate(duration.runtimeMinutes, duration.runtimeMinutes % 1 ? 1 : 0)} min`, `simulates 90 min`),
+    statCard('Runtime KPI', `G ${fmtExpectedRange('goals')} | Sh ${fmtExpectedRange('shots')}`, `SOT ${fmtExpectedRange('shotsOnTarget')} | P ${fmtExpectedRange('passes')}`),
+    statCard('xG raw', `${xgA} — ${xgB}`, `expected total ${fmtExpectedRange('xg')}`),
     statCard('Possession', `${a.possession ?? 50}% — ${b.possession ?? 50}%`),
-    statCard('Shots / SOT', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`),
+    statCard('Shots / SOT raw', `${a.shots}/${a.shotsOnTarget} — ${b.shots}/${b.shotsOnTarget}`, `expected totals ${fmtExpectedRange('shots')} / ${fmtExpectedRange('shotsOnTarget')}`),
     statCard('Pass %', `${pct(a.passesCompleted, a.passes)} — ${pct(b.passesCompleted, b.passes)}`),
+    statCard('Passes raw', `${a.passes || 0} — ${b.passes || 0}`, `expected total ${fmtExpectedRange('passes')}`),
     statCard('Def Actions', `${(a.tackles||0)+intA+recA} — ${(b.tackles||0)+intB+recB}`, `T/I/R`),
     statCard('Transitions', `${transA} — ${transB}`),
     statCard('Saves', `${a.saves} — ${b.saves}`),
@@ -881,10 +1173,60 @@ function renderOverview() {
     compBar('Passes', a.passes || 0, b.passes || 0, 'Passes'),
     compBar('Tackles', a.tackles || 0, b.tackles || 0, 'Tackles'),
     compBar('Fouls', a.fouls || 0, b.fouls || 0, 'Fouls'),
+    compBar('Free Kicks', a.freeKicks || 0, b.freeKicks || 0, 'Free Kicks'),
     compBar('Transitions', transA, transB, 'Transitions'),
     compBar('Offsides', a.offsides || 0, b.offsides || 0, 'Offsides'),
     compBar('Corners', a.corners || 0, b.corners || 0, 'Corners'),
   ].join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER: 1b. KPI REPORT
+   ═══════════════════════════════════════════════════════════ */
+function renderKpiReport() {
+  if (!D) return;
+  const totals = getRawKpiTotals();
+  const rows = getRawKpiRows();
+  const score = kpiScore(rows, totals);
+  const grade = kpiGrade(score);
+  const duration = getMatchDurationInfo();
+  const productionFail = rows.some(row => row.status === 'fail');
+  const productionWatch = rows.some(row => row.status === 'watch');
+
+  $('kpiStats').innerHTML = [
+    kpiCard('Baseline Fit', `${score}/100`, 'runtime-scaled MLS raw stats', grade),
+    kpiCard('Zero-Shot Guard', totals.zeroShotFullTime ? 'FAIL' : 'PASS', totals.zeroShotFullTime ? 'full-time with 0 shots' : 'full-time floor clear', totals.zeroShotFullTime ? 'fail' : 'pass'),
+    kpiCard('Production', productionFail ? 'FAIL' : productionWatch ? 'WATCH' : 'PASS', `G/Sh/SOT/P vs 90 min simulation`, productionFail ? 'fail' : productionWatch ? 'watch' : 'pass'),
+    kpiCard('Shot Decisions', `${totals.shotDecisions}`, `${totals.shotOpportunities} opportunities`, totals.shotDecisions === 0 && totals.shots === 0 ? 'fail' : 'pass'),
+    kpiCard('Pass Completion', `${fmtRate(totals.passCompletionPct)}%`, `${totals.passes} raw passes`, totals.passCompletionPct >= 71 && totals.passCompletionPct <= 80 ? 'pass' : 'watch'),
+  ].join('');
+
+  $('kpiDetails').innerHTML = `<table class="kpi-table">
+    <thead><tr><th>KPI</th><th>Actual Raw</th><th>Expected Raw</th><th>Drift</th><th>Status</th></tr></thead>
+    <tbody>
+      ${rows.map(row => `<tr>
+        <td>${row.label}</td>
+        <td>${fmtRate(row.value)}</td>
+        <td>${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}</td>
+        <td>${fmtRate(row.drift)}</td>
+        <td>${kpiPill(row.status)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+  const flags = [];
+  if (totals.zeroShotFullTime) {
+    flags.push({ cls: 'bad', text: `Completed match has 0 shots after ${totals.passes} pass events. This is a model failure, not a valid draw.` });
+  }
+  if (totals.shots === 0 && totals.shotOpportunities > 0) {
+    flags.push({ cls: 'bad', text: `${totals.shotOpportunities} shot opportunities produced 0 shot decisions. Check goalmouth smothers, final-third pass choices, and shot urge.` });
+  }
+  for (const row of rows) {
+    if (row.status === 'fail') flags.push({ cls: 'bad', text: `${row.label} raw total ${fmtRate(row.value)} is outside the runtime-scaled MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+    else if (row.status === 'watch') flags.push({ cls: 'warn', text: `${row.label} raw total ${fmtRate(row.value)} is near the edge of the runtime-scaled MLS expected range ${fmtRate(row.expected.min)}-${fmtRate(row.expected.max)}.` });
+  }
+  if (!flags.length) flags.push({ cls: 'ok', text: 'Runtime-scaled MLS raw KPI checks are currently within guardrails.' });
+  $('kpiFlags').innerHTML = flags.map(flag => `<div class="flag ${flag.cls}"><span>${flag.text}</span></div>`).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -898,7 +1240,7 @@ function renderTimeline() {
   ctx.clearRect(0, 0, W, H);
   if (!D) return;
 
-  const events = D.events || [];
+  const events = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
   const halfDur = D.metadata?.halfDuration || 2700;
   const totalDur = halfDur * 2;
   const pad = { l: 40, r: 10, t: 14, b: 22 };
@@ -944,19 +1286,32 @@ function renderTimeline() {
     ctx.globalAlpha = 1;
   }
 
+  const eventSecondsInHalf = (ev) => getEventSecondsInHalf(ev, D.metadata);
+  const eventSecondsTotal = (ev) => getEventSecondsTotal(ev, D.metadata);
+
   // Event markers
   const evtToX = (ev) => {
-    // t is elapsed time since match start (not reset at halftime)
-    return pad.l + (ev.t / totalDur) * gw;
+    const tSec = eventSecondsTotal(ev);
+    return pad.l + (tSec / totalDur) * gw;
   };
 
   for (const ev of events) {
-    const x = evtToX(ev);
+    const x = clamp(evtToX(ev), pad.l, W - pad.r);
     const isA = ev.team === 'A';
     const baseY = isA ? pad.t + gh * 0.25 : pad.t + gh * 0.65;
     const r = 3;
 
-    if (ev.type === 'GOAL') {
+    if (ev.type === 'PASS') {
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, baseY);
+      ctx.lineTo(x + 2, baseY);
+      ctx.lineTo(x, baseY - 2);
+      ctx.moveTo(x + 2, baseY);
+      ctx.lineTo(x, baseY + 2);
+      ctx.stroke();
+    } else if (ev.type === 'GOAL') {
       ctx.beginPath(); ctx.arc(x, baseY, r + 2, 0, Math.PI * 2);
       ctx.fillStyle = isA ? '#3b82f6' : '#e74c5a';
       ctx.fill();
@@ -975,6 +1330,36 @@ function renderTimeline() {
       ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(x - 2, baseY - 2); ctx.lineTo(x + 2, baseY + 2);
       ctx.moveTo(x + 2, baseY - 2); ctx.lineTo(x - 2, baseY + 2); ctx.stroke();
+    } else if (ev.type === 'CLEARANCE') {
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 4);
+      ctx.lineTo(x + 3.5, baseY + 2.5);
+      ctx.lineTo(x - 3.5, baseY + 2.5);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (ev.type === 'RECOVERY') {
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, baseY, 3, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (ev.type === 'MIDFIELD_SUPPORT') {
+      const followState = ev.detail?.supportFollowsStriker;
+      ctx.fillStyle = followState === false ? '#f59e0b' : '#7c3aed';
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 4);
+      ctx.lineTo(x + 4, baseY);
+      ctx.lineTo(x, baseY + 4);
+      ctx.lineTo(x - 4, baseY);
+      ctx.closePath();
+      ctx.fill();
+      if (followState === false) {
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
   }
 
@@ -985,7 +1370,7 @@ function renderTimeline() {
     const counts = new Array(buckets).fill(0);
     for (const ev of events) {
       // t is elapsed time since match start
-      const bi = clamp(Math.floor(ev.t / bw), 0, buckets - 1);
+      const bi = clamp(Math.floor(eventSecondsTotal(ev) / bw), 0, buckets - 1);
       counts[bi] += (ev.team === 'A' ? 1 : -1);
     }
     ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
@@ -1006,20 +1391,66 @@ function renderTimeline() {
   ctx.fillText('Team B ↓', W - pad.r, pad.t + gh - 2);
   // Legend icons
   const lx = pad.l + 40, ly = pad.t + 5;
-  ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.textAlign = 'left'; ctx.fillText('Goal', lx + 10, ly + 3);
-  ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(lx + 45, ly, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Shot', lx + 55, ly + 3);
-  ctx.fillStyle = '#22c55e'; ctx.fillRect(lx + 92, ly - 2, 4, 4);
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Tackle', lx + 100, ly + 3);
-  ctx.fillStyle = '#eab308';
-  ctx.beginPath(); ctx.moveTo(lx + 145, ly - 3); ctx.lineTo(lx + 148, ly + 2); ctx.lineTo(lx + 142, ly + 2); ctx.fill();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Foul', lx + 155, ly + 3);
-  ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(lx + 195, ly - 2); ctx.lineTo(lx + 199, ly + 2);
-  ctx.moveTo(lx + 199, ly - 2); ctx.lineTo(lx + 195, ly + 2); ctx.stroke();
-  ctx.fillStyle = '#8890a0'; ctx.fillText('Intercept', lx + 205, ly + 3);
+  const legendText = (text, x, y) => {
+    ctx.fillStyle = '#8890a0';
+    ctx.fillText(text, x, y);
+  };
+  const legendItems = [
+    { label: 'Pass', width: 34, draw: (x, y) => {
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y);
+      ctx.lineTo(x + 2, y);
+      ctx.lineTo(x, y - 2);
+      ctx.moveTo(x + 2, y);
+      ctx.lineTo(x, y + 2);
+      ctx.stroke();
+    }},
+    { label: 'Goal', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+    }},
+    { label: 'Shot', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    }},
+    { label: 'Tackle', width: 42, draw: (x, y) => {
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+    }},
+    { label: 'Foul', width: 34, draw: (x, y) => {
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x + 3, y + 2); ctx.lineTo(x - 3, y + 2); ctx.fill();
+    }},
+    { label: 'Intercept', width: 52, draw: (x, y) => {
+      ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 2, y - 2); ctx.lineTo(x + 2, y + 2);
+      ctx.moveTo(x + 2, y - 2); ctx.lineTo(x - 2, y + 2); ctx.stroke();
+    }},
+    { label: 'Clearance', width: 54, draw: (x, y) => {
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x + 3.5, y + 2.5);
+      ctx.lineTo(x - 3.5, y + 2.5);
+      ctx.closePath();
+      ctx.stroke();
+    }},
+    { label: 'Recovery', width: 50, draw: (x, y) => {
+      ctx.strokeStyle = '#10b981'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }},
+  ];
+  const legendGap = 12;
+  const totalLegendWidth = legendItems.reduce((sum, item) => sum + item.width, 0) + legendGap * (legendItems.length - 1);
+  let legendX = Math.max(lx, W - pad.r - totalLegendWidth);
+  for (const item of legendItems) {
+    item.draw(legendX, ly);
+    legendText(item.label, legendX + 8, ly + 3);
+    legendX += item.width + legendGap;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1208,9 +1639,21 @@ function renderShapeChart() {
 function renderPassIntel() {
   if (!D) return;
   const nameA = D.teamA?.name || 'Team A', nameB = D.teamB?.name || 'Team B';
-  const events = D.events || [];
-  const passesA = events.filter(e => e.type === 'PASS' && e.team === 'A');
-  const passesB = events.filter(e => e.type === 'PASS' && e.team === 'B');
+  const decisionRows = Array.isArray(D.passDecisions) && D.passDecisions.length
+    ? D.passDecisions.map((p) => ({
+        type: 'PASS',
+        team: p.team,
+        role: p.role || p.passerRole,
+        detail: {
+          ...p,
+          progress: p.progress ?? p.passForwardProg ?? p.bestTargetForwardProg ?? 0,
+          completed: p.completed,
+        },
+      }))
+    : null;
+  const passRows = decisionRows || (D.passLog || D.events || []).filter(e => e.type === 'PASS' || e.type === 'TURNOVER' || e.type === 'OFFSIDE');
+  const passesA = passRows.filter(e => e.team === 'A');
+  const passesB = passRows.filter(e => e.team === 'B');
 
   // Classify direction by progress field
   const classify = (p) => {
@@ -1357,37 +1800,40 @@ function renderRolePanel() {
   const r = rs[role];
   if (!r) { $('roleStatsGrid').innerHTML = '<div style="color:var(--fg3);font-size:.8rem">No data for ' + role + '</div>'; return; }
 
-  const passAccu = r.passAtt > 0 ? pct(r.passComp, r.passAtt) : '—';
+  const passAtt = r.passAtt ?? r.passes ?? 0;
+  const passComp = r.passComp ?? r.passesCompleted ?? 0;
+  const passAccu = passAtt > 0 ? pct(passComp, passAtt) : '—';
+  const statValue = (value) => value ?? 0;
 
   $('roleStatsGrid').innerHTML = [
-    { l: 'Touches', v: r.touches },
-    { l: 'Poss Frames', v: r.possFrames },
-    { l: 'Pass Att', v: r.passAtt },
-    { l: 'Pass Comp', v: r.passComp },
+    { l: 'Touches', v: statValue(r.touches) },
+    { l: 'Poss Frames', v: statValue(r.possFrames) },
+    { l: 'Pass Att', v: passAtt },
+    { l: 'Pass Comp', v: passComp },
     { l: 'Pass %', v: passAccu },
-    { l: 'Shots', v: r.shots },
-    { l: 'SOT', v: r.shotsOnTarget },
-    { l: 'Tackles', v: r.tackles },
-    { l: 'Interceptions', v: r.interceptions },
-    { l: 'Clearances', v: r.clearances },
-    { l: 'Recoveries', v: r.recoveries },
-    { l: 'Turnovers', v: r.turnovers },
-    { l: 'Fouls', v: r.fouls },
-    { l: 'Fouled', v: r.fouled },
+    { l: 'Shots', v: statValue(r.shots) },
+    { l: 'SOT', v: statValue(r.shotsOnTarget) },
+    { l: 'Tackles', v: statValue(r.tackles) },
+    { l: 'Interceptions', v: statValue(r.interceptions) },
+    { l: 'Clearances', v: statValue(r.clearances) },
+    { l: 'Recoveries', v: statValue(r.recoveries) },
+    { l: 'Turnovers', v: statValue(r.turnovers) },
+    { l: 'Fouls', v: statValue(r.fouls) },
+    { l: 'Fouled', v: statValue(r.fouled) },
   ].map(s => `<div class="role-stat"><div class="rs-label">${s.l}</div><div class="rs-val">${s.v}</div></div>`).join('');
 
   // Behavioral flags
   const flags = [];
   const totalPoss = D.teamA?.possession || 50;
-  if (r.possFrames > 0 && r.passAtt > 0) {
-    const holdPerPass = r.possFrames / r.passAtt;
+  if (r.possFrames > 0 && passAtt > 0) {
+    const holdPerPass = r.possFrames / passAtt;
     if (holdPerPass > 60) flags.push({ icon: '⚠️', text: `Holding ball too long (${holdPerPass.toFixed(0)} frames/pass)`, cls: 'warn' });
   }
-  if (r.passAtt >= 5 && r.passComp / r.passAtt < 0.5) flags.push({ icon: '⚠️', text: `Low pass completion (${pct(r.passComp, r.passAtt)})`, cls: 'warn' });
+  if (passAtt >= 5 && passComp / passAtt < 0.5) flags.push({ icon: '⚠️', text: `Low pass completion (${pct(passComp, passAtt)})`, cls: 'warn' });
   if (r.turnovers > 5) flags.push({ icon: '⚠️', text: `High turnover count (${r.turnovers})`, cls: 'warn' });
-  if (['ST', 'LW', 'RW', 'AM'].includes(role) && r.shots === 0 && r.passAtt > 10) flags.push({ icon: '⚠️', text: 'Attacker with 0 shots', cls: 'warn' });
+  if (['ST', 'LW', 'RW', 'AM'].includes(role) && r.shots === 0 && passAtt > 10) flags.push({ icon: '⚠️', text: 'Attacker with 0 shots', cls: 'warn' });
   if (['CB', 'RB', 'LB'].includes(role) && r.tackles + r.interceptions + r.clearances === 0 && r.possFrames > 100) flags.push({ icon: '⚠️', text: 'Defender with 0 defensive actions', cls: 'warn' });
-  if (r.passAtt >= 3 && r.passComp / r.passAtt >= 0.8) flags.push({ icon: '✅', text: `Good pass accuracy (${pct(r.passComp, r.passAtt)})`, cls: 'ok' });
+  if (passAtt >= 3 && passComp / passAtt >= 0.8) flags.push({ icon: '✅', text: `Good pass accuracy (${pct(passComp, passAtt)})`, cls: 'ok' });
   if (r.tackles + r.interceptions >= 5) flags.push({ icon: '✅', text: `Strong defensive presence (${r.tackles + r.interceptions} T+I)`, cls: 'ok' });
 
   $('roleFlags').innerHTML = flags.length
@@ -1422,17 +1868,19 @@ function toggleAllEvents() {
 
 function renderEventList() {
   if (!D) return;
-  const events = (D.events || []).filter(e => activeEventFilters.has(e.type));
+  const events = (D.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
   const _evHalfDur = D.metadata?.halfDuration || 2700;
+  const eventSecondsInHalf = (ev) => getEventSecondsInHalf(ev, D.metadata);
+  const eventSeconds = (ev) => getEventSecondsTotal(ev, D.metadata);
+
   const sorted = [...events].sort((a, b) => {
-    const aT = a.half === 1 ? a.t : _evHalfDur + a.t;
-    const bT = b.half === 1 ? b.t : _evHalfDur + b.t;
+    const aT = eventSeconds(a);
+    const bT = eventSeconds(b);
     return bT - aT;
   });
 
   const formatTime = (ev) => {
-    const halfDur = D.metadata?.halfDuration || 2700;
-    const totalSec = ev.half === 1 ? ev.t : halfDur + ev.t;
+    const totalSec = eventSeconds(ev);
     const min = Math.floor(totalSec / 60);
     const sec = Math.floor(totalSec % 60);
     return `${min}:${String(sec).padStart(2, '0')}`;
@@ -1440,12 +1888,20 @@ function renderEventList() {
 
   $('eventList').innerHTML = sorted.slice(0, 200).map(ev => {
     const detail = ev.detail || {};
+    const noteParts = [];
+    if (ev.type === 'MIDFIELD_SUPPORT') {
+      if (detail.supportFollowsStriker === false) noteParts.push('NOT FOLLOWING STRIKER');
+      else if (detail.supportFollowsStriker === true) noteParts.push('FOLLOWING STRIKER');
+      if (detail.supportTargetStrikerDist != null) noteParts.push(`d1:${f1(detail.supportTargetStrikerDist)}`);
+      if (detail.finalTargetStrikerDist != null) noteParts.push(`d2:${f1(detail.finalTargetStrikerDist)}`);
+    }
     const detailStr = Object.entries(detail).map(([k, v]) => `${k}:${v}`).join(' · ');
-    return `<div class="event-item" title="${detailStr}">
+    const notes = noteParts.concat(detailStr ? [detailStr] : []).join(' · ');
+    return `<div class="event-item" title="${notes}">
       <span class="ev-time">${formatTime(ev)}</span>
       <span class="ev-team" style="color:${ev.team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${ev.team}</span>
       <span class="ev-type ${ev.type}">${ev.type}</span>
-      <span style="color:var(--fg2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.role} ${detailStr ? '— ' + detailStr : ''}</span>
+      <span style="color:var(--fg2);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.role} ${notes ? '— ' + notes : ''}</span>
     </div>`;
   }).join('');
 }
@@ -1453,6 +1909,123 @@ function renderEventList() {
 /* ═══════════════════════════════════════════════════════════
    RENDER: 6. SPATIAL INTELLIGENCE
    ═══════════════════════════════════════════════════════════ */
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderShotDecisions() {
+  if (!D) return;
+  const decisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+  const listEl = $('shotDecisionList');
+  if (!listEl) return;
+  if (!decisions.length) {
+    listEl.innerHTML = '<div class="dim">No shot decision telemetry available.</div>';
+    return;
+  }
+
+  const latest = decisions.slice(-30).reverse();
+  const lowEvShots = latest.filter(d => d.shotChance != null && d.passChance != null && d.shotChance < d.passChance).length;
+  const belowThresholdShots = latest.filter(d => d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot).length;
+  const rows = latest.map(d => {
+    const team = d.team || '?';
+    const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+    const isLowEv = d.shotChance != null && d.passChance != null && d.shotChance < d.passChance;
+    const isBelowThreshold = d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot;
+    const notes = [];
+    if (d.shotChance != null) notes.push(`shotChance:${d.shotChance}`);
+    if (d.passChance != null) notes.push(`passChance:${d.passChance}`);
+    if (d.shotThreshold != null) notes.push(`threshold:${d.shotThreshold}`);
+    if (isLowEv) notes.push('LOW EV');
+    if (isBelowThreshold) notes.push('BELOW THRESHOLD');
+    if (d.passTarget != null) notes.push(`passTarget:${d.passTarget}`);
+    if (d.hasForwardPassOption != null) notes.push(`hasForwardPassOption:${d.hasForwardPassOption}`);
+    if (d.onFlank != null) notes.push(`onFlank:${d.onFlank}`);
+    if (d.supportIncomingSuppression != null) notes.push(`supportIncomingSuppression:${d.supportIncomingSuppression}`);
+    if (d.flankShotPenalty != null) notes.push(`flankShotPenalty:${d.flankShotPenalty}`);
+    if (d.tightAnglePenalty != null) notes.push(`tightAnglePenalty:${d.tightAnglePenalty}`);
+    if (d.reboundSuppression != null) notes.push(`reboundSuppression:${d.reboundSuppression}`);
+    if (d.forceShotNow != null) notes.push(`forceShot:${d.forceShotNow}`);
+    if (d.desperationShot != null) notes.push(`desperation:${d.desperationShot}`);
+    if (d.shouldShoot != null) notes.push(`shouldShoot:${d.shouldShoot}`);
+    if (d.decisionType) notes.push(d.decisionType);
+    if (d.inShootingLane) notes.push('lane');
+    if (d.insidePenaltyArea) notes.push('penalty');
+
+    const detailLine = notes.join(' · ');
+    const shooter = escapeHTML(d.shooter || d.role || 'Unknown');
+    const style = escapeHTML(d.style || 'SHOT');
+    const title = escapeHTML(JSON.stringify(d));
+
+    return `<div class="event-item" title="${title}">
+      <span class="ev-time">${escapeHTML(timeLabel)}</span>
+      <span class="ev-team" style="color:${team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${escapeHTML(team)}</span>
+      <span class="ev-type SHOT">SHOT</span>
+      <span style="color:var(--fg2);font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shooter} ${style}${detailLine ? ' — ' + escapeHTML(detailLine) : ''}</span>
+    </div>`;
+  });
+
+  listEl.innerHTML = `<div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div>${decisions.length} shot decisions recorded</div>
+    <div style="color:var(--fg2);font-size:.85rem">showing last ${latest.length}</div>
+  </div>
+  <div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div style="color:${lowEvShots ? 'var(--accent-red)' : 'var(--fg2)'}">Low EV shots: ${lowEvShots}</div>
+    <div style="color:${belowThresholdShots ? 'var(--accent-yellow)' : 'var(--fg2)'}">Below threshold: ${belowThresholdShots}</div>
+  </div>${rows.join('')}`;
+}
+
+function renderPassDecisions() {
+  if (!D) return;
+  const decisions = Array.isArray(D.passDecisions) ? D.passDecisions : [];
+  const listEl = $('passDecisionList');
+  if (!listEl) return;
+  if (!decisions.length) {
+    listEl.innerHTML = '<div class="dim">No pass decision telemetry available.</div>';
+    return;
+  }
+
+  const latest = decisions.slice(-30).reverse();
+  const rows = latest.map(d => {
+    const team = d.team || '?';
+    const timeLabel = d.half != null ? `H${d.half} ${Math.floor((d.elapsedInHalf || 0) / 60)}:${String(Math.floor((d.elapsedInHalf || 0) % 60)).padStart(2, '0')}` : 'TBD';
+    const notes = [];
+    if (d.passChance != null) notes.push(`passChance:${d.passChance}`);
+    if (d.passDist != null) notes.push(`passDist:${d.passDist}`);
+    if (d.forwardProg != null) notes.push(`forwardProg:${d.forwardProg}`);
+    if (d.inFinalThird) notes.push('finalThird');
+    if (d.insidePenaltyArea) notes.push('penaltyArea');
+    if (d.hasForwardPassOption != null) notes.push(`forwardOption:${d.hasForwardPassOption}`);
+    if (d.progressivePass != null) notes.push(`progPass:${d.progressivePass}`);
+    if (d.passSkill != null) notes.push(`passSkill:${d.passSkill}`);
+    if (d.supportIncomingSuppression != null) notes.push(`supportSupp:${d.supportIncomingSuppression}`);
+    if (d.shotSpamSuppression != null) notes.push(`shotSpam:${d.shotSpamSuppression}`);
+    if (d.decisionType) notes.push(d.decisionType);
+
+    const detailLine = notes.join(' · ');
+    const passer = escapeHTML(d.passer || d.passerRole || 'Unknown');
+    const target = escapeHTML(d.target || 'Unknown');
+    const style = escapeHTML(d.passStyle || 'PASS');
+    const title = escapeHTML(JSON.stringify(d));
+
+    return `<div class="event-item" title="${title}">
+      <span class="ev-time">${escapeHTML(timeLabel)}</span>
+      <span class="ev-team" style="color:${team === 'A' ? 'var(--accent-blue)' : 'var(--accent-red)'}">${escapeHTML(team)}</span>
+      <span class="ev-type PASS">PASS</span>
+      <span style="color:var(--fg2);font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${passer} → ${target} ${style}${detailLine ? ' — ' + escapeHTML(detailLine) : ''}</span>
+    </div>`;
+  });
+
+  listEl.innerHTML = `<div class="stat-row" style="justify-content:space-between;margin-bottom:8px">
+    <div>${decisions.length} pass decisions recorded</div>
+    <div style="color:var(--fg2);font-size:.85rem">showing last ${latest.length}</div>
+  </div>${rows.join('')}`;
+}
+
 function setSpatialTab(tab) {
   activeSpatialTab = tab;
   document.querySelectorAll('#spatialTabs button').forEach((b, i) => {
@@ -1471,8 +2044,10 @@ function renderSpatial() {
   const pitch = drawPitch(ctx, W, H, 20);
 
   if (activeSpatialTab === 'heatmap') {
-    // Event heatmap
-    const events = D?.events || [];
+    // Event heatmap. Keep this aligned with the event timeline filters; the
+    // bundle also contains high-frequency trace telemetry that would otherwise
+    // swamp real ball/action hotspots.
+    const events = (D?.events || []).filter(e => e.type !== 'MIDFIELD_SUPPORT' && activeEventFilters.has(e.type));
     if (events.length === 0) {
       ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('No event data for heatmap', W / 2, H / 2);
@@ -1483,13 +2058,20 @@ function renderSpatial() {
     const gx = 20, gz = 14;
     const gridA = Array.from({ length: gx }, () => new Float32Array(gz));
     const gridB = Array.from({ length: gx }, () => new Float32Array(gz));
+    let plottedEvents = 0;
     for (const ev of events) {
       const x = ev.detail?.x, z = ev.detail?.z;
       if (x == null || z == null) continue;
+      plottedEvents++;
       const gi = clamp(Math.floor((x + 32.8) / 65.6 * gx), 0, gx - 1);
       const gj = clamp(Math.floor((z + 20) / 40 * gz), 0, gz - 1);
       if (ev.team === 'A') gridA[gi][gj]++;
       else gridB[gi][gj]++;
+    }
+    if (plottedEvents === 0) {
+      ctx.fillStyle = '#565e72'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('No filtered event coordinates for heatmap', W / 2, H / 2);
+      return;
     }
 
     let maxVal = 1;
@@ -1513,7 +2095,7 @@ function renderSpatial() {
     }
 
     ctx.fillStyle = '#8890a0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('Event Heatmap  ■ A (blue)  ■ B (red)', 24, 14);
+    ctx.fillText(`Filtered Event Heatmap (${plottedEvents})  ■ A (blue)  ■ B (red)`, 24, 14);
   } else {
     // Shape tracking: draw team centroids over time
     const shA = D?.shapeA || [], shB = D?.shapeB || [];
@@ -1913,8 +2495,15 @@ function renderInsights() {
   const insights = [];
   const a = D.teamA, b = D.teamB;
 
+  if (D.tuning?.label || D.tuning?.description) {
+    insights.push({ cls: 'info', text: `Tuning marker: ${D.tuning.label} — ${D.tuning.description}` });
+  }
+
   // MLS baselines
   const MLS_SHOTS = 13.16, MLS_PASS_PCT = 0.76, MLS_GOALS = 1.89;
+  const shotDecisions = Array.isArray(D.shotDecisions) ? D.shotDecisions : [];
+  const lowEvShots = shotDecisions.filter(d => d.shotChance != null && d.passChance != null && d.shotChance < d.passChance).length;
+  const belowThresholdShots = shotDecisions.filter(d => d.shotChance != null && d.shotThreshold != null && d.shotChance < d.shotThreshold && d.shouldShoot).length;
 
   // Goals per game comparison
   const totalGoals = (a.score || 0) + (b.score || 0);
@@ -1925,6 +2514,8 @@ function renderInsights() {
   const avgShots = ((a.shots || 0) + (b.shots || 0)) / 2;
   if (avgShots < MLS_SHOTS * 0.5) insights.push({ cls: 'bad', text: `Low shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may not be attempting enough shots.` });
   else if (avgShots > MLS_SHOTS * 1.5) insights.push({ cls: 'warn', text: `High shot volume (${f1(avgShots)} avg vs MLS ${MLS_SHOTS}) — AI may be shooting from poor positions.` });
+  if (lowEvShots > 0) insights.push({ cls: 'warn', text: `${lowEvShots} shot decision${lowEvShots === 1 ? '' : 's'} had lower shotChance than passChance — review shot gating.` });
+  if (belowThresholdShots > 0) insights.push({ cls: 'warn', text: `${belowThresholdShots} shot decision${belowThresholdShots === 1 ? '' : 's'} were taken below the configured shot threshold.` });
 
   // Pass completion
   for (const [name, team] of [['A', a], ['B', b]]) {
@@ -2089,6 +2680,7 @@ function renderAll() {
   $('liveDot').style.display = isLiveNow ? '' : 'none';
 
   renderOverview();
+  renderKpiReport();
   renderTimeline();
   renderTeamStyle();
   renderPassIntel();
@@ -2096,6 +2688,8 @@ function renderAll() {
   renderRolePanel();
   renderEventFilters();
   renderEventList();
+  renderShotDecisions();
+  renderPassDecisions();
   renderSpatial();
   renderPositioning();
   renderKeeper();
@@ -2164,6 +2758,10 @@ async function refreshHistorySelect() {
       const date = new Date(h.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       sel.innerHTML += `<option value="${i}">${h.team_a_name || 'A'} ${h.score_a}-${h.score_b} ${h.team_b_name || 'B'} (${date})</option>`;
     }
+    if (!D && !_historyModeActive && history.length > 0) {
+      sel.value = '0';
+      loadFromHistory();
+    }
   } catch { sel.innerHTML = '<option value="">— No history —</option>'; }
 }
 
@@ -2189,6 +2787,12 @@ function loadFromHistory() {
     }
 
     if (!bundle) { alert('No bundle data available'); return; }
+    bundle.metadata = {
+      ...(bundle.metadata || {}),
+      matchPhase: bundle.metadata?.matchPhase || entry.phase || 'FULL_TIME',
+      half: bundle.metadata?.half || entry.half || 2,
+      elapsedInHalf: bundle.metadata?.elapsedInHalf ?? entry.elapsed_in_half,
+    };
 
     D = bundle;
     prevD = null;  // Clear comparison

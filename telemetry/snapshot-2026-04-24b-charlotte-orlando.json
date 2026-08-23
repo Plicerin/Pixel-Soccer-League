@@ -1,0 +1,117 @@
+{
+  "date": "2026-04-24",
+  "match": "Charlotte FC 2-2 Orlando City",
+  "session": "ft-1777035632753",
+  "phase": "Phase 1 match 4 — regression from unconditional width lock",
+  "codeState": "commit 5e1fc59 (unconditional winger width at blend 0.75)",
+  "baselines": {
+    "goals": {
+      "actual": 4,
+      "drift": 1.22
+    },
+    "shots": {
+      "actual": 44,
+      "drift": 17.8,
+      "regression": true
+    },
+    "sot": {
+      "actual": 31,
+      "drift": 21.6,
+      "regression": true
+    },
+    "corners": {
+      "actual": 0,
+      "drift": -8
+    }
+  },
+  "shotDecisions": {
+    "total": 44,
+    "forced": 43,
+    "passChanceZero": 44,
+    "outside": 24
+  },
+  "passDecisions": {
+    "total": 900,
+    "hasForward": 69,
+    "shouldPass": 92,
+    "hasForwardPct": 0.077,
+    "shouldPassPct": 0.102,
+    "regressionFromMatch3": true
+  },
+  "actualPasses": {
+    "total": 146,
+    "fwd": 102,
+    "back": 39,
+    "toST": 10,
+    "toSTPct": 0.068,
+    "regressionFromMatch3": true
+  },
+  "rolePositions_phaseFiltered": {
+    "A": {
+      "ST": {
+        "oppHalfFwdX": 8.92,
+        "samples": 54
+      },
+      "LM": {
+        "finalThird_absZ": 4.5,
+        "samples": 39
+      },
+      "RM": {
+        "finalThird_absZ": 2.57,
+        "samples": 48
+      }
+    },
+    "B": {
+      "ST": {
+        "oppHalfFwdX": 8.12,
+        "samples": 15
+      },
+      "LM": {
+        "finalThird_absZ": 4.45,
+        "samples": 30
+      },
+      "RM": {
+        "finalThird_absZ": 4.79,
+        "samples": 39
+      }
+    }
+  },
+  "phaseTime": {
+    "A": {
+      "buildup": 5,
+      "progression": 45.5,
+      "chance": 46.6,
+      "finish": 2.9
+    },
+    "B": {
+      "buildup": 13.3,
+      "progression": 54.1,
+      "chance": 32.1,
+      "finish": 0.5
+    }
+  },
+  "roleShots": {
+    "A": {
+      "LM": 9,
+      "RM": 7,
+      "ST": 4,
+      "CM": 4,
+      "CB": 2
+    },
+    "B": {
+      "RM": 7,
+      "CM": 5,
+      "LM": 3,
+      "ST": 3,
+      "CB": 0
+    }
+  },
+  "goalLog": [
+    "A ST#10 Toklomati m7",
+    "A ST#10 Toklomati m27",
+    "B #11 Þórhallsson m55",
+    "B #8 Pašalić m80"
+  ],
+  "diagnosis": "Unconditional width 0.75 broke passing geometry. Wingers far wide = no short-pass triangles. hasForward 7.7% (was 20%). pass-to-ST 6.8% (was 14%). Also wingers cut inside as carrier → 9 LM shots, mostly from outside box.",
+  "rollback": "Reduced width blend to 0.18/0.55 based on carrier flank. Added wide-finisher shot allowlist: LM/RM only shoot inside box OR dist<14 inShootingLane lowPressure."
+}
