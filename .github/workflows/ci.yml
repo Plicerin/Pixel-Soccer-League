@@ -87,7 +87,7 @@ jobs:
   installer:
     name: Windows installer
     needs: verify
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/001-fix-cpu-gameplay'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
