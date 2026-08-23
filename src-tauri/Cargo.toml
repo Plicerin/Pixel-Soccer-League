@@ -1,6 +1,6 @@
 [package]
 name = "pixel-soccer-league-desktop"
-version = "0.4.7"
+version = "0.4.8"
 description = "Desktop wrapper for Pixel Soccer League"
 authors = ["Plicerin"]
 license = "UNLICENSED"
