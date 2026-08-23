@@ -4,6 +4,8 @@
 
 # Run and deploy your AI Studio app
 
+[![CI](https://github.com/Plicerin/Pixel-Soccer-League/actions/workflows/ci.yml/badge.svg)](https://github.com/Plicerin/Pixel-Soccer-League/actions/workflows/ci.yml)
+
 This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/e23bf68b-d920-483f-b5a4-63603a407f5a

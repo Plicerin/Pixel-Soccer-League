@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast feedback: typecheck, tests and a web build. Should finish in ~2 min.
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Web build
+        run: npm run build
+
+      # The desktop build ships whatever is in dist/, so guard against the
+      # dev-only tooling and the 13 MB sample replay creeping back in.
+      - name: Check the bundle stays lean
+        run: |
+          for f in dashboard.html ig.js infinite-game.js data/metrica-sample-game-1-replay.json; do
+            if [ -e "dist/$f" ]; then
+              echo "::error::dist/$f must not ship in the desktop build"
+              exit 1
+            fi
+          done
+          size_kb=$(du -sk dist | cut -f1)
+          echo "dist is ${size_kb} KB"
+          if [ "$size_kb" -gt 24000 ]; then
+            echo "::error::dist grew to ${size_kb} KB (limit 24000). Check for large assets."
+            exit 1
+          fi
+
+  # Gameplay calibration. Slower, so it runs alongside rather than blocking.
+  kpi:
+    name: Simulation KPI guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: KPI guard
+        run: npm run eval:guard
+
+      - name: Upload KPI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kpi-report
+          path: |
+            telemetry/simple-model-kpi.json
+            telemetry/simple-model-kpi.md
+          if-no-files-found: ignore
+
+  # The thing users actually install. Only on main, and only if verify passed.
+  installer:
+    name: Windows installer
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build installer
+        run: npx @tauri-apps/cli build
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-soccer-league-installer
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
