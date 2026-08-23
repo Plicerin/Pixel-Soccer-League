@@ -646,6 +646,8 @@ export class SimpleMatchModel {
   weather = "SUNNY";
   lighting = "NOON";
   aiStyle = "BALANCED";
+  /** Match setting: when false, fouls are never awarded. */
+  foulsEnabled = true;
   cameraMode = "BROADCAST";
   lastShotTelemetry: Record<string, unknown> | null = null;
   lastKeeperKickTelemetry: Record<string, unknown> | null = null;
@@ -4734,6 +4736,8 @@ export class SimpleMatchModel {
   }
 
   private resolveFoul(committer: SimplePlayer, fouled: SimplePlayer, pressure: number, reason: string) {
+    // Match option: with fouls off, contact simply does not stop play.
+    if (!this.foulsEnabled) return false;
     this.finalizeActiveReceptionTelemetryForPlayer(fouled, "foul");
     this.recordFoul(committer, fouled, pressure, reason);
     if (this.isPenaltyFoul(committer, fouled)) {

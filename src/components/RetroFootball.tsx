@@ -102,6 +102,30 @@ type CpuMatchup = { a: string; b: string };
 type WindowResolutionPreset = '1280x720' | '1366x768' | '1600x900' | '1920x1080';
 
 const WINDOW_RESOLUTION_STORAGE_KEY = 'psl.windowResolution';
+const DISPLAY_MODE_STORAGE_KEY = 'psl.displayMode';
+
+/** Windowed uses the resolution presets; fullscreen hides the taskbar. */
+type DisplayMode = 'WINDOWED' | 'FULLSCREEN';
+
+function getStoredDisplayMode(): DisplayMode {
+  try {
+    return window.localStorage.getItem(DISPLAY_MODE_STORAGE_KEY) === 'FULLSCREEN' ? 'FULLSCREEN' : 'WINDOWED';
+  } catch {
+    return 'WINDOWED';
+  }
+}
+
+/**
+ * Borderless fullscreen. Tauri's setFullscreen keeps the webview at the
+ * monitor's resolution and removes the decorations, which is what the tester
+ * wanted: no Windows taskbar over the pitch.
+ */
+async function applyDisplayMode(mode: DisplayMode) {
+  if (!(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) return false;
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().setFullscreen(mode === 'FULLSCREEN');
+  return true;
+}
 const WINDOW_RESOLUTION_PRESETS: ReadonlyArray<{ key: WindowResolutionPreset; label: string; width: number; height: number }> = [
   { key: '1280x720', label: '1280 × 720', width: 1280, height: 720 },
   { key: '1366x768', label: '1366 × 768', width: 1366, height: 768 },
@@ -125,6 +149,8 @@ function getStoredWindowResolution(): WindowResolutionPreset {
 
 async function applyWindowResolution(preset: WindowResolutionPreset) {
   const next = WINDOW_RESOLUTION_PRESETS.find((candidate) => candidate.key === preset) ?? WINDOW_RESOLUTION_PRESETS[2];
+  // Resizing while fullscreen would silently fight the display mode.
+  if (getStoredDisplayMode() === 'FULLSCREEN') return;
   if ((window as any).__TAURI_INTERNALS__) {
     const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
     const currentWindow = getCurrentWindow();
@@ -229,7 +255,7 @@ interface PreMatchSetupScreenProps {
 }
 
 const PRE_MATCH_SELECT_CLASSNAME = 'bg-zinc-800 border border-white/20 text-white text-[11px] rounded px-2 py-1.5 focus:outline-none focus:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 pointer-events-auto cursor-pointer relative';
-const PRE_MATCH_HALF_LENGTH_OPTIONS = ['2', '5', '15', '45'];
+const PRE_MATCH_HALF_LENGTH_OPTIONS = ['2', '5', '10', '15', '20', '30', '45'];
 const PRE_MATCH_AGGRESSIVENESS_OPTIONS = Object.keys(PRACTICE_AGGRESSIVENESS) as AggressivenessKey[];
 type MatchKitKey = 'home' | 'away';
 type KickoffSetupOptions = {
@@ -1065,6 +1091,7 @@ const RetroFootball: React.FC = () => {
   const [teamAPreMatchKit, setTeamAPreMatchKit] = useState(0); // 0=home, 1=away
   const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
   const [halfLengthMinutes, setHalfLengthMinutes] = useState(5);
+  const [foulsEnabled, setFoulsEnabled] = useState(true);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const devToolsVisible = useMemo(() => hasDevServer(), []);
@@ -1077,6 +1104,19 @@ const RetroFootball: React.FC = () => {
   const [crowdVolume, setCrowdVolume] = useState(0.60);
   const [windowResolution, setWindowResolution] = useState<WindowResolutionPreset>(() => getStoredWindowResolution());
   const [windowResolutionMessage, setWindowResolutionMessage] = useState('');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(() => getStoredDisplayMode());
+  const [musicVolume, setMusicVolume] = useState(() => {
+    try {
+      // Number(null) is 0, which is finite and in range -- reading it directly
+      // would start a first-run player in silence instead of at the default.
+      const raw = window.localStorage.getItem('psl.musicVolume');
+      if (raw === null) return 0.5;
+      const stored = Number(raw);
+      return Number.isFinite(stored) && stored >= 0 && stored <= 1 ? stored : 0.5;
+    } catch {
+      return 0.5;
+    }
+  });
   const [autoSwitching, setAutoSwitching] = useState<'AUTOMATIC' | 'AIR_BALLS' | 'LOOSE_BALLS' | 'MANUAL'>('AUTOMATIC');
   const [players, setPlayers] = useState<any[]>([]);
   const [matchSnapshot, setMatchSnapshot] = useState<any | null>(null);
@@ -1275,6 +1315,41 @@ const RetroFootball: React.FC = () => {
       cancelled = true;
     };
   }, [windowResolution]);
+
+  useEffect(() => {
+    gameRef.current?.setMusicVolume?.(musicVolume);
+    try {
+      window.localStorage.setItem('psl.musicVolume', String(musicVolume));
+    } catch {}
+  }, [musicVolume, gameReady]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const apply = async () => {
+      try {
+        const applied = await applyDisplayMode(displayMode);
+        if (cancelled) return;
+        try {
+          window.localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, displayMode);
+        } catch {}
+        if (!applied) {
+          setWindowResolutionMessage('Fullscreen is only available in the desktop build.');
+        } else if (displayMode === 'FULLSCREEN') {
+          setWindowResolutionMessage('Fullscreen on. Resolution presets are disabled.');
+        } else {
+          setWindowResolutionMessage('Windowed.');
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Display mode change failed', error);
+        setWindowResolutionMessage('Display mode change failed.');
+      }
+    };
+    void apply();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayMode]);
 
   useEffect(() => {
     if (!startMenuVisible || showSplash || easterEggUnlocked) return;
@@ -2288,6 +2363,7 @@ const RetroFootball: React.FC = () => {
     const aggressASet = PRACTICE_AGGRESSIVENESS[assignment.home.aggressiveness];
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
+    gameRef.current?.setFoulsEnabled?.(foulsEnabled);
     // Start the match with CPU vs CPU mode
     handleKickOff('cpu', kickoffTeams, {
       teamAKit: assignment.home.kit,
@@ -2366,6 +2442,7 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
     applyGameAggressionSettings(gameRef.current, assignment.home.aggressiveness, assignment.away.aggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
+    gameRef.current?.setFoulsEnabled?.(foulsEnabled);
     setGameMode('cpu');
     setHasActiveMatchSession(true);
     setAllowMainMenu(false);
@@ -3573,6 +3650,45 @@ const RetroFootball: React.FC = () => {
                         className="w-full accent-white"
                       />
                     </div>
+                    <div className="mt-3">
+                      <div className="text-[9px] text-white/60 uppercase tracking-widest mb-1">Match</div>
+                      <button
+                        type="button"
+                        data-psl-fouls-toggle="true"
+                        onClick={() => {
+                          const next = !foulsEnabled;
+                          setFoulsEnabled(next);
+                          gameRef.current?.setFoulsEnabled?.(next);
+                        }}
+                        className="rounded border border-white/20 px-3 py-1.5 text-[10px] uppercase tracking-widest text-white transition-colors hover:border-white"
+                      >
+                        Fouls {foulsEnabled ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[9px] text-white/60 uppercase tracking-widest mb-1">
+                        <span>Music Volume</span>
+                        <span>{musicVolume === 0 ? 'Off' : `${Math.round(musicVolume * 100)}%`}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={musicVolume}
+                        onChange={(e) => setMusicVolume(Number(e.target.value))}
+                        className="w-full accent-white"
+                        aria-label="Music volume"
+                      />
+                      <button
+                        type="button"
+                        data-psl-music-toggle="true"
+                        onClick={() => setMusicVolume((v) => (v === 0 ? 0.5 : 0))}
+                        className="mt-2 rounded border border-white/20 px-3 py-1.5 text-[10px] uppercase tracking-widest text-white transition-colors hover:border-white"
+                      >
+                        Music {musicVolume === 0 ? 'Off' : 'On'}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -3581,9 +3697,25 @@ const RetroFootball: React.FC = () => {
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Display</h3>
                     <div className="flex flex-col gap-2">
                       <div className="text-white/30 text-[9px]">The desktop build uses a fixed window. Change size with presets instead of free resizing.</div>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {(['WINDOWED', 'FULLSCREEN'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            data-psl-display-mode={mode}
+                            onClick={() => setDisplayMode(mode)}
+                            className={`px-3 py-1.5 text-[10px] border rounded transition-colors ${
+                              displayMode === mode ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                            }`}
+                          >
+                            {mode === 'FULLSCREEN' ? 'Fullscreen' : 'Windowed'}
+                          </button>
+                        ))}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {WINDOW_RESOLUTION_PRESETS.map((preset) => (
                           <button
+                            disabled={displayMode === 'FULLSCREEN'}
                             key={preset.key}
                             onClick={() => setWindowResolution(preset.key)}
                             className={`px-3 py-1.5 text-[10px] border rounded ${

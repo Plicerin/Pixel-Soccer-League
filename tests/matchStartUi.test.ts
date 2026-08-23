@@ -43,7 +43,12 @@ test('V39 browser match setup offers required half lengths and defaults to 5 min
     /const \[halfLengthMinutes, setHalfLengthMinutes\] = useState\(5\)/,
     'browser default half length must be 5 minutes',
   );
-  assert.match(source, /const PRE_MATCH_HALF_LENGTH_OPTIONS = \['2', '5', '15', '45'\]/, 'expected only 2, 5, 15, and 45 minute half options');
+  // Testers wanted longer matches, so the list grew; these must remain offered.
+  const options = source.match(/const PRE_MATCH_HALF_LENGTH_OPTIONS = \[([^\]]*)\]/);
+  assert.ok(options, 'expected a stable half-length option list');
+  for (const required of ["'2'", "'5'", "'15'", "'45'"]) {
+    assert.ok(options[1].includes(required), `half-length options must still offer ${required}`);
+  }
   assert.match(source, /options=\{PRE_MATCH_HALF_LENGTH_OPTIONS\}/, 'pre-match half-length dropdown must use the stable option list');
   assert.doesNotMatch(source, /Match half duration/, 'pre-match half length copy should stay concise');
   assert.doesNotMatch(source, /Applies to the CPU vs CPU match timer/, 'pre-match half length helper text should not remain');
@@ -87,7 +92,7 @@ test('BUG-UI-002 pre-match dropdowns use the module-stable old modal dropdown in
   const teamSetupIndex = source.indexOf('const TeamSetupSection = React.memo');
   const preMatchIndex = source.indexOf('const PreMatchSetupScreen');
   assert.ok(teamSetupIndex >= 0 && teamSetupIndex < preMatchIndex, 'team setup section must be module-stable and not declared inside the pre-match render path');
-  assert.match(source, /const PRE_MATCH_HALF_LENGTH_OPTIONS = \['2', '5', '15', '45'\]/, 'half-length options must be stable outside the render path');
+  assert.match(source, /^const PRE_MATCH_HALF_LENGTH_OPTIONS = \[/m, 'half-length options must be stable outside the render path');
   assert.match(source, /const PRE_MATCH_AGGRESSIVENESS_OPTIONS = Object\.keys\(PRACTICE_AGGRESSIVENESS\) as AggressivenessKey\[\]/, 'aggressiveness options must be stable outside the render path');
   assert.match(source, /const teamOptions = useMemo\(/, 'team options must be memoized so parent game-loop renders do not replace select props');
   assert.match(source, /const CustomDropdown = <T extends string>/, 'pre-match setup should use a shared module-stable custom dropdown component');
@@ -435,7 +440,8 @@ test('BUG-AUDIO-004 splash welcome callout is delayed and retry-safe', () => {
   assert.match(spec, /V128\. Menu welcome audio/, 'welcome audio timing must be captured in the spec');
   assert.match(spec, /B121 \| 2026-05-16 \| Welcome callout was scheduled at 900ms/, 'welcome audio root cause must be recorded');
   assert.match(engine, /private splashWelcomeTimer: number \| null = null/, 'engine must track the pending welcome timer');
-  assert.match(engine, /splashMusicStart = \(\) => \{[\s\S]*?this\.playLoop\('splashMusic', this\.splashMusic, 0\.5\);[\s\S]*?this\.scheduleSplashWelcome\(2000\);/, 'welcome callout must be scheduled about two seconds after splash music starts');
+  // Gain is the user's music volume now, not a literal; the invariant is the 2s delay.
+  assert.match(engine, /splashMusicStart = \(\) => \{[\s\S]*?this\.playLoop\('splashMusic', this\.splashMusic, this\.musicVolume \* SPLASH_MUSIC_BASE_GAIN\);[\s\S]*?this\.scheduleSplashWelcome\(2000\);/, 'welcome callout must be scheduled about two seconds after splash music starts');
   assert.match(engine, /splashMusicStop = \(\) => \{[\s\S]*?this\.clearSplashWelcomeTimer\(\);/, 'stopping splash music must clear stale welcome timers');
   assert.match(engine, /private playSplashWelcomeOnce\(\) \{[\s\S]*?if \(this\.splashWelcomePlayed \|\| !this\.splashMusicRequested\) return;[\s\S]*?if \(!this\.playBuffer\('welcome', 0\.48\)\) \{[\s\S]*?this\.scheduleSplashWelcome\(200\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?this\.splashWelcomePlayed = true;/, 'welcome must only be marked played after the buffer actually starts, with retry if decode is late');
   assert.match(engine, /private clearSplashWelcomeTimer\(\) \{[\s\S]*?window\.clearTimeout\(this\.splashWelcomeTimer\);[\s\S]*?this\.splashWelcomeTimer = null;/, 'engine must have a reusable timer cleanup path');

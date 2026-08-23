@@ -1868,6 +1868,33 @@ test("switch-to-nearest is bound for both players", () => {
   assert.match(engine, /triggerManualTackle\('A'\)\) this\.model\.selectNearestManualPlayer\('A'\)/, "gamepad X must fall back to switching when there is nobody to tackle");
 });
 
+test("fouls can be switched off for a match", () => {
+  const fouls = (enabled: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed("fouls-toggle");
+    model.setHalfDurationSeconds(300);
+    model.foulsEnabled = enabled;
+    model.startMatch();
+    for (let i = 0; i < 60 * 60 * 12 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+      model.step(1 / 60);
+    }
+    const snapshot = model.getMatchSnapshot();
+    return {
+      fouls: snapshot.foulsA + snapshot.foulsB,
+      freeKicks: snapshot.freeKicksA + snapshot.freeKicksB,
+      finished: snapshot.phase === "FULL_TIME",
+    };
+  };
+
+  const on = fouls(true);
+  assert.ok(on.fouls > 0, "the default match must still award fouls");
+
+  const off = fouls(false);
+  assert.equal(off.fouls, 0, `fouls off must award none, got ${off.fouls}`);
+  assert.equal(off.freeKicks, 0, `fouls off must award no free kicks, got ${off.freeKicks}`);
+  assert.ok(off.finished, "a match with fouls off must still reach full time");
+});
+
 test("auto-switch modes actually gate who you control", () => {
   const stage = (mode: "AUTOMATIC" | "MANUAL" | "LOOSE_BALLS") => {
     const model = new SimpleMatchModel();

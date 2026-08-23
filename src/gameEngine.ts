@@ -224,6 +224,8 @@ export const PLAYER_BACK_IDLE_COMPOSED = PLAYER_BACK_IDLE_PATTERNS.map(base =>
 const PLAYER_VOXEL_SIZE = 0.0665;
 const PLAYER_SPRITE_CENTER_Y = PLAYER_VOXEL_SIZE * 5.25; // lowered so feet sit at ground level (group.y=0.15)
 const PLAYER_VISUAL_SCALE = 1.12;
+/** Menu music gain at full volume; the user's slider scales this. */
+const SPLASH_MUSIC_BASE_GAIN = 0.5;
 const CORNER_SETUP_PRESENTATION_SECONDS = 2.0;
 const CORNER_RELEASE_PRESENTATION_SECONDS = 1.35;
 const CORNER_RUNUP_DISTANCE = 1.15;
@@ -701,6 +703,7 @@ class SimpleGameEngine {
   } = { source: null, gain: null, shouldPlay: false, baseVolume: 0.6, ambientFrac: 0.75 };
   private readonly splashMusic: { source: AudioBufferSourceNode | null; gain: GainNode | null } = { source: null, gain: null };
   private splashMusicRequested = false;
+  private musicVolume = 1;
   private splashWelcomePlayed = false;
   private splashWelcomeTimer: number | null = null;
   private stadiumBuilt = false;
@@ -960,6 +963,7 @@ class SimpleGameEngine {
   setSmokeTestMode = (active: boolean) => { this.smokeTestMode = !!active; };
   setOnReset = (callback: () => void) => { this.onReset = callback; };
   setAIStyle = (value: string) => { this.model.aiStyle = value; };
+  setFoulsEnabled = (enabled: boolean) => { this.model.foulsEnabled = !!enabled; };
   setCameraMode = (value: string) => {
     this.cameraMode = this.cameraRigs[value] ? value : 'BROADCAST';
     this.model.cameraMode = this.cameraMode;
@@ -1070,7 +1074,7 @@ class SimpleGameEngine {
     this.splashMusicRequested = true;
     this.splashWelcomePlayed = false;
     void ctx.resume().catch(() => {});
-    this.playLoop('splashMusic', this.splashMusic, 0.5);
+    this.playLoop('splashMusic', this.splashMusic, this.musicVolume * SPLASH_MUSIC_BASE_GAIN);
     this.scheduleSplashWelcome(2000);
   };
   splashMusicStop = () => {
@@ -1135,6 +1139,22 @@ class SimpleGameEngine {
       this.crowdLoop.gain.gain.linearRampToValueAtTime(this.crowdLoop.baseVolume * this.crowdLoop.ambientFrac, this.audioCtx.currentTime + 0.15);
     }
   };
+  /**
+   * Menu/splash music volume. 0 mutes it outright, which is the toggle the
+   * tester asked for; crowd volume is separate so match ambience is unaffected.
+   */
+  setMusicVolume = (value: number) => {
+    this.musicVolume = THREE.MathUtils.clamp(Number(value) || 0, 0, 1);
+    if (this.splashMusic.gain && this.audioCtx) {
+      const now = this.audioCtx.currentTime;
+      this.splashMusic.gain.gain.cancelScheduledValues(now);
+      this.splashMusic.gain.gain.setValueAtTime(this.splashMusic.gain.gain.value, now);
+      this.splashMusic.gain.gain.linearRampToValueAtTime(this.musicVolume * SPLASH_MUSIC_BASE_GAIN, now + 0.15);
+    }
+  };
+
+  getMusicVolume = () => this.musicVolume;
+
   drawPracticeRoutes = (routes: unknown) => {
     this.clearPracticeRoutes();
     if (!this.practiceModeEnabled || !Array.isArray(routes)) return;
@@ -1301,7 +1321,7 @@ class SimpleGameEngine {
           if (!decoded) return;
           this.audioBuffers[key] = decoded;
           if (key === 'crowd' && this.crowdLoop.shouldPlay) this.startCrowdLoop();
-          if (key === 'splashMusic' && this.splashMusicRequested) this.playLoop('splashMusic', this.splashMusic, 0.5);
+          if (key === 'splashMusic' && this.splashMusicRequested) this.playLoop('splashMusic', this.splashMusic, this.musicVolume * SPLASH_MUSIC_BASE_GAIN);
           if (key === 'welcome' && this.splashMusicRequested && !this.splashWelcomePlayed && this.splashWelcomeTimer === null) this.scheduleSplashWelcome(0);
         })
         .catch(() => {});
