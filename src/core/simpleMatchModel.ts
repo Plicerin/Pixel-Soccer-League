@@ -490,6 +490,13 @@ const STRIKER_BOX_EXIT_BUFFER = 0.75;
 const BALL_RECEPTION_RADIUS = 1.55;
 const AERIAL_RECEPTION_RADIUS = 2.15;
 const LOOSE_BALL_CLAIM_RADIUS = 1.35;
+// Mid-flight collection: how close a player must be to a ball played into
+// space, and how low the ball must be for them to control it.
+const MID_FLIGHT_COLLECT_RADIUS = 1.1;
+const MID_FLIGHT_COLLECT_MAX_HEIGHT = 0.55;
+// How far the ball must have travelled before anyone can cut it out, so a pass
+// is never swallowed at the passer's feet.
+const MID_FLIGHT_COLLECT_MIN_TRAVEL = 9;
 
 function createStats(): SimplePlayerStats {
   return {
@@ -1058,6 +1065,13 @@ export class SimpleMatchModel {
         this.resolveFoul(defender, carrier, pressure, "MANUAL_TACKLE_FOUL");
         return false;
       }
+      // A missed tackle used to emit telemetry only, so the player got no
+      // feedback at all and could not tell whether the button had registered.
+      this.addLiveEvent(defender.team, "TACKLE_MISS", `${defender.label} missed the tackle`, {
+        playerId: defender.id,
+        playerName: defender.name,
+        carrier: carrier.name,
+      });
       this.recordEvent("TACKLE", defender.team, defender, { carrier: carrier.name, outcome: "missed", pressure, reason: "MANUAL_TACKLE_MISS" });
       return false;
     }
@@ -2533,9 +2547,53 @@ export class SimpleMatchModel {
     };
   }
 
+  /**
+   * Let a player collect a ball that is passing them mid-flight.
+   *
+   * Reception used to be tested only at the landing point, and loose-ball
+   * claiming was skipped entirely while a flight was active, so a ball played
+   * into space flew straight through everyone -- testers saw passes run past
+   * the intended receiver with no chance to take control.
+   *
+   * Only applies to balls played into space (no nominated receiver) and only
+   * when the ball is low enough to control.
+   */
+  private tryMidFlightCollection() {
+    const flight = this.ballFlight;
+    if (!flight) return false;
+    if (flight.kind !== "pass" && flight.kind !== "restart") return false;
+    if (flight.followPlayerId) return false;
+    if (this.ball.pos.y > this.ballGroundY() + MID_FLIGHT_COLLECT_MAX_HEIGHT) return false;
+    // The ball must have actually travelled: without this the check fires on
+    // the first frame, while the passer's team-mates are still standing around
+    // the ball, and swallows the pass before it goes anywhere.
+    const travelled = dist2({ x: this.ball.pos.x, z: this.ball.pos.z }, flight.from);
+    if (travelled < MID_FLIGHT_COLLECT_MIN_TRAVEL) return false;
+    if (flight.elapsed / Math.max(0.001, flight.duration) > 0.85) return false;
+
+    const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
+    let best: { player: SimplePlayer; gap: number } | null = null;
+    for (const player of this.players) {
+      if (player.id === flight.passerId) continue;
+      const gap = dist2(player.pos, ball);
+      if (gap > MID_FLIGHT_COLLECT_RADIUS) continue;
+      if (!best || gap < best.gap) best = { player, gap };
+    }
+    if (!best) return false;
+
+    this.ballFlight = null;
+    this.ball.vel = { x: 0, z: 0 };
+    this.possession = best.player;
+    best.player.stats.touches += 1;
+    this.rememberTouch(best.player);
+    this.visualReceptionPlayerId = best.player.id;
+    return true;
+  }
+
   private updateBallFlight(dt: number) {
     const flight = this.ballFlight;
     if (!flight) return;
+    if (this.tryMidFlightCollection()) return;
     const prev = { x: this.ball.pos.x, z: this.ball.pos.z };
     this.lastBallPos = prev;
     flight.elapsed += Math.max(0, dt);

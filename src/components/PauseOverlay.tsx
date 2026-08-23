@@ -12,7 +12,7 @@ type PadLabel = { key: string; action: string };
 const FACE_BUTTONS: PadLabel[] = [
   { key: 'A', action: 'Pass (hold to charge)' },
   { key: 'B', action: 'Shoot (hold to charge)' },
-  { key: 'X', action: 'Tackle' },
+  { key: 'X', action: 'Tackle / switch to nearest' },
   { key: 'Y', action: 'Lob / chip' },
 ];
 
@@ -29,6 +29,7 @@ const KEYBOARD_P1: PadLabel[] = [
   { key: 'F', action: 'Shoot (hold to charge)' },
   { key: 'R', action: 'Tackle' },
   { key: 'Q / E', action: 'Cycle player' },
+  { key: 'V', action: 'Switch to nearest' },
 ];
 
 const KEYBOARD_P2: PadLabel[] = [
@@ -39,6 +40,7 @@ const KEYBOARD_P2: PadLabel[] = [
   { key: '.', action: 'Shoot (hold to charge)' },
   { key: '/', action: 'Tackle' },
   { key: '[ / ]', action: 'Cycle player' },
+  { key: "'", action: 'Switch to nearest' },
 ];
 
 /** Xbox-style face button colours, used for both the pad and its legend. */

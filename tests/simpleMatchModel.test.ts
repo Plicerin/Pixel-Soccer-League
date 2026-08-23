@@ -1824,6 +1824,50 @@ test("hold-to-charge scales shot power and cancels if the ball is lost", () => {
   assert.equal(lost.model.releaseManualCharge("A"), false, "a cancelled charge must not fire");
 });
 
+test("a missed tackle tells the player, and switch-to-nearest is reachable", () => {
+  // Tester could not tell whether tackles registered. A won tackle emitted a
+  // live event; a miss emitted telemetry only, so failure was silent.
+  const model = new SimpleMatchModel();
+  model.setSeed("tackle-feedback");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as { manualControl: Record<string, { selectedPlayerId: string | null }> };
+  model.setManualControlEnabled("B", true);
+
+  let wins = 0;
+  let misses = 0;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+    const defender = model.getPlayers().find((p) => p.team === "B" && p.role !== "GK");
+    assert.ok(carrier && defender, "need a carrier and defender");
+    carrier.pos = { x: 0, y: 0, z: 0 };
+    carrier.vel = { x: 0, z: 0 };
+    defender.pos = { x: 1.2, y: 0, z: 0 };
+    model.possession = carrier;
+    api.manualControl.B.selectedPlayerId = defender.id;
+    (model as unknown as { manualTackleCooldown: Record<string, number> }).manualTackleCooldown.B = 0;
+
+    const before = model.eventLog.length;
+    const won = model.triggerManualTackle("B");
+    const emitted = model.eventLog.slice(before).map((e) => e.action);
+    if (won) {
+      wins += 1;
+      assert.ok(emitted.includes("TACKLE"), "a won tackle must announce itself");
+    } else if (emitted.includes("TACKLE_MISS")) {
+      misses += 1;
+    }
+  }
+  assert.ok(wins > 0, "tackles must sometimes succeed");
+  assert.ok(misses > 0, "a missed tackle must emit feedback rather than nothing");
+});
+
+test("switch-to-nearest is bound for both players", () => {
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  assert.match(engine, /KeyV'[\s\S]{0,200}?selectNearestManualPlayer\('A'\)/, "player 1 needs a switch-to-nearest key");
+  assert.match(engine, /Quote'[\s\S]{0,200}?selectNearestManualPlayer\('B'\)/, "player 2 needs a switch-to-nearest key");
+  assert.match(engine, /triggerManualTackle\('A'\)\) this\.model\.selectNearestManualPlayer\('A'\)/, "gamepad X must fall back to switching when there is nobody to tackle");
+});
+
 test("auto-switch modes actually gate who you control", () => {
   const stage = (mode: "AUTOMATIC" | "MANUAL" | "LOOSE_BALLS") => {
     const model = new SimpleMatchModel();
@@ -1979,6 +2023,47 @@ test("an aimed pass never picks a receiver off the arrow", () => {
   // With nobody on the arrow it must decline rather than quietly picking
   // someone off-line; runManualAction then plays the ball into that space.
   assert.equal(chosen(false).target, null, "no receiver off the arrow may be substituted");
+});
+
+test("a ball played into space can be collected in flight", () => {
+  // Reception was only tested at the landing point and loose-ball claiming was
+  // skipped while a flight was active, so a ball played into space flew
+  // straight through everyone: testers saw passes run past the receiver with
+  // no chance to take control.
+  const run = (placeRunner: boolean) => {
+    const model = new SimpleMatchModel();
+    model.setSeed("mid-flight-collect");
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    const api = model as unknown as {
+      startBallFlight: (kind: string, from: unknown, to: unknown, duration: number, arc: number) => void;
+      ballFlight: unknown;
+    };
+    for (const player of model.getPlayers()) {
+      player.pos = { x: -55, y: 0, z: 35 };
+      player.targetPos = { x: -55, z: 35 };
+    }
+    if (placeRunner) {
+      const runner = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+      assert.ok(runner, "need a runner");
+      runner.pos = { x: 12, y: 0, z: 0 };
+      runner.targetPos = { x: 12, z: 0 };
+    }
+    model.possession = null;
+    model.ball.pos = { x: -10, y: 0.18, z: 0 };
+    model.ball.vel = { x: 0, z: 0 };
+    api.startBallFlight("pass", { x: -10, z: 0 }, { x: 24, z: 0 }, 1.1, 0.05);
+    for (let i = 0; i < 400 && api.ballFlight; i++) model.step(1 / 60);
+    return { possession: model.possession, ballX: model.ball.pos.x };
+  };
+
+  const collected = run(true);
+  assert.ok(collected.possession, "a player on the ball's path must be able to collect it");
+  assert.ok(collected.ballX < 20, `the ball must be cut out before its landing point, stopped at ${collected.ballX.toFixed(1)}`);
+
+  const uncollected = run(false);
+  assert.equal(uncollected.possession, null, "with nobody on the path the ball must run on");
+  assert.ok(uncollected.ballX > 20, "an uncollected ball must reach its target");
 });
 
 test("a passed ball travels along the aim arrow", () => {

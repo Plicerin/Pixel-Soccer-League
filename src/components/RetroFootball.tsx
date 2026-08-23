@@ -3929,6 +3929,8 @@ const RetroFootball: React.FC = () => {
                     <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">Q / E</div>
                     <div className="text-white text-right">SWITCH HOME PLAYER</div>
+                    <div className="text-white/60">V</div>
+                    <div className="text-white text-right">SWITCH TO NEAREST</div>
                   </div>
                 </div>
                 <div>
@@ -3948,6 +3950,8 @@ const RetroFootball: React.FC = () => {
                     <div className="text-white text-right">TACKLE (WHEN DEFENDING)</div>
                     <div className="text-white/60">[ / ]</div>
                     <div className="text-white text-right">SWITCH AWAY PLAYER</div>
+                    <div className="text-white/60">'</div>
+                    <div className="text-white text-right">SWITCH TO NEAREST</div>
                   </div>
                 </div>
                 <div>

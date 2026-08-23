@@ -729,6 +729,11 @@ class SimpleGameEngine {
       } else if (event.code === 'KeyC') {
         event.preventDefault();
         this.model.triggerManualLobPass('A');
+      } else if (event.code === 'KeyV') {
+        // Middle ground between AUTOMATIC and MANUAL switching: jump to the
+        // player nearest the ball on demand.
+        event.preventDefault();
+        this.model.selectNearestManualPlayer('A');
       } else if (event.code === 'KeyQ') {
         event.preventDefault();
         this.model.cycleManualPlayer('A', -1);
@@ -750,6 +755,9 @@ class SimpleGameEngine {
       } else if (event.code === 'Semicolon') {
         event.preventDefault();
         this.model.triggerManualLobPass('B');
+      } else if (event.code === 'Quote') {
+        event.preventDefault();
+        this.model.selectNearestManualPlayer('B');
       } else if (event.code === 'BracketLeft') {
         event.preventDefault();
         this.model.cycleManualPlayer('B', -1);
@@ -1499,7 +1507,13 @@ class SimpleGameEngine {
         break;
       case 'TACKLE':
       case 'TURNOVER':
-        this.playGameplayBuffer('catch', 0.30, 0.28);
+        // Won: a firmer hit than a routine catch so it reads as a challenge.
+        this.playGameplayBuffer('catch', 0.46, 0.30);
+        this.playGameplayBuffer('kick', 0.18, 0.20);
+        break;
+      case 'TACKLE_MISS':
+        // Missed: quieter and thinner, so success and failure sound different.
+        this.playGameplayBuffer('throw', 0.16, 0.18);
         break;
       case 'THROW':
         break;
@@ -2798,7 +2812,8 @@ class SimpleGameEngine {
           };
         }
       }
-      if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0xff6b6b, 0.55, 0.75);
+      if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0x6ee787, 0.8, 0.95);
+      if (event.action === 'TACKLE_MISS') this.spawnEventCue(0x9aa4b2, 0.42, 0.55);
       if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'PENALTY' || event.action === 'DROP_KICK') {
         const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' || event.action === 'PENALTY' ? 0xffffff : 0xd8f7ff;
         this.spawnEventCue(color, event.action === 'CORNER' ? 0.8 : 0.62, 0.78);
@@ -3587,7 +3602,11 @@ class SimpleGameEngine {
       if (justPressed(0)) this.model.beginManualCharge('A', 'pass');
       if (justPressed(1)) this.model.beginManualCharge('A', 'shot');
       if (justReleased(0) || justReleased(1)) this.model.releaseManualCharge('A');
-      if (justPressed(2)) this.model.triggerManualTackle('A');
+      if (justPressed(2)) {
+        // X tackles when there is someone to tackle, otherwise it switches to
+        // the player nearest the ball -- the old build's behaviour.
+        if (!this.model.triggerManualTackle('A')) this.model.selectNearestManualPlayer('A');
+      }
       if (justPressed(3)) this.model.triggerManualLobPass('A');
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
