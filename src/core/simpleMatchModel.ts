@@ -4255,6 +4255,16 @@ export class SimpleMatchModel {
     const shotDefense = this.shotDefenseSnapshot(carrier.team, shotOrigin, carrier);
     const shotDistToGoalYards = (shotDistToGoal / FIELD_W) * 120;
     const carrierBallGap = dist2(shotOrigin, carrier.pos);
+    // Penalty from the real shooting angle, not raw lateral offset. Offset
+    // alone treats z=5 at six units out (a tight ~40 degree angle with almost
+    // no visible goal) the same as z=5 from thirty units out, where the angle
+    // is trivial -- which is why shooting from wide close range converted
+    // better than shooting from straight in front.
+    // Lateral offset, not the true shooting angle. Deliberately left alone:
+    // switching to atan2(lateral, distanceToGoal) is more correct in isolation
+    // but it also feeds CPU shot selection, and doing so pushed total passes
+    // and peak shots past their KPI ceilings. The angle problem the player
+    // actually felt lives in the manual on-target floor below.
     const anglePenalty = Math.min(1, Math.abs(shotOrigin.z) / (FIELD_D * 0.42));
     const longRangeCentrality = shotDistToGoalYards > 22 ? clamp(1 - anglePenalty / 0.35, 0, 1) : 0;
     const fifteenMinuteLongShotSuppressed = this.runtimeHalfDuration === 900
@@ -4309,8 +4319,21 @@ export class SimpleMatchModel {
     // Blasting it is less accurate than a placed side-foot.
     const chargePower = clamp(context.power ?? 1, MANUAL_CHARGE_MIN_POWER, MANUAL_CHARGE_MIN_POWER + MANUAL_CHARGE_POWER_SPAN);
     const powerAccuracyCost = context.manual ? Math.max(0, chargePower - 1.05) * 0.35 : 0;
+    // The floor must respect the shooting angle. Without the anglePenalty term
+    // it overrode the angle entirely, so a tight 40-degree shot from six units
+    // out was *more* likely to be on target than one from straight in front --
+    // which is why shooting from the corner was the most reliable way to score.
     const manualOnTargetFloor = context.manual
-      ? clamp(0.82 - shotDistToGoalYards * 0.012 - pressure * 0.06 + carrier.ratings.shooting * 0.10 - powerAccuracyCost, 0.34, 0.93)
+      ? clamp(
+          0.82
+            - shotDistToGoalYards * 0.012
+            - pressure * 0.06
+            - anglePenalty * 0.38
+            + carrier.ratings.shooting * 0.10
+            - powerAccuracyCost,
+          0.20,
+          0.93,
+        )
       : 0;
     const onTargetChance = clamp(
       Math.max(rawOnTargetChance, context.minOnTargetChance ?? 0, manualOnTargetFloor),

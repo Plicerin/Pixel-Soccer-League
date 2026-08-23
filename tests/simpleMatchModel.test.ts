@@ -2303,6 +2303,61 @@ test("sprint is wired to inputs for both players", () => {
   assert.match(engine, /gamepadSprint/, "player 1 must have a gamepad sprint");
 });
 
+test("shooting from a tight angle is worse than shooting from in front", () => {
+  // Tester: "the most consistent way to score was by shooting diagonally from
+  // the corner". Two causes: anglePenalty was computed from raw lateral offset
+  // rather than the real angle, and the manual on-target floor ignored angle
+  // entirely -- so a 40-degree shot from six units out was *more* accurate
+  // than one from straight in front.
+  const convert = (lateral: number, distFromGoal: number) => {
+    let goals = 0;
+    const attempts = 200;
+    for (let seed = 0; seed < attempts; seed++) {
+      const model = new SimpleMatchModel();
+      model.setSeed(`angle-${lateral}-${distFromGoal}-${seed}`);
+      model.startMatch();
+      model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+      const api = model as unknown as {
+        attackSign: (t: "A" | "B") => number;
+        manualControl: Record<string, { selectedPlayerId: string | null; move: unknown; charge: unknown }>;
+        ballFlight: unknown;
+      };
+      model.setManualControlEnabled("A", true);
+      const sign = api.attackSign("A");
+      const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+      const carrier = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK");
+      assert.ok(carrier, "need a shooter");
+      carrier.pos = { x: goalX - sign * distFromGoal, y: 0, z: lateral };
+      carrier.targetPos = { x: carrier.pos.x, z: lateral };
+      model.possession = carrier;
+      api.manualControl.A.selectedPlayerId = carrier.id;
+      model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
+      api.manualControl.A.move = { x: sign, z: 0 };
+      api.manualControl.A.charge = { action: "shot", progress: 0.6 };
+
+      const before = model.getMatchSnapshot().scoreA;
+      model.releaseManualCharge("A");
+      for (let i = 0; i < 200 && api.ballFlight; i++) model.step(1 / 60);
+      if (model.getMatchSnapshot().scoreA > before) goals += 1;
+    }
+    return goals / attempts;
+  };
+
+  for (const distance of [6, 10]) {
+    const central = convert(0, distance);
+    const angled = convert(distance * 0.85, distance);
+    const veryWide = convert(distance * 1.7, distance);
+    assert.ok(
+      central > angled,
+      `at ${distance}u a central shot must beat an angled one: ${(central * 100).toFixed(1)}% vs ${(angled * 100).toFixed(1)}%`,
+    );
+    assert.ok(
+      angled >= veryWide,
+      `at ${distance}u conversion must keep falling as the angle tightens: ${(angled * 100).toFixed(1)}% vs ${(veryWide * 100).toFixed(1)}%`,
+    );
+  }
+});
+
 test("manual shots place across the goal mouth by aim direction", () => {
   const aimedTargetZ = (aimZ: number) => {
     const model = new SimpleMatchModel();
