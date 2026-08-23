@@ -119,7 +119,7 @@ const LabelList: React.FC<{ title: string; rows: PadLabel[]; swatch?: boolean }>
   </div>
 );
 
-const PauseOverlay: React.FC<{ onResume: () => void }> = ({ onResume }) => (
+const PauseOverlay: React.FC<{ onResume: () => void; onQuitToMenu?: () => void }> = ({ onResume, onQuitToMenu }) => (
   <div
     data-psl-pause-overlay="true"
     className="absolute inset-0 z-[190] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
@@ -132,14 +132,26 @@ const PauseOverlay: React.FC<{ onResume: () => void }> = ({ onResume }) => (
     >
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <h2 id="psl-pause-title" className="text-white text-lg font-bold uppercase tracking-[0.2em]">Paused</h2>
-        <button
-          type="button"
-          onClick={onResume}
-          data-psl-pause-resume="true"
-          className="rounded-md border border-white/20 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white/60"
-        >
-          Resume
-        </button>
+        <div className="flex items-center gap-2">
+          {onQuitToMenu && (
+            <button
+              type="button"
+              onClick={onQuitToMenu}
+              data-psl-quit-to-menu="pause"
+              className="rounded-md border border-white/20 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/70 hover:border-red-400 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/60"
+            >
+              Quit to Main Menu
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onResume}
+            data-psl-pause-resume="true"
+            className="rounded-md border border-white/20 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white/60"
+          >
+            Resume
+          </button>
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,320px)_1fr]">

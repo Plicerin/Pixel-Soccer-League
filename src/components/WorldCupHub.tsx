@@ -317,7 +317,7 @@ export default function WorldCupHub({
 
           <div className="w-full flex flex-col gap-4">
             <div className="text-white/40 text-[11px] uppercase tracking-widest text-center">Select Your Team</div>
-            <div className="grid grid-cols-1 gap-x-5 gap-y-4 max-h-[62vh] overflow-y-auto pr-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-x-5 gap-y-4 max-h-[42vh] overflow-y-auto pr-2 sm:grid-cols-2 lg:grid-cols-4">
               {Object.entries(FIFA_WORLD_CUP_2026_GROUPS).map(([group, teams]) => (
                 <div key={group}>
                   <div className="text-amber-400/70 text-[10px] uppercase tracking-widest mb-2 sticky top-0 bg-black/90 py-1">Group {group}</div>
@@ -337,12 +337,17 @@ export default function WorldCupHub({
                 </div>
               ))}
             </div>
-            <button
-              onClick={handleStartWorldCup}
-              className="w-full py-3 bg-amber-500 text-black text-sm font-bold uppercase tracking-widest rounded hover:bg-amber-400 transition-colors"
-            >
-              Start World Cup as {selectedTeam}
-            </button>
+            {/* Sticky: the 48-team grid pushed this below the fold, so testers
+                picked a team and saw nothing happen. */}
+            <div className="sticky bottom-0 -mx-1 bg-gradient-to-t from-zinc-950 via-zinc-950/95 to-transparent px-1 pb-1 pt-3">
+              <button
+                onClick={handleStartWorldCup}
+                data-psl-worldcup-start="true"
+                className="w-full py-3 bg-amber-500 text-black text-sm font-bold uppercase tracking-widest rounded hover:bg-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
+              >
+                Start World Cup as {selectedTeam}
+              </button>
+            </div>
           </div>
 
           <button onClick={onExit} className="text-white/30 text-[10px] uppercase tracking-widest hover:text-white/60 transition-colors">

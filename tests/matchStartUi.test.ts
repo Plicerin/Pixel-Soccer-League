@@ -574,6 +574,25 @@ test('broadcast camera pans side to side and up/down without swing rotation', ()
   assert.doesNotMatch(body, /edgeTrackT|lookZ|camZMul|camZClamp|finalThirdT/, 'broadcast camera must not swing or zoom into final thirds');
 });
 
+test('World Cup start action stays reachable, and a match can be quit to the menu', () => {
+  const hub = readFileSync('src/components/WorldCupHub.tsx', 'utf8');
+  // The 48-team grid pushed the start button below the fold: testers picked a
+  // team, saw no Start prompt, and reported the mode as unstartable.
+  assert.match(hub, /sticky bottom-0/, 'the start action must stay pinned above the team grid scroll');
+  assert.match(hub, /data-psl-worldcup-start="true"/, 'the start action needs a stable hook');
+  const grid = hub.match(/max-h-\[(\d+)vh\] overflow-y-auto/);
+  assert.ok(grid, 'expected a scrollable team grid');
+  assert.ok(Number(grid[1]) <= 50, `team grid must leave room for the start action, got ${grid[1]}vh`);
+
+  const retro = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  // Testers could only leave a game mode by closing the application.
+  assert.match(retro, /const handleQuitToMainMenu = \(\) => \{/, 'a quit-to-menu handler must exist');
+  assert.match(retro, /data-psl-quit-to-menu="options"/, 'options must offer quit to main menu');
+  assert.match(retro, /onQuitToMenu=\{handleQuitToMainMenu\}/, 'pause must offer quit to main menu');
+  const pause = readFileSync('src/components/PauseOverlay.tsx', 'utf8');
+  assert.match(pause, /data-psl-quit-to-menu="pause"/, 'pause overlay must render the quit action');
+});
+
 test('every camera mode is a distinct rig, not just a stored label', () => {
   const engine = readFileSync('src/gameEngine.ts', 'utf8');
   // setCameraMode used to only store a string the model echoed into

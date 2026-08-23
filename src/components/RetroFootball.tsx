@@ -1216,6 +1216,37 @@ const RetroFootball: React.FC = () => {
     setIsPausedIfChanged(!!paused);
   };
 
+  /**
+   * Abandon the current match and go back to the main menu. Testers could only
+   * leave a game mode by closing the application, so this mirrors what the
+   * full-time screen already did -- just reachable mid-match.
+   */
+  const handleQuitToMainMenu = () => {
+    setIsOptionsOpen(false);
+    setIsPausedIfChanged(false);
+    setIsFullTime(false);
+    setFullTimeScore(null);
+    fullTimeCapturedRef.current = false;
+    activeMatchTeamsRef.current = null;
+    try {
+      sessionStorage.removeItem('psl_fullTime');
+      sessionStorage.removeItem('psl_fullTimeScore');
+    } catch {}
+    setShowPreMatchSetup(false);
+    setShowPracticeSetup(false);
+    setPracticeActive(false);
+    setSeasonModeActive(false);
+    setAllowMainMenu(true);
+    setSessionMenuLock(false);
+    gameRef.current?.setPaused?.(false);
+    gameRef.current?.setPracticeMode?.(false);
+    gameRef.current?.clearPracticeRoutes?.();
+    gameRef.current?.resetMatch?.();
+    setGameMode(null);
+    setHasActiveMatchSession(false);
+    gameRef.current?.setMenuVisible?.(true);
+  };
+
   useEffect(() => {
     try {
       sessionStorage.removeItem('psl_fullTime');
@@ -2892,7 +2923,7 @@ const RetroFootball: React.FC = () => {
 
       {isPaused && hasActiveMatchSession && !showSplash && !isOptionsOpen && (
         <React.Suspense fallback={null}>
-          <PauseOverlay onResume={handleTogglePause} />
+          <PauseOverlay onResume={handleTogglePause} onQuitToMenu={handleQuitToMainMenu} />
         </React.Suspense>
       )}
 
@@ -3498,12 +3529,24 @@ const RetroFootball: React.FC = () => {
                   <button onClick={() => setActiveTab('LIVE_TELEMETRY')} className={`text-white text-sm ${activeTab === 'LIVE_TELEMETRY' ? 'font-bold' : 'text-white/40'}`}>TELEMETRY</button>
                 )}
               </div>
+              <div className="flex items-center gap-3">
+                {hasActiveMatchSession && (
+                  <button
+                    type="button"
+                    data-psl-quit-to-menu="options"
+                    onClick={handleQuitToMainMenu}
+                    className="rounded border border-white/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 transition-colors hover:border-red-400 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  >
+                    Quit to Main Menu
+                  </button>
+                )}
               <button 
                 onClick={() => setIsOptionsOpen(false)}
                 className="text-white/40 hover:text-white transition-colors"
               >
                 [ESC] CLOSE
               </button>
+              </div>
             </div>
 
             {activeTab === 'OPTIONS' ? (
