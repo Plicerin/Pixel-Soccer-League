@@ -1552,8 +1552,10 @@ class SimpleGameEngine {
         this.playGameplayBuffer('kick', 0.18, 0.20);
         break;
       case 'TACKLE_MISS':
-        // Missed: quieter and thinner, so success and failure sound different.
-        this.playGameplayBuffer('throw', 0.16, 0.18);
+        // Missed: the same physical contact sample as a won tackle but quieter
+        // and shorter, so a miss reads as a weak challenge rather than a clean
+        // one. ('throw' was an announcer callout -- plainly the wrong sound.)
+        this.playGameplayBuffer('catch', 0.18, 0.14);
         break;
       case 'THROW':
         break;

@@ -1932,6 +1932,69 @@ test("CPU difficulty presets only ever raise defensive intensity", () => {
   );
 });
 
+test("a ball leaving the pitch is always detected, however it gets there", () => {
+  // Reported from play: a goal that did not register, and a ball sitting past
+  // the goal line with play continuing. Three separate causes:
+  //   1. detectAndStageBallOut only ran inside the ballFlight branch, so a
+  //      free-rolling loose ball was never checked at all;
+  //   2. a goal-line out during a flight was discarded rather than deferred;
+  //   3. detectBallOut returned null when nothing had touched the ball.
+  const run = (label: string, setup: (api: Record<string, unknown>) => void) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`detect-${label}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    model.possession = null;
+    setup(model as unknown as Record<string, unknown>);
+
+    const before = model.getMatchSnapshot();
+    let staged: string | null = null;
+    for (let i = 0; i < 300; i++) {
+      model.step(1 / 60);
+      const kind = (model.msm.state as { kind: string }).kind;
+      if (kind !== "live_play" && !staged) staged = kind;
+    }
+    const after = model.getMatchSnapshot();
+    return { staged, scored: after.scoreA + after.scoreB > before.scoreA + before.scoreB };
+  };
+
+  const alreadyInNet = run("in-net", (api) => {
+    // No single-frame crossing: the ball is already over the line.
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X + 0.5, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X + 0.8, y: 0.18, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 1.5, z: 0 };
+  });
+  assert.equal(alreadyInNet.staged, "goal_scored", "a ball already in the net must be given as a goal");
+  assert.ok(alreadyInNet.scored, "the score must actually increase");
+
+  const crossingNormally = run("crossing", (api) => {
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X - 0.5, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X - 0.4, y: 0.18, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 14, z: 0 };
+  });
+  assert.equal(crossingNormally.staged, "goal_scored", "a ball crossing the line must be a goal");
+
+  const looseOut = run("loose-out", (api) => {
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X + 1, z: GOAL_MOUTH_HALF_Z + 3 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X + 1.5, y: 0.18, z: GOAL_MOUTH_HALF_Z + 3 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 2, z: 0 };
+  });
+  assert.equal(looseOut.staged, "ball_out", "a loose ball past the goal line must stop play");
+  assert.ok(!looseOut.scored, "wide of the post is not a goal");
+
+  const outDuringFlight = run("flight-out", (api) => {
+    (api as { ball: { pos: unknown } }).ball.pos = { x: RIGHT_GOAL_X - 6, y: 0.18, z: GOAL_MOUTH_HALF_Z + 4 };
+    (api as { startBallFlight: (k: string, f: unknown, t: unknown, d: number, a: number) => void }).startBallFlight(
+      "pass",
+      { x: RIGHT_GOAL_X - 6, z: GOAL_MOUTH_HALF_Z + 4 },
+      { x: RIGHT_GOAL_X + 3, z: GOAL_MOUTH_HALF_Z + 4 },
+      0.8,
+      0.05,
+    );
+  });
+  assert.equal(outDuringFlight.staged, "ball_out", "a goal-line out during a flight must be deferred, not discarded");
+});
+
 test("fouls can be switched off for a match", () => {
   const fouls = (enabled: boolean) => {
     const model = new SimpleMatchModel();

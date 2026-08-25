@@ -1963,6 +1963,13 @@ export class SimpleMatchModel {
       return null;
     }
     if (!this.possession && !this.ballFlight) this.updateLooseBallMotion(dt);
+    // A loose ball can cross a line too. Detection used to run only inside the
+    // ballFlight branch below, so a ball rolling out -- or into the net --
+    // while nobody was carrying it was simply never noticed.
+    if (!this.possession && !this.ballFlight) {
+      const looseBallGoal = this.detectAndStageBallOut();
+      if (looseBallGoal) return looseBallGoal;
+    }
     if (!this.possession && !this.ballFlight) this.claimLooseBallPossession("A");
     if (this.possession) {
       this.rememberTouch(this.possession);
@@ -5526,6 +5533,10 @@ export class SimpleMatchModel {
       this.ball.vel = { x: 0, z: 0 };
       return;
     }
+    // Ball-out and goal detection compare against lastBallPos. Only ball
+    // flights maintained it, so a free-rolling ball had no previous position
+    // and could cross a line unnoticed.
+    this.lastBallPos = { x: this.ball.pos.x, z: this.ball.pos.z };
     this.ball.pos.x += this.ball.vel.x * dt;
     this.ball.pos.z += this.ball.vel.z * dt;
     const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
@@ -5576,7 +5587,14 @@ export class SimpleMatchModel {
       return null;
     }
     const current = { x: this.ball.pos.x, z: this.ball.pos.z };
-    const goalMouthCrossing = this.detectGoalMouthCrossing(this.lastBallPos, current);
+    // Positional fallback. The crossing test needs the ball to move from inside
+    // to outside within one frame; if it is already past the line -- a deflection
+    // that started there, a dropped frame, a ball nudged over at rest -- the
+    // goal is never seen. detectBallOut returns null for a goal, so nothing
+    // else catches it either.
+    const settledInNet = !this.ballFlight && this.goalMouthContainsBall(current);
+    const goalMouthCrossing = this.detectGoalMouthCrossing(this.lastBallPos, current)
+      ?? (settledInNet ? this.goalMouthCrossingFromPosition(current) : null);
     if (goalMouthCrossing && this.pendingFlightGoalEvent && this.ballFlight?.kind === "shot") {
       return null;
     }
@@ -5590,7 +5608,12 @@ export class SimpleMatchModel {
     const context = this.buildBallOutContext(detected, this.lastBallPos, current);
     if (!context) return null;
     const goalLineOut = context.crossedLine === "left_goal_line" || context.crossedLine === "right_goal_line";
-    if (goalLineOut && this.ballFlight) return null;
+    // Do not discard: hold it until the flight ends, or the ball stays in play
+    // having already left the pitch.
+    if (goalLineOut && this.ballFlight) {
+      this.pendingMissGoalLineOut ||= { event: detected, context };
+      return null;
+    }
     if (goalLineOut) {
       this.visibleBallOutPending = { event: detected, context, holdSeconds: 0.45 };
       this.possession = null;
@@ -5623,6 +5646,25 @@ export class SimpleMatchModel {
       crossedLine: crossing.crossedLine,
     };
     return { event, context };
+  }
+
+  /** Is the ball fully over a goal line and between the posts? */
+  private goalMouthContainsBall(pos: Vec2) {
+    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    if (Math.abs(pos.z) > mouthHalf) return false;
+    return pos.x > RIGHT_GOAL_X + BALL_RADIUS || pos.x < LEFT_GOAL_X - BALL_RADIUS;
+  }
+
+  /** Build a crossing record for a ball that is already in the net. */
+  private goalMouthCrossingFromPosition(pos: Vec2) {
+    const crossingRight = pos.x > 0;
+    return {
+      scoringTeam: (crossingRight
+        ? (this.attackSign("A") > 0 ? "A" : "B")
+        : (this.attackSign("A") < 0 ? "A" : "B")) as SimpleTeamCode,
+      spot: { x: crossingRight ? RIGHT_GOAL_X : LEFT_GOAL_X, z: pos.z },
+      crossedLine: (crossingRight ? "right_goal_line" : "left_goal_line") as "left_goal_line" | "right_goal_line",
+    };
   }
 
   private detectGoalMouthCrossing(from: Vec2, to: Vec2): {

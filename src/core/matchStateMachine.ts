@@ -183,10 +183,20 @@ export function detectBallOut(
   }
 
   if (ballX > RIGHT_GOAL_X || ballX < LEFT_GOAL_X) {
-    if (!lastTouchTeam) return null;
     const defendingLeft = homeAttackSign > 0;
     const goalScored = (defendingLeft && ballX > RIGHT_GOAL_X && Math.abs(ballZ) < GOAL_MOUTH_HALF_Z)
       || (!defendingLeft && ballX < LEFT_GOAL_X && Math.abs(ballZ) < GOAL_MOUTH_HALF_Z);
+
+    // Whether it is a goal does not depend on who touched it last; only the
+    // corner/goal-kick split does. Returning early on a missing last touch
+    // discarded legitimate goals and goal-line outs after a deflection.
+    if (!goalScored && !lastTouchTeam) {
+      const attackingTeam: TeamSide = ballX > RIGHT_GOAL_X
+        ? (defendingLeft ? "home" : "away")
+        : (defendingLeft ? "away" : "home");
+      const defendingTeam: TeamSide = attackingTeam === "home" ? "away" : "home";
+      return { restartType: "goal_kick", restartTeam: defendingTeam };
+    }
 
     if (!goalScored) {
       if (ballX > RIGHT_GOAL_X) {
