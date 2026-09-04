@@ -724,7 +724,9 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
     model.ball.pos = { x: RIGHT_GOAL_X - 0.7, y: 0.18, z: GOAL_MOUTH_HALF_Z + 3 };
     (model as unknown as { startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void })
       .startBallFlight("pass", { x: RIGHT_GOAL_X - 0.7, z: GOAL_MOUTH_HALF_Z + 3 }, { x: RIGHT_GOAL_X + 1.4, z: GOAL_MOUTH_HALF_Z + 4 }, 0.1, 0.04);
-    for (let i = 0; i < 60 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
+    // The out-of-play hold lets the ball run on and rebound off the wall
+    // before the restart is staged, so allow more than one second.
+    for (let i = 0; i < 180 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
     return model;
   };
 
@@ -1993,6 +1995,52 @@ test("a ball leaving the pitch is always detected, however it gets there", () =>
     );
   });
   assert.equal(outDuringFlight.staged, "ball_out", "a goal-line out during a flight must be deferred, not discarded");
+});
+
+test("a ball leaving the pitch runs on and rebounds off the stadium wall", () => {
+  // It used to stop dead on the line, which reads as the game freezing.
+  const model = new SimpleMatchModel();
+  model.setSeed("wall-bounce");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    attackSign: (t: "A" | "B") => number;
+    rememberTouch: (p: unknown) => void;
+    lastBallPos: { x: number; z: number };
+    restartContext: unknown;
+  };
+
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const outZ = GOAL_MOUTH_HALF_Z + 4;
+  const attacker = model.getPlayers().find((p) => p.team === "A" && p.role === "ST");
+  assert.ok(attacker, "need an attacker");
+  api.rememberTouch(attacker);
+  for (const player of model.getPlayers()) {
+    player.pos = { x: -goalX, y: 0, z: -25 };
+    player.targetPos = { x: -goalX, z: -25 };
+  }
+  model.possession = null;
+  api.lastBallPos = { x: goalX - sign * 2.5, z: outZ };
+  model.ball.pos = { x: goalX - sign * 2, y: 0.18, z: outZ };
+  model.ball.vel = { x: sign * 26, z: 0 };
+
+  let furthest = 0;
+  let rebounded = false;
+  let previousVx = model.ball.vel.x;
+  for (let i = 0; i < 200 && !api.restartContext; i++) {
+    model.step(1 / 60);
+    furthest = Math.max(furthest, Math.abs(model.ball.pos.x));
+    if (Math.sign(model.ball.vel.x) !== Math.sign(previousVx) && Math.abs(model.ball.vel.x) > 0.01) rebounded = true;
+    previousVx = model.ball.vel.x;
+  }
+
+  assert.ok(
+    furthest > Math.abs(goalX) + 2,
+    `the ball must run on past the line, reached ${furthest.toFixed(1)} vs line ${Math.abs(goalX).toFixed(1)}`,
+  );
+  assert.ok(rebounded, "the ball must rebound off the perimeter wall");
+  assert.ok(api.restartContext, "the restart must still be staged afterwards");
 });
 
 test("a defender standing near a ball going out does not steal the touch", () => {

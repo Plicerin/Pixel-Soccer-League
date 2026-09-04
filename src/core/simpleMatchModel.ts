@@ -511,6 +511,11 @@ const LOOSE_BALL_CLAIM_RADIUS = 1.35;
 const TOUCH_CONTACT_RADIUS = 0.95;
 // Above this speed a loose ball must be reached, not merely stood near.
 const LOOSE_BALL_CLAIM_SPEED_LIMIT = 6;
+// Perimeter wall: matches wallOffset in the renderer's stadium build.
+const STADIUM_WALL_OFFSET = 9.5;
+const STADIUM_WALL_RESTITUTION = 0.55;
+// Long enough to see the ball run on and rebound before the restart is staged.
+const BALL_OUT_HOLD_SECONDS = 0.9;
 // Mid-flight collection: how close a player must be to a ball played into
 // space, and how low the ball must be for them to control it.
 const MID_FLIGHT_COLLECT_RADIUS = 1.1;
@@ -1956,12 +1961,48 @@ export class SimpleMatchModel {
     this.lastStateKind = this.msm.state.kind;
   }
 
+  /**
+   * Ball motion after it has left the pitch but before the restart is staged.
+   * It keeps its pace, bounces off the perimeter wall and settles, rather than
+   * stopping dead on the line.
+   */
+  private updateOutOfPlayBallMotion(dt: number) {
+    const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
+    if (speed <= 0.01) {
+      this.ball.vel = { x: 0, z: 0 };
+      this.ball.pos.y = this.ballGroundY();
+      return;
+    }
+
+    this.ball.pos.x += this.ball.vel.x * dt;
+    this.ball.pos.z += this.ball.vel.z * dt;
+
+    const wallX = FIELD_W / 2 + STADIUM_WALL_OFFSET;
+    const wallZ = FIELD_D / 2 + STADIUM_WALL_OFFSET;
+    if (Math.abs(this.ball.pos.x) > wallX) {
+      this.ball.pos.x = Math.sign(this.ball.pos.x) * wallX;
+      this.ball.vel.x *= -STADIUM_WALL_RESTITUTION;
+      this.ball.vel.z *= STADIUM_WALL_RESTITUTION;
+    }
+    if (Math.abs(this.ball.pos.z) > wallZ) {
+      this.ball.pos.z = Math.sign(this.ball.pos.z) * wallZ;
+      this.ball.vel.z *= -STADIUM_WALL_RESTITUTION;
+      this.ball.vel.x *= STADIUM_WALL_RESTITUTION;
+    }
+
+    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
+    this.ball.vel.x *= damp;
+    this.ball.vel.z *= damp;
+    this.ball.pos.y = this.ballGroundY();
+  }
+
   private playLiveTick(dt: number): GoalEvent | null {
     if (this.visibleBallOutPending) {
       this.activeCarrierTraceOwnerId = null;
       this.visibleBallOutPending.holdSeconds -= dt;
-      this.ball.vel = { x: 0, z: 0 };
-      this.ball.pos.y = this.ballGroundY();
+      // Let the ball run on and rebound off the stadium wall instead of
+      // freezing dead the instant it crosses a line -- it reads as a bug.
+      this.updateOutOfPlayBallMotion(dt);
       if (this.visibleBallOutPending.holdSeconds <= 0) {
         this.pendingBallOutEvent = this.visibleBallOutPending.event;
         this.pendingBallOutContext = this.visibleBallOutPending.context;
@@ -5610,9 +5651,10 @@ export class SimpleMatchModel {
     if (this.pendingMissGoalLineOut && !this.ballFlight) {
       const { event, context } = this.pendingMissGoalLineOut;
       this.pendingMissGoalLineOut = null;
-      this.visibleBallOutPending = { event, context, holdSeconds: 0.45 };
+      this.visibleBallOutPending = { event, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
       this.possession = null;
-      this.ball.vel = { x: 0, z: 0 };
+      // Keep the ball's pace: updateOutOfPlayBallMotion runs it on into the
+      // stadium wall during the hold. Zeroing here froze it on the line.
       this.addBallOutLog(event, context);
       return null;
     }
@@ -5645,9 +5687,10 @@ export class SimpleMatchModel {
       return null;
     }
     if (goalLineOut) {
-      this.visibleBallOutPending = { event: detected, context, holdSeconds: 0.45 };
+      this.visibleBallOutPending = { event: detected, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
       this.possession = null;
-      this.ball.vel = { x: 0, z: 0 };
+      // Keep the ball's pace: updateOutOfPlayBallMotion runs it on into the
+      // stadium wall during the hold. Zeroing here froze it on the line.
       this.addBallOutLog(detected, context);
       return null;
     }
