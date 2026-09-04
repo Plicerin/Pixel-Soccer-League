@@ -1995,6 +1995,59 @@ test("a ball leaving the pitch is always detected, however it gets there", () =>
   assert.equal(outDuringFlight.staged, "ball_out", "a goal-line out during a flight must be deferred, not discarded");
 });
 
+test("a defender standing near a ball going out does not steal the touch", () => {
+  // Reported: corners awarded when the opposition never touched the ball.
+  // claimLooseBallPossession takes any player within 1.35u -- far wider than
+  // real contact (~0.55u) -- and possession was then recorded as a touch every
+  // frame. A defender merely standing near a ball rolling out became the last
+  // toucher, turning a goal kick into a corner.
+  const model = new SimpleMatchModel();
+  model.setSeed("touch-attribution");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    attackSign: (t: "A" | "B") => number;
+    rememberTouch: (p: unknown) => void;
+    lastBallPos: { x: number; z: number };
+    lastTouchTeam: string | null;
+    restartContext: { restartType: string; restartTeam: string } | null;
+  };
+
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const outZ = GOAL_MOUTH_HALF_Z + 4;
+
+  // Team A genuinely last touched it; the ball is running out over B's line.
+  const attacker = model.getPlayers().find((p) => p.team === "A" && p.role === "ST");
+  const defender = model.getPlayers().find((p) => p.team === "B" && p.role === "CB");
+  assert.ok(attacker && defender, "need an attacker and a defender");
+  api.rememberTouch(attacker);
+  model.possession = null;
+
+  // Park everyone else away, and put the defender near but not on the ball.
+  for (const player of model.getPlayers()) {
+    if (player.id === defender.id) continue;
+    player.pos = { x: -goalX, y: 0, z: -25 };
+    player.targetPos = { x: -goalX, z: -25 };
+  }
+  defender.pos = { x: goalX - sign * 0.8, y: 0, z: outZ + 1.2 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+
+  api.lastBallPos = { x: goalX - sign * 2.5, z: outZ };
+  model.ball.pos = { x: goalX - sign * 2, y: 0.18, z: outZ };
+  model.ball.vel = { x: sign * 10, z: 0 };
+
+  for (let i = 0; i < 300 && !api.restartContext; i++) model.step(1 / 60);
+
+  assert.equal(api.lastTouchTeam, "A", "the defender must not be credited with a touch they never made");
+  assert.ok(api.restartContext, "the ball going out must produce a restart");
+  assert.equal(
+    api.restartContext.restartType,
+    "goal_kick",
+    `an attacker putting it out must give a goal kick, got ${api.restartContext.restartType}`,
+  );
+});
+
 test("fouls can be switched off for a match", () => {
   const fouls = (enabled: boolean) => {
     const model = new SimpleMatchModel();

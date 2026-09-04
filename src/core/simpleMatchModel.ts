@@ -504,6 +504,13 @@ const STRIKER_BOX_EXIT_BUFFER = 0.75;
 const BALL_RECEPTION_RADIUS = 1.55;
 const AERIAL_RECEPTION_RADIUS = 2.15;
 const LOOSE_BALL_CLAIM_RADIUS = 1.35;
+// Real contact distance: player radius + ball radius, plus a little slack for
+// a foot reaching. Claiming a loose ball is a game convenience and stays
+// generous; recording a *touch* must mean the player actually reached it,
+// because touch decides corner vs goal kick.
+const TOUCH_CONTACT_RADIUS = 0.95;
+// Above this speed a loose ball must be reached, not merely stood near.
+const LOOSE_BALL_CLAIM_SPEED_LIMIT = 6;
 // Mid-flight collection: how close a player must be to a ball played into
 // space, and how low the ball must be for them to control it.
 const MID_FLIGHT_COLLECT_RADIUS = 1.1;
@@ -1972,7 +1979,14 @@ export class SimpleMatchModel {
     }
     if (!this.possession && !this.ballFlight) this.claimLooseBallPossession("A");
     if (this.possession) {
-      this.rememberTouch(this.possession);
+      // Only record a touch when the player is genuinely on the ball. The
+      // loose-ball claim radius (1.35u) is far wider than real contact
+      // (~0.55u), so recording every frame let a defender standing near a
+      // ball rolling out become the "last toucher" without touching it --
+      // turning a goal kick into a corner.
+      if (dist2(this.possession.pos, { x: this.ball.pos.x, z: this.ball.pos.z }) <= TOUCH_CONTACT_RADIUS) {
+        this.rememberTouch(this.possession);
+      }
       this.team(this.possession.team).possessionSeconds += dt;
       this.possession.stats.possessionSeconds += dt;
     }
@@ -5511,10 +5525,26 @@ export class SimpleMatchModel {
     this.goalKickoffSetupInstalled = false;
   }
 
+  /** Is the ball fully outside the touchlines or goal lines? */
+  private ballIsBeyondPlayableLines(pos: Vec2) {
+    return Math.abs(pos.z) > FIELD_D / 2
+      || pos.x > RIGHT_GOAL_X
+      || pos.x < LEFT_GOAL_X;
+  }
+
   private claimLooseBallPossession(fallbackTeam: SimpleTeamCode) {
     const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
+    // A ball already over a line is out; claiming it there would record a touch
+    // by whoever happened to be standing nearby and flip a goal kick into a
+    // corner. Leave it for the ball-out detector.
+    if (this.ballIsBeyondPlayableLines(ball)) return false;
     const nearest = this.nearestPlayerTo(ball);
     if (!nearest || nearest.gap > LOOSE_BALL_CLAIM_RADIUS) return false;
+    // A quick ball needs a real interception, not proximity. Without this a
+    // defender standing near a ball speeding out "claims" it, is recorded as
+    // the last toucher, and the goal kick becomes a corner.
+    const ballSpeed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
+    if (ballSpeed > LOOSE_BALL_CLAIM_SPEED_LIMIT && nearest.gap > TOUCH_CONTACT_RADIUS) return false;
     const claimant = nearest.player;
     this.possession = claimant;
     if (claimant && !this.ballFlight) this.ball.vel = { x: 0, z: 0 };
