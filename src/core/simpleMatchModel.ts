@@ -510,6 +510,19 @@ const LOOSE_BALL_CLAIM_RADIUS = 1.35;
 // because touch decides corner vs goal kick.
 const TOUCH_CONTACT_RADIUS = 0.95;
 // Above this speed a loose ball must be reached, not merely stood near.
+/** Keeper depth off his goal line, by how close the ball is (field units). */
+const KEEPER_SWEEP_RANGE = 26;
+const KEEPER_NARROW_RANGE = 13;
+const KEEPER_SET_RANGE = 6;
+const KEEPER_SWEEPER_DEPTH = 3.6;
+const KEEPER_NARROW_DEPTH = 4.2;
+const KEEPER_SET_DEPTH = 2.0;
+const KEEPER_LINE_DEPTH = 0.8;
+/** Never advance more than this share of the way to the ball. */
+const KEEPER_MAX_COMMIT_FRACTION = 0.55;
+/** How far past each post the keeper may shuffle. */
+const KEEPER_POST_OVERLAP = 0.9;
+
 const LOOSE_BALL_CLAIM_SPEED_LIMIT = 6;
 // Perimeter wall: matches wallOffset in the renderer's stadium build.
 const STADIUM_WALL_OFFSET = 9.5;
@@ -3468,23 +3481,9 @@ export class SimpleMatchModel {
         }
       }
       if (player.role === "GK" && !receivingFlight) {
-        const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + 2.4 : RIGHT_GOAL_X - 2.4;
-        target = { x: ownGoalX, z: clamp(ball.z * 0.25, -4, 4) };
-        targetOwner = "keeper_anchor";
-        if (this.possession && this.possession.team !== player.team) {
-          const ownGoal = goalCenterForAttack((-attackSign) as 1 | -1);
-          const dangerDist = dist2(this.possession.pos, ownGoal);
-          const centralDanger = Math.abs(this.possession.pos.z) <= GOAL_MOUTH_HALF_Z * 1.9;
-          if (dangerDist < 9 && centralDanger) {
-            const dir = normalize2({ x: this.possession.pos.x - ownGoal.x, z: this.possession.pos.z - ownGoal.z });
-            const stepOut = clamp(dangerDist * 0.42, 0.45, 2.1);
-            target = {
-              x: ownGoal.x + dir.x * stepOut,
-              z: clamp(this.possession.pos.z * 0.82, -GOAL_MOUTH_HALF_Z * 0.95, GOAL_MOUTH_HALF_Z * 0.95),
-            };
-            targetOwner = "keeper_sweep";
-          }
-        }
+        const cover = this.keeperCoverTarget(player, attackSign, ball);
+        target = cover.target;
+        targetOwner = cover.owner;
       }
       if (protectedKeeper && player.team !== protectedKeeper.team) {
         target = this.keeperStandoffTarget(player, protectedKeeper, target);
@@ -4873,6 +4872,50 @@ export class SimpleMatchModel {
     return this.rng.next() < chance;
   }
 
+  /**
+   * Where the keeper should stand.
+   *
+   * The old anchor parked him at a fixed 2.4u off his line and tracked only
+   * 25% of the ball's z, which left him a mean 2.72u off the ball->goal line
+   * (125% of a goal half-width) and barely moving at 0.74 units/sec. It also
+   * had him drift *backwards* as an attacker closed, because the sweep step
+   * scaled with distance-to-goal.
+   *
+   * Instead: stand on the line from the goal centre to the ball, which is what
+   * covering the angle means, at a depth that peaks around the box edge and
+   * drops as a shot becomes point-blank. Never past the ball itself.
+   */
+  private keeperCoverTarget(player: SimplePlayer, attackSign: 1 | -1, ball: Vec2) {
+    const ownGoal = goalCenterForAttack((-attackSign) as 1 | -1);
+    const threat = dist2(ball, ownGoal);
+    // Depth off the goal line. High and sweeping when play is far away, furthest
+    // out around the edge of the area to narrow the angle, then back towards the
+    // line once the ball is close enough that reaction beats position.
+    let depth: number;
+    if (threat >= KEEPER_SWEEP_RANGE) depth = KEEPER_SWEEPER_DEPTH;
+    else if (threat >= KEEPER_NARROW_RANGE) {
+      const t = (threat - KEEPER_NARROW_RANGE) / (KEEPER_SWEEP_RANGE - KEEPER_NARROW_RANGE);
+      depth = lerpNumber(KEEPER_NARROW_DEPTH, KEEPER_SWEEPER_DEPTH, t);
+    } else if (threat >= KEEPER_SET_RANGE) {
+      const t = (threat - KEEPER_SET_RANGE) / (KEEPER_NARROW_RANGE - KEEPER_SET_RANGE);
+      depth = lerpNumber(KEEPER_SET_DEPTH, KEEPER_NARROW_DEPTH, t);
+    } else depth = Math.max(KEEPER_LINE_DEPTH, threat * 0.34);
+    // Never commit past the ball: that is how keepers get chipped.
+    depth = Math.min(depth, Math.max(KEEPER_LINE_DEPTH, threat * KEEPER_MAX_COMMIT_FRACTION));
+    const owner = threat >= KEEPER_NARROW_RANGE ? "keeper_sweep" : "keeper_cover_angle";
+    if (threat < 0.2) return { target: { x: ownGoal.x + attackSign * depth, z: 0 }, owner };
+    const t = depth / threat;
+    return {
+      target: {
+        x: ownGoal.x + (ball.x - ownGoal.x) * t,
+        // Stay in front of the mouth: chasing the ball to the touchline leaves
+        // an empty net behind him.
+        z: clamp(ball.z * t, -(GOAL_MOUTH_HALF_Z + KEEPER_POST_OVERLAP), GOAL_MOUTH_HALF_Z + KEEPER_POST_OVERLAP),
+      },
+      owner,
+    };
+  }
+
   private keeperSaveGeometry(
     keeper: SimplePlayer | undefined,
     shotOrigin: Vec2,
@@ -4890,7 +4933,18 @@ export class SimpleMatchModel {
       };
     }
     const keeperQuality = keeper.ratings.keeper ?? 0.62;
-    const reachDistance = dist2(keeper.pos, shotTarget);
+    // The gap the keeper must actually cover: where the shot crosses his own
+    // depth, not where it ends up. Measuring to the goal-line target made every
+    // step off the line count against him, so narrowing the angle -- the whole
+    // point of coming out -- read as worse positioning. Measuring to the flight
+    // line as a whole went too far the other way and made the check inert.
+    const shotSpanX = shotTarget.x - shotOrigin.x;
+    const reachDistance = Math.abs(shotSpanX) < 0.5
+      ? dist2(keeper.pos, shotTarget)
+      : Math.abs(
+        keeper.pos.z
+        - (shotOrigin.z + (shotTarget.z - shotOrigin.z) * clamp((keeper.pos.x - shotOrigin.x) / shotSpanX, 0, 1)),
+      );
     const reactionPenalty = Math.max(0, 9 - shotDistToGoalYards) * 0.055 + pressure * 0.035;
     const maxReach = (5.0 + keeperQuality * 2.2) * FIELD_SCALE_PER_YARD - reactionPenalty;
     const headerReachGrace = shotStyle === "HEADER"

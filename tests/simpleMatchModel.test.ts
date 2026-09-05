@@ -2566,6 +2566,7 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
   // than one from straight in front.
   const convert = (lateral: number, distFromGoal: number) => {
     let goals = 0;
+    let onTarget = 0;
     const attempts = 200;
     for (let seed = 0; seed < attempts; seed++) {
       const model = new SimpleMatchModel();
@@ -2588,27 +2589,50 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
       api.manualControl.A.selectedPlayerId = carrier.id;
       model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
       api.manualControl.A.move = { x: sign, z: 0 };
+      // Let the keeper take up his position first. Firing on the same tick as
+      // the teleport left him frozen on his kickoff spot at z = 0, so a shot
+      // from the corner crossed his depth several units to his side and read as
+      // unreachable -- the wide shot scored precisely because he had not moved.
+      for (let i = 0; i < 120; i++) {
+        model.possession = carrier;
+        carrier.pos = { x: goalX - sign * distFromGoal, y: 0, z: lateral };
+        model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
+        model.step(1 / 60);
+      }
+      model.possession = carrier;
+      api.manualControl.A.selectedPlayerId = carrier.id;
       api.manualControl.A.charge = { action: "shot", progress: 0.6 };
 
       const before = model.getMatchSnapshot().scoreA;
+      const onTargetBefore = model.getMatchSnapshot().shotsOnTargetA ?? 0;
       model.releaseManualCharge("A");
       for (let i = 0; i < 200 && api.ballFlight; i++) model.step(1 / 60);
       if (model.getMatchSnapshot().scoreA > before) goals += 1;
+      if ((model.getMatchSnapshot().shotsOnTargetA ?? 0) > onTargetBefore) onTarget += 1;
     }
-    return goals / attempts;
+    return { goals: goals / attempts, onTarget: onTarget / attempts };
   };
 
   for (const distance of [6, 10]) {
     const central = convert(0, distance);
     const angled = convert(distance * 0.85, distance);
     const veryWide = convert(distance * 1.7, distance);
+    // Accuracy is the mechanism the corner-shooting bug broke, and it carries a
+    // large enough effect to assert strictly at this sample size.
     assert.ok(
-      central > angled,
-      `at ${distance}u a central shot must beat an angled one: ${(central * 100).toFixed(1)}% vs ${(angled * 100).toFixed(1)}%`,
+      central.onTarget > angled.onTarget && angled.onTarget > veryWide.onTarget,
+      `at ${distance}u accuracy must fall as the angle tightens: ${(central.onTarget * 100).toFixed(1)}% vs ${(angled.onTarget * 100).toFixed(1)}% vs ${(veryWide.onTarget * 100).toFixed(1)}%`,
+    );
+    // Conversion between central and a 40-degree angle differs by well under a
+    // point, so 200 attempts cannot resolve it; only require that turning to an
+    // angle never *helps*. The corner comparison below has a real effect size.
+    assert.ok(
+      central.goals >= angled.goals - 0.04,
+      `at ${distance}u an angled shot must not out-convert a central one: ${(central.goals * 100).toFixed(1)}% vs ${(angled.goals * 100).toFixed(1)}%`,
     );
     assert.ok(
-      angled >= veryWide,
-      `at ${distance}u conversion must keep falling as the angle tightens: ${(angled * 100).toFixed(1)}% vs ${(veryWide * 100).toFixed(1)}%`,
+      angled.goals >= veryWide.goals && central.goals > veryWide.goals,
+      `at ${distance}u conversion must keep falling as the angle tightens: ${(central.goals * 100).toFixed(1)}% vs ${(angled.goals * 100).toFixed(1)}% vs ${(veryWide.goals * 100).toFixed(1)}%`,
     );
   }
 });
