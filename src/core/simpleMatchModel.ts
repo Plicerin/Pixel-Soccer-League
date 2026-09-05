@@ -85,6 +85,12 @@ const MANUAL_CHARGE_POWER_SPAN = 0.85;
 const MANUAL_TACKLE_RANGE = 3.25;
 const MANUAL_TACKLE_COOLDOWN_SECONDS = 0.65;
 const LOOSE_BALL_GROUND_FRICTION = 0.5;
+/** Gravity in world units/s^2 (1 unit ~= 1.67 m, so 9.81 m/s^2 -> ~5.9). */
+const BALL_GRAVITY = 5.9;
+/** Share of vertical speed kept per bounce. Turf, so fairly dead. */
+const BALL_BOUNCE_RESTITUTION = 0.55;
+/** Below this the ball is rolling, not bouncing. */
+const BALL_BOUNCE_REST_SPEED = 0.35;
 // Fraction of true flight pace an uncollected ground pass keeps on landing.
 const LOOSE_BALL_LANDING_CARRY = 0.62;
 // Lofted balls land steeply, so they keep less of their pace than a driven one.
@@ -706,6 +712,8 @@ export class SimpleMatchModel {
   private elapsedTotal = 0;
   private eventSeq = 0;
   private shotSeq = 0;
+  /** Vertical speed of a loose ball; only ever non-zero while it bounces. */
+  private ballVelY = 0;
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
@@ -1980,6 +1988,7 @@ export class SimpleMatchModel {
    * stopping dead on the line.
    */
   private updateOutOfPlayBallMotion(dt: number) {
+    this.ballVelY = 0;
     const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
     if (speed <= 0.01) {
       this.ball.vel = { x: 0, z: 0 };
@@ -2580,6 +2589,7 @@ export class SimpleMatchModel {
   }
 
   private updateControlledBall(dt: number, carrier: SimplePlayer) {
+    this.ballVelY = 0;
     const settlingReception = this.visualReceptionPlayerId === carrier.id && this.visualReceptionSettleRemaining > 0;
     this.dribblePhase += dt * (settlingReception ? 2.2 : 9);
     const previous = { x: this.ball.pos.x, z: this.ball.pos.z };
@@ -2722,6 +2732,10 @@ export class SimpleMatchModel {
       this.ball.vel = { x: 0, z: 0 };
       const received = this.resolveBallFlightReception(flight);
       if (!received) {
+        // Vertical speed at touchdown: d/dt of arc*sin(pi*t) at t = 1.
+        const impactSpeed = (flight.arc * Math.PI) / Math.max(0.001, flight.duration);
+        const rebound = impactSpeed * BALL_BOUNCE_RESTITUTION;
+        this.ballVelY = rebound > BALL_BOUNCE_REST_SPEED ? rebound : 0;
         if (flight.kind === "pass" || flight.kind === "restart" || flight.kind === "interception") {
           // Aerial balls drop steeper and lose more pace on the bounce than a
           // driven ground ball, but they must still run on. Excluding them
@@ -5653,6 +5667,7 @@ export class SimpleMatchModel {
   }
 
   private updateLooseBallMotion(dt: number) {
+    this.updateBallBounce(dt);
     const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
     if (speed <= 0.01) {
       this.ball.vel = { x: 0, z: 0 };
@@ -5667,6 +5682,31 @@ export class SimpleMatchModel {
     const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
     this.ball.vel.x *= damp;
     this.ball.vel.z *= damp;
+  }
+
+  /**
+   * Let a landed ball bounce instead of sticking to the turf.
+   *
+   * A ball flight ended by snapping y to ground level, so every long ball,
+   * clearance and uncollected cross died flat on impact -- the single biggest
+   * reason the ball read as glued to the floor.
+   */
+  private updateBallBounce(dt: number) {
+    const ground = this.ballGroundY();
+    if (this.ballVelY === 0 && this.ball.pos.y <= ground + 1e-6) {
+      this.ball.pos.y = ground;
+      return;
+    }
+    this.ballVelY -= BALL_GRAVITY * dt;
+    this.ball.pos.y += this.ballVelY * dt;
+    if (this.ball.pos.y <= ground) {
+      this.ball.pos.y = ground;
+      const rebound = -this.ballVelY * BALL_BOUNCE_RESTITUTION;
+      this.ballVelY = rebound > BALL_BOUNCE_REST_SPEED ? rebound : 0;
+      // Each bounce scrubs a little pace off the ground run too.
+      this.ball.vel.x *= 0.88;
+      this.ball.vel.z *= 0.88;
+    }
   }
 
   private kickoffReceiver(team: SimpleTeamCode, kickerId: string) {
@@ -6757,6 +6797,7 @@ export class SimpleMatchModel {
   }
 
   private startBallFlight(kind: BallFlightKind, from: Vec2, to: Vec2, duration: number, arc: number, followPlayer?: SimplePlayer, options: BallFlightOptions = {}) {
+    this.ballVelY = 0;
     const previousFlightTelemetry = this.ballFlight ? this.ballFlightTelemetry.at(-1) : null;
     const start = this.ballFlight ? { x: this.ball.pos.x, z: this.ball.pos.z } : { ...from };
     const target = { x: to.x, z: to.z };
@@ -6878,17 +6919,27 @@ export class SimpleMatchModel {
   private ballFlightArc(kind: BallFlightKind, distanceYards: number, requestedArc: number) {
     if (kind === "pass" || kind === "restart") {
       if (requestedArc > 0.5) return Math.min(requestedArc, 1.45);
-      // Arc is peak height in world units (~1.67 m each). The old curve topped
-      // out at 0.24 (~0.40 m) for a 42-yard ball, so nothing ever left the
-      // deck and almost no pass cleared HEADER_MIN_ARC. Short balls still roll;
-      // longer ones now rise to waist/chest height like a real driven ball.
-      // Held just under HEADER_MIN_ARC (0.18) through the 28-42yd band: going
-      // over it turns ordinary midfield passes into headed arrivals, which
-      // pushes total passes past the MLS KPI ceiling of 954.
-      if (distanceYards <= 12) return 0.05;
-      if (distanceYards <= 28) return lerpNumber(0.07, 0.14, clamp((distanceYards - 12) / 16, 0, 1));
-      if (distanceYards <= 42) return lerpNumber(0.15, 0.175, clamp((distanceYards - 28) / 14, 0, 1));
-      return Math.max(requestedArc, lerpNumber(0.30, 0.48, clamp((distanceYards - 42) / 24, 0, 1)));
+      // Arc is peak height in world units (~1.67 m each), so knee is ~0.30,
+      // waist ~0.55 and head ~1.00. The band above used to be pinned just under
+      // HEADER_MIN_ARC (0.18 -- barely shin height) on the theory that clearing
+      // it turned midfield passes into headed arrivals. It does not:
+      // resolveAerialHeaderOnArrival needs flight.headerEligible, which ordinary
+      // passes never set, so the ceiling only kept the ball on the carpet. It
+      // measured at 5.1% of match time above knee height.
+      //
+      // Short and midfield balls still travel along the deck -- that is what a
+      // 20-yard pass looks like, and mid-flight collection depends on it
+      // (MID_FLIGHT_COLLECT_MAX_HEIGHT). The height belongs on the long ones.
+      //
+      // A caller asking for a very flat arc means a driven ball played into
+      // space, so honour that at any distance rather than lofting it over the
+      // runner chasing it.
+      const driven = requestedArc < 0.2;
+      if (distanceYards <= 12) return 0.06;
+      if (distanceYards <= 28) return lerpNumber(0.07, 0.13, clamp((distanceYards - 12) / 16, 0, 1));
+      if (distanceYards <= 42) return lerpNumber(0.20, 0.45, clamp((distanceYards - 28) / 14, 0, 1));
+      if (driven) return lerpNumber(0.30, 0.48, clamp((distanceYards - 42) / 24, 0, 1));
+      return Math.max(requestedArc, lerpNumber(0.72, 1.05, clamp((distanceYards - 42) / 24, 0, 1)));
     }
     if (kind === "interception") return requestedArc > 0.5 ? Math.min(requestedArc, 1.05) : Math.min(requestedArc, 0.10);
     if (kind === "save") return Math.min(requestedArc, 0.22);
