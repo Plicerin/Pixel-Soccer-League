@@ -287,6 +287,8 @@ type BallFlightState = {
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -305,6 +307,8 @@ type BallFlightOptions = {
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -328,6 +332,8 @@ type ShotResolutionContext = {
   minOnTargetChance?: number;
   minGoalChance?: number;
   goalChanceMultiplier?: number;
+  /** Height the ball is struck from, for headers. */
+  launchHeight?: number;
   style?: string;
   /** Manual aim (stick/keys). Lateral component steers placement across the mouth. */
   aimDirection?: Vec2;
@@ -401,6 +407,8 @@ export type BallFlightTelemetry = {
   followPlayerName?: string;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -490,6 +498,8 @@ const BALL_HOLD_TIME_MULTIPLIER = 1.5;
 const VISIBLE_RECEPTION_HOLD_MIN_SECONDS = 1.5;
 const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
 const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
+/** A forward ball this long is played through the air, wherever it lands. */
+const LONG_BALL_AERIAL_YARDS = 32;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -2707,7 +2717,16 @@ export class SimpleMatchModel {
     const t = clamp(flight.elapsed / Math.max(0.001, flight.duration), 0, 1);
     this.ball.pos.x = flight.from.x + (flight.to.x - flight.from.x) * t;
     this.ball.pos.z = flight.from.z + (flight.to.z - flight.from.z) * t;
-    this.ball.pos.y = this.ballGroundY() + Math.sin(Math.PI * t) * flight.arc;
+    // A headed ball leaves from head height and drops; without this the ball
+    // teleported back to the turf the instant the header resolved, so 12.8
+    // headers a match were each visible for a single frame.
+    // Squared, not linear: a headed ball drops away quickly rather than gliding
+    // at head height for the whole flight, which kept it above
+    // MID_FLIGHT_COLLECT_MAX_HEIGHT long enough to change who won it.
+    const launchDrop = flight.launchHeight
+      ? Math.max(0, flight.launchHeight - this.ballGroundY()) * (1 - t) * (1 - t)
+      : 0;
+    this.ball.pos.y = this.ballGroundY() + launchDrop + Math.sin(Math.PI * t) * flight.arc;
     this.ball.vel = {
       x: dt > 0 ? (this.ball.pos.x - prev.x) / dt : 0,
       z: dt > 0 ? (this.ball.pos.z - prev.z) / dt : 0,
@@ -3084,6 +3103,7 @@ export class SimpleMatchModel {
     const goalEvent = this.resolveShot(player, distToGoal, pressure, {
       reason: "HEADER_SHOT",
       style: "HEADER",
+      launchHeight: this.ball.pos.y,
       minGoalChance: 0.08,
       goalChanceMultiplier: headerGoalMultiplier,
       details: {
@@ -3817,7 +3837,15 @@ export class SimpleMatchModel {
       && (compressedContinuationCarrier || fullLengthContinuationCarrier);
     const wideDelivery = this.isWideFinalThirdDelivery(carrier, target, progress, targetDistToGoal);
     const drivenCross = wideDelivery && this.rng.next() < 0.42;
-    const aerialDelivery = !!options.lofted || wideDelivery || (passStyle === "FORWARD"
+    // A long ball only counted as aerial if it finished near the goal, so every
+    // raking pass into midfield arrived on the deck and could never be
+    // contested in the air. headerEligible follows aerialDelivery, and
+    // resolveAerialHeaderOnArrival is gated on it, which is why 92% of arriving
+    // flights were never even considered for a header.
+    const longBallForward = passStyle === "FORWARD"
+      && distance / FIELD_SCALE_PER_YARD >= LONG_BALL_AERIAL_YARDS
+      && progress >= 10;
+    const aerialDelivery = !!options.lofted || wideDelivery || longBallForward || (passStyle === "FORWARD"
       && distance / FIELD_SCALE_PER_YARD >= 24
       && progress >= 7
       && targetDistToGoal <= 16);
@@ -4501,13 +4529,13 @@ export class SimpleMatchModel {
       };
       this.recordEvent("WOODWORK", carrier.team, carrier, woodworkMeta);
       this.addLiveEvent(carrier.team, "WOODWORK", `${carrier.label} ${woodworkMeta.framePart}`, woodworkMeta);
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95, undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       this.possession = null;
       return null;
     }
 
     if (!onTarget) {
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4, undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       this.possession = null;
       return null;
     }
@@ -4622,7 +4650,7 @@ export class SimpleMatchModel {
         return null;
       }
       if (dist2(shotOrigin, saveTarget) / FIELD_SCALE_PER_YARD >= 3) {
-        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       } else {
         this.ball.pos.x = saveTarget.x;
         this.ball.pos.y = 0.18;
@@ -6824,6 +6852,7 @@ export class SimpleMatchModel {
       settleSeconds: options.settleSeconds,
       aerial: !!options.aerial || headerEligible,
       headerEligible,
+      launchHeight: options.launchHeight,
       sourceAction: options.sourceAction,
       attackingTeam: options.attackingTeam,
       passerId: options.passerId,
@@ -6864,6 +6893,7 @@ export class SimpleMatchModel {
       followPlayerName: followPlayer?.name,
       aerial: !!options.aerial || headerEligible,
       headerEligible,
+      launchHeight: options.launchHeight,
       sourceAction: options.sourceAction,
       attackingTeam: options.attackingTeam,
       passerId: options.passerId,
