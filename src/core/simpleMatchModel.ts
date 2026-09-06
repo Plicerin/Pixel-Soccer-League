@@ -723,6 +723,8 @@ export class SimpleMatchModel {
   private eventSeq = 0;
   private shotSeq = 0;
   /** Vertical speed of a loose ball; only ever non-zero while it bounces. */
+  /** Scoping knob only; 0 in shipped play. See scripts/longball-scope.mjs. */
+  longBallBias = 0;
   private ballVelY = 0;
   private keeperSeq = 0;
   private passLoopSeq = 0;
@@ -7320,6 +7322,18 @@ export class SimpleMatchModel {
   private bestPassTarget(carrier: SimplePlayer, options: PassTargetOptions = {}) {
     const attackSign = this.attackSign(carrier.team);
     const own = this.players.filter((p) => p.team === carrier.team && p.id !== carrier.id && p.role !== "GK");
+    // SCOPING KNOB (default 0 = no behaviour change): fraction of open-play
+    // passes deliberately played long, to measure what aerial play costs.
+    if (this.longBallBias > 0 && !options.direction && this.rng.next() < this.longBallBias) {
+      const far = own
+        .filter((player) => {
+          const progress = (player.pos.x - carrier.pos.x) * attackSign;
+          const d = dist2(carrier.pos, player.pos);
+          return progress >= 10 && d / FIELD_SCALE_PER_YARD >= 32 && !this.offsideInfraction(carrier, player, carrier.pos);
+        })
+        .sort((a, b) => dist2(carrier.pos, b.pos) - dist2(carrier.pos, a.pos));
+      if (far.length) return far[0];
+    }
     if (options.direction) {
       const length = Math.hypot(options.direction.x, options.direction.z);
       if (length > 0.15) {
