@@ -1092,6 +1092,14 @@ const RetroFootball: React.FC = () => {
   const [teamBPreMatchKit, setTeamBPreMatchKit] = useState(1); // 0=home, 1=away
   const [halfLengthMinutes, setHalfLengthMinutes] = useState(5);
   const [foulsEnabled, setFoulsEnabled] = useState(true);
+  const [cpuDifficulty, setCpuDifficulty] = useState<'RELAXED' | 'NORMAL' | 'COMPETITIVE' | 'RUTHLESS'>(() => {
+    try {
+      const stored = window.localStorage.getItem('psl.cpuDifficulty');
+      return stored === 'RELAXED' || stored === 'COMPETITIVE' || stored === 'RUTHLESS' ? stored : 'NORMAL';
+    } catch {
+      return 'NORMAL';
+    }
+  });
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'OPTIONS' | 'CONTROLS' | 'STATS' | 'MATCH_HISTORY' | 'FRAME_VIEWER' | 'HOW_TO_PLAY' | 'LIVE_TELEMETRY'>('OPTIONS');
   const devToolsVisible = useMemo(() => hasDevServer(), []);
@@ -2364,6 +2372,7 @@ const RetroFootball: React.FC = () => {
     gameRef.current?.setCPUShotTuning?.(aggressASet.aimErrorRad, aggressASet.pressureError);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     gameRef.current?.setFoulsEnabled?.(foulsEnabled);
+    gameRef.current?.setCpuDifficulty?.(cpuDifficulty);
     // Start the match with CPU vs CPU mode
     handleKickOff('cpu', kickoffTeams, {
       teamAKit: assignment.home.kit,
@@ -2443,6 +2452,7 @@ const RetroFootball: React.FC = () => {
     applyGameAggressionSettings(gameRef.current, assignment.home.aggressiveness, assignment.away.aggressiveness);
     gameRef.current?.setHalfDurationSeconds?.(halfLengthMinutes * 60);
     gameRef.current?.setFoulsEnabled?.(foulsEnabled);
+    gameRef.current?.setCpuDifficulty?.(cpuDifficulty);
     setGameMode('cpu');
     setHasActiveMatchSession(true);
     setAllowMainMenu(false);
@@ -3652,6 +3662,29 @@ const RetroFootball: React.FC = () => {
                     </div>
                     <div className="mt-3">
                       <div className="text-[9px] text-white/60 uppercase tracking-widest mb-1">Match</div>
+                      <div className="mb-2">
+                        <div className="text-[9px] text-white/40 uppercase tracking-widest mb-1">CPU Difficulty</div>
+                        <div className="flex flex-wrap gap-2">
+                          {(['RELAXED', 'NORMAL', 'COMPETITIVE', 'RUTHLESS'] as const).map((level) => (
+                            <button
+                              key={level}
+                              type="button"
+                              data-psl-cpu-difficulty={level}
+                              onClick={() => {
+                                setCpuDifficulty(level);
+                                gameRef.current?.setCpuDifficulty?.(level);
+                                try { window.localStorage.setItem('psl.cpuDifficulty', level); } catch {}
+                              }}
+                              className={`px-3 py-1.5 text-[10px] border rounded transition-colors ${
+                                cpuDifficulty === level ? 'bg-white text-black border-white' : 'text-white border-white/20 hover:border-white'
+                              }`}
+                            >
+                              {level}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-1 text-white/25 text-[8px]">Changes how hard the CPU presses you, not how often it shoots.</div>
+                      </div>
                       <button
                         type="button"
                         data-psl-fouls-toggle="true"

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
+import { CPU_DIFFICULTY_INTENSITY, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -704,6 +705,7 @@ class SimpleGameEngine {
   private readonly splashMusic: { source: AudioBufferSourceNode | null; gain: GainNode | null } = { source: null, gain: null };
   private splashMusicRequested = false;
   private musicVolume = 1;
+  private cpuDifficulty: CpuDifficultyKey = 'NORMAL';
   private splashWelcomePlayed = false;
   private splashWelcomeTimer: number | null = null;
   private stadiumBuilt = false;
@@ -964,6 +966,24 @@ class SimpleGameEngine {
   setOnReset = (callback: () => void) => { this.onReset = callback; };
   setAIStyle = (value: string) => { this.model.aiStyle = value; };
   setFoulsEnabled = (enabled: boolean) => { this.model.foulsEnabled = !!enabled; };
+
+  /**
+   * CPU difficulty. Applied to whichever side the human is not controlling,
+   * so a harder CPU presses the player without altering match output.
+   */
+  setCpuDifficulty = (key: string) => {
+    const intensity = CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ?? 1;
+    this.cpuDifficulty = (CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ? key : 'NORMAL') as CpuDifficultyKey;
+    this.applyCpuDifficulty(intensity);
+  };
+
+  getCpuDifficulty = () => this.cpuDifficulty;
+
+  private applyCpuDifficulty(intensity: number) {
+    // Only the CPU side is affected; a human-controlled team defends normally.
+    this.model.setDefenseIntensity('A', this.humanControlEnabled ? 1 : intensity);
+    this.model.setDefenseIntensity('B', this.twoPlayerMode ? 1 : intensity);
+  }
   setCameraMode = (value: string) => {
     this.cameraMode = this.cameraRigs[value] ? value : 'BROADCAST';
     this.model.cameraMode = this.cameraMode;
@@ -1532,8 +1552,10 @@ class SimpleGameEngine {
         this.playGameplayBuffer('kick', 0.18, 0.20);
         break;
       case 'TACKLE_MISS':
-        // Missed: quieter and thinner, so success and failure sound different.
-        this.playGameplayBuffer('throw', 0.16, 0.18);
+        // Missed: the same physical contact sample as a won tackle but quieter
+        // and shorter, so a miss reads as a weak challenge rather than a clean
+        // one. ('throw' was an announcer callout -- plainly the wrong sound.)
+        this.playGameplayBuffer('catch', 0.18, 0.14);
         break;
       case 'THROW':
         break;

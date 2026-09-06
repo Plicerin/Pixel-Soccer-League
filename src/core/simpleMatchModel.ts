@@ -85,6 +85,12 @@ const MANUAL_CHARGE_POWER_SPAN = 0.85;
 const MANUAL_TACKLE_RANGE = 3.25;
 const MANUAL_TACKLE_COOLDOWN_SECONDS = 0.65;
 const LOOSE_BALL_GROUND_FRICTION = 0.5;
+/** Gravity in world units/s^2 (1 unit ~= 1.67 m, so 9.81 m/s^2 -> ~5.9). */
+const BALL_GRAVITY = 5.9;
+/** Share of vertical speed kept per bounce. Turf, so fairly dead. */
+const BALL_BOUNCE_RESTITUTION = 0.55;
+/** Below this the ball is rolling, not bouncing. */
+const BALL_BOUNCE_REST_SPEED = 0.35;
 // Fraction of true flight pace an uncollected ground pass keeps on landing.
 const LOOSE_BALL_LANDING_CARRY = 0.62;
 // Lofted balls land steeply, so they keep less of their pace than a driven one.
@@ -129,6 +135,20 @@ type ManualChargeAction = "pass" | "shot";
  * tuning (getTeamTuning -> FIFA/MLS ratings), never as a replacement, so a
  * stronger side stays stronger at every setting.
  */
+/**
+ * CPU difficulty. Only ever raises how hard the CPU defends -- never touches
+ * shot or pass appetite, which the model governs toward MLS targets and which
+ * therefore absorbs or inverts any change (measured twice, both failed).
+ */
+export type CpuDifficultyKey = "RELAXED" | "NORMAL" | "COMPETITIVE" | "RUTHLESS";
+
+export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
+  RELAXED: 0.65,
+  NORMAL: 1,
+  COMPETITIVE: 1.35,
+  RUTHLESS: 1.7,
+};
+
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
 
 // Aimed passing: how tight the corridor around the arrow is, and how far a
@@ -267,6 +287,8 @@ type BallFlightState = {
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -285,6 +307,8 @@ type BallFlightOptions = {
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -308,6 +332,8 @@ type ShotResolutionContext = {
   minOnTargetChance?: number;
   minGoalChance?: number;
   goalChanceMultiplier?: number;
+  /** Height the ball is struck from, for headers. */
+  launchHeight?: number;
   style?: string;
   /** Manual aim (stick/keys). Lateral component steers placement across the mouth. */
   aimDirection?: Vec2;
@@ -381,6 +407,8 @@ export type BallFlightTelemetry = {
   followPlayerName?: string;
   aerial?: boolean;
   headerEligible?: boolean;
+  /** Height the ball leaves from, for a ball headed or nodded onward. */
+  launchHeight?: number;
   sourceAction?: string;
   attackingTeam?: SimpleTeamCode;
   passerId?: string;
@@ -470,6 +498,14 @@ const BALL_HOLD_TIME_MULTIPLIER = 1.5;
 const VISIBLE_RECEPTION_HOLD_MIN_SECONDS = 1.5;
 const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
 const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
+/** A forward ball this long is played through the air, wherever it lands. */
+const LONG_BALL_AERIAL_YARDS = 32;
+/** Forward gain that makes a long pass a genuine long ball, in world units. */
+const LONG_BALL_MIN_PROGRESS = 10;
+/** Halves at or under this are matches someone plays, not background sim. */
+const PLAYED_MATCH_MAX_HALF_SECONDS = 900;
+/** Measured free at this level in a played match; see scripts/longball-scope.mjs. */
+const LONG_BALL_PLAYED_MATCH_BIAS = 0.05;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -490,6 +526,31 @@ const STRIKER_BOX_EXIT_BUFFER = 0.75;
 const BALL_RECEPTION_RADIUS = 1.55;
 const AERIAL_RECEPTION_RADIUS = 2.15;
 const LOOSE_BALL_CLAIM_RADIUS = 1.35;
+// Real contact distance: player radius + ball radius, plus a little slack for
+// a foot reaching. Claiming a loose ball is a game convenience and stays
+// generous; recording a *touch* must mean the player actually reached it,
+// because touch decides corner vs goal kick.
+const TOUCH_CONTACT_RADIUS = 0.95;
+// Above this speed a loose ball must be reached, not merely stood near.
+/** Keeper depth off his goal line, by how close the ball is (field units). */
+const KEEPER_SWEEP_RANGE = 26;
+const KEEPER_NARROW_RANGE = 13;
+const KEEPER_SET_RANGE = 6;
+const KEEPER_SWEEPER_DEPTH = 3.6;
+const KEEPER_NARROW_DEPTH = 4.2;
+const KEEPER_SET_DEPTH = 2.0;
+const KEEPER_LINE_DEPTH = 0.8;
+/** Never advance more than this share of the way to the ball. */
+const KEEPER_MAX_COMMIT_FRACTION = 0.55;
+/** How far past each post the keeper may shuffle. */
+const KEEPER_POST_OVERLAP = 0.9;
+
+const LOOSE_BALL_CLAIM_SPEED_LIMIT = 6;
+// Perimeter wall: matches wallOffset in the renderer's stadium build.
+const STADIUM_WALL_OFFSET = 9.5;
+const STADIUM_WALL_RESTITUTION = 0.55;
+// Long enough to see the ball run on and rebound before the restart is staged.
+const BALL_OUT_HOLD_SECONDS = 0.9;
 // Mid-flight collection: how close a player must be to a ball played into
 // space, and how low the ball must be for them to control it.
 const MID_FLIGHT_COLLECT_RADIUS = 1.1;
@@ -648,6 +709,12 @@ export class SimpleMatchModel {
   aiStyle = "BALANCED";
   /** Match setting: when false, fouls are never awarded. */
   foulsEnabled = true;
+  /**
+   * Per-team defensive intensity, 1 = current behaviour. Scales how hard this
+   * team presses the opposition carrier. Deliberately NOT a shot/pass lever:
+   * those are governed toward MLS targets and absorb changes.
+   */
+  private readonly defenseIntensity: Record<SimpleTeamCode, number> = { A: 1, B: 1 };
   cameraMode = "BROADCAST";
   lastShotTelemetry: Record<string, unknown> | null = null;
   lastKeeperKickTelemetry: Record<string, unknown> | null = null;
@@ -661,6 +728,13 @@ export class SimpleMatchModel {
   private elapsedTotal = 0;
   private eventSeq = 0;
   private shotSeq = 0;
+  /** Vertical speed of a loose ball; only ever non-zero while it bounces. */
+  /**
+   * Share of open-play passes played long. null uses the runtime default.
+   * Only scripts/longball-scope.mjs sets this explicitly.
+   */
+  longBallBias: number | null = null;
+  private ballVelY = 0;
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
@@ -1929,12 +2003,49 @@ export class SimpleMatchModel {
     this.lastStateKind = this.msm.state.kind;
   }
 
+  /**
+   * Ball motion after it has left the pitch but before the restart is staged.
+   * It keeps its pace, bounces off the perimeter wall and settles, rather than
+   * stopping dead on the line.
+   */
+  private updateOutOfPlayBallMotion(dt: number) {
+    this.ballVelY = 0;
+    const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
+    if (speed <= 0.01) {
+      this.ball.vel = { x: 0, z: 0 };
+      this.ball.pos.y = this.ballGroundY();
+      return;
+    }
+
+    this.ball.pos.x += this.ball.vel.x * dt;
+    this.ball.pos.z += this.ball.vel.z * dt;
+
+    const wallX = FIELD_W / 2 + STADIUM_WALL_OFFSET;
+    const wallZ = FIELD_D / 2 + STADIUM_WALL_OFFSET;
+    if (Math.abs(this.ball.pos.x) > wallX) {
+      this.ball.pos.x = Math.sign(this.ball.pos.x) * wallX;
+      this.ball.vel.x *= -STADIUM_WALL_RESTITUTION;
+      this.ball.vel.z *= STADIUM_WALL_RESTITUTION;
+    }
+    if (Math.abs(this.ball.pos.z) > wallZ) {
+      this.ball.pos.z = Math.sign(this.ball.pos.z) * wallZ;
+      this.ball.vel.z *= -STADIUM_WALL_RESTITUTION;
+      this.ball.vel.x *= STADIUM_WALL_RESTITUTION;
+    }
+
+    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
+    this.ball.vel.x *= damp;
+    this.ball.vel.z *= damp;
+    this.ball.pos.y = this.ballGroundY();
+  }
+
   private playLiveTick(dt: number): GoalEvent | null {
     if (this.visibleBallOutPending) {
       this.activeCarrierTraceOwnerId = null;
       this.visibleBallOutPending.holdSeconds -= dt;
-      this.ball.vel = { x: 0, z: 0 };
-      this.ball.pos.y = this.ballGroundY();
+      // Let the ball run on and rebound off the stadium wall instead of
+      // freezing dead the instant it crosses a line -- it reads as a bug.
+      this.updateOutOfPlayBallMotion(dt);
       if (this.visibleBallOutPending.holdSeconds <= 0) {
         this.pendingBallOutEvent = this.visibleBallOutPending.event;
         this.pendingBallOutContext = this.visibleBallOutPending.context;
@@ -1943,9 +2054,23 @@ export class SimpleMatchModel {
       return null;
     }
     if (!this.possession && !this.ballFlight) this.updateLooseBallMotion(dt);
+    // A loose ball can cross a line too. Detection used to run only inside the
+    // ballFlight branch below, so a ball rolling out -- or into the net --
+    // while nobody was carrying it was simply never noticed.
+    if (!this.possession && !this.ballFlight) {
+      const looseBallGoal = this.detectAndStageBallOut();
+      if (looseBallGoal) return looseBallGoal;
+    }
     if (!this.possession && !this.ballFlight) this.claimLooseBallPossession("A");
     if (this.possession) {
-      this.rememberTouch(this.possession);
+      // Only record a touch when the player is genuinely on the ball. The
+      // loose-ball claim radius (1.35u) is far wider than real contact
+      // (~0.55u), so recording every frame let a defender standing near a
+      // ball rolling out become the "last toucher" without touching it --
+      // turning a goal kick into a corner.
+      if (dist2(this.possession.pos, { x: this.ball.pos.x, z: this.ball.pos.z }) <= TOUCH_CONTACT_RADIUS) {
+        this.rememberTouch(this.possession);
+      }
       this.team(this.possession.team).possessionSeconds += dt;
       this.possession.stats.possessionSeconds += dt;
     }
@@ -2485,6 +2610,7 @@ export class SimpleMatchModel {
   }
 
   private updateControlledBall(dt: number, carrier: SimplePlayer) {
+    this.ballVelY = 0;
     const settlingReception = this.visualReceptionPlayerId === carrier.id && this.visualReceptionSettleRemaining > 0;
     this.dribblePhase += dt * (settlingReception ? 2.2 : 9);
     const previous = { x: this.ball.pos.x, z: this.ball.pos.z };
@@ -2602,7 +2728,16 @@ export class SimpleMatchModel {
     const t = clamp(flight.elapsed / Math.max(0.001, flight.duration), 0, 1);
     this.ball.pos.x = flight.from.x + (flight.to.x - flight.from.x) * t;
     this.ball.pos.z = flight.from.z + (flight.to.z - flight.from.z) * t;
-    this.ball.pos.y = this.ballGroundY() + Math.sin(Math.PI * t) * flight.arc;
+    // A headed ball leaves from head height and drops; without this the ball
+    // teleported back to the turf the instant the header resolved, so 12.8
+    // headers a match were each visible for a single frame.
+    // Squared, not linear: a headed ball drops away quickly rather than gliding
+    // at head height for the whole flight, which kept it above
+    // MID_FLIGHT_COLLECT_MAX_HEIGHT long enough to change who won it.
+    const launchDrop = flight.launchHeight
+      ? Math.max(0, flight.launchHeight - this.ballGroundY()) * (1 - t) * (1 - t)
+      : 0;
+    this.ball.pos.y = this.ballGroundY() + launchDrop + Math.sin(Math.PI * t) * flight.arc;
     this.ball.vel = {
       x: dt > 0 ? (this.ball.pos.x - prev.x) / dt : 0,
       z: dt > 0 ? (this.ball.pos.z - prev.z) / dt : 0,
@@ -2627,6 +2762,10 @@ export class SimpleMatchModel {
       this.ball.vel = { x: 0, z: 0 };
       const received = this.resolveBallFlightReception(flight);
       if (!received) {
+        // Vertical speed at touchdown: d/dt of arc*sin(pi*t) at t = 1.
+        const impactSpeed = (flight.arc * Math.PI) / Math.max(0.001, flight.duration);
+        const rebound = impactSpeed * BALL_BOUNCE_RESTITUTION;
+        this.ballVelY = rebound > BALL_BOUNCE_REST_SPEED ? rebound : 0;
         if (flight.kind === "pass" || flight.kind === "restart" || flight.kind === "interception") {
           // Aerial balls drop steeper and lose more pace on the bounce than a
           // driven ground ball, but they must still run on. Excluding them
@@ -2975,6 +3114,7 @@ export class SimpleMatchModel {
     const goalEvent = this.resolveShot(player, distToGoal, pressure, {
       reason: "HEADER_SHOT",
       style: "HEADER",
+      launchHeight: this.ball.pos.y,
       minGoalChance: 0.08,
       goalChanceMultiplier: headerGoalMultiplier,
       details: {
@@ -3386,23 +3526,9 @@ export class SimpleMatchModel {
         }
       }
       if (player.role === "GK" && !receivingFlight) {
-        const ownGoalX = attackSign > 0 ? LEFT_GOAL_X + 2.4 : RIGHT_GOAL_X - 2.4;
-        target = { x: ownGoalX, z: clamp(ball.z * 0.25, -4, 4) };
-        targetOwner = "keeper_anchor";
-        if (this.possession && this.possession.team !== player.team) {
-          const ownGoal = goalCenterForAttack((-attackSign) as 1 | -1);
-          const dangerDist = dist2(this.possession.pos, ownGoal);
-          const centralDanger = Math.abs(this.possession.pos.z) <= GOAL_MOUTH_HALF_Z * 1.9;
-          if (dangerDist < 9 && centralDanger) {
-            const dir = normalize2({ x: this.possession.pos.x - ownGoal.x, z: this.possession.pos.z - ownGoal.z });
-            const stepOut = clamp(dangerDist * 0.42, 0.45, 2.1);
-            target = {
-              x: ownGoal.x + dir.x * stepOut,
-              z: clamp(this.possession.pos.z * 0.82, -GOAL_MOUTH_HALF_Z * 0.95, GOAL_MOUTH_HALF_Z * 0.95),
-            };
-            targetOwner = "keeper_sweep";
-          }
-        }
+        const cover = this.keeperCoverTarget(player, attackSign, ball);
+        target = cover.target;
+        targetOwner = cover.owner;
       }
       if (protectedKeeper && player.team !== protectedKeeper.team) {
         target = this.keeperStandoffTarget(player, protectedKeeper, target);
@@ -3722,7 +3848,15 @@ export class SimpleMatchModel {
       && (compressedContinuationCarrier || fullLengthContinuationCarrier);
     const wideDelivery = this.isWideFinalThirdDelivery(carrier, target, progress, targetDistToGoal);
     const drivenCross = wideDelivery && this.rng.next() < 0.42;
-    const aerialDelivery = !!options.lofted || wideDelivery || (passStyle === "FORWARD"
+    // A long ball only counted as aerial if it finished near the goal, so every
+    // raking pass into midfield arrived on the deck and could never be
+    // contested in the air. headerEligible follows aerialDelivery, and
+    // resolveAerialHeaderOnArrival is gated on it, which is why 92% of arriving
+    // flights were never even considered for a header.
+    const longBallForward = passStyle === "FORWARD"
+      && distance / FIELD_SCALE_PER_YARD >= LONG_BALL_AERIAL_YARDS
+      && progress >= 10;
+    const aerialDelivery = !!options.lofted || wideDelivery || longBallForward || (passStyle === "FORWARD"
       && distance / FIELD_SCALE_PER_YARD >= 24
       && progress >= 7
       && targetDistToGoal <= 16);
@@ -4406,13 +4540,13 @@ export class SimpleMatchModel {
       };
       this.recordEvent("WOODWORK", carrier.team, carrier, woodworkMeta);
       this.addLiveEvent(carrier.team, "WOODWORK", `${carrier.label} ${woodworkMeta.framePart}`, woodworkMeta);
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 0.95, undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       this.possession = null;
       return null;
     }
 
     if (!onTarget) {
-      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4, undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+      this.startBallFlight("miss", shotOrigin, shotTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.8, 1.45)), 1.4, undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       this.possession = null;
       return null;
     }
@@ -4527,7 +4661,7 @@ export class SimpleMatchModel {
         return null;
       }
       if (dist2(shotOrigin, saveTarget) / FIELD_SCALE_PER_YARD >= 3) {
-        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined, { speedMultiplier: context.manual ? chargePower : 1 });
+        this.startBallFlight("save", shotOrigin, saveTarget, this.flightDuration(clamp(shotDistToGoal / 34, 0.75, 1.35)), 1.1, keeper || undefined, { speedMultiplier: context.manual ? chargePower : 1, launchHeight: context.launchHeight });
       } else {
         this.ball.pos.x = saveTarget.x;
         this.ball.pos.y = 0.18;
@@ -4791,6 +4925,50 @@ export class SimpleMatchModel {
     return this.rng.next() < chance;
   }
 
+  /**
+   * Where the keeper should stand.
+   *
+   * The old anchor parked him at a fixed 2.4u off his line and tracked only
+   * 25% of the ball's z, which left him a mean 2.72u off the ball->goal line
+   * (125% of a goal half-width) and barely moving at 0.74 units/sec. It also
+   * had him drift *backwards* as an attacker closed, because the sweep step
+   * scaled with distance-to-goal.
+   *
+   * Instead: stand on the line from the goal centre to the ball, which is what
+   * covering the angle means, at a depth that peaks around the box edge and
+   * drops as a shot becomes point-blank. Never past the ball itself.
+   */
+  private keeperCoverTarget(player: SimplePlayer, attackSign: 1 | -1, ball: Vec2) {
+    const ownGoal = goalCenterForAttack((-attackSign) as 1 | -1);
+    const threat = dist2(ball, ownGoal);
+    // Depth off the goal line. High and sweeping when play is far away, furthest
+    // out around the edge of the area to narrow the angle, then back towards the
+    // line once the ball is close enough that reaction beats position.
+    let depth: number;
+    if (threat >= KEEPER_SWEEP_RANGE) depth = KEEPER_SWEEPER_DEPTH;
+    else if (threat >= KEEPER_NARROW_RANGE) {
+      const t = (threat - KEEPER_NARROW_RANGE) / (KEEPER_SWEEP_RANGE - KEEPER_NARROW_RANGE);
+      depth = lerpNumber(KEEPER_NARROW_DEPTH, KEEPER_SWEEPER_DEPTH, t);
+    } else if (threat >= KEEPER_SET_RANGE) {
+      const t = (threat - KEEPER_SET_RANGE) / (KEEPER_NARROW_RANGE - KEEPER_SET_RANGE);
+      depth = lerpNumber(KEEPER_SET_DEPTH, KEEPER_NARROW_DEPTH, t);
+    } else depth = Math.max(KEEPER_LINE_DEPTH, threat * 0.34);
+    // Never commit past the ball: that is how keepers get chipped.
+    depth = Math.min(depth, Math.max(KEEPER_LINE_DEPTH, threat * KEEPER_MAX_COMMIT_FRACTION));
+    const owner = threat >= KEEPER_NARROW_RANGE ? "keeper_sweep" : "keeper_cover_angle";
+    if (threat < 0.2) return { target: { x: ownGoal.x + attackSign * depth, z: 0 }, owner };
+    const t = depth / threat;
+    return {
+      target: {
+        x: ownGoal.x + (ball.x - ownGoal.x) * t,
+        // Stay in front of the mouth: chasing the ball to the touchline leaves
+        // an empty net behind him.
+        z: clamp(ball.z * t, -(GOAL_MOUTH_HALF_Z + KEEPER_POST_OVERLAP), GOAL_MOUTH_HALF_Z + KEEPER_POST_OVERLAP),
+      },
+      owner,
+    };
+  }
+
   private keeperSaveGeometry(
     keeper: SimplePlayer | undefined,
     shotOrigin: Vec2,
@@ -4808,7 +4986,18 @@ export class SimpleMatchModel {
       };
     }
     const keeperQuality = keeper.ratings.keeper ?? 0.62;
-    const reachDistance = dist2(keeper.pos, shotTarget);
+    // The gap the keeper must actually cover: where the shot crosses his own
+    // depth, not where it ends up. Measuring to the goal-line target made every
+    // step off the line count against him, so narrowing the angle -- the whole
+    // point of coming out -- read as worse positioning. Measuring to the flight
+    // line as a whole went too far the other way and made the check inert.
+    const shotSpanX = shotTarget.x - shotOrigin.x;
+    const reachDistance = Math.abs(shotSpanX) < 0.5
+      ? dist2(keeper.pos, shotTarget)
+      : Math.abs(
+        keeper.pos.z
+        - (shotOrigin.z + (shotTarget.z - shotOrigin.z) * clamp((keeper.pos.x - shotOrigin.x) / shotSpanX, 0, 1)),
+      );
     const reactionPenalty = Math.max(0, 9 - shotDistToGoalYards) * 0.055 + pressure * 0.035;
     const maxReach = (5.0 + keeperQuality * 2.2) * FIELD_SCALE_PER_YARD - reactionPenalty;
     const headerReachGrace = shotStyle === "HEADER"
@@ -5484,10 +5673,26 @@ export class SimpleMatchModel {
     this.goalKickoffSetupInstalled = false;
   }
 
+  /** Is the ball fully outside the touchlines or goal lines? */
+  private ballIsBeyondPlayableLines(pos: Vec2) {
+    return Math.abs(pos.z) > FIELD_D / 2
+      || pos.x > RIGHT_GOAL_X
+      || pos.x < LEFT_GOAL_X;
+  }
+
   private claimLooseBallPossession(fallbackTeam: SimpleTeamCode) {
     const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
+    // A ball already over a line is out; claiming it there would record a touch
+    // by whoever happened to be standing nearby and flip a goal kick into a
+    // corner. Leave it for the ball-out detector.
+    if (this.ballIsBeyondPlayableLines(ball)) return false;
     const nearest = this.nearestPlayerTo(ball);
     if (!nearest || nearest.gap > LOOSE_BALL_CLAIM_RADIUS) return false;
+    // A quick ball needs a real interception, not proximity. Without this a
+    // defender standing near a ball speeding out "claims" it, is recorded as
+    // the last toucher, and the goal kick becomes a corner.
+    const ballSpeed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
+    if (ballSpeed > LOOSE_BALL_CLAIM_SPEED_LIMIT && nearest.gap > TOUCH_CONTACT_RADIUS) return false;
     const claimant = nearest.player;
     this.possession = claimant;
     if (claimant && !this.ballFlight) this.ball.vel = { x: 0, z: 0 };
@@ -5501,16 +5706,46 @@ export class SimpleMatchModel {
   }
 
   private updateLooseBallMotion(dt: number) {
+    this.updateBallBounce(dt);
     const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
     if (speed <= 0.01) {
       this.ball.vel = { x: 0, z: 0 };
       return;
     }
+    // Ball-out and goal detection compare against lastBallPos. Only ball
+    // flights maintained it, so a free-rolling ball had no previous position
+    // and could cross a line unnoticed.
+    this.lastBallPos = { x: this.ball.pos.x, z: this.ball.pos.z };
     this.ball.pos.x += this.ball.vel.x * dt;
     this.ball.pos.z += this.ball.vel.z * dt;
     const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
     this.ball.vel.x *= damp;
     this.ball.vel.z *= damp;
+  }
+
+  /**
+   * Let a landed ball bounce instead of sticking to the turf.
+   *
+   * A ball flight ended by snapping y to ground level, so every long ball,
+   * clearance and uncollected cross died flat on impact -- the single biggest
+   * reason the ball read as glued to the floor.
+   */
+  private updateBallBounce(dt: number) {
+    const ground = this.ballGroundY();
+    if (this.ballVelY === 0 && this.ball.pos.y <= ground + 1e-6) {
+      this.ball.pos.y = ground;
+      return;
+    }
+    this.ballVelY -= BALL_GRAVITY * dt;
+    this.ball.pos.y += this.ballVelY * dt;
+    if (this.ball.pos.y <= ground) {
+      this.ball.pos.y = ground;
+      const rebound = -this.ballVelY * BALL_BOUNCE_RESTITUTION;
+      this.ballVelY = rebound > BALL_BOUNCE_REST_SPEED ? rebound : 0;
+      // Each bounce scrubs a little pace off the ground run too.
+      this.ball.vel.x *= 0.88;
+      this.ball.vel.z *= 0.88;
+    }
   }
 
   private kickoffReceiver(team: SimpleTeamCode, kickerId: string) {
@@ -5549,14 +5784,22 @@ export class SimpleMatchModel {
     if (this.pendingMissGoalLineOut && !this.ballFlight) {
       const { event, context } = this.pendingMissGoalLineOut;
       this.pendingMissGoalLineOut = null;
-      this.visibleBallOutPending = { event, context, holdSeconds: 0.45 };
+      this.visibleBallOutPending = { event, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
       this.possession = null;
-      this.ball.vel = { x: 0, z: 0 };
+      // Keep the ball's pace: updateOutOfPlayBallMotion runs it on into the
+      // stadium wall during the hold. Zeroing here froze it on the line.
       this.addBallOutLog(event, context);
       return null;
     }
     const current = { x: this.ball.pos.x, z: this.ball.pos.z };
-    const goalMouthCrossing = this.detectGoalMouthCrossing(this.lastBallPos, current);
+    // Positional fallback. The crossing test needs the ball to move from inside
+    // to outside within one frame; if it is already past the line -- a deflection
+    // that started there, a dropped frame, a ball nudged over at rest -- the
+    // goal is never seen. detectBallOut returns null for a goal, so nothing
+    // else catches it either.
+    const settledInNet = !this.ballFlight && this.goalMouthContainsBall(current);
+    const goalMouthCrossing = this.detectGoalMouthCrossing(this.lastBallPos, current)
+      ?? (settledInNet ? this.goalMouthCrossingFromPosition(current) : null);
     if (goalMouthCrossing && this.pendingFlightGoalEvent && this.ballFlight?.kind === "shot") {
       return null;
     }
@@ -5570,11 +5813,17 @@ export class SimpleMatchModel {
     const context = this.buildBallOutContext(detected, this.lastBallPos, current);
     if (!context) return null;
     const goalLineOut = context.crossedLine === "left_goal_line" || context.crossedLine === "right_goal_line";
-    if (goalLineOut && this.ballFlight) return null;
+    // Do not discard: hold it until the flight ends, or the ball stays in play
+    // having already left the pitch.
+    if (goalLineOut && this.ballFlight) {
+      this.pendingMissGoalLineOut ||= { event: detected, context };
+      return null;
+    }
     if (goalLineOut) {
-      this.visibleBallOutPending = { event: detected, context, holdSeconds: 0.45 };
+      this.visibleBallOutPending = { event: detected, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
       this.possession = null;
-      this.ball.vel = { x: 0, z: 0 };
+      // Keep the ball's pace: updateOutOfPlayBallMotion runs it on into the
+      // stadium wall during the hold. Zeroing here froze it on the line.
       this.addBallOutLog(detected, context);
       return null;
     }
@@ -5603,6 +5852,25 @@ export class SimpleMatchModel {
       crossedLine: crossing.crossedLine,
     };
     return { event, context };
+  }
+
+  /** Is the ball fully over a goal line and between the posts? */
+  private goalMouthContainsBall(pos: Vec2) {
+    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    if (Math.abs(pos.z) > mouthHalf) return false;
+    return pos.x > RIGHT_GOAL_X + BALL_RADIUS || pos.x < LEFT_GOAL_X - BALL_RADIUS;
+  }
+
+  /** Build a crossing record for a ball that is already in the net. */
+  private goalMouthCrossingFromPosition(pos: Vec2) {
+    const crossingRight = pos.x > 0;
+    return {
+      scoringTeam: (crossingRight
+        ? (this.attackSign("A") > 0 ? "A" : "B")
+        : (this.attackSign("A") < 0 ? "A" : "B")) as SimpleTeamCode,
+      spot: { x: crossingRight ? RIGHT_GOAL_X : LEFT_GOAL_X, z: pos.z },
+      crossedLine: (crossingRight ? "right_goal_line" : "left_goal_line") as "left_goal_line" | "right_goal_line",
+    };
   }
 
   private detectGoalMouthCrossing(from: Vec2, to: Vec2): {
@@ -6568,6 +6836,7 @@ export class SimpleMatchModel {
   }
 
   private startBallFlight(kind: BallFlightKind, from: Vec2, to: Vec2, duration: number, arc: number, followPlayer?: SimplePlayer, options: BallFlightOptions = {}) {
+    this.ballVelY = 0;
     const previousFlightTelemetry = this.ballFlight ? this.ballFlightTelemetry.at(-1) : null;
     const start = this.ballFlight ? { x: this.ball.pos.x, z: this.ball.pos.z } : { ...from };
     const target = { x: to.x, z: to.z };
@@ -6594,6 +6863,7 @@ export class SimpleMatchModel {
       settleSeconds: options.settleSeconds,
       aerial: !!options.aerial || headerEligible,
       headerEligible,
+      launchHeight: options.launchHeight,
       sourceAction: options.sourceAction,
       attackingTeam: options.attackingTeam,
       passerId: options.passerId,
@@ -6634,6 +6904,7 @@ export class SimpleMatchModel {
       followPlayerName: followPlayer?.name,
       aerial: !!options.aerial || headerEligible,
       headerEligible,
+      launchHeight: options.launchHeight,
       sourceAction: options.sourceAction,
       attackingTeam: options.attackingTeam,
       passerId: options.passerId,
@@ -6689,17 +6960,27 @@ export class SimpleMatchModel {
   private ballFlightArc(kind: BallFlightKind, distanceYards: number, requestedArc: number) {
     if (kind === "pass" || kind === "restart") {
       if (requestedArc > 0.5) return Math.min(requestedArc, 1.45);
-      // Arc is peak height in world units (~1.67 m each). The old curve topped
-      // out at 0.24 (~0.40 m) for a 42-yard ball, so nothing ever left the
-      // deck and almost no pass cleared HEADER_MIN_ARC. Short balls still roll;
-      // longer ones now rise to waist/chest height like a real driven ball.
-      // Held just under HEADER_MIN_ARC (0.18) through the 28-42yd band: going
-      // over it turns ordinary midfield passes into headed arrivals, which
-      // pushes total passes past the MLS KPI ceiling of 954.
-      if (distanceYards <= 12) return 0.05;
-      if (distanceYards <= 28) return lerpNumber(0.07, 0.14, clamp((distanceYards - 12) / 16, 0, 1));
-      if (distanceYards <= 42) return lerpNumber(0.15, 0.175, clamp((distanceYards - 28) / 14, 0, 1));
-      return Math.max(requestedArc, lerpNumber(0.30, 0.48, clamp((distanceYards - 42) / 24, 0, 1)));
+      // Arc is peak height in world units (~1.67 m each), so knee is ~0.30,
+      // waist ~0.55 and head ~1.00. The band above used to be pinned just under
+      // HEADER_MIN_ARC (0.18 -- barely shin height) on the theory that clearing
+      // it turned midfield passes into headed arrivals. It does not:
+      // resolveAerialHeaderOnArrival needs flight.headerEligible, which ordinary
+      // passes never set, so the ceiling only kept the ball on the carpet. It
+      // measured at 5.1% of match time above knee height.
+      //
+      // Short and midfield balls still travel along the deck -- that is what a
+      // 20-yard pass looks like, and mid-flight collection depends on it
+      // (MID_FLIGHT_COLLECT_MAX_HEIGHT). The height belongs on the long ones.
+      //
+      // A caller asking for a very flat arc means a driven ball played into
+      // space, so honour that at any distance rather than lofting it over the
+      // runner chasing it.
+      const driven = requestedArc < 0.2;
+      if (distanceYards <= 12) return 0.06;
+      if (distanceYards <= 28) return lerpNumber(0.07, 0.13, clamp((distanceYards - 12) / 16, 0, 1));
+      if (distanceYards <= 42) return lerpNumber(0.20, 0.45, clamp((distanceYards - 28) / 14, 0, 1));
+      if (driven) return lerpNumber(0.30, 0.48, clamp((distanceYards - 42) / 24, 0, 1));
+      return Math.max(requestedArc, lerpNumber(0.72, 1.05, clamp((distanceYards - 42) / 24, 0, 1)));
     }
     if (kind === "interception") return requestedArc > 0.5 ? Math.min(requestedArc, 1.05) : Math.min(requestedArc, 0.10);
     if (kind === "save") return Math.min(requestedArc, 0.22);
@@ -7050,6 +7331,15 @@ export class SimpleMatchModel {
   private bestPassTarget(carrier: SimplePlayer, options: PassTargetOptions = {}) {
     const attackSign = this.attackSign(carrier.team);
     const own = this.players.filter((p) => p.team === carrier.team && p.id !== carrier.id && p.role !== "GK");
+    // Occasionally go long. The model otherwise plays ~11 balls of 32+ yards per
+    // 90 minutes against roughly 50 in real football, which is why nothing is
+    // ever contested in the air: run-of-play headers need long balls to exist
+    // before they can be won. Measured in scripts/longball-scope.mjs.
+    const longBallBias = this.effectiveLongBallBias();
+    if (longBallBias > 0 && !options.direction && this.rng.next() < longBallBias) {
+      const target = this.bestLongBallTarget(carrier, own, attackSign);
+      if (target) return target;
+    }
     if (options.direction) {
       const length = Math.hypot(options.direction.x, options.direction.z);
       if (length > 0.15) {
@@ -7237,6 +7527,39 @@ export class SimpleMatchModel {
       || target.role === "AM"
       || this.isInAttackingPenaltyAreaWithBuffer(target, 2.8)
       || targetDistToGoal <= (compressed ? (underproducing ? 20 : 18) : (underproducing ? 17 : 15));
+  }
+
+  /**
+   * Long balls are gated to the runtimes a person actually plays.
+   *
+   * At full length the same bias costs ~9 completed passes a match, which drops
+   * completedPasses under its floor. The 90-minute simulation only ever produces
+   * league and tournament scorelines -- nobody watches it -- so it keeps the
+   * tuned envelope and the played match gets the aerial game.
+   */
+  private effectiveLongBallBias() {
+    if (this.longBallBias !== null) return this.longBallBias;
+    return this.runtimeHalfDuration <= PLAYED_MATCH_MAX_HALF_SECONDS ? LONG_BALL_PLAYED_MATCH_BIAS : 0;
+  }
+
+  /** Furthest forward option, preferring one with room to bring it down. */
+  private bestLongBallTarget(carrier: SimplePlayer, own: SimplePlayer[], attackSign: 1 | -1) {
+    let best: SimplePlayer | null = null;
+    let bestScore = -Infinity;
+    for (const player of own) {
+      const progress = (player.pos.x - carrier.pos.x) * attackSign;
+      if (progress < LONG_BALL_MIN_PROGRESS) continue;
+      const distance = dist2(carrier.pos, player.pos);
+      if (distance / FIELD_SCALE_PER_YARD < LONG_BALL_AERIAL_YARDS) continue;
+      if (this.offsideInfraction(carrier, player, carrier.pos)) continue;
+      const separation = this.nearestDefenderDistance(player, otherTeam(carrier.team));
+      const score = distance + separation * 1.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = player;
+      }
+    }
+    return best;
   }
 
   private bestWideDeliveryTarget(carrier: SimplePlayer, own: SimplePlayer[]) {
@@ -7779,13 +8102,28 @@ export class SimpleMatchModel {
     if (this.shotOpportunities.length > 5000) this.shotOpportunities.splice(0, this.shotOpportunities.length - 5000);
   }
 
+  /** Defensive intensity for a team. 1 is the calibrated baseline. */
+  setDefenseIntensity(team: SimpleTeamCode, value: number) {
+    this.defenseIntensity[team] = clamp(Number(value) || 1, 0.5, 2);
+  }
+
+  getDefenseIntensity(team: SimpleTeamCode) {
+    return this.defenseIntensity[team];
+  }
+
+  /** Read-only view of pressureOn for the defensive measurement harness. */
+  pressureOnForHarness(player: SimplePlayer) {
+    return this.pressureOn(player);
+  }
+
   private pressureOn(player: SimplePlayer) {
     if (this.keeperWithHandsPossession()?.id === player.id) return 0;
     const opponents = this.players.filter((p) => p.team !== player.team);
     let pressure = 0;
     for (const opponent of opponents) {
       const d = dist2(player.pos, opponent.pos);
-      if (d < 5.5) pressure += (5.5 - d) / 5.5 * (0.65 + opponent.ratings.defense);
+      const intensity = this.defenseIntensity[opponent.team];
+      if (d < 5.5) pressure += (5.5 - d) / 5.5 * (0.65 + opponent.ratings.defense) * intensity;
     }
     return pressure;
   }

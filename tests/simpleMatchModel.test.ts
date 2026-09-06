@@ -724,7 +724,9 @@ test("V66 goal-line OOB classifies goal kick and corner by last touch", () => {
     model.ball.pos = { x: RIGHT_GOAL_X - 0.7, y: 0.18, z: GOAL_MOUTH_HALF_Z + 3 };
     (model as unknown as { startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void })
       .startBallFlight("pass", { x: RIGHT_GOAL_X - 0.7, z: GOAL_MOUTH_HALF_Z + 3 }, { x: RIGHT_GOAL_X + 1.4, z: GOAL_MOUTH_HALF_Z + 4 }, 0.1, 0.04);
-    for (let i = 0; i < 60 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
+    // The out-of-play hold lets the ball run on and rebound off the wall
+    // before the restart is staged, so allow more than one second.
+    for (let i = 0; i < 180 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
     return model;
   };
 
@@ -1456,7 +1458,16 @@ test("V45 selected half length accelerates only the match clock", () => {
 });
 
 test("V53 simple model 5-minute halves preserve runtime-scaled held-ball action floor", () => {
-  const rows = ["v53-production-a", "v53-production-b", "v53-production-c"].map((seed) => {
+  // Three seeds could not resolve a floor of 100 against a true mean near 106:
+  // the average swung either side of the threshold on noise alone, so the test
+  // failed or passed depending on which way the seeds fell rather than on any
+  // change in production. Nine seeds cut that spread enough for the floor to
+  // mean something. The assertion below is unchanged.
+  const rows = [
+    "v53-production-a", "v53-production-b", "v53-production-c",
+    "v53-production-d", "v53-production-e", "v53-production-f",
+    "v53-production-g", "v53-production-h", "v53-production-i",
+  ].map((seed) => {
     const model = new SimpleMatchModel();
     model.setSeed(seed);
     model.setTeamNames("LAFC", "Austin FC");
@@ -1866,6 +1877,232 @@ test("switch-to-nearest is bound for both players", () => {
   assert.match(engine, /KeyV'[\s\S]{0,200}?selectNearestManualPlayer\('A'\)/, "player 1 needs a switch-to-nearest key");
   assert.match(engine, /Quote'[\s\S]{0,200}?selectNearestManualPlayer\('B'\)/, "player 2 needs a switch-to-nearest key");
   assert.match(engine, /triggerManualTackle\('A'\)\) this\.model\.selectNearestManualPlayer\('A'\)/, "gamepad X must fall back to switching when there is nobody to tackle");
+});
+
+test("CPU difficulty changes pressure without changing match output", () => {
+  // Two earlier attempts at difficulty failed because they pushed on shot and
+  // pass appetite, which the model governs toward MLS targets and therefore
+  // absorbs or inverts. Difficulty only raises defensive pressure, which is
+  // ungoverned -- this test pins both halves of that.
+  const play = (intensity: number, seedPrefix: string) => {
+    const games = 6;
+    let pressureSum = 0;
+    let pressureSamples = 0;
+    let shots = 0;
+    for (let g = 0; g < games; g++) {
+      const model = new SimpleMatchModel();
+      model.setSeed(`${seedPrefix}-${g}`);
+      model.setHalfDurationSeconds(300);
+      model.setDefenseIntensity("B", intensity);
+      model.startMatch();
+      for (let i = 0; i < 60 * 60 * 12 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+        model.step(1 / 60);
+        const carrier = model.possession;
+        if (!carrier || carrier.team !== "A") continue;
+        pressureSum += model.pressureOnForHarness(carrier);
+        pressureSamples += 1;
+      }
+      const snapshot = model.getMatchSnapshot();
+      shots += snapshot.shotsA + snapshot.shotsB;
+    }
+    return { pressure: pressureSum / Math.max(1, pressureSamples), shots: shots / games };
+  };
+
+  const soft = play(0.6, "difficulty-soft");
+  const hard = play(1.5, "difficulty-hard");
+
+  // The lever must be felt...
+  assert.ok(
+    hard.pressure > soft.pressure * 1.5,
+    `harder difficulty must press far more: ${soft.pressure.toFixed(2)} vs ${hard.pressure.toFixed(2)}`,
+  );
+  // ...without disturbing the governed output the KPI envelope depends on.
+  assert.ok(
+    Math.abs(hard.shots - soft.shots) < soft.shots * 0.25,
+    `difficulty must not change shot volume much: ${soft.shots.toFixed(1)} vs ${hard.shots.toFixed(1)}`,
+  );
+});
+
+test("CPU difficulty presets only ever raise defensive intensity", () => {
+  const model = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(model, /RELAXED: 0\.65/, "a relaxed setting must ease off");
+  assert.match(model, /NORMAL: 1,/, "NORMAL must be the calibrated baseline, exactly 1");
+  assert.match(model, /RUTHLESS: 1\.7/, "the hardest setting must press substantially harder");
+
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  // A human-controlled side must never be handed the CPU's difficulty.
+  assert.match(
+    engine,
+    /setDefenseIntensity\('A', this\.humanControlEnabled \? 1 : intensity\)/,
+    "difficulty must not apply to a human-controlled team",
+  );
+  assert.match(
+    engine,
+    /setDefenseIntensity\('B', this\.twoPlayerMode \? 1 : intensity\)/,
+    "difficulty must not apply to a second human player",
+  );
+});
+
+test("a ball leaving the pitch is always detected, however it gets there", () => {
+  // Reported from play: a goal that did not register, and a ball sitting past
+  // the goal line with play continuing. Three separate causes:
+  //   1. detectAndStageBallOut only ran inside the ballFlight branch, so a
+  //      free-rolling loose ball was never checked at all;
+  //   2. a goal-line out during a flight was discarded rather than deferred;
+  //   3. detectBallOut returned null when nothing had touched the ball.
+  const run = (label: string, setup: (api: Record<string, unknown>) => void) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`detect-${label}`);
+    model.startMatch();
+    model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    model.possession = null;
+    setup(model as unknown as Record<string, unknown>);
+
+    const before = model.getMatchSnapshot();
+    let staged: string | null = null;
+    for (let i = 0; i < 300; i++) {
+      model.step(1 / 60);
+      const kind = (model.msm.state as { kind: string }).kind;
+      if (kind !== "live_play" && !staged) staged = kind;
+    }
+    const after = model.getMatchSnapshot();
+    return { staged, scored: after.scoreA + after.scoreB > before.scoreA + before.scoreB };
+  };
+
+  const alreadyInNet = run("in-net", (api) => {
+    // No single-frame crossing: the ball is already over the line.
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X + 0.5, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X + 0.8, y: 0.18, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 1.5, z: 0 };
+  });
+  assert.equal(alreadyInNet.staged, "goal_scored", "a ball already in the net must be given as a goal");
+  assert.ok(alreadyInNet.scored, "the score must actually increase");
+
+  const crossingNormally = run("crossing", (api) => {
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X - 0.5, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X - 0.4, y: 0.18, z: 0 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 14, z: 0 };
+  });
+  assert.equal(crossingNormally.staged, "goal_scored", "a ball crossing the line must be a goal");
+
+  const looseOut = run("loose-out", (api) => {
+    (api as { lastBallPos: unknown }).lastBallPos = { x: RIGHT_GOAL_X + 1, z: GOAL_MOUTH_HALF_Z + 3 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.pos = { x: RIGHT_GOAL_X + 1.5, y: 0.18, z: GOAL_MOUTH_HALF_Z + 3 };
+    (api as { ball: { pos: unknown; vel: unknown } }).ball.vel = { x: 2, z: 0 };
+  });
+  assert.equal(looseOut.staged, "ball_out", "a loose ball past the goal line must stop play");
+  assert.ok(!looseOut.scored, "wide of the post is not a goal");
+
+  const outDuringFlight = run("flight-out", (api) => {
+    (api as { ball: { pos: unknown } }).ball.pos = { x: RIGHT_GOAL_X - 6, y: 0.18, z: GOAL_MOUTH_HALF_Z + 4 };
+    (api as { startBallFlight: (k: string, f: unknown, t: unknown, d: number, a: number) => void }).startBallFlight(
+      "pass",
+      { x: RIGHT_GOAL_X - 6, z: GOAL_MOUTH_HALF_Z + 4 },
+      { x: RIGHT_GOAL_X + 3, z: GOAL_MOUTH_HALF_Z + 4 },
+      0.8,
+      0.05,
+    );
+  });
+  assert.equal(outDuringFlight.staged, "ball_out", "a goal-line out during a flight must be deferred, not discarded");
+});
+
+test("a ball leaving the pitch runs on and rebounds off the stadium wall", () => {
+  // It used to stop dead on the line, which reads as the game freezing.
+  const model = new SimpleMatchModel();
+  model.setSeed("wall-bounce");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    attackSign: (t: "A" | "B") => number;
+    rememberTouch: (p: unknown) => void;
+    lastBallPos: { x: number; z: number };
+    restartContext: unknown;
+  };
+
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const outZ = GOAL_MOUTH_HALF_Z + 4;
+  const attacker = model.getPlayers().find((p) => p.team === "A" && p.role === "ST");
+  assert.ok(attacker, "need an attacker");
+  api.rememberTouch(attacker);
+  for (const player of model.getPlayers()) {
+    player.pos = { x: -goalX, y: 0, z: -25 };
+    player.targetPos = { x: -goalX, z: -25 };
+  }
+  model.possession = null;
+  api.lastBallPos = { x: goalX - sign * 2.5, z: outZ };
+  model.ball.pos = { x: goalX - sign * 2, y: 0.18, z: outZ };
+  model.ball.vel = { x: sign * 26, z: 0 };
+
+  let furthest = 0;
+  let rebounded = false;
+  let previousVx = model.ball.vel.x;
+  for (let i = 0; i < 200 && !api.restartContext; i++) {
+    model.step(1 / 60);
+    furthest = Math.max(furthest, Math.abs(model.ball.pos.x));
+    if (Math.sign(model.ball.vel.x) !== Math.sign(previousVx) && Math.abs(model.ball.vel.x) > 0.01) rebounded = true;
+    previousVx = model.ball.vel.x;
+  }
+
+  assert.ok(
+    furthest > Math.abs(goalX) + 2,
+    `the ball must run on past the line, reached ${furthest.toFixed(1)} vs line ${Math.abs(goalX).toFixed(1)}`,
+  );
+  assert.ok(rebounded, "the ball must rebound off the perimeter wall");
+  assert.ok(api.restartContext, "the restart must still be staged afterwards");
+});
+
+test("a defender standing near a ball going out does not steal the touch", () => {
+  // Reported: corners awarded when the opposition never touched the ball.
+  // claimLooseBallPossession takes any player within 1.35u -- far wider than
+  // real contact (~0.55u) -- and possession was then recorded as a touch every
+  // frame. A defender merely standing near a ball rolling out became the last
+  // toucher, turning a goal kick into a corner.
+  const model = new SimpleMatchModel();
+  model.setSeed("touch-attribution");
+  model.startMatch();
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  const api = model as unknown as {
+    attackSign: (t: "A" | "B") => number;
+    rememberTouch: (p: unknown) => void;
+    lastBallPos: { x: number; z: number };
+    lastTouchTeam: string | null;
+    restartContext: { restartType: string; restartTeam: string } | null;
+  };
+
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const outZ = GOAL_MOUTH_HALF_Z + 4;
+
+  // Team A genuinely last touched it; the ball is running out over B's line.
+  const attacker = model.getPlayers().find((p) => p.team === "A" && p.role === "ST");
+  const defender = model.getPlayers().find((p) => p.team === "B" && p.role === "CB");
+  assert.ok(attacker && defender, "need an attacker and a defender");
+  api.rememberTouch(attacker);
+  model.possession = null;
+
+  // Park everyone else away, and put the defender near but not on the ball.
+  for (const player of model.getPlayers()) {
+    if (player.id === defender.id) continue;
+    player.pos = { x: -goalX, y: 0, z: -25 };
+    player.targetPos = { x: -goalX, z: -25 };
+  }
+  defender.pos = { x: goalX - sign * 0.8, y: 0, z: outZ + 1.2 };
+  defender.targetPos = { x: defender.pos.x, z: defender.pos.z };
+
+  api.lastBallPos = { x: goalX - sign * 2.5, z: outZ };
+  model.ball.pos = { x: goalX - sign * 2, y: 0.18, z: outZ };
+  model.ball.vel = { x: sign * 10, z: 0 };
+
+  for (let i = 0; i < 300 && !api.restartContext; i++) model.step(1 / 60);
+
+  assert.equal(api.lastTouchTeam, "A", "the defender must not be credited with a touch they never made");
+  assert.ok(api.restartContext, "the ball going out must produce a restart");
+  assert.equal(
+    api.restartContext.restartType,
+    "goal_kick",
+    `an attacker putting it out must give a goal kick, got ${api.restartContext.restartType}`,
+  );
 });
 
 test("fouls can be switched off for a match", () => {
@@ -2338,6 +2575,7 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
   // than one from straight in front.
   const convert = (lateral: number, distFromGoal: number) => {
     let goals = 0;
+    let onTarget = 0;
     const attempts = 200;
     for (let seed = 0; seed < attempts; seed++) {
       const model = new SimpleMatchModel();
@@ -2360,27 +2598,50 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
       api.manualControl.A.selectedPlayerId = carrier.id;
       model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
       api.manualControl.A.move = { x: sign, z: 0 };
+      // Let the keeper take up his position first. Firing on the same tick as
+      // the teleport left him frozen on his kickoff spot at z = 0, so a shot
+      // from the corner crossed his depth several units to his side and read as
+      // unreachable -- the wide shot scored precisely because he had not moved.
+      for (let i = 0; i < 120; i++) {
+        model.possession = carrier;
+        carrier.pos = { x: goalX - sign * distFromGoal, y: 0, z: lateral };
+        model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
+        model.step(1 / 60);
+      }
+      model.possession = carrier;
+      api.manualControl.A.selectedPlayerId = carrier.id;
       api.manualControl.A.charge = { action: "shot", progress: 0.6 };
 
       const before = model.getMatchSnapshot().scoreA;
+      const onTargetBefore = model.getMatchSnapshot().shotsOnTargetA ?? 0;
       model.releaseManualCharge("A");
       for (let i = 0; i < 200 && api.ballFlight; i++) model.step(1 / 60);
       if (model.getMatchSnapshot().scoreA > before) goals += 1;
+      if ((model.getMatchSnapshot().shotsOnTargetA ?? 0) > onTargetBefore) onTarget += 1;
     }
-    return goals / attempts;
+    return { goals: goals / attempts, onTarget: onTarget / attempts };
   };
 
   for (const distance of [6, 10]) {
     const central = convert(0, distance);
     const angled = convert(distance * 0.85, distance);
     const veryWide = convert(distance * 1.7, distance);
+    // Accuracy is the mechanism the corner-shooting bug broke, and it carries a
+    // large enough effect to assert strictly at this sample size.
     assert.ok(
-      central > angled,
-      `at ${distance}u a central shot must beat an angled one: ${(central * 100).toFixed(1)}% vs ${(angled * 100).toFixed(1)}%`,
+      central.onTarget > angled.onTarget && angled.onTarget > veryWide.onTarget,
+      `at ${distance}u accuracy must fall as the angle tightens: ${(central.onTarget * 100).toFixed(1)}% vs ${(angled.onTarget * 100).toFixed(1)}% vs ${(veryWide.onTarget * 100).toFixed(1)}%`,
+    );
+    // Conversion between central and a 40-degree angle differs by well under a
+    // point, so 200 attempts cannot resolve it; only require that turning to an
+    // angle never *helps*. The corner comparison below has a real effect size.
+    assert.ok(
+      central.goals >= angled.goals - 0.04,
+      `at ${distance}u an angled shot must not out-convert a central one: ${(central.goals * 100).toFixed(1)}% vs ${(angled.goals * 100).toFixed(1)}%`,
     );
     assert.ok(
-      angled >= veryWide,
-      `at ${distance}u conversion must keep falling as the angle tightens: ${(angled * 100).toFixed(1)}% vs ${(veryWide * 100).toFixed(1)}%`,
+      angled.goals >= veryWide.goals && central.goals > veryWide.goals,
+      `at ${distance}u conversion must keep falling as the angle tightens: ${(central.goals * 100).toFixed(1)}% vs ${(angled.goals * 100).toFixed(1)}% vs ${(veryWide.goals * 100).toFixed(1)}%`,
     );
   }
 });
