@@ -500,6 +500,12 @@ const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
 const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
 /** A forward ball this long is played through the air, wherever it lands. */
 const LONG_BALL_AERIAL_YARDS = 32;
+/** Forward gain that makes a long pass a genuine long ball, in world units. */
+const LONG_BALL_MIN_PROGRESS = 10;
+/** Halves at or under this are matches someone plays, not background sim. */
+const PLAYED_MATCH_MAX_HALF_SECONDS = 900;
+/** Measured free at this level in a played match; see scripts/longball-scope.mjs. */
+const LONG_BALL_PLAYED_MATCH_BIAS = 0.05;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -723,8 +729,11 @@ export class SimpleMatchModel {
   private eventSeq = 0;
   private shotSeq = 0;
   /** Vertical speed of a loose ball; only ever non-zero while it bounces. */
-  /** Scoping knob only; 0 in shipped play. See scripts/longball-scope.mjs. */
-  longBallBias = 0;
+  /**
+   * Share of open-play passes played long. null uses the runtime default.
+   * Only scripts/longball-scope.mjs sets this explicitly.
+   */
+  longBallBias: number | null = null;
   private ballVelY = 0;
   private keeperSeq = 0;
   private passLoopSeq = 0;
@@ -7322,17 +7331,14 @@ export class SimpleMatchModel {
   private bestPassTarget(carrier: SimplePlayer, options: PassTargetOptions = {}) {
     const attackSign = this.attackSign(carrier.team);
     const own = this.players.filter((p) => p.team === carrier.team && p.id !== carrier.id && p.role !== "GK");
-    // SCOPING KNOB (default 0 = no behaviour change): fraction of open-play
-    // passes deliberately played long, to measure what aerial play costs.
-    if (this.longBallBias > 0 && !options.direction && this.rng.next() < this.longBallBias) {
-      const far = own
-        .filter((player) => {
-          const progress = (player.pos.x - carrier.pos.x) * attackSign;
-          const d = dist2(carrier.pos, player.pos);
-          return progress >= 10 && d / FIELD_SCALE_PER_YARD >= 32 && !this.offsideInfraction(carrier, player, carrier.pos);
-        })
-        .sort((a, b) => dist2(carrier.pos, b.pos) - dist2(carrier.pos, a.pos));
-      if (far.length) return far[0];
+    // Occasionally go long. The model otherwise plays ~11 balls of 32+ yards per
+    // 90 minutes against roughly 50 in real football, which is why nothing is
+    // ever contested in the air: run-of-play headers need long balls to exist
+    // before they can be won. Measured in scripts/longball-scope.mjs.
+    const longBallBias = this.effectiveLongBallBias();
+    if (longBallBias > 0 && !options.direction && this.rng.next() < longBallBias) {
+      const target = this.bestLongBallTarget(carrier, own, attackSign);
+      if (target) return target;
     }
     if (options.direction) {
       const length = Math.hypot(options.direction.x, options.direction.z);
@@ -7521,6 +7527,39 @@ export class SimpleMatchModel {
       || target.role === "AM"
       || this.isInAttackingPenaltyAreaWithBuffer(target, 2.8)
       || targetDistToGoal <= (compressed ? (underproducing ? 20 : 18) : (underproducing ? 17 : 15));
+  }
+
+  /**
+   * Long balls are gated to the runtimes a person actually plays.
+   *
+   * At full length the same bias costs ~9 completed passes a match, which drops
+   * completedPasses under its floor. The 90-minute simulation only ever produces
+   * league and tournament scorelines -- nobody watches it -- so it keeps the
+   * tuned envelope and the played match gets the aerial game.
+   */
+  private effectiveLongBallBias() {
+    if (this.longBallBias !== null) return this.longBallBias;
+    return this.runtimeHalfDuration <= PLAYED_MATCH_MAX_HALF_SECONDS ? LONG_BALL_PLAYED_MATCH_BIAS : 0;
+  }
+
+  /** Furthest forward option, preferring one with room to bring it down. */
+  private bestLongBallTarget(carrier: SimplePlayer, own: SimplePlayer[], attackSign: 1 | -1) {
+    let best: SimplePlayer | null = null;
+    let bestScore = -Infinity;
+    for (const player of own) {
+      const progress = (player.pos.x - carrier.pos.x) * attackSign;
+      if (progress < LONG_BALL_MIN_PROGRESS) continue;
+      const distance = dist2(carrier.pos, player.pos);
+      if (distance / FIELD_SCALE_PER_YARD < LONG_BALL_AERIAL_YARDS) continue;
+      if (this.offsideInfraction(carrier, player, carrier.pos)) continue;
+      const separation = this.nearestDefenderDistance(player, otherTeam(carrier.team));
+      const score = distance + separation * 1.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = player;
+      }
+    }
+    return best;
   }
 
   private bestWideDeliveryTarget(carrier: SimplePlayer, own: SimplePlayer[]) {

@@ -1458,7 +1458,16 @@ test("V45 selected half length accelerates only the match clock", () => {
 });
 
 test("V53 simple model 5-minute halves preserve runtime-scaled held-ball action floor", () => {
-  const rows = ["v53-production-a", "v53-production-b", "v53-production-c"].map((seed) => {
+  // Three seeds could not resolve a floor of 100 against a true mean near 106:
+  // the average swung either side of the threshold on noise alone, so the test
+  // failed or passed depending on which way the seeds fell rather than on any
+  // change in production. Nine seeds cut that spread enough for the floor to
+  // mean something. The assertion below is unchanged.
+  const rows = [
+    "v53-production-a", "v53-production-b", "v53-production-c",
+    "v53-production-d", "v53-production-e", "v53-production-f",
+    "v53-production-g", "v53-production-h", "v53-production-i",
+  ].map((seed) => {
     const model = new SimpleMatchModel();
     model.setSeed(seed);
     model.setTeamNames("LAFC", "Austin FC");

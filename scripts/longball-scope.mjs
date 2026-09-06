@@ -3,10 +3,10 @@
  * Measure what more aerial play would cost.
  *
  * Long balls are the lever for run-of-play headers and for getting the ball off
- * the deck: the model plays ~11 passes of 32+ yards per 90 minutes, against
- * roughly 50 in real football. SimpleMatchModel.longBallBias (default 0, inert
- * in shipped play) redirects that fraction of open-play passes to the furthest
- * valid forward target so the trade can be measured rather than guessed.
+ * the deck. SimpleMatchModel.longBallBias overrides the shipped setting, which
+ * is LONG_BALL_PLAYED_MATCH_BIAS on played runtimes and 0 at full length --
+ * pass `--biases 0,...` to compare against no long balls at all, not against
+ * shipped behaviour.
  *
  * Run it at both runtimes -- they behave differently, because production
  * compression only applies to short matches:
