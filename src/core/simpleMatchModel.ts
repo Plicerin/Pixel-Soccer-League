@@ -495,6 +495,15 @@ const KICKOFF_SHAPE_RELEASE_SECONDS = 18;
 const KICKOFF_SHAPE_HOLD_SECONDS = 2.4;
 const KICKOFF_LANE_RELEASE_SECONDS = 2.0;
 const BALL_HOLD_TIME_MULTIPLIER = 1.5;
+/** Pass distance from which the ball is played ahead of the receiver. */
+const PASS_LEAD_MIN_DISTANCE = 6;
+/** Distance from which the receiver runs onto it and carries, so settles fast. */
+const LED_PASS_SHORT_SETTLE_DISTANCE = 13;
+const PASS_LEAD_MIN = 0.65;
+/** Held under the 1.6u gap auditFlightLanding treats as an empty landing. */
+const PASS_LEAD_MAX = 1.5;
+/** Share of his reachable distance the receiver is asked to cover. */
+const PASS_LEAD_REACH_FRACTION = 0.45;
 const VISIBLE_RECEPTION_HOLD_MIN_SECONDS = 1.5;
 const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
 const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
@@ -4007,9 +4016,16 @@ export class SimpleMatchModel {
       target.stats.touches += 1;
       this.possession = target;
       this.rememberTouch(target);
-      const ledGroundPass = !wideDelivery && !aerialDelivery && distance >= 13;
-      const landingPoint = this.passLandingPoint(origin, target.pos, distance, ledGroundPass);
-      const settleSeconds = ledGroundPass ? 0.18 : this.visibleReceptionHoldSeconds();
+      const groundPass = !wideDelivery && !aerialDelivery;
+      // Two separate questions that used to share one flag. Leading the ball
+      // into space is about where it lands; the short settle is about a receiver
+      // who arrives at a run and carries it rather than stopping it dead. Tying
+      // them together meant any attempt to lead more passes also stripped the
+      // visible reception hold off them, which is what V74/V170/V221 caught.
+      const leadReceiver = groundPass && distance >= PASS_LEAD_MIN_DISTANCE;
+      const runsOntoPass = groundPass && distance >= LED_PASS_SHORT_SETTLE_DISTANCE;
+      const landingPoint = this.passLandingPoint(origin, target.pos, distance, leadReceiver, target.ratings.pace);
+      const settleSeconds = runsOntoPass ? 0.18 : this.visibleReceptionHoldSeconds();
       const flightSeconds = this.startBallFlight("pass", origin, landingPoint, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), passArc, target, {
         aerial: aerialDelivery,
         headerEligible: aerialDelivery,
@@ -7180,10 +7196,25 @@ export class SimpleMatchModel {
     return clamp(baseDuration, 0.55, 1.35);
   }
 
-  private passLandingPoint(origin: Vec2, receiver: Vec2, distance: number, leadReceiver: boolean) {
+  /**
+   * Where a pass should actually land.
+   *
+   * Played at the receiver's feet he has no reason to move, which is why only
+   * 3% of receivers moved toward the ball. Played ahead of him he has to come
+   * and get it. The lead is capped by what he can physically cover during the
+   * flight, or the ball lands in space nobody reaches and the run looks broken
+   * (auditFlightLanding flags a gap over 1.6u).
+   */
+  private passLandingPoint(origin: Vec2, receiver: Vec2, distance: number, leadReceiver: boolean, receiverPace = 0.5) {
     if (!leadReceiver) return { ...receiver };
     const direction = normalize2({ x: receiver.x - origin.x, z: receiver.z - origin.z });
-    const lead = clamp((distance - 10) * 0.1, 0.65, 1.45);
+    const flightSeconds = this.flightDuration(clamp(distance / 24, 0.65, 1.25));
+    const receiverSpeed = BASE_RUN_SPEED * (0.42 + receiverPace * 0.58);
+    const reachable = Math.max(0, receiverSpeed * flightSeconds * PASS_LEAD_REACH_FRACTION);
+    const lead = Math.min(
+      clamp((distance - PASS_LEAD_MIN_DISTANCE) * 0.12, PASS_LEAD_MIN, PASS_LEAD_MAX),
+      reachable,
+    );
     return clampToPlayable({
       x: receiver.x + direction.x * lead,
       z: receiver.z + direction.z * lead,

@@ -1375,9 +1375,16 @@ test("simple model animates visible ball movement between model outcomes", () =>
 });
 
 test("V45 simple model keeps 5-minute halves at 100 percent movement speed while compressing production", () => {
-  const sample = (halfSeconds: number) => {
+  // One match per half length could not carry the action-density ratio below:
+  // the count is ~11.5 in a 60s window with a standard deviation of 1.6, so a
+  // single draw swung the short/full ratio anywhere from 0.8 to 1.2 and the
+  // 0.85 floor tripped on the draw rather than on any change in production.
+  // Averaged over six seeds the ratio is stable near 0.99. Speed and distance
+  // stay worst-case (max across seeds) because their assertions are ceilings.
+  const V45_SEEDS = ["a", "b", "c", "d", "e", "f"];
+  const sampleOne = (halfSeconds: number, seed: string) => {
     const model = new SimpleMatchModel();
-    model.setSeed("v45-half-length-speed");
+    model.setSeed(`v45-half-length-speed-${seed}`);
     model.setTeamNames("Charlotte FC", "Sporting Kansas City");
     model.setTeamFormations("4-3-3", "4-4-2");
     model.setHalfDurationSeconds(halfSeconds);
@@ -1405,6 +1412,18 @@ test("V45 simple model keeps 5-minute halves at 100 percent movement speed while
       actions: snapshot.passesA + snapshot.passesB + snapshot.shotsA + snapshot.shotsB,
       topInstantSpeed,
       topDistance,
+    };
+  };
+
+  const sample = (halfSeconds: number) => {
+    const runs = V45_SEEDS.map((seed) => sampleOne(halfSeconds, seed));
+    const mean = (pick: (row: typeof runs[number]) => number) =>
+      runs.reduce((sum, row) => sum + pick(row), 0) / runs.length;
+    return {
+      elapsed: mean((row) => row.elapsed),
+      actions: mean((row) => row.actions),
+      topInstantSpeed: Math.max(...runs.map((row) => row.topInstantSpeed)),
+      topDistance: Math.max(...runs.map((row) => row.topDistance)),
     };
   };
 
