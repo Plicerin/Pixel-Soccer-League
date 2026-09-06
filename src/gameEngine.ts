@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
-import { CPU_DIFFICULTY_INTENSITY, type CpuDifficultyKey } from './core/simpleMatchModel';
+import { CPU_DIFFICULTY_INTENSITY, cpuDefenseIntensities, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -972,17 +972,27 @@ class SimpleGameEngine {
    * so a harder CPU presses the player without altering match output.
    */
   setCpuDifficulty = (key: string) => {
-    const intensity = CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ?? 1;
     this.cpuDifficulty = (CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ? key : 'NORMAL') as CpuDifficultyKey;
-    this.applyCpuDifficulty(intensity);
+    this.applyCpuDifficulty();
   };
 
   getCpuDifficulty = () => this.cpuDifficulty;
 
-  private applyCpuDifficulty(intensity: number) {
-    // Only the CPU side is affected; a human-controlled team defends normally.
-    this.model.setDefenseIntensity('A', this.humanControlEnabled ? 1 : intensity);
-    this.model.setDefenseIntensity('B', this.twoPlayerMode ? 1 : intensity);
+  /**
+   * Which side is the CPU decides who gets the difficulty, so this has to be
+   * re-run whenever that changes -- not only when the difficulty is set.
+   * It used to take the intensity as an argument and run once from
+   * setCpuDifficulty, which left the assignment stale the moment hot-seat or
+   * two-player mode was toggled afterwards: a human's own team could keep
+   * defending at RUTHLESS intensity, or a CPU side drop back to normal. It
+   * held together only because the menu happened to set the modes before the
+   * difficulty on kickoff. Reading both flags at apply time removes the
+   * ordering dependency entirely.
+   */
+  private applyCpuDifficulty() {
+    const intensity = cpuDefenseIntensities(this.cpuDifficulty, this.humanControlEnabled, this.twoPlayerMode);
+    this.model.setDefenseIntensity('A', intensity.A);
+    this.model.setDefenseIntensity('B', intensity.B);
   }
   setCameraMode = (value: string) => {
     this.cameraMode = this.cameraRigs[value] ? value : 'BROADCAST';
@@ -1125,11 +1135,13 @@ class SimpleGameEngine {
     this.humanControlEnabled = !!enabled;
     this.model.setManualControlEnabled('A', this.humanControlEnabled);
     if (!this.humanControlEnabled) this.model.setManualMove('A', 0, 0);
+    this.applyCpuDifficulty();
   };
   setTwoPlayerMode = (enabled: boolean) => {
     this.twoPlayerMode = !!enabled;
     this.model.setManualControlEnabled('B', this.twoPlayerMode);
     if (!this.twoPlayerMode) this.model.setManualMove('B', 0, 0);
+    this.applyCpuDifficulty();
   };
   setTestingMode = (_enabled: boolean) => {};
   setRealDataReplayMode = (_enabled: boolean) => {};

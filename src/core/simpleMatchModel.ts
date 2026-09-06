@@ -149,6 +149,23 @@ export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
   RUTHLESS: 1.7,
 };
 
+/**
+ * Defensive intensity per team for a difficulty and who is holding a pad.
+ *
+ * Pure so it can be tested: the engine used to compute this once, inside
+ * setCpuDifficulty, which left it stale whenever hot-seat or two-player mode
+ * changed afterwards.
+ */
+export function cpuDefenseIntensities(
+  difficulty: CpuDifficultyKey,
+  humanControlsA: boolean,
+  humanControlsB: boolean,
+): Record<SimpleTeamCode, number> {
+  const intensity = CPU_DIFFICULTY_INTENSITY[difficulty] ?? 1;
+  // A side a person is playing defends normally; difficulty is the CPU's.
+  return { A: humanControlsA ? 1 : intensity, B: humanControlsB ? 1 : intensity };
+}
+
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
 
 // Aimed passing: how tight the corridor around the arrow is, and how far a
