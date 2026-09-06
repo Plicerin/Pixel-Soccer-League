@@ -524,6 +524,17 @@ const SHOW_FOR_BALL_RADII = [8, 12, 16];
 const PLAYED_MATCH_MAX_HALF_SECONDS = 900;
 /** Measured free at this level in a played match; see scripts/longball-scope.mjs. */
 const LONG_BALL_PLAYED_MATCH_BIAS = 0.05;
+/**
+ * Conversion of shots on target.
+ *
+ * The chance formula was tuned when keeperSaveGeometry let ~3.7% of shots on
+ * target past the keeper on positioning error alone, which resolveShot scores
+ * outright. Fixing his positioning removed those unearned goals and dropped
+ * production to 2.13 a match against an MLS target of 2.80, converting 22.4%
+ * of shots on target where the real figure is ~29.5%. This earns them back
+ * through finishing instead.
+ */
+const SHOT_CONVERSION_SCALE = 1.62;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -4619,7 +4630,16 @@ export class SimpleMatchModel {
     const earlyBurst = this.earlyBurstGoalChanceMultiplier(matchScoreForGoal, teamStats.score, context);
     const earlyBurstGoalMultiplier = earlyBurst.multiplier;
     const lowScoreGoalMultiplier = this.lowScoreGoalChanceMultiplier(matchScoreForGoal, context);
-    const adjustedBaseGoalChance = baseGoalChance * compressedGoalChanceMultiplier * earlyBurstGoalMultiplier * lowScoreGoalMultiplier * (context.goalChanceMultiplier ?? 1);
+    // Finishing uplift, but never against the anti-cluster dampers. Those exist
+    // to stop goals arriving in bursts, so inflating a shot the model has
+    // deliberately suppressed defeats the mechanism outright (V176, V181).
+    const conversionDampingActive = earlyBurstGoalMultiplier < 1
+      || lowScoreGoalMultiplier < 1
+      || compressedGoalChanceMultiplier < 1
+      // Set-piece header damping arrives through the caller's multiplier.
+      || (context.goalChanceMultiplier ?? 1) < 1;
+    const conversionScale = conversionDampingActive ? 1 : SHOT_CONVERSION_SCALE;
+    const adjustedBaseGoalChance = baseGoalChance * conversionScale * compressedGoalChanceMultiplier * earlyBurstGoalMultiplier * lowScoreGoalMultiplier * (context.goalChanceMultiplier ?? 1);
     const forcedGoal = !!context.forceGoal && !invalidGoalGeometry;
     const highScoreMinGoalCap = matchScoreForGoal >= 7 ? 0.015 : matchScoreForGoal >= 6 ? 0.035 : Infinity;
     const minGoalChance = Math.min(context.minGoalChance ?? 0, highScoreMinGoalCap);
