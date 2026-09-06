@@ -502,6 +502,15 @@ const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
 const LONG_BALL_AERIAL_YARDS = 32;
 /** Forward gain that makes a long pass a genuine long ball, in world units. */
 const LONG_BALL_MIN_PROGRESS = 10;
+/** How many team-mates break shape to offer at once; 4 starts to swarm. */
+const SHOW_FOR_BALL_COUNT = 3;
+/** Only players already this close to the carrier come and offer. */
+const SHOW_FOR_BALL_RANGE = 26;
+/** Carrier pressure below which nobody needs to come short. */
+const SHOW_FOR_BALL_MIN_PRESSURE = 0.35;
+/** Offer angles relative to the attacking direction, and how far out. */
+const SHOW_FOR_BALL_ANGLES = [0, Math.PI / 5, -Math.PI / 5, Math.PI / 2.5, -Math.PI / 2.5, Math.PI / 1.8, -Math.PI / 1.8];
+const SHOW_FOR_BALL_RADII = [8, 12, 16];
 /** Halves at or under this are matches someone plays, not background sim. */
 const PLAYED_MATCH_MAX_HALF_SECONDS = 900;
 /** Measured free at this level in a played match; see scripts/longball-scope.mjs. */
@@ -3413,6 +3422,16 @@ export class SimpleMatchModel {
           const widened = wideSign * Math.max(wideFloor, Math.abs(target.z));
           target = { ...target, z: widened };
           targetOwner = "support_wide_lane_hold";
+        }
+        // The support blends above move a player only ~26% of the way from his
+        // formation slot toward the ball, so nobody ever arrives -- the shape
+        // drifts and the carrier is left picking from whoever happens to be
+        // standing nearby. The two closest team-mates now actually come and
+        // offer: a real angle, at passing range, away from the nearest marker.
+        const offer = this.showForBallTarget(player, possessionCarrier, attackSign);
+        if (offer) {
+          target = offer;
+          targetOwner = "support_show_for_ball";
         }
         target = this.constrainAttackingSupportToOffsideLine(player, target, ball);
       } else if (this.possession && player.team !== this.possession.team) {
@@ -7557,6 +7576,58 @@ export class SimpleMatchModel {
       if (score > bestScore) {
         bestScore = score;
         best = player;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Where a team-mate should run to offer the carrier a pass.
+   *
+   * Only the nearest few do this; everyone else holds the shape, or the team
+   * collapses onto the ball. Returns null for players who should stay put.
+   */
+  private showForBallTarget(player: SimplePlayer, carrier: SimplePlayer, attackSign: 1 | -1) {
+    if (player.role === "GK" || player.id === carrier.id) return null;
+    // Played runtimes only, matching the long-ball gate. At full length this
+    // moves goals by ~0.26 -- twice the headroom that band has left -- so the
+    // guard cannot tell a real regression from seed noise here. The 90-minute
+    // simulation keeps the tuned envelope; see the note in SPEC.md.
+    if (this.runtimeHalfDuration > PLAYED_MATCH_MAX_HALF_SECONDS) return null;
+    // Come short only when the carrier actually needs an out. Offering on every
+    // frame made the whole team orbit the ball and pushed pass volume 5% over
+    // its ceiling; a run you make because your team-mate is under pressure is
+    // also the run a footballer actually makes.
+    if (this.pressureOn(carrier) < SHOW_FOR_BALL_MIN_PRESSURE) return null;
+    const gap = dist2(player.pos, carrier.pos);
+    if (gap > SHOW_FOR_BALL_RANGE) return null;
+    let nearer = 0;
+    for (const mate of this.players) {
+      if (mate.team !== player.team || mate.role === "GK" || mate.id === carrier.id || mate.id === player.id) continue;
+      if (dist2(mate.pos, carrier.pos) < gap) nearer += 1;
+    }
+    if (nearer >= SHOW_FOR_BALL_COUNT) return null;
+    const opponents = this.players.filter((o) => o.team !== player.team && o.role !== "GK");
+    let best: Vec2 | null = null;
+    let bestScore = -Infinity;
+    // Fixed offers around the carrier rather than random ones, so the run is
+    // repeatable frame to frame and the player does not jitter between spots.
+    for (const angle of SHOW_FOR_BALL_ANGLES) {
+      for (const radius of SHOW_FOR_BALL_RADII) {
+        const candidate = clampToPlayable({
+          x: carrier.pos.x + attackSign * Math.cos(angle) * radius,
+          z: carrier.pos.z + Math.sin(angle) * radius,
+        });
+        let clearance = Infinity;
+        for (const opponent of opponents) clearance = Math.min(clearance, dist2(opponent.pos, candidate));
+        const progress = (candidate.x - carrier.pos.x) * attackSign;
+        // Room to receive first, then getting ahead of the ball, then not
+        // asking the player to sprint across the pitch to take up the position.
+        const score = Math.min(clearance, 6) * 1.6 + progress * 0.45 - dist2(player.pos, candidate) * 0.35;
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
       }
     }
     return best;
