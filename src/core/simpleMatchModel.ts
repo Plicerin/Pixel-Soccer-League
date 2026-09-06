@@ -535,6 +535,25 @@ const LONG_BALL_PLAYED_MATCH_BIAS = 0.05;
  * through finishing instead.
  */
 const SHOT_CONVERSION_SCALE = 1.62;
+/**
+ * How often a header in the box is a goal attempt rather than a knock-down.
+ *
+ * 42-90% of attacking headers were shots, making headed attempts 43% of every
+ * shot in the match against roughly 10% in real football. That single figure
+ * is why shot volume ran 30% over target and why only 28% of shots were on
+ * target: headers are the least accurate attempt there is. The rest become
+ * header touches, which is what most box headers actually are.
+ */
+const HEADER_SHOT_ATTEMPT_SCALE = 0.22;
+/**
+ * Base chance a shot is on target, before distance, angle and pressure.
+ *
+ * Left 27.8% of shots on target against roughly 36.5% in real football, so the
+ * model created chances and then sprayed them. Cutting headed attempts did not
+ * touch this -- headers were not disproportionately wide, there were simply too
+ * many of them.
+ */
+const SHOT_ON_TARGET_BASE = 0.51;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -3041,7 +3060,7 @@ export class SimpleMatchModel {
           : flight.sourceAction === "lofted_pass" ? (compressedDangerousDelivery ? 0.17 : 0.07)
             : flight.sourceAction === "throw_in" ? 0.04
               : 0;
-      const shotChance = clamp(
+      const shotChance = HEADER_SHOT_ATTEMPT_SCALE * clamp(
         0.52
         + sourceBonus
         + attacker.ratings.shooting * 0.12
@@ -4494,7 +4513,7 @@ export class SimpleMatchModel {
         : this.runtimeHalfDuration <= 900
           ? 0
           : 0.140;
-    const rawOnTargetChance = 0.445 + compressedOnTargetBoost - shotDistToGoal * 0.011 - distanceOnTargetPenalty - shotLoadOnTargetPenalty - anglePenalty * 0.20 - pressure * 0.055 + carrier.ratings.shooting * 0.10;
+    const rawOnTargetChance = SHOT_ON_TARGET_BASE + compressedOnTargetBoost - shotDistToGoal * 0.011 - distanceOnTargetPenalty - shotLoadOnTargetPenalty - anglePenalty * 0.20 - pressure * 0.055 + carrier.ratings.shooting * 0.10;
     // A human who aimed and pressed shoot is not taking a speculative punt.
     // The CPU model bottoms out around 0.08, which put ~93% of manual shots off
     // target and made every aimed shot fly diagonally wide.
