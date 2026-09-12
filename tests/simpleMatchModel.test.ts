@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
-import { SimpleMatchModel } from "../src/core/simpleMatchModel";
+import { SimpleMatchModel, cpuDefenseIntensities } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
   const model = new SimpleMatchModel();
@@ -1375,9 +1375,16 @@ test("simple model animates visible ball movement between model outcomes", () =>
 });
 
 test("V45 simple model keeps 5-minute halves at 100 percent movement speed while compressing production", () => {
-  const sample = (halfSeconds: number) => {
+  // One match per half length could not carry the action-density ratio below:
+  // the count is ~11.5 in a 60s window with a standard deviation of 1.6, so a
+  // single draw swung the short/full ratio anywhere from 0.8 to 1.2 and the
+  // 0.85 floor tripped on the draw rather than on any change in production.
+  // Averaged over six seeds the ratio is stable near 0.99. Speed and distance
+  // stay worst-case (max across seeds) because their assertions are ceilings.
+  const V45_SEEDS = ["a", "b", "c", "d", "e", "f"];
+  const sampleOne = (halfSeconds: number, seed: string) => {
     const model = new SimpleMatchModel();
-    model.setSeed("v45-half-length-speed");
+    model.setSeed(`v45-half-length-speed-${seed}`);
     model.setTeamNames("Charlotte FC", "Sporting Kansas City");
     model.setTeamFormations("4-3-3", "4-4-2");
     model.setHalfDurationSeconds(halfSeconds);
@@ -1405,6 +1412,18 @@ test("V45 simple model keeps 5-minute halves at 100 percent movement speed while
       actions: snapshot.passesA + snapshot.passesB + snapshot.shotsA + snapshot.shotsB,
       topInstantSpeed,
       topDistance,
+    };
+  };
+
+  const sample = (halfSeconds: number) => {
+    const runs = V45_SEEDS.map((seed) => sampleOne(halfSeconds, seed));
+    const mean = (pick: (row: typeof runs[number]) => number) =>
+      runs.reduce((sum, row) => sum + pick(row), 0) / runs.length;
+    return {
+      elapsed: mean((row) => row.elapsed),
+      actions: mean((row) => row.actions),
+      topInstantSpeed: Math.max(...runs.map((row) => row.topInstantSpeed)),
+      topDistance: Math.max(...runs.map((row) => row.topDistance)),
     };
   };
 
@@ -1929,18 +1948,41 @@ test("CPU difficulty presets only ever raise defensive intensity", () => {
   assert.match(model, /NORMAL: 1,/, "NORMAL must be the calibrated baseline, exactly 1");
   assert.match(model, /RUTHLESS: 1\.7/, "the hardest setting must press substantially harder");
 
-  const engine = readFileSync("src/gameEngine.ts", "utf8");
   // A human-controlled side must never be handed the CPU's difficulty.
-  assert.match(
-    engine,
-    /setDefenseIntensity\('A', this\.humanControlEnabled \? 1 : intensity\)/,
-    "difficulty must not apply to a human-controlled team",
-  );
-  assert.match(
-    engine,
-    /setDefenseIntensity\('B', this\.twoPlayerMode \? 1 : intensity\)/,
-    "difficulty must not apply to a second human player",
-  );
+  assert.deepEqual(cpuDefenseIntensities("RUTHLESS", false, false), { A: 1.7, B: 1.7 });
+  assert.deepEqual(cpuDefenseIntensities("RUTHLESS", true, false), { A: 1, B: 1.7 });
+  assert.deepEqual(cpuDefenseIntensities("RUTHLESS", false, true), { A: 1.7, B: 1 });
+  assert.deepEqual(cpuDefenseIntensities("RUTHLESS", true, true), { A: 1, B: 1 });
+});
+
+test("CPU difficulty follows a control-mode change instead of going stale", () => {
+  // Reported in review: the engine computed the intensities once, inside
+  // setCpuDifficulty, from whatever the control flags happened to be. Toggling
+  // hot-seat or two-player mode afterwards left the old assignment in place, so
+  // a human's own team could keep defending at RUTHLESS intensity. It only held
+  // together because the menu set the modes before the difficulty at kickoff.
+  //
+  // The decision is pure now, so re-deriving it after a mode change is the fix,
+  // and both setters call applyCpuDifficulty().
+  const difficulty = "RUTHLESS" as const;
+  const beforeToggle = cpuDefenseIntensities(difficulty, false, false);
+  assert.deepEqual(beforeToggle, { A: 1.7, B: 1.7 }, "CPU vs CPU: both sides press");
+
+  const afterHotSeat = cpuDefenseIntensities(difficulty, true, false);
+  assert.equal(afterHotSeat.A, 1, "the team the human took over must drop to normal");
+  assert.equal(afterHotSeat.B, 1.7, "the CPU side keeps the difficulty");
+
+  const afterTwoPlayer = cpuDefenseIntensities(difficulty, true, true);
+  assert.deepEqual(afterTwoPlayer, { A: 1, B: 1 }, "two humans: nobody gets CPU intensity");
+
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  for (const setter of ["setHotSeatMode", "setTwoPlayerMode"]) {
+    const body = engine.slice(engine.indexOf(`${setter} = `), engine.indexOf("};", engine.indexOf(`${setter} = `)));
+    assert.ok(
+      body.includes("this.applyCpuDifficulty()"),
+      `${setter} must re-apply difficulty, or the assignment goes stale`,
+    );
+  }
 });
 
 test("a ball leaving the pitch is always detected, however it gets there", () => {
@@ -2521,9 +2563,15 @@ test("gamepad selection ignores idle/virtual pads and latches the one in use", (
 
 test("lob is reachable from both players' inputs", () => {
   const engine = readFileSync("src/gameEngine.ts", "utf8");
-  assert.match(engine, /KeyC'[\s\S]{0,120}?triggerManualLobPass\('A'\)/, "player 1 needs a keyboard lob");
-  assert.match(engine, /Semicolon'[\s\S]{0,120}?triggerManualLobPass\('B'\)/, "player 2 needs a keyboard lob");
-  assert.match(engine, /justPressed\(3\)\) this\.model\.triggerManualLobPass\('A'\)/, "player 1 needs a gamepad lob");
+  // The lob charges like the pass and the shot: press to start, release to
+  // play it. It used to fire instantly at full power, so there was no way to
+  // clip a short one over a defender's feet.
+  assert.match(engine, /KeyC'[\s\S]{0,120}?beginManualCharge\('A', 'lob'\)/, "player 1 needs a keyboard lob");
+  assert.match(engine, /Semicolon'[\s\S]{0,120}?beginManualCharge\('B', 'lob'\)/, "player 2 needs a keyboard lob");
+  assert.match(engine, /justPressed\(3\)\) this\.model\.beginManualCharge\('A', 'lob'\)/, "player 1 needs a gamepad lob");
+  assert.match(engine, /justReleased\(3\)/, "the gamepad lob must fire on release, not on press");
+  assert.match(engine, /event\.code === 'KeyC'\)\) \{/, "player 1's lob must release on key up");
+  assert.match(engine, /event\.code === 'Semicolon'\)\) \{/, "player 2's lob must release on key up");
 });
 
 test("sprint boosts only the selected manual player, for either team", () => {

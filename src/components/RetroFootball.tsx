@@ -40,6 +40,7 @@ const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
 const FrameViewer = React.lazy(() => import('./FrameViewer'));
 const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
 const PauseOverlay = React.lazy(() => import('./PauseOverlay'));
+const ControllerDiagram = React.lazy(() => import('./PauseOverlay').then((m) => ({ default: m.ControllerDiagram })));
 const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /**
@@ -3597,6 +3598,12 @@ const RetroFootball: React.FC = () => {
         ); })()}
 
       {/* Options Menu Overlay */}
+      {showSplash && (
+        <div className="pointer-events-none absolute bottom-3 right-4 z-[60] font-mono text-[10px] tracking-widest text-white/35">
+          v{__APP_VERSION__}
+        </div>
+      )}
+
       {isOptionsOpen && (
         <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-3">
           <div className="bg-zinc-900 p-4 md:p-6 rounded-2xl border border-white/10 shadow-2xl w-[min(1100px,calc(100vw-24px))] max-h-[calc(100vh-24px)] overflow-y-auto flex flex-col gap-5">
@@ -3617,6 +3624,7 @@ const RetroFootball: React.FC = () => {
                 )}
               </div>
               <div className="flex items-center gap-3">
+                <span className="font-mono text-[10px] tracking-widest text-white/30">v{__APP_VERSION__}</span>
                 {hasActiveMatchSession && (
                   <button
                     type="button"
@@ -3969,6 +3977,12 @@ const RetroFootball: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-4">
+                  {/* The pad diagram lives in the pause overlay too, but that is
+                      hidden while this panel is open, so it was unreachable from
+                      settings -- which is where people look for it. */}
+                  <React.Suspense fallback={null}>
+                    <ControllerDiagram />
+                  </React.Suspense>
                   <div>
                     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Gamepad</h3>
                     <div className="text-white/30 text-[9px] space-y-1 font-mono">

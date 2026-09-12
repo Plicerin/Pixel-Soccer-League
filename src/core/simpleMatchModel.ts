@@ -128,7 +128,9 @@ type PassTargetOptions = {
   power?: number;
 };
 
-type ManualChargeAction = "pass" | "shot";
+// Lob charges like the other two: runManualAction already took "lob",
+// only the charge type excluded it, so the key fired instantly at full power.
+type ManualChargeAction = "pass" | "shot" | "lob";
 
 /**
  * Coaching intent. Applied as a delta on top of the team's identity-derived
@@ -148,6 +150,23 @@ export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
   COMPETITIVE: 1.35,
   RUTHLESS: 1.7,
 };
+
+/**
+ * Defensive intensity per team for a difficulty and who is holding a pad.
+ *
+ * Pure so it can be tested: the engine used to compute this once, inside
+ * setCpuDifficulty, which left it stale whenever hot-seat or two-player mode
+ * changed afterwards.
+ */
+export function cpuDefenseIntensities(
+  difficulty: CpuDifficultyKey,
+  humanControlsA: boolean,
+  humanControlsB: boolean,
+): Record<SimpleTeamCode, number> {
+  const intensity = CPU_DIFFICULTY_INTENSITY[difficulty] ?? 1;
+  // A side a person is playing defends normally; difficulty is the CPU's.
+  return { A: humanControlsA ? 1 : intensity, B: humanControlsB ? 1 : intensity };
+}
 
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";
 
@@ -495,6 +514,15 @@ const KICKOFF_SHAPE_RELEASE_SECONDS = 18;
 const KICKOFF_SHAPE_HOLD_SECONDS = 2.4;
 const KICKOFF_LANE_RELEASE_SECONDS = 2.0;
 const BALL_HOLD_TIME_MULTIPLIER = 1.5;
+/** Pass distance from which the ball is played ahead of the receiver. */
+const PASS_LEAD_MIN_DISTANCE = 6;
+/** Distance from which the receiver runs onto it and carries, so settles fast. */
+const LED_PASS_SHORT_SETTLE_DISTANCE = 13;
+const PASS_LEAD_MIN = 0.65;
+/** Held under the 1.6u gap auditFlightLanding treats as an empty landing. */
+const PASS_LEAD_MAX = 1.5;
+/** Share of his reachable distance the receiver is asked to cover. */
+const PASS_LEAD_REACH_FRACTION = 0.45;
 const VISIBLE_RECEPTION_HOLD_MIN_SECONDS = 1.5;
 const VISIBLE_RECEPTION_HOLD_MAX_SECONDS = 3.0;
 const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
@@ -502,10 +530,49 @@ const PLAYER_MIN_SEPARATION = PLAYER_RADIUS * 2;
 const LONG_BALL_AERIAL_YARDS = 32;
 /** Forward gain that makes a long pass a genuine long ball, in world units. */
 const LONG_BALL_MIN_PROGRESS = 10;
+/** How many team-mates break shape to offer at once; 4 starts to swarm. */
+const SHOW_FOR_BALL_COUNT = 3;
+/** Only players already this close to the carrier come and offer. */
+const SHOW_FOR_BALL_RANGE = 26;
+/** Carrier pressure below which nobody needs to come short. */
+const SHOW_FOR_BALL_MIN_PRESSURE = 0.35;
+/** Offer angles relative to the attacking direction, and how far out. */
+const SHOW_FOR_BALL_ANGLES = [0, Math.PI / 5, -Math.PI / 5, Math.PI / 2.5, -Math.PI / 2.5, Math.PI / 1.8, -Math.PI / 1.8];
+const SHOW_FOR_BALL_RADII = [8, 12, 16];
 /** Halves at or under this are matches someone plays, not background sim. */
 const PLAYED_MATCH_MAX_HALF_SECONDS = 900;
 /** Measured free at this level in a played match; see scripts/longball-scope.mjs. */
 const LONG_BALL_PLAYED_MATCH_BIAS = 0.05;
+/**
+ * Conversion of shots on target.
+ *
+ * The chance formula was tuned when keeperSaveGeometry let ~3.7% of shots on
+ * target past the keeper on positioning error alone, which resolveShot scores
+ * outright. Fixing his positioning removed those unearned goals and dropped
+ * production to 2.13 a match against an MLS target of 2.80, converting 22.4%
+ * of shots on target where the real figure is ~29.5%. This earns them back
+ * through finishing instead.
+ */
+const SHOT_CONVERSION_SCALE = 1.62;
+/**
+ * How often a header in the box is a goal attempt rather than a knock-down.
+ *
+ * 42-90% of attacking headers were shots, making headed attempts 43% of every
+ * shot in the match against roughly 10% in real football. That single figure
+ * is why shot volume ran 30% over target and why only 28% of shots were on
+ * target: headers are the least accurate attempt there is. The rest become
+ * header touches, which is what most box headers actually are.
+ */
+const HEADER_SHOT_ATTEMPT_SCALE = 0.22;
+/**
+ * Base chance a shot is on target, before distance, angle and pressure.
+ *
+ * Left 27.8% of shots on target against roughly 36.5% in real football, so the
+ * model created chances and then sprayed them. Cutting headed attempts did not
+ * touch this -- headers were not disproportionately wide, there were simply too
+ * many of them.
+ */
+const SHOT_ON_TARGET_BASE = 0.51;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -3012,7 +3079,7 @@ export class SimpleMatchModel {
           : flight.sourceAction === "lofted_pass" ? (compressedDangerousDelivery ? 0.17 : 0.07)
             : flight.sourceAction === "throw_in" ? 0.04
               : 0;
-      const shotChance = clamp(
+      const shotChance = HEADER_SHOT_ATTEMPT_SCALE * clamp(
         0.52
         + sourceBonus
         + attacker.ratings.shooting * 0.12
@@ -3413,6 +3480,16 @@ export class SimpleMatchModel {
           const widened = wideSign * Math.max(wideFloor, Math.abs(target.z));
           target = { ...target, z: widened };
           targetOwner = "support_wide_lane_hold";
+        }
+        // The support blends above move a player only ~26% of the way from his
+        // formation slot toward the ball, so nobody ever arrives -- the shape
+        // drifts and the carrier is left picking from whoever happens to be
+        // standing nearby. The two closest team-mates now actually come and
+        // offer: a real angle, at passing range, away from the nearest marker.
+        const offer = this.showForBallTarget(player, possessionCarrier, attackSign);
+        if (offer) {
+          target = offer;
+          targetOwner = "support_show_for_ball";
         }
         target = this.constrainAttackingSupportToOffsideLine(player, target, ball);
       } else if (this.possession && player.team !== this.possession.team) {
@@ -3988,9 +4065,16 @@ export class SimpleMatchModel {
       target.stats.touches += 1;
       this.possession = target;
       this.rememberTouch(target);
-      const ledGroundPass = !wideDelivery && !aerialDelivery && distance >= 13;
-      const landingPoint = this.passLandingPoint(origin, target.pos, distance, ledGroundPass);
-      const settleSeconds = ledGroundPass ? 0.18 : this.visibleReceptionHoldSeconds();
+      const groundPass = !wideDelivery && !aerialDelivery;
+      // Two separate questions that used to share one flag. Leading the ball
+      // into space is about where it lands; the short settle is about a receiver
+      // who arrives at a run and carries it rather than stopping it dead. Tying
+      // them together meant any attempt to lead more passes also stripped the
+      // visible reception hold off them, which is what V74/V170/V221 caught.
+      const leadReceiver = groundPass && distance >= PASS_LEAD_MIN_DISTANCE;
+      const runsOntoPass = groundPass && distance >= LED_PASS_SHORT_SETTLE_DISTANCE;
+      const landingPoint = this.passLandingPoint(origin, target.pos, distance, leadReceiver, target.ratings.pace);
+      const settleSeconds = runsOntoPass ? 0.18 : this.visibleReceptionHoldSeconds();
       const flightSeconds = this.startBallFlight("pass", origin, landingPoint, this.flightDuration(clamp(distance / 24, 0.65, 1.25)), passArc, target, {
         aerial: aerialDelivery,
         headerEligible: aerialDelivery,
@@ -4448,7 +4532,7 @@ export class SimpleMatchModel {
         : this.runtimeHalfDuration <= 900
           ? 0
           : 0.140;
-    const rawOnTargetChance = 0.445 + compressedOnTargetBoost - shotDistToGoal * 0.011 - distanceOnTargetPenalty - shotLoadOnTargetPenalty - anglePenalty * 0.20 - pressure * 0.055 + carrier.ratings.shooting * 0.10;
+    const rawOnTargetChance = SHOT_ON_TARGET_BASE + compressedOnTargetBoost - shotDistToGoal * 0.011 - distanceOnTargetPenalty - shotLoadOnTargetPenalty - anglePenalty * 0.20 - pressure * 0.055 + carrier.ratings.shooting * 0.10;
     // A human who aimed and pressed shoot is not taking a speculative punt.
     // The CPU model bottoms out around 0.08, which put ~93% of manual shots off
     // target and made every aimed shot fly diagonally wide.
@@ -4584,7 +4668,16 @@ export class SimpleMatchModel {
     const earlyBurst = this.earlyBurstGoalChanceMultiplier(matchScoreForGoal, teamStats.score, context);
     const earlyBurstGoalMultiplier = earlyBurst.multiplier;
     const lowScoreGoalMultiplier = this.lowScoreGoalChanceMultiplier(matchScoreForGoal, context);
-    const adjustedBaseGoalChance = baseGoalChance * compressedGoalChanceMultiplier * earlyBurstGoalMultiplier * lowScoreGoalMultiplier * (context.goalChanceMultiplier ?? 1);
+    // Finishing uplift, but never against the anti-cluster dampers. Those exist
+    // to stop goals arriving in bursts, so inflating a shot the model has
+    // deliberately suppressed defeats the mechanism outright (V176, V181).
+    const conversionDampingActive = earlyBurstGoalMultiplier < 1
+      || lowScoreGoalMultiplier < 1
+      || compressedGoalChanceMultiplier < 1
+      // Set-piece header damping arrives through the caller's multiplier.
+      || (context.goalChanceMultiplier ?? 1) < 1;
+    const conversionScale = conversionDampingActive ? 1 : SHOT_CONVERSION_SCALE;
+    const adjustedBaseGoalChance = baseGoalChance * conversionScale * compressedGoalChanceMultiplier * earlyBurstGoalMultiplier * lowScoreGoalMultiplier * (context.goalChanceMultiplier ?? 1);
     const forcedGoal = !!context.forceGoal && !invalidGoalGeometry;
     const highScoreMinGoalCap = matchScoreForGoal >= 7 ? 0.015 : matchScoreForGoal >= 6 ? 0.035 : Infinity;
     const minGoalChance = Math.min(context.minGoalChance ?? 0, highScoreMinGoalCap);
@@ -7161,10 +7254,25 @@ export class SimpleMatchModel {
     return clamp(baseDuration, 0.55, 1.35);
   }
 
-  private passLandingPoint(origin: Vec2, receiver: Vec2, distance: number, leadReceiver: boolean) {
+  /**
+   * Where a pass should actually land.
+   *
+   * Played at the receiver's feet he has no reason to move, which is why only
+   * 3% of receivers moved toward the ball. Played ahead of him he has to come
+   * and get it. The lead is capped by what he can physically cover during the
+   * flight, or the ball lands in space nobody reaches and the run looks broken
+   * (auditFlightLanding flags a gap over 1.6u).
+   */
+  private passLandingPoint(origin: Vec2, receiver: Vec2, distance: number, leadReceiver: boolean, receiverPace = 0.5) {
     if (!leadReceiver) return { ...receiver };
     const direction = normalize2({ x: receiver.x - origin.x, z: receiver.z - origin.z });
-    const lead = clamp((distance - 10) * 0.1, 0.65, 1.45);
+    const flightSeconds = this.flightDuration(clamp(distance / 24, 0.65, 1.25));
+    const receiverSpeed = BASE_RUN_SPEED * (0.42 + receiverPace * 0.58);
+    const reachable = Math.max(0, receiverSpeed * flightSeconds * PASS_LEAD_REACH_FRACTION);
+    const lead = Math.min(
+      clamp((distance - PASS_LEAD_MIN_DISTANCE) * 0.12, PASS_LEAD_MIN, PASS_LEAD_MAX),
+      reachable,
+    );
     return clampToPlayable({
       x: receiver.x + direction.x * lead,
       z: receiver.z + direction.z * lead,
@@ -7557,6 +7665,58 @@ export class SimpleMatchModel {
       if (score > bestScore) {
         bestScore = score;
         best = player;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Where a team-mate should run to offer the carrier a pass.
+   *
+   * Only the nearest few do this; everyone else holds the shape, or the team
+   * collapses onto the ball. Returns null for players who should stay put.
+   */
+  private showForBallTarget(player: SimplePlayer, carrier: SimplePlayer, attackSign: 1 | -1) {
+    if (player.role === "GK" || player.id === carrier.id) return null;
+    // Played runtimes only, matching the long-ball gate. At full length this
+    // moves goals by ~0.26 -- twice the headroom that band has left -- so the
+    // guard cannot tell a real regression from seed noise here. The 90-minute
+    // simulation keeps the tuned envelope; see the note in SPEC.md.
+    if (this.runtimeHalfDuration > PLAYED_MATCH_MAX_HALF_SECONDS) return null;
+    // Come short only when the carrier actually needs an out. Offering on every
+    // frame made the whole team orbit the ball and pushed pass volume 5% over
+    // its ceiling; a run you make because your team-mate is under pressure is
+    // also the run a footballer actually makes.
+    if (this.pressureOn(carrier) < SHOW_FOR_BALL_MIN_PRESSURE) return null;
+    const gap = dist2(player.pos, carrier.pos);
+    if (gap > SHOW_FOR_BALL_RANGE) return null;
+    let nearer = 0;
+    for (const mate of this.players) {
+      if (mate.team !== player.team || mate.role === "GK" || mate.id === carrier.id || mate.id === player.id) continue;
+      if (dist2(mate.pos, carrier.pos) < gap) nearer += 1;
+    }
+    if (nearer >= SHOW_FOR_BALL_COUNT) return null;
+    const opponents = this.players.filter((o) => o.team !== player.team && o.role !== "GK");
+    let best: Vec2 | null = null;
+    let bestScore = -Infinity;
+    // Fixed offers around the carrier rather than random ones, so the run is
+    // repeatable frame to frame and the player does not jitter between spots.
+    for (const angle of SHOW_FOR_BALL_ANGLES) {
+      for (const radius of SHOW_FOR_BALL_RADII) {
+        const candidate = clampToPlayable({
+          x: carrier.pos.x + attackSign * Math.cos(angle) * radius,
+          z: carrier.pos.z + Math.sin(angle) * radius,
+        });
+        let clearance = Infinity;
+        for (const opponent of opponents) clearance = Math.min(clearance, dist2(opponent.pos, candidate));
+        const progress = (candidate.x - carrier.pos.x) * attackSign;
+        // Room to receive first, then getting ahead of the ball, then not
+        // asking the player to sprint across the pitch to take up the position.
+        const score = Math.min(clearance, 6) * 1.6 + progress * 0.45 - dist2(player.pos, candidate) * 0.35;
+        if (score > bestScore) {
+          bestScore = score;
+          best = candidate;
+        }
       }
     }
     return best;

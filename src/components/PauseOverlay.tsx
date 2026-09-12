@@ -13,7 +13,7 @@ const FACE_BUTTONS: PadLabel[] = [
   { key: 'A', action: 'Pass (hold to charge)' },
   { key: 'B', action: 'Shoot (hold to charge)' },
   { key: 'X', action: 'Tackle / switch to nearest' },
-  { key: 'Y', action: 'Lob / chip' },
+  { key: 'Y', action: 'Lob / chip (hold to charge)' },
 ];
 
 const SHOULDER_BUTTONS: PadLabel[] = [
@@ -25,7 +25,7 @@ const KEYBOARD_P1: PadLabel[] = [
   { key: 'W A S D', action: 'Move' },
   { key: 'Left Shift', action: 'Sprint (hold)' },
   { key: 'Space / G', action: 'Pass (hold to charge)' },
-  { key: 'C', action: 'Lob / chip' },
+  { key: 'C', action: 'Lob / chip (hold to charge)' },
   { key: 'F', action: 'Shoot (hold to charge)' },
   { key: 'R', action: 'Tackle' },
   { key: 'Q / E', action: 'Cycle player' },
@@ -36,7 +36,7 @@ const KEYBOARD_P2: PadLabel[] = [
   { key: 'Arrow keys', action: 'Move' },
   { key: 'Right Shift', action: 'Sprint (hold)' },
   { key: ',', action: 'Pass (hold to charge)' },
-  { key: ';', action: 'Lob / chip' },
+  { key: ';', action: 'Lob / chip (hold to charge)' },
   { key: '.', action: 'Shoot (hold to charge)' },
   { key: '/', action: 'Tackle' },
   { key: '[ / ]', action: 'Cycle player' },
@@ -51,7 +51,7 @@ const FACE_COLORS: Record<string, string> = {
   Y: '#f2cc60',
 };
 
-const GamepadDiagram: React.FC = () => (
+export const ControllerDiagram: React.FC = () => (
   <svg
     viewBox="0 0 320 200"
     role="img"
@@ -158,7 +158,7 @@ const PauseOverlay: React.FC<{ onResume: () => void; onQuitToMenu?: () => void }
 
       <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,320px)_1fr]">
         <div className="flex flex-col items-center gap-4">
-          <GamepadDiagram />
+          <ControllerDiagram />
           <div className="w-full space-y-4">
             <LabelList title="Buttons" rows={FACE_BUTTONS} swatch />
             <LabelList title="Shoulders" rows={SHOULDER_BUTTONS} />
