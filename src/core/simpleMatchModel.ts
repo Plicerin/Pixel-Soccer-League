@@ -128,7 +128,9 @@ type PassTargetOptions = {
   power?: number;
 };
 
-type ManualChargeAction = "pass" | "shot";
+// Lob charges like the other two: runManualAction already took "lob",
+// only the charge type excluded it, so the key fired instantly at full power.
+type ManualChargeAction = "pass" | "shot" | "lob";
 
 /**
  * Coaching intent. Applied as a delta on top of the team's identity-derived

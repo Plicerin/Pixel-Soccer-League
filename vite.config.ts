@@ -554,6 +554,13 @@ function stripDevOnlyPublicAssets(): Plugin {
 
 export default defineConfig(() => {
   const tauriHost = process.env.TAURI_DEV_HOST;
+  // Stamped from package.json at build time so the number on screen is the
+  // number that was built. There was no way to tell one installer from another
+  // from inside the game, which made "am I running the latest build?" a
+  // question nobody could answer.
+  const appVersion = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8"),
+  ).version;
   const hmr =
     process.env.DISABLE_HMR === 'true'
       ? false
@@ -565,6 +572,7 @@ export default defineConfig(() => {
           }
         : true;
   return {
+    define: { __APP_VERSION__: JSON.stringify(appVersion) },
     plugins: [
       react(),
       tailwindcss(),

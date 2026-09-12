@@ -733,7 +733,7 @@ class SimpleGameEngine {
         this.model.triggerManualTackle('A');
       } else if (event.code === 'KeyC') {
         event.preventDefault();
-        this.model.triggerManualLobPass('A');
+        this.model.beginManualCharge('A', 'lob');
       } else if (event.code === 'KeyV') {
         // Middle ground between AUTOMATIC and MANUAL switching: jump to the
         // player nearest the ball on demand.
@@ -759,7 +759,7 @@ class SimpleGameEngine {
         this.model.triggerManualTackle('B');
       } else if (event.code === 'Semicolon') {
         event.preventDefault();
-        this.model.triggerManualLobPass('B');
+        this.model.beginManualCharge('B', 'lob');
       } else if (event.code === 'Quote') {
         event.preventDefault();
         this.model.selectNearestManualPlayer('B');
@@ -776,10 +776,10 @@ class SimpleGameEngine {
   private handleGameplayKeyUp = (event: KeyboardEvent) => {
     this.pressedKeys.delete(event.code);
     // Release fires the charged action; power is however long it was held.
-    if (this.humanControlEnabled && (event.code === 'Space' || event.code === 'KeyG' || event.code === 'KeyF')) {
+    if (this.humanControlEnabled && (event.code === 'Space' || event.code === 'KeyG' || event.code === 'KeyF' || event.code === 'KeyC')) {
       this.model.releaseManualCharge('A');
     }
-    if (this.twoPlayerMode && (event.code === 'Comma' || event.code === 'Period')) {
+    if (this.twoPlayerMode && (event.code === 'Comma' || event.code === 'Period' || event.code === 'Semicolon')) {
       this.model.releaseManualCharge('B');
     }
   };
@@ -3655,13 +3655,13 @@ class SimpleGameEngine {
       const justReleased = (index: number) => !gamepad.buttons[index]?.pressed && this.gameplayGpPrev[index];
       if (justPressed(0)) this.model.beginManualCharge('A', 'pass');
       if (justPressed(1)) this.model.beginManualCharge('A', 'shot');
-      if (justReleased(0) || justReleased(1)) this.model.releaseManualCharge('A');
+      if (justReleased(0) || justReleased(1) || justReleased(3)) this.model.releaseManualCharge('A');
       if (justPressed(2)) {
         // X tackles when there is someone to tackle, otherwise it switches to
         // the player nearest the ball -- the old build's behaviour.
         if (!this.model.triggerManualTackle('A')) this.model.selectNearestManualPlayer('A');
       }
-      if (justPressed(3)) this.model.triggerManualLobPass('A');
+      if (justPressed(3)) this.model.beginManualCharge('A', 'lob');
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
       for (let i = 0; i < this.gameplayGpPrev.length; i++) {

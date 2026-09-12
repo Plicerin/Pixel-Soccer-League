@@ -2563,9 +2563,15 @@ test("gamepad selection ignores idle/virtual pads and latches the one in use", (
 
 test("lob is reachable from both players' inputs", () => {
   const engine = readFileSync("src/gameEngine.ts", "utf8");
-  assert.match(engine, /KeyC'[\s\S]{0,120}?triggerManualLobPass\('A'\)/, "player 1 needs a keyboard lob");
-  assert.match(engine, /Semicolon'[\s\S]{0,120}?triggerManualLobPass\('B'\)/, "player 2 needs a keyboard lob");
-  assert.match(engine, /justPressed\(3\)\) this\.model\.triggerManualLobPass\('A'\)/, "player 1 needs a gamepad lob");
+  // The lob charges like the pass and the shot: press to start, release to
+  // play it. It used to fire instantly at full power, so there was no way to
+  // clip a short one over a defender's feet.
+  assert.match(engine, /KeyC'[\s\S]{0,120}?beginManualCharge\('A', 'lob'\)/, "player 1 needs a keyboard lob");
+  assert.match(engine, /Semicolon'[\s\S]{0,120}?beginManualCharge\('B', 'lob'\)/, "player 2 needs a keyboard lob");
+  assert.match(engine, /justPressed\(3\)\) this\.model\.beginManualCharge\('A', 'lob'\)/, "player 1 needs a gamepad lob");
+  assert.match(engine, /justReleased\(3\)/, "the gamepad lob must fire on release, not on press");
+  assert.match(engine, /event\.code === 'KeyC'\)\) \{/, "player 1's lob must release on key up");
+  assert.match(engine, /event\.code === 'Semicolon'\)\) \{/, "player 2's lob must release on key up");
 });
 
 test("sprint boosts only the selected manual player, for either team", () => {
