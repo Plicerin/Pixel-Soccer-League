@@ -9,19 +9,19 @@ import React from 'react';
 
 type PadLabel = { key: string; action: string };
 
-const FACE_BUTTONS: PadLabel[] = [
+export const FACE_BUTTONS: PadLabel[] = [
   { key: 'A', action: 'Pass (hold to charge)' },
   { key: 'B', action: 'Shoot (hold to charge)' },
   { key: 'X', action: 'Tackle / switch to nearest' },
   { key: 'Y', action: 'Lob / chip (hold to charge)' },
 ];
 
-const SHOULDER_BUTTONS: PadLabel[] = [
+export const SHOULDER_BUTTONS: PadLabel[] = [
   { key: 'LB / RB', action: 'Cycle player' },
   { key: 'LT / RT', action: 'Sprint (hold)' },
 ];
 
-const KEYBOARD_P1: PadLabel[] = [
+export const KEYBOARD_P1: PadLabel[] = [
   { key: 'W A S D', action: 'Move' },
   { key: 'Left Shift', action: 'Sprint (hold)' },
   { key: 'Space / G', action: 'Pass (hold to charge)' },
@@ -32,7 +32,7 @@ const KEYBOARD_P1: PadLabel[] = [
   { key: 'V', action: 'Switch to nearest' },
 ];
 
-const KEYBOARD_P2: PadLabel[] = [
+export const KEYBOARD_P2: PadLabel[] = [
   { key: 'Arrow keys', action: 'Move' },
   { key: 'Right Shift', action: 'Sprint (hold)' },
   { key: ',', action: 'Pass (hold to charge)' },
@@ -100,7 +100,7 @@ export const ControllerDiagram: React.FC = () => (
   </svg>
 );
 
-const LabelList: React.FC<{ title: string; rows: PadLabel[]; swatch?: boolean }> = ({ title, rows, swatch }) => (
+export const LabelList: React.FC<{ title: string; rows: PadLabel[]; swatch?: boolean }> = ({ title, rows, swatch }) => (
   <div>
     <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">{title}</h3>
     <div className="space-y-1">
@@ -117,6 +117,29 @@ const LabelList: React.FC<{ title: string; rows: PadLabel[]; swatch?: boolean }>
           <span className="ml-auto text-white text-right">{row.action}</span>
         </div>
       ))}
+    </div>
+  </div>
+);
+
+/**
+ * The single control reference. The settings CONTROLS tab used to keep its own
+ * hand-written copy of these bindings, which drifted: it still advertised
+ * Shift+G for the lob and Space for switching players long after those became
+ * C and V, and never listed the second player's lob at all. Both surfaces read
+ * this now.
+ */
+export const ControlReference: React.FC = () => (
+  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+    <div className="flex flex-col items-center gap-4">
+      <ControllerDiagram />
+      <div className="w-full space-y-4">
+        <LabelList title="Buttons" rows={FACE_BUTTONS} swatch />
+        <LabelList title="Shoulders" rows={SHOULDER_BUTTONS} />
+      </div>
+    </div>
+    <div className="space-y-4">
+      <LabelList title="Keyboard — Player 1" rows={KEYBOARD_P1} />
+      <LabelList title="Keyboard — Player 2" rows={KEYBOARD_P2} />
     </div>
   </div>
 );

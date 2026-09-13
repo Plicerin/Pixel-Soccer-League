@@ -40,7 +40,7 @@ const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
 const FrameViewer = React.lazy(() => import('./FrameViewer'));
 const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
 const PauseOverlay = React.lazy(() => import('./PauseOverlay'));
-const ControllerDiagram = React.lazy(() => import('./PauseOverlay').then((m) => ({ default: m.ControllerDiagram })));
+const ControlReference = React.lazy(() => import('./PauseOverlay').then((m) => ({ default: m.ControlReference })));
 const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /**
@@ -3599,7 +3599,7 @@ const RetroFootball: React.FC = () => {
 
       {/* Options Menu Overlay */}
       {showSplash && (
-        <div className="pointer-events-none absolute bottom-3 right-4 z-[60] font-mono text-[10px] tracking-widest text-white/35">
+        <div className="pointer-events-none absolute bottom-3 right-4 z-[110] font-mono text-[10px] tracking-widest text-white/35">
           v{__APP_VERSION__}
         </div>
       )}
@@ -3977,45 +3977,13 @@ const RetroFootball: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  {/* The pad diagram lives in the pause overlay too, but that is
-                      hidden while this panel is open, so it was unreachable from
-                      settings -- which is where people look for it. */}
+                  {/* Shared with the pause overlay. This tab used to keep its
+                      own copy of the bindings and it drifted: Shift+G for the
+                      lob and Space for switching were both wrong, and the
+                      second player's lob was missing entirely. */}
                   <React.Suspense fallback={null}>
-                    <ControllerDiagram />
+                    <ControlReference />
                   </React.Suspense>
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Gamepad</h3>
-                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
-                      <p><span className="text-white/60">Left Stick</span> — Move player</p>
-                      <p><span className="text-white/60">A / Cross</span> — Pass (hold to charge) / Switch player</p>
-                      <p><span className="text-white/60">B / Circle</span> — Shoot (hold to charge)</p>
-                      <p><span className="text-white/60">X / Square</span> — Switch to nearest player</p>
-                      <p><span className="text-white/60">Y / Triangle</span> — Chip pass (hold to charge)</p>
-                      <p><span className="text-white/60">LB / RB</span> — Cycle player left / right</p>
-                      <p><span className="text-white/60">RT</span> — Sprint</p>
-                      <p><span className="text-white/60">Start</span> — Pause</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Keyboard (Home)</h3>
-                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
-                      <p><span className="text-white/60">WASD</span> — Move player</p>
-                      <p><span className="text-white/60">Shift</span> — Sprint</p>
-                      <p><span className="text-white/60">F</span> — Shoot (hold to charge)</p>
-                      <p><span className="text-white/60">G</span> — Pass (hold to charge)</p>
-                      <p><span className="text-white/60">Shift+G</span> — Chip pass</p>
-                      <p><span className="text-white/60">Q / E</span> — Cycle player</p>
-                      <p><span className="text-white/60">Space</span> — Switch to nearest / Confirm restart</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-white/40 text-[10px] font-bold mb-2 uppercase tracking-widest">Keyboard (Away)</h3>
-                    <div className="text-white/30 text-[9px] space-y-1 font-mono">
-                      <p><span className="text-white/60">Arrows</span> — Move player</p>
-                      <p><span className="text-white/60">.</span> — Shoot &nbsp; <span className="text-white/60">,</span> — Pass</p>
-                      <p><span className="text-white/60">[ / ]</span> — Cycle player</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             ) : activeTab === 'STATS' ? (

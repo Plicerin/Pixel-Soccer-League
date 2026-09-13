@@ -1146,3 +1146,63 @@ test('V179 telemetry analyzer preserves persisted free-kick restart counters', (
   assert.match(dashboard, /Free kicks bar: \$\{a\.freeKicks\|\|0\} .* \$\{b\.freeKicks\|\|0\}/, 'copied match overview must include free-kick counters');
   assert.match(dashboard, /compBar\('Free Kicks', a\.freeKicks \|\| 0, b\.freeKicks \|\| 0, 'Free Kicks'\)/, 'dashboard overview bars must render free-kick counters');
 });
+
+test('the control reference is single-sourced and matches the real bindings', () => {
+  // Review caught the settings CONTROLS tab advertising Shift+G for the lob and
+  // Space for switching players, long after those became C and V, with the
+  // second player's lob missing entirely. It kept its own hand-written copy of
+  // the bindings. Both surfaces read PauseOverlay now; this pins that, and pins
+  // every documented key to a handler that actually exists.
+  const overlay = readFileSync('src/components/PauseOverlay.tsx', 'utf8');
+  const shell = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+
+  assert.match(shell, /<ControlReference \/>/, 'settings must render the shared reference');
+  for (const stale of ['Keyboard (Home)', 'Keyboard (Away)', 'Shift+G</span>']) {
+    assert.ok(!shell.includes(stale), `settings must not hand-roll bindings again: found "${stale}"`);
+  }
+
+  const rows = (table: string) => {
+    const body = overlay.slice(overlay.indexOf(`${table}: PadLabel[] = [`));
+    return [...body.slice(0, body.indexOf('];')).matchAll(/key: (?:'([^']*)'|"([^"]*)")/g)]
+      .map((m) => m[1] ?? m[2]);
+  };
+  // Display label -> the KeyboardEvent codes the engine must handle.
+  const CODES: Record<string, string[]> = {
+    'W A S D': ['KeyW', 'KeyA', 'KeyS', 'KeyD'],
+    'Left Shift': ['ShiftLeft'],
+    'Space / G': ['Space', 'KeyG'],
+    C: ['KeyC'],
+    F: ['KeyF'],
+    R: ['KeyR'],
+    'Q / E': ['KeyQ', 'KeyE'],
+    V: ['KeyV'],
+    'Arrow keys': ['ArrowUp', 'ArrowLeft'],
+    'Right Shift': ['ShiftRight'],
+    ',': ['Comma'],
+    ';': ['Semicolon'],
+    '.': ['Period'],
+    '/': ['Slash'],
+    '[ / ]': ['BracketLeft', 'BracketRight'],
+    "'": ['Quote'],
+  };
+  for (const table of ['KEYBOARD_P1', 'KEYBOARD_P2']) {
+    const keys = rows(table);
+    assert.ok(keys.length >= 8, `${table} should document the full keyboard layout, got ${keys.length}`);
+    for (const key of keys) {
+      const codes = CODES[key];
+      assert.ok(codes, `${table} documents "${key}" with no known key code — update this map`);
+      for (const code of codes) {
+        assert.ok(engine.includes(`'${code}'`), `${table} advertises ${key}, but the engine never handles ${code}`);
+      }
+    }
+  }
+
+  // The lob charges now, so both players' entries must say so.
+  for (const table of ['KEYBOARD_P1', 'KEYBOARD_P2', 'FACE_BUTTONS']) {
+    const body = overlay.slice(overlay.indexOf(`${table}: PadLabel[] = [`));
+    const lob = body.slice(0, body.indexOf('];')).split('\n').find((line) => /Lob|Chip/i.test(line));
+    assert.ok(lob, `${table} must list the lob`);
+    assert.match(lob!, /hold to charge/, `${table} must say the lob charges`);
+  }
+});
