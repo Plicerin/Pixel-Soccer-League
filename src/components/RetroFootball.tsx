@@ -39,6 +39,7 @@ const MatchHistoryDashboard = React.lazy(() => import('./MatchHistoryDashboard')
 const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
 const FrameViewer = React.lazy(() => import('./FrameViewer'));
 const AnimationInspector = React.lazy(() => import('./AnimationInspector'));
+const DIRECTION_GLYPH: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
 const PauseOverlay = React.lazy(() => import('./PauseOverlay'));
 const ControlReference = React.lazy(() => import('./PauseOverlay').then((m) => ({ default: m.ControlReference })));
 const ENGINE_RUNTIME_TOKEN = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -3001,6 +3002,30 @@ const RetroFootball: React.FC = () => {
             <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
               Your {matchSnapshot.manualRestartPrompt.label}
             </div>
+            {matchSnapshot.restartPlanOptions && (
+              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                {matchSnapshot.restartPlanOptions.routines.map((routine: any) => {
+                  const active = matchSnapshot.restartPlanOptions.chosen
+                    && matchSnapshot.restartPlanOptions.selected === routine.plan;
+                  return (
+                    <div
+                      key={routine.plan}
+                      className={`rounded border px-2 py-1 text-left ${
+                        active ? 'border-amber-300 bg-amber-300/15' : 'border-white/15'
+                      }`}
+                    >
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-mono text-[10px] text-amber-300">
+                          {routine.key}{' '}/{' '}{DIRECTION_GLYPH[routine.direction]}
+                        </span>
+                        <span className="text-[10px] font-bold text-white">{routine.label}</span>
+                      </div>
+                      <div className="text-[9px] leading-tight text-white/45">{routine.hint}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="mt-1 text-[11px] text-white/80">
               Press <span className="font-bold text-white">SPACE</span> to play it
               {' '}&middot;{' '}auto in {Math.ceil(matchSnapshot.manualRestartPrompt.secondsRemaining)}s

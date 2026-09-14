@@ -1177,6 +1177,9 @@ test('the control reference is single-sourced and matches the real bindings', ()
     R: ['KeyR'],
     'Q / E': ['KeyQ', 'KeyE'],
     V: ['KeyV'],
+    // A `~` prefix means the engine matches this by pattern, not as a literal
+    // key code -- the digits are bound with /^Digit[1-4]$/.
+    '1 - 4': ['~Digit[1-4]'],
     'Arrow keys': ['ArrowUp', 'ArrowLeft'],
     'Right Shift': ['ShiftRight'],
     ',': ['Comma'],
@@ -1193,7 +1196,8 @@ test('the control reference is single-sourced and matches the real bindings', ()
       const codes = CODES[key];
       assert.ok(codes, `${table} documents "${key}" with no known key code — update this map`);
       for (const code of codes) {
-        assert.ok(engine.includes(`'${code}'`), `${table} advertises ${key}, but the engine never handles ${code}`);
+        const needle = code.startsWith('~') ? code.slice(1) : `'${code}'`;
+        assert.ok(engine.includes(needle), `${table} advertises ${key}, but the engine never handles ${code}`);
       }
     }
   }

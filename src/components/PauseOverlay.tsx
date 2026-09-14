@@ -19,6 +19,7 @@ export const FACE_BUTTONS: PadLabel[] = [
 export const SHOULDER_BUTTONS: PadLabel[] = [
   { key: 'LB / RB', action: 'Cycle player' },
   { key: 'LT / RT', action: 'Sprint (hold)' },
+  { key: 'D-pad', action: 'Call a set-piece routine' },
 ];
 
 export const KEYBOARD_P1: PadLabel[] = [
@@ -30,6 +31,7 @@ export const KEYBOARD_P1: PadLabel[] = [
   { key: 'R', action: 'Tackle' },
   { key: 'Q / E', action: 'Cycle player' },
   { key: 'V', action: 'Switch to nearest' },
+  { key: '1 - 4', action: 'Call a set-piece routine' },
 ];
 
 export const KEYBOARD_P2: PadLabel[] = [

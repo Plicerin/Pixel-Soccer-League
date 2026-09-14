@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
-import { SimpleMatchModel, cpuDefenseIntensities } from "../src/core/simpleMatchModel";
+import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, type RestartPlan } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
   const model = new SimpleMatchModel();
@@ -8199,4 +8199,64 @@ test("V90 ground passes do not create header telemetry", () => {
   const snapshot = model.getMatchSnapshot();
   assert.equal(snapshot.headersA + snapshot.headersB, 0);
   assert.equal(model.getTuningBundle().headerLog.length, 0);
+});
+
+test("corner routines can be called, and only by the side taking them", () => {
+  // Tester: practice plays are useful, give me something similar in a match.
+  // The restart already had a `plan`, but it was picked by shirt-number parity
+  // and only nudged which team-mate the ball was aimed at, so the box set up
+  // identically every time.
+  const stage = (plan: RestartPlan | null, chooser: "A" | "B" | null) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`routine-${plan}-${chooser}`);
+    model.startMatch();
+    model.setManualControlEnabled("A", true);
+    const api = model as unknown as {
+      restartContext: Record<string, unknown> | null;
+      positionCornerPlayers: (restart: unknown) => void;
+      attackSign: (t: "A" | "B") => number;
+      msm: { state: unknown };
+    };
+    const sign = api.attackSign("A");
+    const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+    api.restartContext = {
+      restartType: "corner",
+      restartTeam: "A",
+      spot: { x: goalX, z: 20 },
+      lastTouchTeam: "B",
+      lastTouchPlayerId: null,
+      crossedLine: sign > 0 ? "right_goal_line" : "left_goal_line",
+    };
+    api.msm.state = { kind: "ball_out", half: 1, startTick: 0, restartType: "corner", restartTeam: "A" };
+    const accepted = plan && chooser ? model.setRestartPlan(chooser, plan) : null;
+    api.positionCornerPlayers(api.restartContext);
+    const front = model.getPlayers()
+      .filter((p) => p.team === "A" && p.role !== "GK")
+      .map((p) => ({ z: p.targetPos?.z ?? p.pos.z, d: Math.abs((p.targetPos?.x ?? p.pos.x) - goalX) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 3);
+    return { accepted, meanZ: front.reduce((sum, p) => sum + p.z, 0) / front.length, options: model.getRestartPlanOptions() };
+  };
+
+  // The corner is at z = +20, so the near post is the positive side.
+  const near = stage("corner_near_post", "A");
+  const far = stage("corner_far_post", "A");
+  const short = stage("corner_short", "A");
+  assert.equal(near.accepted, true, "the attacking side must be able to call a routine");
+  assert.ok(near.meanZ > far.meanZ + 2, `near post must load the near side: ${near.meanZ.toFixed(2)} vs ${far.meanZ.toFixed(2)}`);
+  assert.ok(short.meanZ > near.meanZ + 4, `a short corner must put bodies out by the flag: ${short.meanZ.toFixed(2)}`);
+
+  // The defending side must not be able to steer someone else's set piece.
+  const hijacked = stage("corner_short", "B");
+  assert.equal(hijacked.accepted, false, "only the side taking the corner may call the routine");
+
+  const options = stage(null, null).options;
+  assert.ok(options, "a pending corner must offer its routines");
+  assert.equal(options!.routines.length, CORNER_ROUTINES.length);
+  assert.deepEqual(
+    options!.routines.map((r) => r.direction).sort(),
+    ["down", "left", "right", "up"],
+    "every routine needs a distinct d-pad direction",
+  );
+  assert.equal(new Set(options!.routines.map((r) => r.key)).size, CORNER_ROUTINES.length, "keys must be unique");
 });
