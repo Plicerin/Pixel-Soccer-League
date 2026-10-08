@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
-import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, type RestartPlan } from "../src/core/simpleMatchModel";
+import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type RestartPlan } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
   const model = new SimpleMatchModel();
@@ -8344,4 +8344,75 @@ test("a called corner waits for its runners, and either side can call one", () =
     took = api.takeManualRestart("A");
   }
   assert.equal(took, true, "a called corner must become takeable within the capped wait");
+});
+
+test("routine keys act for the right side, and grounded corners are not aerial", () => {
+  // Both raised on PR #5. The team-B test called setRestartPlan("B", ...) at
+  // the model, which already worked before the engine fix, so it would have
+  // passed with the Numpad handler still routing to A. And nothing asserted
+  // the grounded-corner metadata the fix corrected.
+
+  // Dispatch: digits are player 1's, numpad is player 2's, and neither may
+  // steer the other's corner.
+  assert.equal(restartRoutineTeam("A", "A", true, false), "A", "digits call player 1's corner");
+  assert.equal(restartRoutineTeam("B", "B", true, true), "B", "numpad calls player 2's corner");
+  assert.equal(restartRoutineTeam("B", "A", true, true), null, "digits must not steer player 2's corner");
+  assert.equal(restartRoutineTeam("A", "B", true, true), null, "numpad must not steer player 1's corner");
+  assert.equal(restartRoutineTeam("B", "B", true, false), null, "no second player, no away routines");
+  assert.equal(restartRoutineTeam("A", undefined, false, false), null, "nobody is controlling team A");
+  assert.equal(restartRoutineTeam(null, undefined, true, true), null, "no restart pending");
+
+  const engine = readFileSync("src/gameEngine.ts", "utf8");
+  assert.match(engine, /Digit\[1-4\][\s\S]{0,300}?callRestartRoutine\([\s\S]{0,60}?'A'\)/, "the digit row must be player 1's");
+  assert.match(engine, /Numpad\[1-4\][\s\S]{0,300}?callRestartRoutine\([\s\S]{0,60}?'B'\)/, "the numpad must be player 2's");
+
+  // Grounded corners are played to feet: the flight must not be flagged aerial
+  // and must not be a headed chance. Both the flight and the release metadata
+  // read the same flag, and either could regress alone.
+  const deliver = (plan: RestartPlan) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`grounded-${plan}`);
+    model.startMatch();
+    const api = model as unknown as {
+      restartContext: Record<string, unknown> | null;
+      msm: { state: unknown };
+      attackSign: (t: "A" | "B") => number;
+      executeBallOutRestart: () => void;
+      ballFlight: { aerial?: boolean; headerEligible?: boolean; arc: number } | null;
+    };
+    const sign = api.attackSign("A");
+    const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+    api.restartContext = {
+      restartType: "corner",
+      restartTeam: "A",
+      spot: { x: goalX, z: 20 },
+      lastTouchTeam: "B",
+      lastTouchPlayerId: null,
+      crossedLine: sign > 0 ? "right_goal_line" : "left_goal_line",
+      plan,
+      planChosenBy: "A",
+    };
+    api.msm.state = { kind: "ball_out", half: 1, startTick: 0, restartType: "corner", restartTeam: "A" };
+    api.executeBallOutRestart();
+    const flight = api.ballFlight;
+    assert.ok(flight, `${plan} should put the ball in flight`);
+    const telemetry = model.getTuningBundle().ballFlightTelemetry.at(-1);
+    assert.ok(telemetry, `${plan} should record flight telemetry`);
+    return { flight: flight!, telemetry: telemetry as Record<string, unknown> };
+  };
+
+  for (const plan of ["corner_short", "corner_edge"] as const) {
+    const { flight, telemetry } = deliver(plan);
+    assert.equal(flight.aerial, false, `${plan} is played to feet, so the flight must not be aerial`);
+    assert.equal(flight.headerEligible, false, `${plan} must not be a headed chance`);
+    assert.equal(telemetry.aerial, false, `${plan} must not be reported as aerial`);
+    assert.ok(flight.arc < 0.3, `${plan} must stay low, got arc ${flight.arc}`);
+  }
+  for (const plan of ["corner_near_post", "corner_far_post"] as const) {
+    const { flight, telemetry } = deliver(plan);
+    assert.equal(flight.aerial, true, `${plan} is a cross, so it stays aerial`);
+    assert.equal(flight.headerEligible, true, `${plan} must remain a headed chance`);
+    assert.equal(telemetry.aerial, true, `${plan} must still be reported as aerial`);
+    assert.ok(flight.arc > 0.5, `${plan} must be floated, got arc ${flight.arc}`);
+  }
 });

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
-import { CPU_DIFFICULTY_INTENSITY, CORNER_ROUTINES, cpuDefenseIntensities, type CpuDifficultyKey } from './core/simpleMatchModel';
+import { CPU_DIFFICULTY_INTENSITY, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -1000,12 +1000,11 @@ class SimpleGameEngine {
   private callRestartRoutine(index: number, requireTeam?: 'A' | 'B') {
     const options = this.model.getRestartPlanOptions();
     if (!options) return false;
-    if (requireTeam && options.team !== requireTeam) return false;
-    if (options.team === 'A' && !this.humanControlEnabled) return false;
-    if (options.team === 'B' && !this.twoPlayerMode) return false;
+    const team = restartRoutineTeam(options.team, requireTeam, this.humanControlEnabled, this.twoPlayerMode);
+    if (!team) return false;
     const routine = options.routines[index];
     if (!routine) return false;
-    return this.model.setRestartPlan(options.team, routine.plan);
+    return this.model.setRestartPlan(team, routine.plan);
   }
 
   setCpuDifficulty = (key: string) => {
