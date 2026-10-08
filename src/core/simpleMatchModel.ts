@@ -158,6 +158,16 @@ export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
  * setCpuDifficulty, which left it stale whenever hot-seat or two-player mode
  * changed afterwards.
  */
+export function cpuDefenseIntensities(
+  difficulty: CpuDifficultyKey,
+  humanControlsA: boolean,
+  humanControlsB: boolean,
+): Record<SimpleTeamCode, number> {
+  const intensity = CPU_DIFFICULTY_INTENSITY[difficulty] ?? 1;
+  // A side a person is playing defends normally; difficulty is the CPU's.
+  return { A: humanControlsA ? 1 : intensity, B: humanControlsB ? 1 : intensity };
+}
+
 /**
  * Which side a set-piece routine key should act for, or null to ignore it.
  *
@@ -179,16 +189,6 @@ export function restartRoutineTeam(
   if (restartTeam === "A" && !humanControlsA) return null;
   if (restartTeam === "B" && !humanControlsB) return null;
   return restartTeam;
-}
-
-export function cpuDefenseIntensities(
-  difficulty: CpuDifficultyKey,
-  humanControlsA: boolean,
-  humanControlsB: boolean,
-): Record<SimpleTeamCode, number> {
-  const intensity = CPU_DIFFICULTY_INTENSITY[difficulty] ?? 1;
-  // A side a person is playing defends normally; difficulty is the CPU's.
-  return { A: humanControlsA ? 1 : intensity, B: humanControlsB ? 1 : intensity };
 }
 
 export type TeamAggressionKey = "BALANCED" | "AGGRESSIVE" | "POSSESSION";

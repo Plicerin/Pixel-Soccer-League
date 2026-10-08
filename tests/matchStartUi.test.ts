@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { assetUrl } from '../src/assetUrl';
+import { getWorldCupTeamFlagAsset } from '../src/teamCatalog.js';
 
 test('V22 UI kickoff paths clear splash scene before starting kickoff presentation', () => {
   const source = readFileSync('src/components/RetroFootball.tsx', 'utf8');
@@ -1236,8 +1238,32 @@ test('public assets resolve against the deployment base, not the site root', () 
     );
   }
 
+  // Literal scanning alone missed the flags: getWorldCupTeamFlagAsset builds
+  // its path from a template, so no literal appeared anywhere and all 49
+  // bundled flags would have 404'd on the project site. Check the generated
+  // value resolves too, by running the real builder.
+  const flagPath = getWorldCupTeamFlagAsset('Brazil');
+  assert.ok(flagPath, 'Brazil should resolve to a bundled flag');
+  assert.ok(flagPath.startsWith('/assets/flags/'), `unexpected flag path ${flagPath}`);
+  assert.equal(
+    assetUrl(flagPath),
+    flagPath,
+    'with no deployment base the flag path is unchanged, so wrapping it is safe',
+  );
+  const shell = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  // Count both sides: matching once would pass with a second call site left
+  // unwrapped, which is how the flags slipped through the literal scan.
+  const builders = shell.match(/getWorldCupTeamFlagAsset\(/g)?.length ?? 0;
+  const wrapped = shell.match(/assetUrl\(flagRelative\)/g)?.length ?? 0;
+  assert.ok(builders > 0, 'expected the shell to render flags');
+  assert.equal(
+    wrapped,
+    builders,
+    `${builders} flag lookups but ${wrapped} resolved against the base; unwrapped flags 404 under a subpath`,
+  );
+
   const helper = readFileSync('src/assetUrl.ts', 'utf8');
-  assert.match(helper, /import\.meta\.env\.BASE_URL/, 'assetUrl must resolve against the vite base');
+  assert.match(helper, /import\.meta[\s\S]{0,80}?BASE_URL/, 'assetUrl must resolve against the vite base');
 
   const viteConfig = readFileSync('vite.config.ts', 'utf8');
   assert.match(viteConfig, /base: process\.env\.PSL_PAGES_BASE \|\| '\/'/, 'only the Pages build may set a non-root base');
