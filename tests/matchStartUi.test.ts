@@ -381,10 +381,14 @@ test('browser game wires legacy sound assets to match events', () => {
   assert.match(spec, /B128 \| 2026-05-16 \| Match-start paths could stop splash music and start play without explicitly unlocking gameplay Web Audio/, 'match-start audio unlock root cause must be recorded');
   assert.match(spec, /B130 \| 2026-05-16 \| Gameplay audio still included oscillator fallbacks/, 'synthetic audio removal root cause must be recorded');
   assert.match(engine, /const SOUND_ASSETS: Record<SoundBufferKey, string>/, 'engine must define legacy sound asset map');
-  assert.match(engine, /whistle: '\/whistle\.mp3'/, 'whistle asset must be loaded from public');
-  assert.match(engine, /crowd: '\/crowd\.mp3'/, 'crowd loop asset must be loaded from public');
-  assert.match(engine, /goal: '\/announcer_goal\.mp3'/, 'goal announcer asset must be loaded from public');
-  assert.match(engine, /post: '\/donk\.mp3'/, 'woodwork impact must load the donk asset from public');
+  // Paths go through assetUrl so they resolve under a GitHub Pages subpath as
+  // well as the dev server and Tauri's asset protocol. The invariant these
+  // assertions protect is unchanged: real asset files, never synthesised tones
+  // (V136), and still the same files.
+  assert.match(engine, /whistle: assetUrl\('\/whistle\.mp3'\)/, 'whistle asset must be loaded from public');
+  assert.match(engine, /crowd: assetUrl\('\/crowd\.mp3'\)/, 'crowd loop asset must be loaded from public');
+  assert.match(engine, /goal: assetUrl\('\/announcer_goal\.mp3'\)/, 'goal announcer asset must be loaded from public');
+  assert.match(engine, /post: assetUrl\('\/donk\.mp3'\)/, 'woodwork impact must load the donk asset from public');
   assert.match(engine, /private ensureAudioContext\(\)/, 'engine must initialize Web Audio lazily from user input');
   assert.match(engine, /splashMusicStart = \(\) => \{[\s\S]*?this\.playLoop\('splashMusic'/, 'splash music API must play the legacy menu music');
   assert.match(engine, /setCrowdVolume = \(value: number\) => \{[\s\S]*?linearRampToValueAtTime/, 'crowd volume slider must control audio gain');
@@ -1210,4 +1214,31 @@ test('the control reference is single-sourced and matches the real bindings', ()
     assert.ok(lob, `${table} must list the lob`);
     assert.match(lob!, /hold to charge/, `${table} must say the lob charges`);
   }
+});
+
+test('public assets resolve against the deployment base, not the site root', () => {
+  // The GitHub Pages project site serves from /<repo>/, so a root-absolute
+  // "/kick.mp3" 404s there while working fine on the dev server and under
+  // Tauri's asset protocol -- a silent failure that only shows as missing
+  // audio. Everything goes through assetUrl(), which prefixes BASE_URL.
+  const sources = ['src/gameEngine.ts', 'src/components/RetroFootball.tsx',
+    'src/components/SeasonHub.tsx', 'src/components/WorldCupHub.tsx'];
+  const absolute = /(['"`])\/[^'"`\n]*\.(?:mp3|wav|ogg|png|jpg|jpeg|svg|ttf|woff2?)\1/g;
+  for (const file of sources) {
+    const text = readFileSync(file, 'utf8');
+    const stray = [...text.matchAll(absolute)]
+      // assetUrl('/kick.mp3') is the correct form; the literal inside it is fine.
+      .filter((match) => !text.slice(Math.max(0, match.index - 10), match.index).includes('assetUrl('));
+    assert.deepEqual(
+      stray.map((match) => match[0]),
+      [],
+      `${file} has root-absolute asset paths; wrap them in assetUrl() or they 404 under a Pages subpath`,
+    );
+  }
+
+  const helper = readFileSync('src/assetUrl.ts', 'utf8');
+  assert.match(helper, /import\.meta\.env\.BASE_URL/, 'assetUrl must resolve against the vite base');
+
+  const viteConfig = readFileSync('vite.config.ts', 'utf8');
+  assert.match(viteConfig, /base: process\.env\.PSL_PAGES_BASE \|\| '\/'/, 'only the Pages build may set a non-root base');
 });

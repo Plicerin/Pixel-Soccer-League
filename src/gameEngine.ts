@@ -23,6 +23,7 @@ import {
 } from './core/constants';
 import { SimpleMatchModel, type SimplePlayer } from './core/simpleMatchModel';
 import { type RouteData } from './practicePlays';
+import { assetUrl } from './assetUrl';
 
 // ============================================================================
 // gameEngine.ts — simple model + restored PSL renderer shell (2026-05-12)
@@ -501,22 +502,22 @@ type PlayerVisual = {
 };
 
 const SOUND_ASSETS: Record<SoundBufferKey, string> = {
-  whistle: '/whistle.mp3',
-  kick: '/kick.mp3',
-  shot: '/shot.mp3',
-  catch: '/soft-body-impact.mp3',
-  crowd: '/crowd.mp3',
-  splashMusic: '/Pixel Soccer League.mp3',
-  welcome: '/welcome.mp3',
-  kickoff: '/kickoff.mp3',
-  corner: '/corner.mp3',
-  throw: '/throw.mp3',
-  goal: '/announcer_goal.mp3',
-  offside: '/offisides.mp3',
-  foul: '/foul.mp3',
-  penalty: '/penalty.mp3',
-  out: '/out.mp3',
-  post: '/donk.mp3',
+  whistle: assetUrl('/whistle.mp3'),
+  kick: assetUrl('/kick.mp3'),
+  shot: assetUrl('/shot.mp3'),
+  catch: assetUrl('/soft-body-impact.mp3'),
+  crowd: assetUrl('/crowd.mp3'),
+  splashMusic: assetUrl('/Pixel Soccer League.mp3'),
+  welcome: assetUrl('/welcome.mp3'),
+  kickoff: assetUrl('/kickoff.mp3'),
+  corner: assetUrl('/corner.mp3'),
+  throw: assetUrl('/throw.mp3'),
+  goal: assetUrl('/announcer_goal.mp3'),
+  offside: assetUrl('/offisides.mp3'),
+  foul: assetUrl('/foul.mp3'),
+  penalty: assetUrl('/penalty.mp3'),
+  out: assetUrl('/out.mp3'),
+  post: assetUrl('/donk.mp3'),
 };
 
 const markPslPerf = (name: string) => {
@@ -2061,7 +2062,7 @@ class SimpleGameEngine {
       banner.anchorX = 'center';
       banner.anchorY = 'middle';
       banner.whiteSpace = 'nowrap';
-      banner.font = '/assets/fonts/SubwayTicker-q1Z5.ttf';
+      banner.font = assetUrl('/assets/fonts/SubwayTicker-q1Z5.ttf');
       initBannerTicker(banner as any, Math.random(), text);
       banner.sync();
       this.bannerTexts.push(banner);
@@ -2184,7 +2185,7 @@ class SimpleGameEngine {
       reflectivity: 0.32,
     });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 28, 20), ballMaterial);
-    new THREE.TextureLoader().load('/assets/ball-wrap.png', (tex) => {
+    new THREE.TextureLoader().load(assetUrl('/assets/ball-wrap.png'), (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
       ballMaterial.map = tex;

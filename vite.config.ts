@@ -572,6 +572,11 @@ export default defineConfig(() => {
           }
         : true;
   return {
+    // GitHub Pages serves a project site from /<repo>/, so the bundle needs a
+    // matching base. Only the Pages build sets it: the dev server, the preview
+    // server and Tauri's asset protocol all serve from the root, and a wrong
+    // base there breaks every asset.
+    base: process.env.PSL_PAGES_BASE || '/',
     define: { __APP_VERSION__: JSON.stringify(appVersion) },
     plugins: [
       react(),

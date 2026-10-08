@@ -34,6 +34,7 @@ import {
 } from '../teamCatalog.js';
 import { getWorldTeamStartingLineup } from '../worldTeamRosters.js';
 import { randomWorldCup2026GroupFixture } from '../worldCup2026Schedule.js';
+import { assetUrl } from '../assetUrl';
 
 const MatchHistoryDashboard = React.lazy(() => import('./MatchHistoryDashboard'));
 const LiveTelemetry = React.lazy(() => import('./LiveTelemetry'));
@@ -3099,7 +3100,7 @@ const RetroFootball: React.FC = () => {
             {/* Logo */}
             <div style={{ animation: 'splashFadeIn 0.6s ease-out 0.5s both' }}>
               <img
-                src="/assets/Pixel%20Soccer%20League2.png"
+                src={assetUrl('/assets/Pixel%20Soccer%20League2.png')}
                 alt="Pixel Soccer League"
                 className="w-[40rem] max-w-[92vw] drop-shadow-[0_4px_14px_rgba(34,197,94,0.14)]"
               />
@@ -3144,7 +3145,7 @@ const RetroFootball: React.FC = () => {
           <div className="relative z-[2] flex min-h-full w-full items-center justify-center px-5 py-5">
             <div data-psl-main-menu="world-cup" className="flex w-full max-w-[760px] flex-col items-center gap-3">
               <img
-                src="/assets/Pixel%20Soccer%20League2.png"
+                src={assetUrl('/assets/Pixel%20Soccer%20League2.png')}
                 alt="Pixel Soccer League"
                 className="w-[36rem] max-w-[78vw] max-h-[18vh] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
               />
