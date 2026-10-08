@@ -564,6 +564,18 @@ const LONG_BALL_AERIAL_YARDS = 32;
 /** Forward gain that makes a long pass a genuine long ball, in world units. */
 const LONG_BALL_MIN_PROGRESS = 10;
 /** How many team-mates break shape to offer at once; 4 starts to swarm. */
+/**
+ * Working pace as a share of top speed. Fitted to the Metrica distribution:
+ * roughly half the match walking, a third jogging, sprinting rare.
+ */
+const PACE_WALK = 0.17;
+const PACE_JOG = 0.42;
+const PACE_RUN = 0.64;
+const PACE_SPRINT = 1;
+/** Being this far from your mark is urgent whatever you were doing. */
+const PACE_JOG_GAP = 9;
+const PACE_HUSTLE_GAP = 24;
+
 const SHOW_FOR_BALL_COUNT = 3;
 /** Only players already this close to the carrier come and offer. */
 const SHOW_FOR_BALL_RANGE = 26;
@@ -3807,6 +3819,45 @@ export class SimpleMatchModel {
     return MANUAL_CONTROL_SPEED_MULTIPLIER * (state.sprinting ? SPRINT_MULTIPLIER : 1);
   }
 
+  /**
+   * How hard a player should be working, as a share of their top speed.
+   *
+   * Everyone used to accelerate to playerMaxSpeed toward their target whatever
+   * the distance or the urgency, so a player was either standing on their mark
+   * or flat out. Against the Metrica tracking data that put the model at 40% of
+   * player-frames sprinting where real football is 2%, with no jogging middle
+   * at all -- which is why the game read as static and frantic at once.
+   *
+   * targetOwner already says what each player is doing, so pace off that.
+   */
+  private pacingFraction(player: SimplePlayer, gapToTarget: number) {
+    // A person on the pad sets their own pace with the sprint button.
+    if (this.manualControl[player.team].enabled && this.manualSelectedPlayer(player.team)?.id === player.id) return 1;
+    // The keeper already matched the real 0.75 m/s before any pacing, because
+    // his target barely moves. Pacing him on top of that halved it.
+    if (player.role === "GK") return 1;
+    const owner = player.targetOwner || "";
+    let pace = PACE_JOG;
+    if (owner.startsWith("defend_ball_pressure") || owner === "defend_box_emergency" || owner === "defend_shape_collapse") pace = PACE_SPRINT;
+    else if (owner === "carrier_receive_flight" || owner === "carrier_box_attack") pace = PACE_SPRINT;
+    else if (owner === "defend_extra_box_body" || owner === "carrier_drive") pace = PACE_RUN;
+    // Coming to offer for the ball is a jog, not a sprint; it is 11% of all
+    // off-ball time and at run pace it fattened the running band on its own.
+    else if (owner === "support_show_for_ball") pace = PACE_JOG;
+    // Holding a shape is walking work: the defensive shell alone is a third of
+    // all off-ball time, and leaving it on the jog default is most of why the
+    // model could not get its walking share up to the real 53%.
+    else if (owner === "carrier_reception_settle" || owner === "support_wide_lane_hold" || owner === "home_anchor") pace = PACE_WALK;
+    else if (owner === "defend_shape_shell") pace = PACE_WALK;
+    else if (owner.startsWith("formation_") || owner.startsWith("keeper_")) pace = PACE_WALK;
+    else if (owner === "manual_control") pace = PACE_SPRINT;
+    // Out of position is its own urgency: you hustle back rather than stroll,
+    // and without this a walking pace never recovers a broken shape.
+    if (gapToTarget > PACE_HUSTLE_GAP) pace = Math.max(pace, PACE_RUN);
+    else if (gapToTarget > PACE_JOG_GAP) pace = Math.max(pace, PACE_JOG);
+    return pace;
+  }
+
   private playerMaxSpeed(player: SimplePlayer, movementSpeedMultiplier: number) {
     return BASE_RUN_SPEED
       * (0.42 + player.ratings.pace * 0.58)
@@ -3837,7 +3888,7 @@ export class SimpleMatchModel {
       const dx = target.x - player.pos.x;
       const dz = target.z - player.pos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
-      const maxSpeed = this.playerMaxSpeed(player, movementSpeedMultiplier);
+      const maxSpeed = this.playerMaxSpeed(player, movementSpeedMultiplier) * this.pacingFraction(player, len);
       const oldX = player.pos.x;
       const oldZ = player.pos.z;
       if (len > 0.001) {
