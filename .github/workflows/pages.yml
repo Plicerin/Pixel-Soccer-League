@@ -1,0 +1,52 @@
+# Publish the web build to GitHub Pages so the game can be played in a browser
+# without compiling the Tauri desktop shell, which is the slow part of a
+# release (~2.5 min of Rust and NSIS against ~12 s for the web bundle).
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a half-finished deployment, but only one at a time.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The suite is the gate for the desktop build too; a broken bundle should
+      # not reach the public URL just because it compiled.
+      - run: npm test
+      - uses: actions/configure-pages@v5
+        id: pages
+        with:
+          enablement: true
+      - name: Build for the Pages base path
+        run: npm run build
+        env:
+          PSL_PAGES_BASE: ${{ steps.pages.outputs.base_path }}/
+      # A project site has no server-side routing; serving index.html for
+      # unknown paths keeps a refresh or a deep link from 404ing.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v4
+        id: deploy

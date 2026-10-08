@@ -23,6 +23,7 @@ import {
 } from '../worldCupManager';
 import { FIFA_WORLD_CUP_2026_GROUPS } from '../worldCup2026Schedule.js';
 import { exportElementAsPng, renderElementToPngDataUrl, sanitizeFilePart } from '../utils/exportElementAsPng';
+import { assetUrl } from '../assetUrl';
 
 interface WorldCupHubProps {
   onPlayMatch: (home: string, away: string) => void;
@@ -288,7 +289,7 @@ export default function WorldCupHub({
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
         <div data-testid="worldcup-capture-root" ref={exportRootRef} className="flex flex-col items-center gap-6 w-full max-w-5xl px-6 py-8">
-          <img src="/assets/Pixel%20Soccer%20League2.png" alt="Pixel Soccer League" className="w-[38rem] max-w-[92vw] drop-shadow-lg" />
+          <img src={assetUrl('/assets/Pixel%20Soccer%20League2.png')} alt="Pixel Soccer League" className="w-[38rem] max-w-[92vw] drop-shadow-lg" />
           <div className="flex w-full items-center gap-4">
             <div className="text-amber-400 text-xl font-extrabold tracking-widest uppercase flex-1">World Cup Mode</div>
             <button

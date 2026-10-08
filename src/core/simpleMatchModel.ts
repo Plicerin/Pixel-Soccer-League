@@ -158,6 +158,29 @@ export const CPU_DIFFICULTY_INTENSITY: Record<CpuDifficultyKey, number> = {
  * setCpuDifficulty, which left it stale whenever hot-seat or two-player mode
  * changed afterwards.
  */
+/**
+ * Which side a set-piece routine key should act for, or null to ignore it.
+ *
+ * Pure so it can be tested. The keyboard handler was hard-wired to team A,
+ * which left the away player unable to call anything in two-player mode, and
+ * the first test for the fix called setRestartPlan("B", ...) straight at the
+ * model -- which already worked -- so it would have passed with the handler
+ * still routing to A.
+ */
+export function restartRoutineTeam(
+  restartTeam: SimpleTeamCode | null,
+  requireTeam: SimpleTeamCode | undefined,
+  humanControlsA: boolean,
+  humanControlsB: boolean,
+): SimpleTeamCode | null {
+  if (!restartTeam) return null;
+  // Player 1's keys must not steer player 2's corner, or the reverse.
+  if (requireTeam && restartTeam !== requireTeam) return null;
+  if (restartTeam === "A" && !humanControlsA) return null;
+  if (restartTeam === "B" && !humanControlsB) return null;
+  return restartTeam;
+}
+
 export function cpuDefenseIntensities(
   difficulty: CpuDifficultyKey,
   humanControlsA: boolean,
@@ -7255,6 +7278,11 @@ export class SimpleMatchModel {
       // space, so honour that at any distance rather than lofting it over the
       // runner chasing it.
       const driven = requestedArc < 0.2;
+      // A restart that explicitly asks to stay flat means it: a short corner or
+      // a lay-off to the D is played to feet however far the receiver happens
+      // to be standing. Without this the distance curve lofted them to 0.48 and
+      // the "grounded" corner was grounded in name only.
+      if (kind === "restart" && driven) return requestedArc;
       if (distanceYards <= 12) return 0.06;
       if (distanceYards <= 28) return lerpNumber(0.07, 0.13, clamp((distanceYards - 12) / 16, 0, 1));
       if (distanceYards <= 42) return lerpNumber(0.20, 0.45, clamp((distanceYards - 28) / 14, 0, 1));

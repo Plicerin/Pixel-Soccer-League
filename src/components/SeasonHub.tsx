@@ -18,6 +18,7 @@ import {
   getSortedStandings,
 } from '../seasonManager';
 import { DEFAULT_HOME_TEAM } from '../teamCatalog.js';
+import { assetUrl } from '../assetUrl';
 
 interface SeasonHubProps {
   /** Start the player's match in the game engine. */
@@ -115,7 +116,7 @@ export default function SeasonHub({ onPlayMatch, onExit, lastMatchResult, clearL
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-6 w-full max-w-md px-6">
-          <img src="/assets/Pixel%20Soccer%20League2.png" alt="Pixel Soccer League" className="w-[36rem] max-w-[92vw] drop-shadow-lg" />
+          <img src={assetUrl('/assets/Pixel%20Soccer%20League2.png')} alt="Pixel Soccer League" className="w-[36rem] max-w-[92vw] drop-shadow-lg" />
           <div className="text-amber-400 text-xl font-extrabold tracking-widest uppercase">Season Mode</div>
 
           {season && (
