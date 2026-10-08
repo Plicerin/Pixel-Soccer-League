@@ -1180,6 +1180,7 @@ test('the control reference is single-sourced and matches the real bindings', ()
     // A `~` prefix means the engine matches this by pattern, not as a literal
     // key code -- the digits are bound with /^Digit[1-4]$/.
     '1 - 4': ['~Digit[1-4]'],
+    'Numpad 1 - 4': ['~Numpad[1-4]'],
     'Arrow keys': ['ArrowUp', 'ArrowLeft'],
     'Right Shift': ['ShiftRight'],
     ',': ['Comma'],

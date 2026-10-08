@@ -8288,3 +8288,60 @@ test("corner routines can be called, and only by the side taking them", () => {
   );
   assert.equal(new Set(options!.routines.map((r) => r.key)).size, CORNER_ROUTINES.length, "keys must be unique");
 });
+
+test("a called corner waits for its runners, and either side can call one", () => {
+  // Review on PR #4: setRestartPlan only moves targetPos, but takeManualRestart
+  // went straight to executeBallOutRestart, whose receiver selection reads each
+  // player's current pos. Pressing 1-4 then Space therefore delivered against
+  // the shape the routine had just replaced. isCornerSetupReady existed but
+  // only held back the CPU's own restart timer.
+  const stage = (restartTeam: "A" | "B") => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`called-corner-${restartTeam}`);
+    model.startMatch();
+    model.setManualControlEnabled(restartTeam, true);
+    const api = model as unknown as {
+      restartContext: Record<string, unknown> | null;
+      msm: { state: unknown };
+      attackSign: (t: "A" | "B") => number;
+      takeManualRestart: (t: "A" | "B") => boolean;
+      isCornerSetupReady: (r: unknown) => boolean;
+    };
+    const sign = api.attackSign(restartTeam);
+    const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+    api.restartContext = {
+      restartType: "corner",
+      restartTeam,
+      spot: { x: goalX, z: 20 },
+      lastTouchTeam: restartTeam === "A" ? "B" : "A",
+      lastTouchPlayerId: null,
+      crossedLine: sign > 0 ? "right_goal_line" : "left_goal_line",
+    };
+    api.msm.state = { kind: "ball_out", half: 1, startTick: 0, restartType: "corner", restartTeam };
+    return { model, api };
+  };
+
+  // Either side can call a routine when it is their corner.
+  for (const team of ["A", "B"] as const) {
+    const { model } = stage(team);
+    assert.equal(model.setRestartPlan(team, "corner_short"), true, `team ${team} must be able to call its own routine`);
+  }
+
+  // Having called one, the restart must wait for the shape to arrive.
+  const { model, api } = stage("A");
+  const context = api.restartContext;
+  assert.ok(context);
+  assert.equal(model.setRestartPlan("A", "corner_short"), true);
+  assert.equal(api.takeManualRestart("A"), false, "taking it early must be refused while the routine is still forming");
+
+  // It must not stay refused: only 4% of staged corners ever satisfy
+  // isCornerSetupReady, so gating on that would leave the take button dead
+  // until the 7s watchdog fired. The wait is on the routine's own runners and
+  // is capped, so a corner is always takeable shortly after it is called.
+  let took = false;
+  for (let i = 0; i < 60 * 3 && !took; i++) {
+    model.step(1 / 60);
+    took = api.takeManualRestart("A");
+  }
+  assert.equal(took, true, "a called corner must become takeable within the capped wait");
+});

@@ -43,6 +43,7 @@ export const KEYBOARD_P2: PadLabel[] = [
   { key: '/', action: 'Tackle' },
   { key: '[ / ]', action: 'Cycle player' },
   { key: "'", action: 'Switch to nearest' },
+  { key: 'Numpad 1 - 4', action: 'Call a set-piece routine' },
 ];
 
 /** Xbox-style face button colours, used for both the pad and its legend. */

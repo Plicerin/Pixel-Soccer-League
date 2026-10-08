@@ -746,7 +746,7 @@ class SimpleGameEngine {
         // Call a set-piece routine. Only does anything while a restart is
         // pending for your side; otherwise the number keys stay free.
         event.preventDefault();
-        this.callRestartRoutine('A', Number(event.code.slice(5)) - 1);
+        this.callRestartRoutine(Number(event.code.slice(5)) - 1, 'A');
       } else if (event.code === 'KeyV') {
         // Middle ground between AUTOMATIC and MANUAL switching: jump to the
         // player nearest the ball on demand.
@@ -770,6 +770,10 @@ class SimpleGameEngine {
       } else if (event.code === 'Slash') {
         event.preventDefault();
         this.model.triggerManualTackle('B');
+      } else if (/^Numpad[1-4]$/.test(event.code)) {
+        // Player 2's set-piece routines. The digit row belongs to player 1.
+        event.preventDefault();
+        this.callRestartRoutine(Number(event.code.slice(6)) - 1, 'B');
       } else if (event.code === 'Semicolon') {
         event.preventDefault();
         this.model.beginManualCharge('B', 'lob');
@@ -984,13 +988,24 @@ class SimpleGameEngine {
    * CPU difficulty. Applied to whichever side the human is not controlling,
    * so a harder CPU presses the player without altering match output.
    */
-  /** Call the routine at `index` in CORNER_ROUTINES, if one can be called. */
-  private callRestartRoutine(team: 'A' | 'B', index: number) {
+  /**
+   * Call the routine at `index` in CORNER_ROUTINES for whichever side is taking
+   * the restart.
+   *
+   * This used to be hard-wired to team A, so in two-player mode the away player
+   * could never call anything: getRestartPlanOptions reports team B, and the
+   * model rejects a choice made on another team's behalf. `requireTeam` keeps
+   * the away keys from steering the home player's corner.
+   */
+  private callRestartRoutine(index: number, requireTeam?: 'A' | 'B') {
     const options = this.model.getRestartPlanOptions();
-    if (!options || options.team !== team) return false;
+    if (!options) return false;
+    if (requireTeam && options.team !== requireTeam) return false;
+    if (options.team === 'A' && !this.humanControlEnabled) return false;
+    if (options.team === 'B' && !this.twoPlayerMode) return false;
     const routine = options.routines[index];
     if (!routine) return false;
-    return this.model.setRestartPlan(team, routine.plan);
+    return this.model.setRestartPlan(options.team, routine.plan);
   }
 
   setCpuDifficulty = (key: string) => {
@@ -3686,10 +3701,10 @@ class SimpleGameEngine {
       }
       if (justPressed(3)) this.model.beginManualCharge('A', 'lob');
       // D-pad calls set-piece routines; it is otherwise unbound.
-      if (justPressed(12)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.up);
-      if (justPressed(13)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.down);
-      if (justPressed(14)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.left);
-      if (justPressed(15)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.right);
+      if (justPressed(12)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.up);
+      if (justPressed(13)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.down);
+      if (justPressed(14)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.left);
+      if (justPressed(15)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.right);
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
       for (let i = 0; i < this.gameplayGpPrev.length; i++) {
