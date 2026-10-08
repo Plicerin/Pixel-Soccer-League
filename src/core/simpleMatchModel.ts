@@ -397,6 +397,11 @@ export type RestartPlan =
   | "free_kick_direct"
   | "penalty";
 
+/** A called routine's runners count as set once they are this close. */
+const CALLED_ROUTINE_ARRIVAL = 2.5;
+/** And they never hold the restart longer than this. */
+const CALLED_ROUTINE_MAX_WAIT_SECONDS = 2.5;
+
 /**
  * The routines a person can call on a corner, in D-pad order.
  *
@@ -429,6 +434,8 @@ type BallOutRestartContext = {
   plan?: RestartPlan;
   /** Set when a person chose the routine, so the CPU does not overwrite it. */
   planChosenBy?: SimpleTeamCode;
+  /** Dead-ball seconds at the moment it was called, to bound the wait. */
+  planChosenAt?: number;
 };
 
 type VisibleBallOutPending = {
@@ -1112,6 +1119,7 @@ export class SimpleMatchModel {
     if (restart.restartType === "corner" && !CORNER_ROUTINES.some((routine) => routine.plan === plan)) return false;
     restart.plan = plan;
     restart.planChosenBy = team;
+    restart.planChosenAt = this.deadBallStateWallSeconds;
     if (restart.restartType === "corner") this.positionCornerPlayers(restart);
     return true;
   }
@@ -1764,6 +1772,13 @@ export class SimpleMatchModel {
     const restart = this.restartContext;
     if (!restart || restart.restartTeam !== team) return false;
     if (!this.awaitingManualRestart()) return false;
+    // A called routine only moves targets; the runners still have to get there,
+    // or receiver selection and the delivery read the shape the routine just
+    // replaced. Deliberately not isCornerSetupReady: that wants five box
+    // attackers, six box defenders and the taker all set at once, which only
+    // 4% of staged corners ever reach, so using it would leave the take button
+    // dead until the 7s watchdog fired.
+    if (restart.restartType === "corner" && !this.isCalledRoutineReady(restart)) return false;
     this.msm.restartTimer = 0;
     this.msm.state = { kind: "live_play", half: this.msm.clock.half, startTick: 0 };
     this.executeBallOutRestart();
@@ -6580,6 +6595,24 @@ export class SimpleMatchModel {
     };
   }
 
+  /**
+   * Have the runners for a called routine arrived?
+   *
+   * Only the players the routine actually moved need to be in place, and it is
+   * capped in time so the take button can never feel dead -- an unreachable
+   * shape costs a short pause, not a stuck restart.
+   */
+  private isCalledRoutineReady(restart: BallOutRestartContext) {
+    if (restart.planChosenBy !== restart.restartTeam) return true;
+    const waited = this.deadBallStateWallSeconds - (restart.planChosenAt ?? 0);
+    if (waited >= CALLED_ROUTINE_MAX_WAIT_SECONDS) return true;
+    const movers = this.players.filter((player) => player.team === restart.restartTeam
+      && player.role !== "GK"
+      && player.id !== restart.takerId);
+    return movers.every((player) => !player.targetPos
+      || dist2(player.pos, player.targetPos) <= CALLED_ROUTINE_ARRIVAL);
+  }
+
   private isCornerSetupReady(restart: BallOutRestartContext) {
     const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
     if (taker && dist2(taker.pos, this.restartTakerTarget(restart)) > 1.25) return false;
@@ -6669,7 +6702,7 @@ export class SimpleMatchModel {
     const headerEligible = (restart.restartType === "corner" && !groundedCorner) || longGoalKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
     const settleSeconds = this.visibleReceptionHoldSeconds();
     const flightSeconds = this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
-      aerial: restart.restartType === "corner" || restart.restartType === "throw_in" || longGoalKick,
+      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick,
       headerEligible,
       settleSeconds,
       sourceAction: longGoalKick ? "goal_kick_long" : restart.restartType,
@@ -6697,7 +6730,7 @@ export class SimpleMatchModel {
       targetPoint: { x: +receiver.pos.x.toFixed(2), z: +receiver.pos.z.toFixed(2) },
       distance: +distance.toFixed(2),
       arcHeight,
-      aerial: restart.restartType === "corner" || restart.restartType === "throw_in" || longGoalKick,
+      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick,
       headerEligible,
       goalKickStyle: goalKickPlan?.style,
       cornerDeliveryStyle,

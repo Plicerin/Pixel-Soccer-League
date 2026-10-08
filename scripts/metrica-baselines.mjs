@@ -177,7 +177,10 @@ function modelBaselines(games = 6, halfSeconds = 300) {
         if (!Number.isFinite(speed)) continue
         if (p.role === 'GK') { gk += speed; gkN++; continue }
         sp += speed; spN++
-        if (speeds.length < 400000) speeds.push(speed)
+        // Every 12th frame, not the first 400k samples: the plain cap filled
+        // inside the first 333 s of game 0, so the reported distribution came
+        // from a prefix of one match while the means used all six.
+        if (i % 12 === 0) speeds.push(speed)
         if (m.possession) {
           if (p.team === m.possession.team) { wb += speed; wbN++ } else { wo += speed; woN++ }
         }
