@@ -203,7 +203,10 @@ const MLS_TEAM_LOGOS: Record<string, string> = {};
 
 function ScoreboardFlag({ teamName }: { teamName: string }) {
   const flag = getWorldCupTeamFlag(teamName);
-  const flagAsset = getWorldCupTeamFlagAsset(teamName);
+  const flagRelative = getWorldCupTeamFlagAsset(teamName);
+  // Generated path, so the literal scan in the asset guard cannot see it:
+  // every bundled flag 404s on a project site without this.
+  const flagAsset = flagRelative ? assetUrl(flagRelative) : flagRelative;
   return (
     <div
       className="relative h-9 w-11 sm:h-10 sm:w-12 shrink-0 overflow-hidden rounded-[3px] border border-black/15 bg-white grid place-items-center text-[25px] sm:text-[28px] leading-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]"
@@ -789,7 +792,10 @@ function MenuTeamSelect({
   const [activeIndex, setActiveIndex] = useState(Math.max(0, options.indexOf(value)));
   const dropdownRef = useRef<HTMLDivElement>(null);
   const flag = getWorldCupTeamFlag(value);
-  const flagAsset = getWorldCupTeamFlagAsset(value);
+  const flagRelative = getWorldCupTeamFlagAsset(value);
+  // Generated path, so the literal scan in the asset guard cannot see it:
+  // every bundled flag 404s on a project site without this.
+  const flagAsset = flagRelative ? assetUrl(flagRelative) : flagRelative;
   const lowerLabel = label.toLowerCase();
   const buttonId = `main-menu-${lowerLabel}-team-select`;
   const listboxId = `${buttonId}-listbox`;

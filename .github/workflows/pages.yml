@@ -37,10 +37,13 @@ jobs:
       # The suite is the gate for the desktop build too; a broken bundle should
       # not reach the public URL just because it compiled.
       - run: npm test
+      # No `enablement: true`: that input needs a PAT or App token with
+      # administration rights, not the default GITHUB_TOKEN, and the first run
+      # failed on exactly that ("Resource not accessible by integration").
+      # Pages is enabled once on the repository instead; this step only reads
+      # the configured base path.
       - uses: actions/configure-pages@v5
         id: pages
-        with:
-          enablement: true
       - name: Build for the Pages base path
         run: npm run build
         env:

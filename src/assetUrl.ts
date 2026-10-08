@@ -7,6 +7,7 @@
  * build time, so this costs nothing at runtime and keeps every surface honest.
  */
 export function assetUrl(path: string): string {
-  const base = import.meta.env.BASE_URL || '/';
+  // `import.meta.env` is absent under the node test runner, so probe for it.
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || '/';
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
 }
