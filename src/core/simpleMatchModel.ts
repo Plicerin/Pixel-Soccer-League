@@ -386,6 +386,37 @@ type CompletedPassMemory = {
   streak: number;
 };
 
+export type RestartPlan =
+  | "corner_near_post"
+  | "corner_far_post"
+  | "corner_short"
+  | "corner_edge"
+  | "throw_short"
+  | "goal_kick_short"
+  | "goal_kick_long"
+  | "free_kick_direct"
+  | "penalty";
+
+/**
+ * The routines a person can call on a corner, in D-pad order.
+ *
+ * One table shared by the model, the input handling and the on-screen prompt:
+ * the control reference drifted out of step with its bindings once already
+ * because two places described the same thing.
+ */
+export const CORNER_ROUTINES = [
+  { plan: "corner_short", direction: "left", key: "1", label: "Short", hint: "two players drop to the corner" },
+  { plan: "corner_near_post", direction: "up", key: "2", label: "Near post", hint: "attack the near stick" },
+  { plan: "corner_far_post", direction: "right", key: "3", label: "Far post", hint: "overload the back stick" },
+  { plan: "corner_edge", direction: "down", key: "4", label: "Edge of box", hint: "lay it off to the D" },
+] as const satisfies ReadonlyArray<{
+  plan: RestartPlan;
+  direction: "left" | "up" | "right" | "down";
+  key: string;
+  label: string;
+  hint: string;
+}>;
+
 type BallOutRestartContext = {
   restartType: BallOutEvent["restartType"];
   restartTeam: SimpleTeamCode;
@@ -395,7 +426,9 @@ type BallOutRestartContext = {
   crossedLine: "left_goal_line" | "right_goal_line" | "top_touchline" | "bottom_touchline" | "infraction";
   takerId?: string;
   fouledPlayerId?: string | null;
-  plan?: "corner_near_post" | "corner_far_post" | "throw_short" | "goal_kick_short" | "goal_kick_long" | "free_kick_direct" | "penalty";
+  plan?: RestartPlan;
+  /** Set when a person chose the routine, so the CPU does not overwrite it. */
+  planChosenBy?: SimpleTeamCode;
 };
 
 type VisibleBallOutPending = {
@@ -531,6 +564,18 @@ const LONG_BALL_AERIAL_YARDS = 32;
 /** Forward gain that makes a long pass a genuine long ball, in world units. */
 const LONG_BALL_MIN_PROGRESS = 10;
 /** How many team-mates break shape to offer at once; 4 starts to swarm. */
+/**
+ * Working pace as a share of top speed. Fitted to the Metrica distribution:
+ * roughly half the match walking, a third jogging, sprinting rare.
+ */
+const PACE_WALK = 0.17;
+const PACE_JOG = 0.42;
+const PACE_RUN = 0.64;
+const PACE_SPRINT = 1;
+/** Being this far from your mark is urgent whatever you were doing. */
+const PACE_JOG_GAP = 9;
+const PACE_HUSTLE_GAP = 24;
+
 const SHOW_FOR_BALL_COUNT = 3;
 /** Only players already this close to the carrier come and offer. */
 const SHOW_FOR_BALL_RANGE = 26;
@@ -1052,6 +1097,37 @@ export class SimpleMatchModel {
       restartType: restart.restartType,
       label,
       secondsRemaining: Math.max(0, MANUAL_RESTART_WATCHDOG_SECONDS - this.deadBallStateWallSeconds),
+    };
+  }
+
+  /**
+   * Call a set-piece routine. Only while the restart is still pending and only
+   * for the side taking it, so it cannot be used to steer the opposition.
+   */
+  setRestartPlan(team: SimpleTeamCode, plan: RestartPlan) {
+    const restart = this.restartContext;
+    if (!restart || restart.restartTeam !== team) return false;
+    if (!this.awaitingManualRestart()) return false;
+    if (!this.manualControl[team].enabled) return false;
+    if (restart.restartType === "corner" && !CORNER_ROUTINES.some((routine) => routine.plan === plan)) return false;
+    restart.plan = plan;
+    restart.planChosenBy = team;
+    if (restart.restartType === "corner") this.positionCornerPlayers(restart);
+    return true;
+  }
+
+  /** Which routines can be called right now, and which is selected. */
+  getRestartPlanOptions() {
+    const restart = this.restartContext;
+    if (!restart || !this.awaitingManualRestart()) return null;
+    if (restart.restartType !== "corner") return null;
+    if (!this.manualControl[restart.restartTeam].enabled) return null;
+    return {
+      team: restart.restartTeam,
+      restartType: restart.restartType,
+      selected: restart.plan ?? null,
+      chosen: restart.planChosenBy === restart.restartTeam,
+      routines: CORNER_ROUTINES.map((routine) => ({ ...routine })),
     };
   }
 
@@ -3743,6 +3819,45 @@ export class SimpleMatchModel {
     return MANUAL_CONTROL_SPEED_MULTIPLIER * (state.sprinting ? SPRINT_MULTIPLIER : 1);
   }
 
+  /**
+   * How hard a player should be working, as a share of their top speed.
+   *
+   * Everyone used to accelerate to playerMaxSpeed toward their target whatever
+   * the distance or the urgency, so a player was either standing on their mark
+   * or flat out. Against the Metrica tracking data that put the model at 40% of
+   * player-frames sprinting where real football is 2%, with no jogging middle
+   * at all -- which is why the game read as static and frantic at once.
+   *
+   * targetOwner already says what each player is doing, so pace off that.
+   */
+  private pacingFraction(player: SimplePlayer, gapToTarget: number) {
+    // A person on the pad sets their own pace with the sprint button.
+    if (this.manualControl[player.team].enabled && this.manualSelectedPlayer(player.team)?.id === player.id) return 1;
+    // The keeper already matched the real 0.75 m/s before any pacing, because
+    // his target barely moves. Pacing him on top of that halved it.
+    if (player.role === "GK") return 1;
+    const owner = player.targetOwner || "";
+    let pace = PACE_JOG;
+    if (owner.startsWith("defend_ball_pressure") || owner === "defend_box_emergency" || owner === "defend_shape_collapse") pace = PACE_SPRINT;
+    else if (owner === "carrier_receive_flight" || owner === "carrier_box_attack") pace = PACE_SPRINT;
+    else if (owner === "defend_extra_box_body" || owner === "carrier_drive") pace = PACE_RUN;
+    // Coming to offer for the ball is a jog, not a sprint; it is 11% of all
+    // off-ball time and at run pace it fattened the running band on its own.
+    else if (owner === "support_show_for_ball") pace = PACE_JOG;
+    // Holding a shape is walking work: the defensive shell alone is a third of
+    // all off-ball time, and leaving it on the jog default is most of why the
+    // model could not get its walking share up to the real 53%.
+    else if (owner === "carrier_reception_settle" || owner === "support_wide_lane_hold" || owner === "home_anchor") pace = PACE_WALK;
+    else if (owner === "defend_shape_shell") pace = PACE_WALK;
+    else if (owner.startsWith("formation_") || owner.startsWith("keeper_")) pace = PACE_WALK;
+    else if (owner === "manual_control") pace = PACE_SPRINT;
+    // Out of position is its own urgency: you hustle back rather than stroll,
+    // and without this a walking pace never recovers a broken shape.
+    if (gapToTarget > PACE_HUSTLE_GAP) pace = Math.max(pace, PACE_RUN);
+    else if (gapToTarget > PACE_JOG_GAP) pace = Math.max(pace, PACE_JOG);
+    return pace;
+  }
+
   private playerMaxSpeed(player: SimplePlayer, movementSpeedMultiplier: number) {
     return BASE_RUN_SPEED
       * (0.42 + player.ratings.pace * 0.58)
@@ -3773,7 +3888,7 @@ export class SimpleMatchModel {
       const dx = target.x - player.pos.x;
       const dz = target.z - player.pos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
-      const maxSpeed = this.playerMaxSpeed(player, movementSpeedMultiplier);
+      const maxSpeed = this.playerMaxSpeed(player, movementSpeedMultiplier) * this.pacingFraction(player, len);
       const oldX = player.pos.x;
       const oldZ = player.pos.z;
       if (len > 0.001) {
@@ -6362,6 +6477,14 @@ export class SimpleMatchModel {
     const takerId = restart.takerId || null;
     const keeper = this.players.find((player) => player.team === defendingTeam && player.role === "GK") || null;
     const clampLane = (z: number) => clamp(z, -PENALTY_HALF_Z + 0.55, PENALTY_HALF_Z - 0.55);
+    // The routine decides the shape. Without this every corner set up
+    // identically and the plan only changed which team-mate the ball was aimed
+    // at, so calling one made no visible difference in the box.
+    const plan = restart.plan;
+    const shortCorner = plan === "corner_short";
+    const edgeCorner = plan === "corner_edge";
+    // Near post pulls bodies to the ball side, far post loads the back stick.
+    const overload = plan === "corner_far_post" ? far : plan === "corner_near_post" ? side : 0;
     const boxSlots = [
       { x: goalX - attackSign * 4.1, z: clampLane(far * 1.4) },
       { x: goalX - attackSign * 5.2, z: clampLane(far * 4.3) },
@@ -6371,6 +6494,24 @@ export class SimpleMatchModel {
       { x: goalX - attackSign * 9.2, z: clampLane(side * 5.8) },
       { x: goalX - attackSign * 10.6, z: clampLane(far * 0.4) },
     ];
+    if (overload !== 0) {
+      // Drag the front three toward the loaded post rather than moving everyone,
+      // so the box still has bodies spread across it.
+      for (let i = 0; i < 3 && i < boxSlots.length; i += 1) {
+        boxSlots[i] = { x: boxSlots[i].x, z: clampLane(boxSlots[i].z + overload * 2.6) };
+      }
+    }
+    if (shortCorner) {
+      // Two out to the flag for the short option; the rest hold the box.
+      boxSlots[0] = { x: restart.spot.x - attackSign * 2.4, z: clamp(restart.spot.z - side * 2.2, -FIELD_D / 2 + 1, FIELD_D / 2 - 1) };
+      boxSlots[1] = { x: restart.spot.x - attackSign * 5.4, z: clamp(restart.spot.z - side * 4.0, -FIELD_D / 2 + 1, FIELD_D / 2 - 1) };
+    }
+    if (edgeCorner) {
+      // Someone at the top of the D for the cut-back, and nobody crowding the
+      // six-yard box in front of him.
+      boxSlots[0] = { x: goalX - attackSign * 13.2, z: clampLane(0.4) };
+      boxSlots[3] = { x: goalX - attackSign * 11.4, z: clampLane(side * 3.2) };
+    }
     const coverSlots = [
       { x: goalX - attackSign * 16.8, z: clamp(side * 9.4, -FIELD_D / 2 + 2.2, FIELD_D / 2 - 2.2) },
       { x: goalX - attackSign * 21.5, z: clamp(far * 5.2, -FIELD_D / 2 + 2.2, FIELD_D / 2 - 2.2) },
@@ -6513,15 +6654,19 @@ export class SimpleMatchModel {
     this.rememberTouch(receiver);
     const distance = dist2(restart.spot, receiver.pos);
     const longGoalKick = goalKickPlan?.style === "goal_kick_long";
-    const cornerDeliveryStyle = restart.restartType === "corner"
-      ? (this.rng.next() < 0.16 ? "DRIVEN" : this.rng.next() < 0.58 ? "MEDIUM_ARC" : "LOOPED")
-      : null;
+    const groundedCorner = restart.restartType === "corner"
+      && (restart.plan === "corner_short" || restart.plan === "corner_edge");
+    const cornerDeliveryStyle = restart.restartType !== "corner"
+      ? null
+      : groundedCorner
+        ? "DRIVEN"
+        : (this.rng.next() < 0.16 ? "DRIVEN" : this.rng.next() < 0.58 ? "MEDIUM_ARC" : "LOOPED");
     const arcHeight = restart.restartType === "throw_in" ? 0.85
-      : restart.restartType === "corner" ? (cornerDeliveryStyle === "DRIVEN" ? 0.84 : cornerDeliveryStyle === "MEDIUM_ARC" ? 1.02 : CORNER_KICK_ARC)
+      : restart.restartType === "corner" ? (groundedCorner ? 0.16 : cornerDeliveryStyle === "DRIVEN" ? 0.84 : cornerDeliveryStyle === "MEDIUM_ARC" ? 1.02 : CORNER_KICK_ARC)
       : restart.restartType === "free_kick" ? 0.32
       : longGoalKick ? GOAL_KICK_LONG_ARC
       : 0.22;
-    const headerEligible = restart.restartType === "corner" || longGoalKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
+    const headerEligible = (restart.restartType === "corner" && !groundedCorner) || longGoalKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
     const settleSeconds = this.visibleReceptionHoldSeconds();
     const flightSeconds = this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
       aerial: restart.restartType === "corner" || restart.restartType === "throw_in" || longGoalKick,
@@ -6895,8 +7040,14 @@ export class SimpleMatchModel {
       .sort((a, b) => {
         if (restart.restartType === "corner") {
           const goal = goalCenterForAttack(attackSign);
-          const side = restart.plan === "corner_far_post" ? -(restart.spot.z >= 0 ? 1 : -1) : (restart.spot.z >= 0 ? 1 : -1);
-          const target = { x: goal.x - attackSign * 4.8, z: side * 3.5 };
+          const nearSide = restart.spot.z >= 0 ? 1 : -1;
+          // Where the routine wants the ball: the flag for a short one, the top
+          // of the D for a lay-off, otherwise the loaded post.
+          const target = restart.plan === "corner_short"
+            ? { x: restart.spot.x - attackSign * 3.2, z: restart.spot.z - nearSide * 3.0 }
+            : restart.plan === "corner_edge"
+              ? { x: goal.x - attackSign * 12.6, z: 0.4 }
+              : { x: goal.x - attackSign * 4.8, z: (restart.plan === "corner_far_post" ? -nearSide : nearSide) * 3.5 };
           return dist2(a.pos, target) - dist2(b.pos, target);
         }
         return dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot);
@@ -6905,6 +7056,8 @@ export class SimpleMatchModel {
   }
 
   private restartPlanFor(restart: BallOutRestartContext, taker: SimplePlayer | null): NonNullable<BallOutRestartContext["plan"]> {
+    // A routine the player called wins; otherwise the CPU picks its own.
+    if (restart.planChosenBy === restart.restartTeam && restart.plan) return restart.plan;
     if (restart.restartType === "corner") return (taker?.shirtNumber ?? 0) % 2 === 0 ? "corner_far_post" : "corner_near_post";
     if (restart.restartType === "throw_in") return "throw_short";
     if (restart.restartType === "goal_kick") return this.goalKickRestartPlan(restart, taker?.id).style === "goal_kick_long" ? "goal_kick_long" : "goal_kick_short";

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
-import { CPU_DIFFICULTY_INTENSITY, cpuDefenseIntensities, type CpuDifficultyKey } from './core/simpleMatchModel';
+import { CPU_DIFFICULTY_INTENSITY, CORNER_ROUTINES, cpuDefenseIntensities, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -537,6 +537,14 @@ const measurePslPerf = (name: string, start: string, end: string) => {
   } catch {}
 };
 
+/** D-pad direction -> index in CORNER_ROUTINES, derived so the two cannot drift. */
+const DPAD_ROUTINE_INDEX = {
+  up: CORNER_ROUTINES.findIndex((r) => r.direction === 'up'),
+  down: CORNER_ROUTINES.findIndex((r) => r.direction === 'down'),
+  left: CORNER_ROUTINES.findIndex((r) => r.direction === 'left'),
+  right: CORNER_ROUTINES.findIndex((r) => r.direction === 'right'),
+} as const;
+
 class SimpleGameEngine {
   readonly model = new SimpleMatchModel();
   private readonly scene = new THREE.Scene();
@@ -734,6 +742,11 @@ class SimpleGameEngine {
       } else if (event.code === 'KeyC') {
         event.preventDefault();
         this.model.beginManualCharge('A', 'lob');
+      } else if (/^Digit[1-4]$/.test(event.code)) {
+        // Call a set-piece routine. Only does anything while a restart is
+        // pending for your side; otherwise the number keys stay free.
+        event.preventDefault();
+        this.callRestartRoutine('A', Number(event.code.slice(5)) - 1);
       } else if (event.code === 'KeyV') {
         // Middle ground between AUTOMATIC and MANUAL switching: jump to the
         // player nearest the ball on demand.
@@ -971,6 +984,15 @@ class SimpleGameEngine {
    * CPU difficulty. Applied to whichever side the human is not controlling,
    * so a harder CPU presses the player without altering match output.
    */
+  /** Call the routine at `index` in CORNER_ROUTINES, if one can be called. */
+  private callRestartRoutine(team: 'A' | 'B', index: number) {
+    const options = this.model.getRestartPlanOptions();
+    if (!options || options.team !== team) return false;
+    const routine = options.routines[index];
+    if (!routine) return false;
+    return this.model.setRestartPlan(team, routine.plan);
+  }
+
   setCpuDifficulty = (key: string) => {
     this.cpuDifficulty = (CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ? key : 'NORMAL') as CpuDifficultyKey;
     this.applyCpuDifficulty();
@@ -1025,6 +1047,7 @@ class SimpleGameEngine {
       // Drives the on-screen "your restart" prompt. Without it the hold is
       // invisible and reads as the game freezing.
       manualRestartPrompt: this.model.getManualRestartPrompt(),
+      restartPlanOptions: this.model.getRestartPlanOptions(),
     };
   };
   getIsLive = () => this.model.getMatchSnapshot().isLive;
@@ -3662,6 +3685,11 @@ class SimpleGameEngine {
         if (!this.model.triggerManualTackle('A')) this.model.selectNearestManualPlayer('A');
       }
       if (justPressed(3)) this.model.beginManualCharge('A', 'lob');
+      // D-pad calls set-piece routines; it is otherwise unbound.
+      if (justPressed(12)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.up);
+      if (justPressed(13)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.down);
+      if (justPressed(14)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.left);
+      if (justPressed(15)) this.callRestartRoutine('A', DPAD_ROUTINE_INDEX.right);
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
       for (let i = 0; i < this.gameplayGpPrev.length; i++) {
