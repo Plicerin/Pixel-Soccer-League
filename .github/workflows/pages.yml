@@ -3,9 +3,12 @@
 # release (~2.5 min of Rust and NSIS against ~12 s for the web bundle).
 name: pages
 
+# Manual trigger only for now. GitHub refuses to create the Pages site for this
+# repository -- "Your current plan does not support GitHub Pages for this
+# repository", because Pages on a private repo needs a paid plan. Everything
+# else here is ready and verified; switch this back to `push: [main]` once the
+# repo is public or the plan allows it, and the first run will enable the site.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Never cancel a half-finished deployment, but only one at a time.
