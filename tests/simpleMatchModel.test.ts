@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
+import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X, BALL_RADIUS} from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
 import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type RestartPlan } from "../src/core/simpleMatchModel";
 
@@ -8415,4 +8415,47 @@ test("routine keys act for the right side, and grounded corners are not aerial",
     assert.equal(telemetry.aerial, true, `${plan} must still be reported as aerial`);
     assert.ok(flight.arc > 0.5, `${plan} must be floated, got arc ${flight.arc}`);
   }
+});
+
+test("a ball crossing inside the post is a goal, including the side netting", () => {
+  // Reported from play: the ball went into the net and no goal was given.
+  // detectGoalMouthCrossing measured the mouth as GOAL_MOUTH_HALF_Z minus the
+  // ball radius, while detectBallOut and the renderer both use the full
+  // GOAL_MOUTH_HALF_Z. A ball crossing in the 0.2u between them was rejected
+  // here as "not a goal" and then declined by detectBallOut as "not a ball-out,
+  // that's a goal", so nothing caught it and play carried on with the ball in
+  // the net. That is a third of a metre inside each post.
+  const crossAt = (z: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`net-${z}`);
+    model.startMatch();
+    const api = model as unknown as {
+      msm: { state: unknown };
+      lastBallPos: { x: number; z: number };
+      detectGoalMouthCrossing: (from: { x: number; z: number }, to: { x: number; z: number }) => unknown;
+    };
+    api.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    // A shot crossing the right-hand goal line at this z, in one frame.
+    const from = { x: RIGHT_GOAL_X - 1.2, z };
+    const to = { x: RIGHT_GOAL_X + BALL_RADIUS + 0.35, z };
+    return api.detectGoalMouthCrossing(from, to) !== null;
+  };
+
+  assert.equal(crossAt(0), true, "straight down the middle is obviously a goal");
+  // The old dead band: inside the post the renderer draws, outside the shrunk
+  // mouth the crossing test used.
+  const insidePost = GOAL_MOUTH_HALF_Z - 0.05;
+  assert.equal(crossAt(insidePost), true, `${insidePost.toFixed(2)} is inside the post and must count`);
+  assert.equal(crossAt(-insidePost), true, 'the same at the other post');
+  // Outside the posts is still not a goal.
+  assert.equal(crossAt(GOAL_MOUTH_HALF_Z + 0.35), false, 'wide of the post is not a goal');
+
+  // The scoring mouth must match what detectBallOut and the renderer use, or
+  // a ball can fall between the two and be seen by neither.
+  const source = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(
+    source,
+    /const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;/,
+    "the scoring mouth must be the posts, or a gap opens between the detectors",
+  );
 });

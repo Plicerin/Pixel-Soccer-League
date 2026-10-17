@@ -648,6 +648,19 @@ const HEADER_SHOT_ATTEMPT_SCALE = 0.22;
  * many of them.
  */
 const SHOT_ON_TARGET_BASE = 0.51;
+/**
+ * Half-width used to decide whether a ball crossing the line is a goal.
+ *
+ * This used to be GOAL_MOUTH_HALF_Z - BALL_RADIUS, which disagreed with both
+ * the posts the renderer draws (GOAL_MOUTH_HALF_Z) and detectBallOut's own
+ * test (also GOAL_MOUTH_HALF_Z). A ball crossing in the 0.2u between them was
+ * rejected here as "not a goal", and detectBallOut then declined it as "not a
+ * ball-out, that's a goal" -- so nothing caught it and play simply carried on
+ * with the ball in the net. 0.2u is a third of a metre inside each post: the
+ * side netting, exactly where it was reported.
+ */
+const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;
+
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -6102,7 +6115,7 @@ export class SimpleMatchModel {
 
   /** Is the ball fully over a goal line and between the posts? */
   private goalMouthContainsBall(pos: Vec2) {
-    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    const mouthHalf = GOAL_MOUTH_SCORING_HALF_Z;
     if (Math.abs(pos.z) > mouthHalf) return false;
     return pos.x > RIGHT_GOAL_X + BALL_RADIUS || pos.x < LEFT_GOAL_X - BALL_RADIUS;
   }
@@ -6124,7 +6137,7 @@ export class SimpleMatchModel {
     spot: Vec2;
     crossedLine: "left_goal_line" | "right_goal_line";
   } | null {
-    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    const mouthHalf = GOAL_MOUTH_SCORING_HALF_Z;
     const crossingRight = from.x <= RIGHT_GOAL_X + BALL_RADIUS && to.x > RIGHT_GOAL_X + BALL_RADIUS;
     const crossingLeft = from.x >= LEFT_GOAL_X - BALL_RADIUS && to.x < LEFT_GOAL_X - BALL_RADIUS;
     if (!crossingRight && !crossingLeft) return null;
@@ -7697,6 +7710,13 @@ export class SimpleMatchModel {
           // Angular gate, not a fixed corridor: a 4.5u offset is a gentle miss
           // at 30u range but a 29-degree error at 8u.
           .filter((candidate) => candidate.along > 1.5 && candidate.alignment >= AIMED_PASS_MIN_ALIGNMENT)
+          // Never hand the aim an offside receiver. The CPU chooser filters
+          // these out, this branch did not, so aiming forward picked the most
+          // advanced team-mate and the pass was flagged the instant it left --
+          // 3.6% of aimed lobs and 9.7% of aimed passes against 0.2% for the
+          // CPU's own picks. Dropping them here lets the caller play the ball
+          // into the space instead, which is what the arrow promised anyway.
+          .filter((candidate) => !this.offsideInfraction(carrier, candidate.player, carrier.pos))
           // Prefer the one closest to where the charge says the ball lands.
           .sort((a, b) => (Math.abs(a.along - range) + a.lateral * 1.4) - (Math.abs(b.along - range) + b.lateral * 1.4));
         if (corridor.length) return corridor[0].player;
