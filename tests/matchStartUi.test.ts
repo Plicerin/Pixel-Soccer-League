@@ -1268,3 +1268,37 @@ test('public assets resolve against the deployment base, not the site root', () 
   const viteConfig = readFileSync('vite.config.ts', 'utf8');
   assert.match(viteConfig, /base: process\.env\.PSL_PAGES_BASE \|\| '\/'/, 'only the Pages build may set a non-root base');
 });
+
+test('a team highlight is never white, so it cannot vanish into a light panel', () => {
+  // Reported from play: UI elements with a white background make a white team
+  // colour invisible. The live scoreboard is bg-white with black text, and the
+  // raw shirt colour was handed straight to it -- United States, England and
+  // Germany all play in #ffffff.
+  const shell = readFileSync('src/components/RetroFootball.tsx', 'utf8');
+  const body = shell.slice(shell.indexOf('function getTeamColor('));
+  const fn = body.slice(0, body.indexOf('\n}\n'));
+  assert.match(fn, /luminance/i, 'the highlight must be luminance-limited');
+  assert.match(fn, /MAX_UI_LUMINANCE/, 'and the limit should be named');
+
+  // The scoreboard that consumes it really is white, so the limit matters.
+  assert.match(shell, /data-psl-scoreboard="live"[\s\S]{0,400}?bg-white/, 'the live scoreboard is a light panel');
+
+  // Mirror of the shipped clamp: white must come out readable, hues preserved.
+  const clamped = (hex: number) => {
+    let r = (hex >> 16) & 255;
+    let g = (hex >> 8) & 255;
+    let b = hex & 255;
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    if (luminance > 0.5) {
+      const scale = 0.5 / luminance;
+      r = Math.round(r * scale);
+      g = Math.round(g * scale);
+      b = Math.round(b * scale);
+    }
+    return { r, g, b };
+  };
+  const white = clamped(0xffffff);
+  assert.ok(white.r < 200 && white.g < 200 && white.b < 200, `white must be darkened, got ${JSON.stringify(white)}`);
+  const mexicoGreen = clamped(0x006847);
+  assert.deepEqual(mexicoGreen, { r: 0, g: 0x68, b: 0x47 }, 'a colour that already reads must be left alone');
+});
