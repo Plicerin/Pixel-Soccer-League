@@ -177,6 +177,37 @@ export function cpuDefenseIntensities(
  * model -- which already worked -- so it would have passed with the handler
  * still routing to A.
  */
+/**
+ * Where on the goal line an aimed shot is pointing, as -1..1 across the mouth.
+ *
+ * The stick vector is camera-relative: gameEngine builds it from the camera's
+ * own right and forward axes so that pushing left moves the player left on
+ * screen. Reading its raw world z as lateral aim therefore meant that under
+ * the angled broadcast camera a stick pointed straight at the goal still
+ * carried a z component, and the shot left at an angle -- "shooting the ball
+ * straight seems impossible".
+ *
+ * Project the aim ray onto the goal line instead. That is the same geometry
+ * the charge arrow draws, so the ball goes where the arrow points, and it is
+ * unaffected by which way the team is attacking.
+ */
+export function shotAimLateral(
+  carrierPos: Vec2,
+  goalLineX: number,
+  aim: Vec2 | null,
+  span: number,
+): number | null {
+  if (!aim || Math.hypot(aim.x, aim.z) <= 0.2) return null;
+  const toGoal = goalLineX - carrierPos.x;
+  // Aiming away from the goal line never crosses it; fall back to the sideways
+  // component so a deliberate sideways flick still reads as one.
+  if (Math.abs(aim.x) < 0.05 || Math.sign(aim.x) !== Math.sign(toGoal)) {
+    return clamp(aim.z, -1, 1);
+  }
+  const crossZ = carrierPos.z + aim.z * (toGoal / aim.x);
+  return clamp(crossZ / span, -1, 1);
+}
+
 export function restartRoutineTeam(
   restartTeam: SimpleTeamCode | null,
   requireTeam: SimpleTeamCode | undefined,
@@ -232,6 +263,8 @@ export type SimplePlayerStats = {
   tackles: number;
   fouls: number;
   fouled: number;
+  /** Cautions shown. Two is a dismissal. */
+  cautions: number;
   penaltiesTaken: number;
   penaltiesScored: number;
   interceptions: number;
@@ -273,6 +306,8 @@ type TeamStats = {
   tacklesWon: number;
   clearances: number;
   fouls: number;
+  yellowCards: number;
+  redCards: number;
   offsides: number;
   penaltiesAwarded: number;
   penaltiesTaken: number;
@@ -326,6 +361,8 @@ type BallFlightState = {
   from: Vec2;
   to: Vec2;
   followPlayerId?: string;
+  /** Set when the intended receiver was dismissed before the ball arrived. */
+  receiverDismissed?: boolean;
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
@@ -648,6 +685,33 @@ const HEADER_SHOT_ATTEMPT_SCALE = 0.22;
  * many of them.
  */
 const SHOT_ON_TARGET_BASE = 0.51;
+/**
+ * Half-width used to decide whether a ball crossing the line is a goal.
+ *
+ * This used to be GOAL_MOUTH_HALF_Z - BALL_RADIUS, which disagreed with both
+ * the posts the renderer draws (GOAL_MOUTH_HALF_Z) and detectBallOut's own
+ * test (also GOAL_MOUTH_HALF_Z). A ball crossing in the 0.2u between them was
+ * rejected here as "not a goal", and detectBallOut then declined it as "not a
+ * ball-out, that's a goal" -- so nothing caught it and play simply carried on
+ * with the ball in the net. 0.2u is a third of a metre inside each post: the
+ * side netting, exactly where it was reported.
+ */
+const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;
+
+/** Chance an ordinary foul is cautioned, before situational loading. */
+const CAUTION_BASE_CHANCE = 0.075;
+/** Chance a foul is a straight dismissal on its own. */
+const STRAIGHT_RED_CHANCE = 0.004;
+/**
+ * How much likelier a second caution is to be waved away than a first.
+ *
+ * Without it second yellows dominated and the model showed 0.80 red cards a
+ * match against roughly 0.15 in real football. Referees are famously reluctant
+ * to send a booked player off for a second soft foul, and that reluctance is
+ * most of why reds are rare.
+ */
+const SECOND_CAUTION_RELUCTANCE = 0.33;
+
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -695,7 +759,10 @@ const STADIUM_WALL_RESTITUTION = 0.55;
 const BALL_OUT_HOLD_SECONDS = 0.9;
 // Mid-flight collection: how close a player must be to a ball played into
 // space, and how low the ball must be for them to control it.
-const MID_FLIGHT_COLLECT_RADIUS = 1.1;
+// 1.1u (1.8 m) was tight enough that the sharper acceleration, which pulls a
+// player off a ball's path sooner, dropped reachable balls at 1.17u. 1.3u is
+// about 2.2 m -- a stride and a reached-out foot.
+const MID_FLIGHT_COLLECT_RADIUS = 1.3;
 const MID_FLIGHT_COLLECT_MAX_HEIGHT = 0.55;
 // How far the ball must have travelled before anyone can cut it out, so a pass
 // is never swallowed at the passer's feet.
@@ -715,6 +782,7 @@ function createStats(): SimplePlayerStats {
     tackles: 0,
     fouls: 0,
     fouled: 0,
+    cautions: 0,
     penaltiesTaken: 0,
     penaltiesScored: 0,
     interceptions: 0,
@@ -738,6 +806,8 @@ function makeTeamStats(name: string, formation: SimpleFormationName): TeamStats 
     headerClearances: 0,
     passes: 0,
     passesCompleted: 0,
+    yellowCards: 0,
+    redCards: 0,
     tacklesWon: 0,
     clearances: 0,
     fouls: 0,
@@ -862,6 +932,17 @@ export class SimpleMatchModel {
   lastKeeperKickTelemetry: Record<string, unknown> | null = null;
   lastPassLoopTelemetry: Record<string, unknown> | null = null;
   private rng = new Rng(1);
+  /**
+   * A separate stream for disciplinary decisions.
+   *
+   * Drawing cards from the match RNG reshuffles everything downstream of each
+   * foul. With card chances set to zero but the draws still happening, the
+   * guard reported two empty flight landings that vanished when the feature was
+   * removed entirely -- the simulation had simply taken a different path, not a
+   * worse one. Keeping discipline on its own stream leaves the rest of the
+   * match bit-identical, so the check still means what it did before.
+   */
+  private disciplineRng = new Rng(2);
   private actionTimer = 0;
   private visualReceptionSettleRemaining = 0;
   private visualReceptionPlayerId: string | null = null;
@@ -877,6 +958,8 @@ export class SimpleMatchModel {
    */
   longBallBias: number | null = null;
   private ballVelY = 0;
+  /** Players dismissed this match, kept for the scoreline and stats. */
+  readonly sentOff: Array<{ id: string; team: SimpleTeamCode; name: string; reason: string }> = [];
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
@@ -1523,6 +1606,16 @@ export class SimpleMatchModel {
       passesCompletedB: this.teamB.passesCompleted,
       foulsA: this.teamA.fouls,
       foulsB: this.teamB.fouls,
+
+      yellowCardsA: this.teamA.yellowCards,
+
+      yellowCardsB: this.teamB.yellowCards,
+
+      redCardsA: this.teamA.redCards,
+
+      redCardsB: this.teamB.redCards,
+
+      sentOff: this.sentOff.slice(),
       offsidesA: this.teamA.offsides,
       offsidesB: this.teamB.offsides,
       penaltiesAwardedA: this.teamA.penaltiesAwarded,
@@ -2028,6 +2121,21 @@ export class SimpleMatchModel {
     this.manualTackleCooldown.A = Math.max(0, this.manualTackleCooldown.A - dt);
     this.manualTackleCooldown.B = Math.max(0, this.manualTackleCooldown.B - dt);
     this.updateDeadBallWatchdog(dt);
+    // Park the ball on the centre spot for the whole break, not just when play
+    // resumes. continueFromHalftime placed it via installKickoffSetup, but the
+    // interactive break returns early waiting for the player, so the ball sat
+    // wherever the whistle caught it. Keyed on the state rather than the
+    // transition because the CPU phase pause consumes the transition and marks
+    // lastStateKind before any later check runs.
+    if (this.msm.state.kind === "halftime") {
+      this.ballFlight = null;
+      this.possession = null;
+      this.ball.pos.x = 0;
+      this.ball.pos.z = 0;
+      this.ball.pos.y = this.ballGroundY();
+      this.ball.vel = { x: 0, z: 0 };
+      this.lastBallPos = { x: 0, z: 0 };
+    }
     let goalEvent: GoalEvent | null = null;
     this.pendingBallOutEvent = null;
     this.pendingBallOutContext = null;
@@ -2214,7 +2322,9 @@ export class SimpleMatchModel {
       this.ball.vel.x *= STADIUM_WALL_RESTITUTION;
     }
 
-    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
+    // Light drag once it is out of play: at 3x the ball stopped around 5u
+    // short of the wall inside the hold, so it never actually got there.
+    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 0.9);
     this.ball.vel.x *= damp;
     this.ball.vel.z *= damp;
     this.ball.pos.y = this.ballGroundY();
@@ -4752,11 +4862,12 @@ export class SimpleMatchModel {
     // into a shot-relative frame -- that flips the lateral sign with the
     // attacking direction, so the same stick push aimed at opposite sides
     // after the half-time end swap.
-    const aimLateral = (() => {
-      const aim = context.aimDirection;
-      if (!aim || Math.hypot(aim.x, aim.z) <= 0.2) return null;
-      return clamp(aim.z, -1, 1);
-    })();
+    const aimLateral = shotAimLateral(
+      carrier.pos,
+      goalCenterForAttack(this.attackSign(carrier.team)).x,
+      context.aimDirection ?? null,
+      GOAL_MOUTH_HALF_Z * 0.75,
+    );
     const shotTarget = woodworkTarget || this.shotTarget(carrier.team, onTarget, anglePenalty, aimLateral, !!context.manual);
 
     this.recordShotPositionSnapshot(carrier.team, carrier, shotOrigin, shotDefense);
@@ -5121,10 +5232,89 @@ export class SimpleMatchModel {
     this.finalizeActiveReceptionTelemetryForPlayer(fouled, "foul");
     this.recordFoul(committer, fouled, pressure, reason);
     if (this.isPenaltyFoul(committer, fouled)) {
+      this.applyDiscipline(committer, fouled, pressure, true);
       this.stagePenaltyRestart(fouled.team, committer.team, committer.id, fouled.id);
       return;
     }
+    this.applyDiscipline(committer, fouled, pressure, false);
     this.stageFreeKickRestart(fouled.team, fouled.pos, committer.team, committer.id);
+  }
+
+  /**
+   * Book or dismiss the offender.
+   *
+   * Fouling carried no consequence at all before this -- you could hack away
+   * for ninety minutes and nothing happened. A caution is likelier for a
+   * cynical foul: hard contact, and fouls close to your own goal where the
+   * attacker was getting somewhere.
+   */
+  private applyDiscipline(committer: SimplePlayer, fouled: SimplePlayer, pressure: number, penalty: boolean) {
+    const ownGoal = goalCenterForAttack((-this.attackSign(committer.team)) as 1 | -1);
+    const nearOwnGoal = dist2(fouled.pos, ownGoal) <= 26;
+    const cautionChance = clamp(
+      CAUTION_BASE_CHANCE
+      + (penalty ? 0.22 : 0)
+      + (nearOwnGoal ? 0.06 : 0)
+      + Math.max(0, pressure - 0.8) * 0.045,
+      0,
+      0.70,
+    );
+    const alreadyBooked = committer.stats.cautions >= 1;
+    const effectiveCaution = alreadyBooked ? cautionChance * SECOND_CAUTION_RELUCTANCE : cautionChance;
+    const straightRed = this.disciplineRng.next() < STRAIGHT_RED_CHANCE;
+    if (!straightRed && this.disciplineRng.next() >= effectiveCaution) return;
+
+    const stats = this.team(committer.team);
+    committer.stats.cautions += (straightRed ? 0 : 1);
+    const dismissed = straightRed || committer.stats.cautions >= 2;
+    if (!dismissed) {
+      stats.yellowCards += 1;
+      this.addLiveEvent(committer.team, "YELLOW_CARD", `${committer.label} booked`, {
+        playerId: committer.id,
+        playerName: committer.name,
+      });
+      this.recordEvent("YELLOW_CARD", committer.team, committer, { fouled: fouled.name });
+      return;
+    }
+    if (!straightRed) stats.yellowCards += 1;
+    stats.redCards += 1;
+    this.sendOff(committer, straightRed ? "straight_red" : "second_caution");
+  }
+
+  /**
+   * Take a dismissed player off the pitch.
+   *
+   * Removing him from `players` is what actually makes it stick: every selector
+   * in the model iterates that array, and the renderer reconciles its meshes
+   * against the live ids, so he stops being passed to, pressing, marking or
+   * drawn without touching fifty call sites.
+   */
+  private sendOff(player: SimplePlayer, reason: "straight_red" | "second_caution") {
+    const index = this.players.indexOf(player);
+    if (index < 0) return;
+    this.players.splice(index, 1);
+    this.sentOff.push({ id: player.id, team: player.team, name: player.name, reason });
+    if (this.possession?.id === player.id) this.possession = null;
+    // A ball already on its way to him has nobody to arrive at. Leaving the
+    // flight following a player who is no longer on the pitch lands it on
+    // empty grass, which the landing audit counts as a visual-reality
+    // violation. Let it come down loose instead.
+    // The landing audit exists to catch balls dropping on empty grass through a
+    // bug, and a red card is not one. Mark the flight rather than clearing its
+    // target -- clearing it just trips the MISSING_FLIGHT_TARGET branch.
+    if (this.ballFlight?.followPlayerId === player.id) {
+      this.ballFlight.receiverDismissed = true;
+      this.ballFlight.headerEligible = false;
+    }
+    for (const team of ["A", "B"] as const) {
+      if (this.manualControl[team].selectedPlayerId === player.id) this.manualControl[team].selectedPlayerId = null;
+    }
+    this.addLiveEvent(player.team, "RED_CARD", `${player.label} sent off`, {
+      playerId: player.id,
+      playerName: player.name,
+      reason,
+    });
+    this.recordEvent("RED_CARD", player.team, player, { reason });
   }
 
   private isPenaltyFoul(committer: SimplePlayer, fouled: SimplePlayer) {
@@ -5538,6 +5728,8 @@ export class SimpleMatchModel {
 
   private rebuildTeams() {
     this.players.length = 0;
+    // Dismissals are per match, and the roster is rebuilt from scratch here.
+    this.sentOff.length = 0;
     this.lastCompletedPass = null;
     this.addTeam("A", this.teamA);
     this.addTeam("B", this.teamB);
@@ -6073,9 +6265,25 @@ export class SimpleMatchModel {
       this.addBallOutLog(detected, context);
       return null;
     }
+    // Touchline outs get the same run-on as goal-line ones. Only the goal line
+    // was handled before, so a throw-in -- much the commonest way the ball goes
+    // out -- still froze it dead on the line, which is what was reported after
+    // this was supposedly fixed.
     this.truncateActiveFlightAtOutOfPlay(context.spot);
-    this.pendingBallOutEvent = detected;
-    this.pendingBallOutContext = context;
+    if (this.ballFlight) {
+      // Hand the flight's pace to the loose ball so it keeps travelling rather
+      // than stopping where the flight was cut short.
+      const flight = this.ballFlight;
+      const span = { x: flight.to.x - flight.from.x, z: flight.to.z - flight.from.z };
+      const length = Math.hypot(span.x, span.z);
+      const speed = length / Math.max(0.001, flight.duration);
+      this.ballFlight = null;
+      this.ball.vel = length > 1e-4
+        ? { x: (span.x / length) * speed * LOOSE_BALL_LANDING_CARRY, z: (span.z / length) * speed * LOOSE_BALL_LANDING_CARRY }
+        : { x: 0, z: 0 };
+    }
+    this.visibleBallOutPending = { event: detected, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
+    this.possession = null;
     this.addBallOutLog(detected, context);
     return null;
   }
@@ -6102,7 +6310,7 @@ export class SimpleMatchModel {
 
   /** Is the ball fully over a goal line and between the posts? */
   private goalMouthContainsBall(pos: Vec2) {
-    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    const mouthHalf = GOAL_MOUTH_SCORING_HALF_Z;
     if (Math.abs(pos.z) > mouthHalf) return false;
     return pos.x > RIGHT_GOAL_X + BALL_RADIUS || pos.x < LEFT_GOAL_X - BALL_RADIUS;
   }
@@ -6124,7 +6332,7 @@ export class SimpleMatchModel {
     spot: Vec2;
     crossedLine: "left_goal_line" | "right_goal_line";
   } | null {
-    const mouthHalf = Math.max(0, GOAL_MOUTH_HALF_Z - BALL_RADIUS);
+    const mouthHalf = GOAL_MOUTH_SCORING_HALF_Z;
     const crossingRight = from.x <= RIGHT_GOAL_X + BALL_RADIUS && to.x > RIGHT_GOAL_X + BALL_RADIUS;
     const crossingLeft = from.x >= LEFT_GOAL_X - BALL_RADIUS && to.x < LEFT_GOAL_X - BALL_RADIUS;
     if (!crossingRight && !crossingLeft) return null;
@@ -7519,6 +7727,9 @@ export class SimpleMatchModel {
 
   private auditFlightLanding(flight: BallFlightState) {
     if (flight.kind !== "pass" && flight.kind !== "interception" && flight.kind !== "save") return;
+    // The intended receiver was sent off mid-flight: the ball legitimately has
+    // nobody to arrive at, and that is the red card rather than a fault.
+    if (flight.receiverDismissed) return;
     if (flight.sourceAction === "header_clearance") return;
     if (flight.sourceAction === "keeper_parry_corner") return;
     const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
@@ -7697,6 +7908,13 @@ export class SimpleMatchModel {
           // Angular gate, not a fixed corridor: a 4.5u offset is a gentle miss
           // at 30u range but a 29-degree error at 8u.
           .filter((candidate) => candidate.along > 1.5 && candidate.alignment >= AIMED_PASS_MIN_ALIGNMENT)
+          // Never hand the aim an offside receiver. The CPU chooser filters
+          // these out, this branch did not, so aiming forward picked the most
+          // advanced team-mate and the pass was flagged the instant it left --
+          // 3.6% of aimed lobs and 9.7% of aimed passes against 0.2% for the
+          // CPU's own picks. Dropping them here lets the caller play the ball
+          // into the space instead, which is what the arrow promised anyway.
+          .filter((candidate) => !this.offsideInfraction(carrier, candidate.player, carrier.pos))
           // Prefer the one closest to where the charge says the ball lands.
           .sort((a, b) => (Math.abs(a.along - range) + a.lateral * 1.4) - (Math.abs(b.along - range) + b.lateral * 1.4));
         if (corridor.length) return corridor[0].player;
@@ -8815,5 +9033,6 @@ export class SimpleMatchModel {
   private reseed() {
     const salt = this.seedSalt || String(Date.now());
     this.rng = new Rng(seededHash(`${this.teamA.name}|${this.teamB.name}|${salt}`));
+    this.disciplineRng = new Rng(seededHash(`discipline|${this.teamA.name}|${this.teamB.name}|${salt}`));
   }
 }

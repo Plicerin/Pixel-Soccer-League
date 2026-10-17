@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X } from "../src/core/constants";
+import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X, BALL_RADIUS, clamp} from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
-import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type RestartPlan } from "../src/core/simpleMatchModel";
+import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, shotAimLateral, type RestartPlan } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
   const model = new SimpleMatchModel();
@@ -542,7 +542,10 @@ test("V66 ball over touchline creates throw-in restart with visible flight", () 
   (model as unknown as { startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void })
     .startBallFlight("pass", { x: 0, z: FIELD_D / 2 - 0.6 }, { x: 4, z: FIELD_D / 2 + 1.6 }, 0.1, 0.04);
 
-  for (let i = 0; i < 60 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
+  // The ball now runs on past the touchline for BALL_OUT_HOLD_SECONDS before
+  // the restart is staged, the same as a goal-line out, so this needs longer
+  // than the one second it used to allow. The assertions are unchanged.
+  for (let i = 0; i < 240 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
   const throwState = model.msm.state as { kind: string; restartType?: string; restartTeam?: string };
   assert.equal(throwState.kind, "ball_out");
   assert.equal(throwState.restartType, "throw_in");
@@ -2175,6 +2178,7 @@ test("fouls can be switched off for a match", () => {
     return {
       fouls: snapshot.foulsA + snapshot.foulsB,
       freeKicks: snapshot.freeKicksA + snapshot.freeKicksB,
+      offsides: (snapshot.offsidesA ?? 0) + (snapshot.offsidesB ?? 0),
       finished: snapshot.phase === "FULL_TIME",
     };
   };
@@ -2184,7 +2188,15 @@ test("fouls can be switched off for a match", () => {
 
   const off = fouls(false);
   assert.equal(off.fouls, 0, `fouls off must award none, got ${off.fouls}`);
-  assert.equal(off.freeKicks, 0, `fouls off must award no free kicks, got ${off.freeKicks}`);
+  // Offside is not a foul, and its restart is a free kick that stats.freeKicks
+  // counts like any other, so "no free kicks at all" also forbade offsides --
+  // it only held because that seed happened not to produce one. Every free
+  // kick in a fouls-off match must come from an offside.
+  assert.equal(
+    off.freeKicks,
+    off.offsides,
+    `with fouls off the only free kicks may be offsides, got ${off.freeKicks} free kicks for ${off.offsides} offsides`,
+  );
   assert.ok(off.finished, "a match with fouls off must still reach full time");
 });
 
@@ -8415,4 +8427,168 @@ test("routine keys act for the right side, and grounded corners are not aerial",
     assert.equal(telemetry.aerial, true, `${plan} must still be reported as aerial`);
     assert.ok(flight.arc > 0.5, `${plan} must be floated, got arc ${flight.arc}`);
   }
+});
+
+test("a ball crossing inside the post is a goal, including the side netting", () => {
+  // Reported from play: the ball went into the net and no goal was given.
+  // detectGoalMouthCrossing measured the mouth as GOAL_MOUTH_HALF_Z minus the
+  // ball radius, while detectBallOut and the renderer both use the full
+  // GOAL_MOUTH_HALF_Z. A ball crossing in the 0.2u between them was rejected
+  // here as "not a goal" and then declined by detectBallOut as "not a ball-out,
+  // that's a goal", so nothing caught it and play carried on with the ball in
+  // the net. That is a third of a metre inside each post.
+  const crossAt = (z: number) => {
+    const model = new SimpleMatchModel();
+    model.setSeed(`net-${z}`);
+    model.startMatch();
+    const api = model as unknown as {
+      msm: { state: unknown };
+      lastBallPos: { x: number; z: number };
+      detectGoalMouthCrossing: (from: { x: number; z: number }, to: { x: number; z: number }) => unknown;
+    };
+    api.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+    // A shot crossing the right-hand goal line at this z, in one frame.
+    const from = { x: RIGHT_GOAL_X - 1.2, z };
+    const to = { x: RIGHT_GOAL_X + BALL_RADIUS + 0.35, z };
+    return api.detectGoalMouthCrossing(from, to) !== null;
+  };
+
+  assert.equal(crossAt(0), true, "straight down the middle is obviously a goal");
+  // The old dead band: inside the post the renderer draws, outside the shrunk
+  // mouth the crossing test used.
+  const insidePost = GOAL_MOUTH_HALF_Z - 0.05;
+  assert.equal(crossAt(insidePost), true, `${insidePost.toFixed(2)} is inside the post and must count`);
+  assert.equal(crossAt(-insidePost), true, 'the same at the other post');
+  // Outside the posts is still not a goal.
+  assert.equal(crossAt(GOAL_MOUTH_HALF_Z + 0.35), false, 'wide of the post is not a goal');
+
+  // The scoring mouth must match what detectBallOut and the renderer use, or
+  // a ball can fall between the two and be seen by neither.
+  const source = readFileSync("src/core/simpleMatchModel.ts", "utf8");
+  assert.match(
+    source,
+    /const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;/,
+    "the scoring mouth must be the posts, or a gap opens between the detectors",
+  );
+});
+
+test("the ball sits on the centre spot for the whole halftime break", () => {
+  // Reported from play: at halftime the ball did not go to the centre.
+  // continueFromHalftime placed it there via installKickoffSetup, but the
+  // interactive break returns early waiting for the player, so the ball sat
+  // wherever the whistle caught it -- and the restart was staged from there.
+  for (const interactive of [true, false]) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`halftime-centre-${interactive}`);
+    model.setHalfDurationSeconds(60);
+    if (interactive) model.setInteractiveHalftime(true);
+    model.startMatch();
+    let sawHalftime = false;
+    let worst = 0;
+    let settled = false;
+    for (let i = 0; i < 60 * 400 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+      model.step(1 / 60);
+      if (model.msm.state.kind !== "halftime") continue;
+      sawHalftime = true;
+      // The reset lands on the tick after the transition.
+      if (!settled) { settled = true; continue; }
+      worst = Math.max(worst, Math.hypot(model.ball.pos.x, model.ball.pos.z));
+    }
+    assert.ok(sawHalftime, `${interactive ? "interactive" : "auto"} run should reach halftime`);
+    assert.ok(
+      worst < 0.01,
+      `${interactive ? "interactive" : "auto"} halftime left the ball ${worst.toFixed(2)}u off the centre spot`,
+    );
+  }
+});
+
+test("an aimed shot goes where the stick points, not where its world z happens to be", () => {
+  // Reported from play: "shooting the ball straight seems impossible, even if
+  // the stick is exactly pointing left the shot will go off at an angle".
+  // gameEngine builds the stick vector from the camera's own right and forward
+  // axes so that pushing left moves the player left on screen. Reading its raw
+  // world z as lateral aim meant that under the angled broadcast camera a stick
+  // pointed at the goal still carried a z component and the shot left at an
+  // angle. The ray is projected onto the goal line now.
+  const span = GOAL_MOUTH_HALF_Z * 0.75;
+  const goalX = RIGHT_GOAL_X;
+  const aimAt = (from: { x: number; z: number }, target: { x: number; z: number }) => {
+    const dx = target.x - from.x;
+    const dz = target.z - from.z;
+    const len = Math.hypot(dx, dz);
+    return { x: dx / len, z: dz / len };
+  };
+
+  // Pointing at the middle of the goal must be dead straight, from anywhere.
+  for (const from of [{ x: goalX - 12, z: 0 }, { x: goalX - 12, z: 8 }, { x: goalX - 20, z: -11 }]) {
+    const lateral = shotAimLateral(from, goalX, aimAt(from, { x: goalX, z: 0 }), span);
+    assert.ok(lateral !== null);
+    assert.ok(
+      Math.abs(lateral!) < 0.02,
+      `aiming at the goal centre from (${from.x.toFixed(0)}, ${from.z}) gave lateral ${lateral!.toFixed(3)}`,
+    );
+  }
+
+  // Pointing at a post must reach that post, and keep its sign from out wide.
+  const wide = { x: goalX - 14, z: 9 };
+  const nearPost = shotAimLateral(wide, goalX, aimAt(wide, { x: goalX, z: span }), span);
+  const farPost = shotAimLateral(wide, goalX, aimAt(wide, { x: goalX, z: -span }), span);
+  assert.ok(nearPost !== null && farPost !== null);
+  assert.ok(nearPost! > 0.9, `aiming at the near post gave ${nearPost!.toFixed(2)}`);
+  assert.ok(farPost! < -0.9, `aiming at the far post gave ${farPost!.toFixed(2)}`);
+
+  // The old behaviour: a camera-relative stick pointed at the goal carries a
+  // world z component. Reading it raw sent the shot most of the way to a post.
+  const cameraSkew = { x: 0.94, z: 0.34 };
+  assert.ok(Math.abs(clamp(cameraSkew.z, -1, 1)) > 0.3, 'the raw reading was a third of the way to a post');
+  const projected = shotAimLateral({ x: goalX - 12, z: 0 }, goalX, cameraSkew, span);
+  assert.ok(projected !== null);
+  assert.ok(Math.abs(projected!) > 0.9, 'and the projection sends that genuinely wide aim to the post it points at');
+
+  // No aim, or a flick away from goal, still behaves.
+  assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, null, span), null);
+  assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, { x: 0.01, z: 0.01 }, span), null);
+});
+
+test("fouling carries a consequence: cards, and a dismissal takes the player off", () => {
+  // Reported from play: "you can foul as much as you like and there is no
+  // consequence". There was no card system at all.
+  const model = new SimpleMatchModel();
+  model.setSeed("cards-behaviour");
+  model.setHalfDurationSeconds(2700);
+  model.startMatch();
+  const api = model as unknown as {
+    applyDiscipline: (c: unknown, f: unknown, pressure: number, penalty: boolean) => void;
+    disciplineRng: { next: () => number };
+  };
+
+  const [committer, fouled] = model.getPlayers().filter((p) => p.role !== "GK");
+  const startingCount = model.getPlayers().length;
+
+  // Force two cautions on the same player; the second must dismiss him.
+  // Discipline draws from its own stream so that card decisions cannot reshuffle
+  // the match simulation, so that is the one to stub. 0.02 clears
+  // STRAIGHT_RED_CHANCE (which would dismiss outright) but stays under the
+  // caution chance, including the reluctance applied to a second booking.
+  api.disciplineRng = { next: () => 0.02 } as never;
+  api.applyDiscipline(committer, fouled, 1, false);
+  assert.equal(committer.stats.cautions, 1, "a hard foul must be bookable");
+  assert.equal(model.getMatchSnapshot().yellowCardsA + model.getMatchSnapshot().yellowCardsB, 1);
+  assert.equal(model.getPlayers().length, startingCount, "a caution does not remove anyone");
+
+  api.applyDiscipline(committer, fouled, 1, false);
+  const snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.redCardsA + snapshot.redCardsB, 1, "a second caution is a dismissal");
+  assert.equal(model.getPlayers().length, startingCount - 1, "a dismissed player leaves the pitch");
+  assert.ok(
+    !model.getPlayers().some((p) => p.id === committer.id),
+    "and cannot still be selected, passed to or marked",
+  );
+  assert.equal(snapshot.sentOff.length, 1);
+  assert.equal(snapshot.sentOff[0].reason, "second_caution");
+
+  // A fresh match starts eleven a side again.
+  model.startMatch();
+  assert.equal(model.getPlayers().length, startingCount, "the roster is rebuilt for the next match");
+  assert.equal(model.getMatchSnapshot().sentOff.length, 0);
 });

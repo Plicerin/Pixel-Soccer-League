@@ -183,11 +183,30 @@ function randomCpuMatchup(): CpuMatchup {
   };
 }
 
+/**
+ * A team's highlight colour for the UI.
+ *
+ * The raw shirt colour was handed straight to the scoreboard, which is
+ * bg-white with black text. United States, England and Germany all play in
+ * #ffffff, so their highlight vanished into the panel. Darken anything too
+ * light to read on a light surface, keeping its hue; a white kit comes out
+ * neutral grey rather than invisible.
+ */
 function getTeamColor(teamName: string): string {
   const kit = MLS_TEAM_KITS[teamName];
-  if (!kit) return '#38bdf8'; // fallback sky-400
-  const hex = kit.home.shirt;
-  return `#${hex.toString(16).padStart(6, '0')}`;
+  const hex = kit ? kit.home.shirt : 0x38bdf8;
+  let r = (hex >> 16) & 255;
+  let g = (hex >> 8) & 255;
+  let b = hex & 255;
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const MAX_UI_LUMINANCE = 0.5;
+  if (luminance > MAX_UI_LUMINANCE) {
+    const scale = MAX_UI_LUMINANCE / luminance;
+    r = Math.round(r * scale);
+    g = Math.round(g * scale);
+    b = Math.round(b * scale);
+  }
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
 function getResolvedMatchKits(teamAName: string, teamBName: string, teamAKit: 'home' | 'away', teamBKit: 'home' | 'away') {
