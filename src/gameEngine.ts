@@ -480,6 +480,8 @@ type RestartPresentation = {
 };
 type PlayerVisual = {
   mesh: THREE.Group;
+  /** Built with keeper frames, so it has to be rebuilt if the role changes. */
+  isKeeper: boolean;
   spriteGroup: THREE.Group;
   runFrames: THREE.Mesh[];
   idleFrames: THREE.Mesh[];
@@ -2250,8 +2252,13 @@ class SimpleGameEngine {
 
   private syncPlayerMeshes() {
     const liveIds = new Set(this.model.players.map((p) => p.id));
+    const keeperById = new Map(this.model.players.map((p) => [p.id, p.role === 'GK']));
     for (const [id, visual] of this.playerMeshes) {
-      if (!liveIds.has(id)) {
+      // Also rebuild when a player's keeper status changes: createPlayerVisual
+      // bakes the dive frames at creation, so an outfielder promoted after a
+      // dismissal keeps empty dive arrays and disappears on his first save.
+      const stale = !liveIds.has(id) || keeperById.get(id) !== visual.isKeeper;
+      if (stale) {
         this.scene.remove(visual.mesh);
         visual.allFrames.forEach((frame) => frame.geometry.dispose());
         this.playerMeshes.delete(id);
@@ -2314,6 +2321,7 @@ class SimpleGameEngine {
       diveRightFrames,
       diveUpFrames,
       diveDownFrames,
+      isKeeper,
       allFrames,
       facingMode: 'side',
       dir: player.team === 'A' ? 1 : -1,
@@ -2904,7 +2912,12 @@ class SimpleGameEngine {
           };
         }
       }
-      if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0x6ee787, 0.8, 0.95);
+      // A turnover that is just the other side of an interception already has
+      // its own ring; drawing both stacks two circles at the same point.
+      const turnoverAfterInterception = event.action === 'TURNOVER' && !!(event.meta as { afterInterception?: boolean } | undefined)?.afterInterception;
+      if ((event.action === 'TACKLE' || event.action === 'TURNOVER') && !turnoverAfterInterception) {
+        this.spawnEventCue(0x6ee787, 0.8, 0.95);
+      }
       // Interceptions and clearances were recorded but never drawn, so a very
       // busy defence looked like it was doing nothing. Distinct colours so a
       // read of the pass is not mistaken for a challenge.
@@ -3762,7 +3775,10 @@ class SimpleGameEngine {
     // otherwise runs only on init, reset and team/formation changes, and
     // updateMeshes walks only the surviving players -- so a player dismissed
     // mid-match left a frozen body standing on the pitch.
-    if (this.playerMeshes.size !== this.model.players.length) this.syncPlayerMeshes();
+    if (this.playerMeshes.size !== this.model.players.length
+      || this.model.players.some((p) => this.playerMeshes.get(p.id)?.isKeeper !== (p.role === 'GK'))) {
+      this.syncPlayerMeshes();
+    }
     this.updateMeshes(dt);
     this.updateScoreBug();
     this.updateMiniMap();

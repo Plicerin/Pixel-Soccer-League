@@ -261,6 +261,7 @@ export type SimplePlayerStats = {
   headerShots: number;
   headerClearances: number;
   tackles: number;
+  blocks: number;
   fouls: number;
   fouled: number;
   /** Cautions shown. Two is a dismissal. */
@@ -304,6 +305,7 @@ type TeamStats = {
   passes: number;
   passesCompleted: number;
   tacklesWon: number;
+  blocks: number;
   clearances: number;
   fouls: number;
   yellowCards: number;
@@ -614,6 +616,16 @@ const KICKOFF_SHAPE_RELEASE_SECONDS = 18;
 const KICKOFF_SHAPE_HOLD_SECONDS = 2.4;
 const KICKOFF_LANE_RELEASE_SECONDS = 2.0;
 const BALL_HOLD_TIME_MULTIPLIER = 1.5;
+/**
+ * Offsets the tackle cut at full length.
+ *
+ * Taking tackles from 228 a match to roughly 35 removes about 80 possession
+ * changes, so each spell on the ball lasts longer and passes climbed to 992
+ * against a 965 ceiling. BALL_HOLD_TIME_MULTIPLIER does not help here --
+ * full-length matches get their cadence from fullLengthOutfieldCadenceDelay,
+ * which bypasses it entirely. This is the lever that actually applies.
+ */
+const FULL_LENGTH_CADENCE_SCALE = 1.055;
 /** Pass distance from which the ball is played ahead of the receiver. */
 const PASS_LEAD_MIN_DISTANCE = 6;
 /** Distance from which the receiver runs onto it and carries, so settles fast. */
@@ -699,6 +711,23 @@ const SHOT_ON_TARGET_BASE = 0.51;
 const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;
 
 /** Chance an ordinary foul is cautioned, before situational loading. */
+/**
+ * Scales on the two defensive contests that dominated the tackle count.
+ *
+ * A pressure duel is a real tackle, a body in front of a shot is a block, and
+ * between them they produced 228 "tackles" and no blocks at all per 90 minutes
+ * against roughly 35 and 8 in real football.
+ */
+const TACKLE_RATE_SCALE = 0.3;
+/**
+ * Left at 1: this contest is not really a block count, it is the valve that
+ * keeps shot volume down. Scaling it to 0.12 gave a realistic 7 blocks a match
+ * and sent shots from 32 to 54.9 and passes past 1000, because strikers in the
+ * box were no longer being stopped. Its labelling was the problem, not its
+ * rate -- counting it as a tackle is what produced 228 of them.
+ */
+const BOX_BLOCK_RATE_SCALE = 1;
+
 const CAUTION_BASE_CHANCE = 0.075;
 /** Chance a foul is a straight dismissal on its own. */
 const STRAIGHT_RED_CHANCE = 0.004;
@@ -787,6 +816,7 @@ function createStats(): SimplePlayerStats {
     headerShots: 0,
     headerClearances: 0,
     tackles: 0,
+    blocks: 0,
     fouls: 0,
     fouled: 0,
     cautions: 0,
@@ -816,6 +846,7 @@ function makeTeamStats(name: string, formation: SimpleFormationName): TeamStats 
     yellowCards: 0,
     redCards: 0,
     tacklesWon: 0,
+    blocks: 0,
     clearances: 0,
     fouls: 0,
     offsides: 0,
@@ -4454,7 +4485,9 @@ export class SimpleMatchModel {
           completionChance,
         });
       }
-      this.addLiveEvent(otherTeam(carrier.team), "TURNOVER", `${target.label} pass cut out`);
+      // Flagged so the renderer does not stack a generic turnover ring on top
+      // of the interception ring it just drew at the same spot.
+      this.addLiveEvent(otherTeam(carrier.team), "TURNOVER", `${target.label} pass cut out`, { afterInterception: true });
       const event = this.recordEvent("TURNOVER", otherTeam(carrier.team), this.possession || carrier, {
         passer: carrier.name,
         intendedTarget: target.name,
@@ -5151,7 +5184,7 @@ export class SimpleMatchModel {
       this.resolveFoul(defender, carrier, pressure, "PRESSURE_FOUL");
       return true;
     }
-    const tackleChance = clamp((pressure - 0.25) * 0.100 + defender.ratings.defense * 0.020, 0.015, 0.160);
+    const tackleChance = TACKLE_RATE_SCALE * clamp((pressure - 0.25) * 0.100 + defender.ratings.defense * 0.020, 0.015, 0.160);
     if (this.rng.next() >= tackleChance) return false;
     if (deliveryContinuation) {
       const distToGoal = dist2(carrier.pos, goalCenterForAttack(this.attackSign(carrier.team)));
@@ -5813,7 +5846,14 @@ export class SimpleMatchModel {
     this.activeReceptionTelemetry = null;
     const attackSign = this.attackSign(team);
     for (const player of this.players) {
-      const slot = getFormationSlots(this.team(player.team).formation)[Number(player.id.split("-")[1]) || 0];
+      const slots = getFormationSlots(this.team(player.team).formation);
+      // Resolve the keeper's slot from his role, not his id index. An
+      // outfielder promoted after a dismissal keeps his original id, so the
+      // index put him back in his old outfield slot and overwrote the goal
+      // anchor -- and kickoffLegalPosition returns homePos unchanged for a GK.
+      const slot = player.role === "GK"
+        ? slots.find((candidate) => candidate.role === "GK") ?? slots[0]
+        : slots[Number(player.id.split("-")[1]) || 0];
       const homePos = clampToPlayable(orientSlot(slot, this.attackSign(player.team)));
       player.homePos = homePos;
       player.pos.x = homePos.x;
@@ -5859,7 +5899,14 @@ export class SimpleMatchModel {
     ]);
 
     for (const player of this.players) {
-      const slot = getFormationSlots(this.team(player.team).formation)[Number(player.id.split("-")[1]) || 0];
+      const slots = getFormationSlots(this.team(player.team).formation);
+      // Resolve the keeper's slot from his role, not his id index. An
+      // outfielder promoted after a dismissal keeps his original id, so the
+      // index put him back in his old outfield slot and overwrote the goal
+      // anchor -- and kickoffLegalPosition returns homePos unchanged for a GK.
+      const slot = player.role === "GK"
+        ? slots.find((candidate) => candidate.role === "GK") ?? slots[0]
+        : slots[Number(player.id.split("-")[1]) || 0];
       const homePos = clampToPlayable(orientSlot(slot, this.attackSign(player.team)));
       player.homePos = homePos;
       const kickoffPos = this.kickoffLegalPosition(
@@ -7598,7 +7645,7 @@ export class SimpleMatchModel {
     const pressureScale = lerpNumber(1.0, 0.84, clamp(pressure / 1.3, 0, 1));
     const underproductionScale = this.underproducingCadenceScale();
     const base = this.rng.range(zoneWindow.min, zoneWindow.max) + roleOffset;
-    return Math.max(0.42, base * tempoScale * pressureScale * underproductionScale);
+    return Math.max(0.42, base * tempoScale * pressureScale * underproductionScale * FULL_LENGTH_CADENCE_SCALE);
   }
 
   private compressedOutfieldCadenceDelay(carrier: SimplePlayer) {
@@ -8493,7 +8540,7 @@ export class SimpleMatchModel {
     const livePressure = clamp(pressure * 0.055, 0, 0.18);
     const qualityPressure = clamp(((options.qualityDebt ?? 0) - 0.48) * 0.34, 0, 0.16);
     const keeperBonus = defender.role === "GK" ? 0.08 : 0;
-    const chance = clamp(loadPressure + proximityPressure + livePressure + qualityPressure + keeperBonus, 0.04, options.shotLoadContainment ? 0.98 : 0.86);
+    const chance = BOX_BLOCK_RATE_SCALE * clamp(loadPressure + proximityPressure + livePressure + qualityPressure + keeperBonus, 0.04, options.shotLoadContainment ? 0.98 : 0.86);
     if (this.rng.next() >= chance) return false;
 
     this.finishStrikerBoxPossession(carrier, defender.role === "GK" ? "keeper_smother" : "defender_block", distToGoal, pressure, {
@@ -8507,10 +8554,18 @@ export class SimpleMatchModel {
       shotQualityReason: options.qualityReason || null,
     });
     this.possession = defender;
-    this.recordTackle(defender, carrier, pressure, defender.role === "GK" ? "STRIKER_BOX_KEEPER_SMOTHER" : "STRIKER_BOX_BLOCK");
+    // A body in the way of a shot is a block, not a tackle. Counting it as one
+    // was half of why the model showed 228 tackles a match against roughly 35.
+    if (defender.role === "GK") {
+      this.recordTackle(defender, carrier, pressure, "STRIKER_BOX_KEEPER_SMOTHER");
+    } else {
+      this.team(defender.team).blocks += 1;
+      defender.stats.blocks += 1;
+      defender.stats.touches += 1;
+    }
     this.startBallFlight("interception", { x: carrier.pos.x, z: carrier.pos.z }, defender.pos, this.flightDuration(0.36), 0.34, defender);
-    this.addLiveEvent(defender.team, defender.role === "GK" ? "SMOTHER" : "TACKLE", `${defender.label} stopped ${carrier.label}`);
-    this.recordEvent(defender.role === "GK" ? "KEEPER_SMOTHER" : "TACKLE", defender.team, defender, {
+    this.addLiveEvent(defender.team, defender.role === "GK" ? "SMOTHER" : "BLOCK", `${defender.label} stopped ${carrier.label}`);
+    this.recordEvent(defender.role === "GK" ? "KEEPER_SMOTHER" : "BLOCK", defender.team, defender, {
       carrier: carrier.name,
       distToGoal,
       pressure,
@@ -8544,10 +8599,17 @@ export class SimpleMatchModel {
     if (this.rng.next() >= chance) return false;
 
     this.possession = defender;
-    this.recordTackle(defender, carrier, pressure, defender.role === "GK" ? "PENALTY_AREA_KEEPER_SMOTHER" : "PENALTY_AREA_CONTAINMENT_BLOCK");
+    // Containment in the area is a block too, for the same reason.
+    if (defender.role === "GK") {
+      this.recordTackle(defender, carrier, pressure, "PENALTY_AREA_KEEPER_SMOTHER");
+    } else {
+      this.team(defender.team).blocks += 1;
+      defender.stats.blocks += 1;
+      defender.stats.touches += 1;
+    }
     this.startBallFlight("interception", { x: carrier.pos.x, z: carrier.pos.z }, defender.pos, this.flightDuration(0.36), 0.32, defender);
-    this.addLiveEvent(defender.team, defender.role === "GK" ? "SMOTHER" : "TACKLE", `${defender.label} contained ${carrier.label}`);
-    this.recordEvent(defender.role === "GK" ? "KEEPER_SMOTHER" : "TACKLE", defender.team, defender, {
+    this.addLiveEvent(defender.team, defender.role === "GK" ? "SMOTHER" : "BLOCK", `${defender.label} contained ${carrier.label}`);
+    this.recordEvent(defender.role === "GK" ? "KEEPER_SMOTHER" : "BLOCK", defender.team, defender, {
       carrier: carrier.name,
       distToGoal,
       pressure,
@@ -8951,6 +9013,42 @@ export class SimpleMatchModel {
     if (this.eventLog.length > 120) this.eventLog.shift();
   }
 
+  /**
+   * One export row per player, for the active roster and for anyone sent off.
+   * Archived rows used to be a raw spread of the stats object, which omitted
+   * name, role, possFrames, the pass aliases, recoveries and turnovers -- the
+   * dashboard reads those directly and renders a missing field as zero, so a
+   * dismissal quietly erased the player's contribution.
+   */
+  private playerExportRow(role: string, name: string, st: SimplePlayerStats) {
+    return {
+        role: role,
+        name: name,
+        touches: st.touches,
+        possFrames: Math.round(st.possessionSeconds * 60),
+        passAtt: st.passes,
+        passComp: st.passesCompleted,
+        passes: st.passes,
+        passesCompleted: st.passesCompleted,
+        shots: st.shots,
+        shotsOnTarget: st.shotsOnTarget,
+        goals: st.goals,
+        headers: st.headers,
+        headerShots: st.headerShots,
+        headerClearances: st.headerClearances,
+        tackles: st.tackles,
+        interceptions: st.interceptions,
+        clearances: st.headerClearances,
+        recoveries: st.interceptions + st.saves,
+        turnovers: Math.max(0, st.passes - st.passesCompleted),
+        fouls: st.fouls,
+        fouled: st.fouled,
+        penaltiesTaken: st.penaltiesTaken,
+        penaltiesScored: st.penaltiesScored,
+        distance: +st.distance.toFixed(2),
+          };
+  }
+
   private liveTeamStats(team: SimpleTeamCode, possession: number) {
     const stats = this.team(team);
     const effective = this.effectiveTeamStats(team);
@@ -8989,35 +9087,10 @@ export class SimpleMatchModel {
     const effective = this.effectiveTeamStats(team);
     const roleStats: Record<string, unknown> = {};
     for (const dismissed of this.dismissedStats.filter((d) => d.team === team)) {
-      roleStats[dismissed.label] = { ...dismissed.stats, dismissed: true };
+      roleStats[dismissed.label] = { ...this.playerExportRow(dismissed.role, dismissed.name, dismissed.stats), dismissed: true };
     }
     for (const player of this.players.filter((p) => p.team === team)) {
-      roleStats[player.label] = {
-        role: player.role,
-        name: player.name,
-        touches: player.stats.touches,
-        possFrames: Math.round(player.stats.possessionSeconds * 60),
-        passAtt: player.stats.passes,
-        passComp: player.stats.passesCompleted,
-        passes: player.stats.passes,
-        passesCompleted: player.stats.passesCompleted,
-        shots: player.stats.shots,
-        shotsOnTarget: player.stats.shotsOnTarget,
-        goals: player.stats.goals,
-        headers: player.stats.headers,
-        headerShots: player.stats.headerShots,
-        headerClearances: player.stats.headerClearances,
-        tackles: player.stats.tackles,
-        interceptions: player.stats.interceptions,
-        clearances: player.stats.headerClearances,
-        recoveries: player.stats.interceptions + player.stats.saves,
-        turnovers: Math.max(0, player.stats.passes - player.stats.passesCompleted),
-        fouls: player.stats.fouls,
-        fouled: player.stats.fouled,
-        penaltiesTaken: player.stats.penaltiesTaken,
-        penaltiesScored: player.stats.penaltiesScored,
-        distance: +player.stats.distance.toFixed(2),
-      };
+      roleStats[player.label] = this.playerExportRow(player.role, player.name, player.stats);
     }
     return {
       name: stats.name,
