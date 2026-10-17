@@ -715,8 +715,15 @@ const SECOND_CAUTION_RELUCTANCE = 0.33;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
-const OFFSIDE_CLEAR_MARGIN = 1.25;
-const OFFSIDE_SELECTION_CHANCE = 0.06;
+/**
+ * Tolerance before the flag goes up, in world units.
+ *
+ * 1.25u is 2.1 m of grace, which is a lot: a forward could stand two metres
+ * beyond the last defender and stay onside. Tightened, but not to zero -- some
+ * slack avoids flagging on single-frame quantisation.
+ */
+const OFFSIDE_CLEAR_MARGIN = 0.75;
+const OFFSIDE_SELECTION_CHANCE = 0.30;
 const OFFSIDE_TARGET_LOCK_SECONDS = 24;
 const OFFSIDE_SUPPORT_HOLD_BUFFER = 0.55;
 const PRESSURE_FOUL_MIN_PRESSURE = 0.55;
@@ -960,6 +967,8 @@ export class SimpleMatchModel {
   private ballVelY = 0;
   /** Players dismissed this match, kept for the scoreline and stats. */
   readonly sentOff: Array<{ id: string; team: SimpleTeamCode; name: string; reason: string }> = [];
+  /** Stats of dismissed players, so their match is not erased from exports. */
+  private readonly dismissedStats: Array<{ team: SimpleTeamCode; label: string; name: string; role: string; stats: SimplePlayerStats }> = [];
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
@@ -2298,7 +2307,6 @@ export class SimpleMatchModel {
    * stopping dead on the line.
    */
   private updateOutOfPlayBallMotion(dt: number) {
-    this.ballVelY = 0;
     const speed = Math.hypot(this.ball.vel.x, this.ball.vel.z);
     if (speed <= 0.01) {
       this.ball.vel = { x: 0, z: 0 };
@@ -2327,7 +2335,9 @@ export class SimpleMatchModel {
     const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 0.9);
     this.ball.vel.x *= damp;
     this.ball.vel.z *= damp;
-    this.ball.pos.y = this.ballGroundY();
+    // Bounce rather than pin to the ground: a ball that left the pitch in the
+    // air should come down and bounce on its way to the wall.
+    this.updateBallBounce(dt);
   }
 
   private playLiveTick(dt: number): GoalEvent | null {
@@ -3487,6 +3497,10 @@ export class SimpleMatchModel {
       contactPoint: { x: +contact.x.toFixed(2), z: +contact.z.toFixed(2) },
       ballHeight: +Math.max(0.72, Math.min(1.05, flight.arc)).toFixed(2),
     });
+    this.addLiveEvent(player.team, "CLEARANCE", `${player.label} cleared`, {
+      playerId: player.id,
+      playerName: player.name,
+    });
     this.recordEvent("CLEARANCE", player.team, player, {
       style: "HEADER",
       sourceAction: flight.sourceAction,
@@ -4427,6 +4441,13 @@ export class SimpleMatchModel {
           settleSeconds,
         });
         this.deferActionAfterReception(flightSeconds, settleSeconds);
+        // Surfaced as well as recorded: 214 interceptions a match were happening
+        // with nothing at all on screen, which is most of why the defence reads
+        // as passive despite pressing closer than real football does.
+        this.addLiveEvent(this.possession.team, "INTERCEPTION", `${this.possession.label} intercepted`, {
+          playerId: this.possession.id,
+          playerName: this.possession.name,
+        });
         this.recordEvent("INTERCEPTION", this.possession.team, this.possession, {
           passer: carrier.name,
           intendedTarget: target.name,
@@ -5294,6 +5315,14 @@ export class SimpleMatchModel {
     if (index < 0) return;
     this.players.splice(index, 1);
     this.sentOff.push({ id: player.id, team: player.team, name: player.name, reason });
+    // Keep what he did. bundleTeam builds its per-player rows from `players`,
+    // so dismissing him would otherwise erase his goals, passes and fouls from
+    // the exports even though the team totals still count them.
+    this.dismissedStats.push({ team: player.team, label: player.label, name: player.name, role: player.role, stats: { ...player.stats } });
+    // Somebody has to go in goal. Without this keeperSaveGeometry is handed
+    // undefined and every shot on target is unreachable, and the team has no
+    // goal-kick taker at all.
+    if (player.role === "GK") this.promoteEmergencyKeeper(player.team);
     if (this.possession?.id === player.id) this.possession = null;
     // A ball already on its way to him has nobody to arrive at. Leaving the
     // flight following a player who is no longer on the pitch lands it on
@@ -5315,6 +5344,26 @@ export class SimpleMatchModel {
       reason,
     });
     this.recordEvent("RED_CARD", player.team, player, { reason });
+  }
+
+  /**
+   * Put an outfielder in goal after the keeper is dismissed.
+   *
+   * The deepest survivor takes the gloves, which is what a side short of a
+   * keeper actually does. The team stays a player down -- nobody is added.
+   */
+  private promoteEmergencyKeeper(team: SimpleTeamCode) {
+    const survivors = this.players.filter((p) => p.team === team);
+    if (!survivors.length || survivors.some((p) => p.role === "GK")) return;
+    const ownGoal = goalCenterForAttack((-this.attackSign(team)) as 1 | -1);
+    const deepest = survivors.reduce((best, p) => (dist2(p.homePos, ownGoal) < dist2(best.homePos, ownGoal) ? p : best));
+    deepest.role = "GK";
+    deepest.homePos = { x: ownGoal.x + this.attackSign(team) * 2.4, z: 0 };
+    this.addLiveEvent(team, "EMERGENCY_KEEPER", `${deepest.label} goes in goal`, {
+      playerId: deepest.id,
+      playerName: deepest.name,
+    });
+    this.recordEvent("EMERGENCY_KEEPER", team, deepest, { replacing: "GK" });
   }
 
   private isPenaltyFoul(committer: SimplePlayer, fouled: SimplePlayer) {
@@ -5730,6 +5779,7 @@ export class SimpleMatchModel {
     this.players.length = 0;
     // Dismissals are per match, and the roster is rebuilt from scratch here.
     this.sentOff.length = 0;
+    this.dismissedStats.length = 0;
     this.lastCompletedPass = null;
     this.addTeam("A", this.teamA);
     this.addTeam("B", this.teamB);
@@ -6277,7 +6327,15 @@ export class SimpleMatchModel {
       const span = { x: flight.to.x - flight.from.x, z: flight.to.z - flight.from.z };
       const length = Math.hypot(span.x, span.z);
       const speed = length / Math.max(0.001, flight.duration);
+      // Carry the vertical motion over too. Clearing the flight alone dropped
+      // the ball straight to the turf, so a lob crossing the line fell out of
+      // the sky instead of continuing its arc through the run-on.
+      const t = clamp(flight.elapsed / Math.max(0.001, flight.duration), 0, 1);
+      const verticalSpeed = (flight.arc * Math.PI * Math.cos(Math.PI * t)) / Math.max(0.001, flight.duration);
+      const height = this.ball.pos.y;
       this.ballFlight = null;
+      this.ball.pos.y = height;
+      this.ballVelY = verticalSpeed;
       this.ball.vel = length > 1e-4
         ? { x: (span.x / length) * speed * LOOSE_BALL_LANDING_CARRY, z: (span.z / length) * speed * LOOSE_BALL_LANDING_CARRY }
         : { x: 0, z: 0 };
@@ -8930,6 +8988,9 @@ export class SimpleMatchModel {
     const stats = this.team(team);
     const effective = this.effectiveTeamStats(team);
     const roleStats: Record<string, unknown> = {};
+    for (const dismissed of this.dismissedStats.filter((d) => d.team === team)) {
+      roleStats[dismissed.label] = { ...dismissed.stats, dismissed: true };
+    }
     for (const player of this.players.filter((p) => p.team === team)) {
       roleStats[player.label] = {
         role: player.role,

@@ -8592,3 +8592,37 @@ test("fouling carries a consequence: cards, and a dismissal takes the player off
   assert.equal(model.getPlayers().length, startingCount, "the roster is rebuilt for the next match");
   assert.equal(model.getMatchSnapshot().sentOff.length, 0);
 });
+
+test("a dismissal leaves a keeper, keeps the player's stats, and the ball keeps its arc out of play", () => {
+  // Four findings from review on the dismissal and run-on work.
+  const model = new SimpleMatchModel();
+  model.setSeed("dismissal-aftermath");
+  model.startMatch();
+  const api = model as unknown as {
+    sendOff: (p: unknown, reason: string) => void;
+    bundleTeam: (team: "A" | "B") => { roleStats?: Record<string, unknown> };
+  };
+
+  const keeper = model.getPlayers().find((p) => p.team === "A" && p.role === "GK");
+  assert.ok(keeper, "team A should start with a keeper");
+  keeper.stats.saves = 3;
+  const keeperLabel = keeper.label;
+
+  api.sendOff(keeper, "straight_red");
+
+  // Somebody has to go in goal, or every shot on target is unreachable and the
+  // team has no goal-kick taker.
+  const replacement = model.getPlayers().find((p) => p.team === "A" && p.role === "GK");
+  assert.ok(replacement, "an outfielder must take over in goal");
+  assert.notEqual(replacement.id, keeper.id);
+  // And the side is still a player short.
+  assert.equal(model.getPlayers().filter((p) => p.team === "A").length, 10);
+
+  // His match must survive in the exports, not vanish with him.
+  const bundle = api.bundleTeam("A");
+  assert.ok(bundle.roleStats, "team bundle should carry per-player stats");
+  const archived = bundle.roleStats![keeperLabel] as { saves?: number; dismissed?: boolean } | undefined;
+  assert.ok(archived, `${keeperLabel} should still appear in the export`);
+  assert.equal(archived!.saves, 3, "his saves must not be erased by the red card");
+  assert.equal(archived!.dismissed, true);
+});
