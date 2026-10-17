@@ -542,7 +542,10 @@ test("V66 ball over touchline creates throw-in restart with visible flight", () 
   (model as unknown as { startBallFlight: (kind: string, from: { x: number; z: number }, to: { x: number; z: number }, duration: number, arc: number) => void })
     .startBallFlight("pass", { x: 0, z: FIELD_D / 2 - 0.6 }, { x: 4, z: FIELD_D / 2 + 1.6 }, 0.1, 0.04);
 
-  for (let i = 0; i < 60 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
+  // The ball now runs on past the touchline for BALL_OUT_HOLD_SECONDS before
+  // the restart is staged, the same as a goal-line out, so this needs longer
+  // than the one second it used to allow. The assertions are unchanged.
+  for (let i = 0; i < 240 && (model.msm.state as { kind: string }).kind !== "ball_out"; i++) model.step(1 / 60);
   const throwState = model.msm.state as { kind: string; restartType?: string; restartTeam?: string };
   assert.equal(throwState.kind, "ball_out");
   assert.equal(throwState.restartType, "throw_in");
@@ -8458,4 +8461,34 @@ test("a ball crossing inside the post is a goal, including the side netting", ()
     /const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;/,
     "the scoring mouth must be the posts, or a gap opens between the detectors",
   );
+});
+
+test("the ball sits on the centre spot for the whole halftime break", () => {
+  // Reported from play: at halftime the ball did not go to the centre.
+  // continueFromHalftime placed it there via installKickoffSetup, but the
+  // interactive break returns early waiting for the player, so the ball sat
+  // wherever the whistle caught it -- and the restart was staged from there.
+  for (const interactive of [true, false]) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`halftime-centre-${interactive}`);
+    model.setHalfDurationSeconds(60);
+    if (interactive) model.setInteractiveHalftime(true);
+    model.startMatch();
+    let sawHalftime = false;
+    let worst = 0;
+    let settled = false;
+    for (let i = 0; i < 60 * 400 && model.getMatchSnapshot().phase !== "FULL_TIME"; i++) {
+      model.step(1 / 60);
+      if (model.msm.state.kind !== "halftime") continue;
+      sawHalftime = true;
+      // The reset lands on the tick after the transition.
+      if (!settled) { settled = true; continue; }
+      worst = Math.max(worst, Math.hypot(model.ball.pos.x, model.ball.pos.z));
+    }
+    assert.ok(sawHalftime, `${interactive ? "interactive" : "auto"} run should reach halftime`);
+    assert.ok(
+      worst < 0.01,
+      `${interactive ? "interactive" : "auto"} halftime left the ball ${worst.toFixed(2)}u off the centre spot`,
+    );
+  }
 });

@@ -2041,6 +2041,21 @@ export class SimpleMatchModel {
     this.manualTackleCooldown.A = Math.max(0, this.manualTackleCooldown.A - dt);
     this.manualTackleCooldown.B = Math.max(0, this.manualTackleCooldown.B - dt);
     this.updateDeadBallWatchdog(dt);
+    // Park the ball on the centre spot for the whole break, not just when play
+    // resumes. continueFromHalftime placed it via installKickoffSetup, but the
+    // interactive break returns early waiting for the player, so the ball sat
+    // wherever the whistle caught it. Keyed on the state rather than the
+    // transition because the CPU phase pause consumes the transition and marks
+    // lastStateKind before any later check runs.
+    if (this.msm.state.kind === "halftime") {
+      this.ballFlight = null;
+      this.possession = null;
+      this.ball.pos.x = 0;
+      this.ball.pos.z = 0;
+      this.ball.pos.y = this.ballGroundY();
+      this.ball.vel = { x: 0, z: 0 };
+      this.lastBallPos = { x: 0, z: 0 };
+    }
     let goalEvent: GoalEvent | null = null;
     this.pendingBallOutEvent = null;
     this.pendingBallOutContext = null;
@@ -2227,7 +2242,9 @@ export class SimpleMatchModel {
       this.ball.vel.x *= STADIUM_WALL_RESTITUTION;
     }
 
-    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 3.0);
+    // Light drag once it is out of play: at 3x the ball stopped around 5u
+    // short of the wall inside the hold, so it never actually got there.
+    const damp = Math.max(0, 1 - LOOSE_BALL_GROUND_FRICTION * dt * 0.9);
     this.ball.vel.x *= damp;
     this.ball.vel.z *= damp;
     this.ball.pos.y = this.ballGroundY();
@@ -6086,9 +6103,25 @@ export class SimpleMatchModel {
       this.addBallOutLog(detected, context);
       return null;
     }
+    // Touchline outs get the same run-on as goal-line ones. Only the goal line
+    // was handled before, so a throw-in -- much the commonest way the ball goes
+    // out -- still froze it dead on the line, which is what was reported after
+    // this was supposedly fixed.
     this.truncateActiveFlightAtOutOfPlay(context.spot);
-    this.pendingBallOutEvent = detected;
-    this.pendingBallOutContext = context;
+    if (this.ballFlight) {
+      // Hand the flight's pace to the loose ball so it keeps travelling rather
+      // than stopping where the flight was cut short.
+      const flight = this.ballFlight;
+      const span = { x: flight.to.x - flight.from.x, z: flight.to.z - flight.from.z };
+      const length = Math.hypot(span.x, span.z);
+      const speed = length / Math.max(0.001, flight.duration);
+      this.ballFlight = null;
+      this.ball.vel = length > 1e-4
+        ? { x: (span.x / length) * speed * LOOSE_BALL_LANDING_CARRY, z: (span.z / length) * speed * LOOSE_BALL_LANDING_CARRY }
+        : { x: 0, z: 0 };
+    }
+    this.visibleBallOutPending = { event: detected, context, holdSeconds: BALL_OUT_HOLD_SECONDS };
+    this.possession = null;
     this.addBallOutLog(detected, context);
     return null;
   }
