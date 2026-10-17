@@ -177,6 +177,37 @@ export function cpuDefenseIntensities(
  * model -- which already worked -- so it would have passed with the handler
  * still routing to A.
  */
+/**
+ * Where on the goal line an aimed shot is pointing, as -1..1 across the mouth.
+ *
+ * The stick vector is camera-relative: gameEngine builds it from the camera's
+ * own right and forward axes so that pushing left moves the player left on
+ * screen. Reading its raw world z as lateral aim therefore meant that under
+ * the angled broadcast camera a stick pointed straight at the goal still
+ * carried a z component, and the shot left at an angle -- "shooting the ball
+ * straight seems impossible".
+ *
+ * Project the aim ray onto the goal line instead. That is the same geometry
+ * the charge arrow draws, so the ball goes where the arrow points, and it is
+ * unaffected by which way the team is attacking.
+ */
+export function shotAimLateral(
+  carrierPos: Vec2,
+  goalLineX: number,
+  aim: Vec2 | null,
+  span: number,
+): number | null {
+  if (!aim || Math.hypot(aim.x, aim.z) <= 0.2) return null;
+  const toGoal = goalLineX - carrierPos.x;
+  // Aiming away from the goal line never crosses it; fall back to the sideways
+  // component so a deliberate sideways flick still reads as one.
+  if (Math.abs(aim.x) < 0.05 || Math.sign(aim.x) !== Math.sign(toGoal)) {
+    return clamp(aim.z, -1, 1);
+  }
+  const crossZ = carrierPos.z + aim.z * (toGoal / aim.x);
+  return clamp(crossZ / span, -1, 1);
+}
+
 export function restartRoutineTeam(
   restartTeam: SimpleTeamCode | null,
   requireTeam: SimpleTeamCode | undefined,
@@ -4785,11 +4816,12 @@ export class SimpleMatchModel {
     // into a shot-relative frame -- that flips the lateral sign with the
     // attacking direction, so the same stick push aimed at opposite sides
     // after the half-time end swap.
-    const aimLateral = (() => {
-      const aim = context.aimDirection;
-      if (!aim || Math.hypot(aim.x, aim.z) <= 0.2) return null;
-      return clamp(aim.z, -1, 1);
-    })();
+    const aimLateral = shotAimLateral(
+      carrier.pos,
+      goalCenterForAttack(this.attackSign(carrier.team)).x,
+      context.aimDirection ?? null,
+      GOAL_MOUTH_HALF_Z * 0.75,
+    );
     const shotTarget = woodworkTarget || this.shotTarget(carrier.team, onTarget, anglePenalty, aimLateral, !!context.manual);
 
     this.recordShotPositionSnapshot(carrier.team, carrier, shotOrigin, shotDefense);

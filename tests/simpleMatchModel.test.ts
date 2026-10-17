@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X, BALL_RADIUS} from "../src/core/constants";
+import { BASE_RUN_SPEED, CENTER_CIRCLE_RADIUS, dist2, FIELD_D, FIELD_SCALE_PER_YARD, FIELD_W, GOAL_BOX_DEPTH, GOAL_BOX_HALF_Z, GOAL_FLOOR_DEPTH, GOAL_MOUTH_HALF_Z, isInPenaltyArea, LEFT_GOAL_X, PENALTY_HALF_Z, PLAYER_RADIUS, RIGHT_GOAL_X, RIGHT_PENALTY_X, BALL_RADIUS, clamp} from "../src/core/constants";
 import { detectBallOut } from "../src/core/matchStateMachine";
-import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type RestartPlan } from "../src/core/simpleMatchModel";
+import { SimpleMatchModel, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, shotAimLateral, type RestartPlan } from "../src/core/simpleMatchModel";
 
 test("simple model builds two complete elevens", () => {
   const model = new SimpleMatchModel();
@@ -8500,4 +8500,52 @@ test("the ball sits on the centre spot for the whole halftime break", () => {
       `${interactive ? "interactive" : "auto"} halftime left the ball ${worst.toFixed(2)}u off the centre spot`,
     );
   }
+});
+
+test("an aimed shot goes where the stick points, not where its world z happens to be", () => {
+  // Reported from play: "shooting the ball straight seems impossible, even if
+  // the stick is exactly pointing left the shot will go off at an angle".
+  // gameEngine builds the stick vector from the camera's own right and forward
+  // axes so that pushing left moves the player left on screen. Reading its raw
+  // world z as lateral aim meant that under the angled broadcast camera a stick
+  // pointed at the goal still carried a z component and the shot left at an
+  // angle. The ray is projected onto the goal line now.
+  const span = GOAL_MOUTH_HALF_Z * 0.75;
+  const goalX = RIGHT_GOAL_X;
+  const aimAt = (from: { x: number; z: number }, target: { x: number; z: number }) => {
+    const dx = target.x - from.x;
+    const dz = target.z - from.z;
+    const len = Math.hypot(dx, dz);
+    return { x: dx / len, z: dz / len };
+  };
+
+  // Pointing at the middle of the goal must be dead straight, from anywhere.
+  for (const from of [{ x: goalX - 12, z: 0 }, { x: goalX - 12, z: 8 }, { x: goalX - 20, z: -11 }]) {
+    const lateral = shotAimLateral(from, goalX, aimAt(from, { x: goalX, z: 0 }), span);
+    assert.ok(lateral !== null);
+    assert.ok(
+      Math.abs(lateral!) < 0.02,
+      `aiming at the goal centre from (${from.x.toFixed(0)}, ${from.z}) gave lateral ${lateral!.toFixed(3)}`,
+    );
+  }
+
+  // Pointing at a post must reach that post, and keep its sign from out wide.
+  const wide = { x: goalX - 14, z: 9 };
+  const nearPost = shotAimLateral(wide, goalX, aimAt(wide, { x: goalX, z: span }), span);
+  const farPost = shotAimLateral(wide, goalX, aimAt(wide, { x: goalX, z: -span }), span);
+  assert.ok(nearPost !== null && farPost !== null);
+  assert.ok(nearPost! > 0.9, `aiming at the near post gave ${nearPost!.toFixed(2)}`);
+  assert.ok(farPost! < -0.9, `aiming at the far post gave ${farPost!.toFixed(2)}`);
+
+  // The old behaviour: a camera-relative stick pointed at the goal carries a
+  // world z component. Reading it raw sent the shot most of the way to a post.
+  const cameraSkew = { x: 0.94, z: 0.34 };
+  assert.ok(Math.abs(clamp(cameraSkew.z, -1, 1)) > 0.3, 'the raw reading was a third of the way to a post');
+  const projected = shotAimLateral({ x: goalX - 12, z: 0 }, goalX, cameraSkew, span);
+  assert.ok(projected !== null);
+  assert.ok(Math.abs(projected!) > 0.9, 'and the projection sends that genuinely wide aim to the post it points at');
+
+  // No aim, or a flick away from goal, still behaves.
+  assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, null, span), null);
+  assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, { x: 0.01, z: 0.01 }, span), null);
 });
