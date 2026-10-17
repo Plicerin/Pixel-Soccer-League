@@ -715,8 +715,15 @@ const SECOND_CAUTION_RELUCTANCE = 0.33;
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
-const OFFSIDE_CLEAR_MARGIN = 1.25;
-const OFFSIDE_SELECTION_CHANCE = 0.06;
+/**
+ * Tolerance before the flag goes up, in world units.
+ *
+ * 1.25u is 2.1 m of grace, which is a lot: a forward could stand two metres
+ * beyond the last defender and stay onside. Tightened, but not to zero -- some
+ * slack avoids flagging on single-frame quantisation.
+ */
+const OFFSIDE_CLEAR_MARGIN = 0.75;
+const OFFSIDE_SELECTION_CHANCE = 0.30;
 const OFFSIDE_TARGET_LOCK_SECONDS = 24;
 const OFFSIDE_SUPPORT_HOLD_BUFFER = 0.55;
 const PRESSURE_FOUL_MIN_PRESSURE = 0.55;
