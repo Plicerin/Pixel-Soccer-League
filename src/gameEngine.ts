@@ -2905,6 +2905,11 @@ class SimpleGameEngine {
         }
       }
       if (event.action === 'TACKLE' || event.action === 'TURNOVER') this.spawnEventCue(0x6ee787, 0.8, 0.95);
+      // Interceptions and clearances were recorded but never drawn, so a very
+      // busy defence looked like it was doing nothing. Distinct colours so a
+      // read of the pass is not mistaken for a challenge.
+      if (event.action === 'INTERCEPTION') this.spawnEventCue(0x7dd3fc, 0.8, 0.9);
+      if (event.action === 'CLEARANCE') this.spawnEventCue(0xfbbf24, 0.85, 1.0);
       if (event.action === 'TACKLE_MISS') this.spawnEventCue(0x9aa4b2, 0.42, 0.55);
       if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'PENALTY' || event.action === 'DROP_KICK') {
         const color = event.action === 'THROW_IN' ? 0xb4dcff : event.action === 'CORNER' ? 0xffd16a : event.action === 'FREE_KICK' || event.action === 'PENALTY' ? 0xffffff : 0xd8f7ff;
@@ -3753,6 +3758,11 @@ class SimpleGameEngine {
       this.lastBackgroundModelTickMs = performance.now();
       this.advanceModel(dt, true);
     }
+    // Reconcile the mesh cache when the roster changes size. syncPlayerMeshes
+    // otherwise runs only on init, reset and team/formation changes, and
+    // updateMeshes walks only the surviving players -- so a player dismissed
+    // mid-match left a frozen body standing on the pitch.
+    if (this.playerMeshes.size !== this.model.players.length) this.syncPlayerMeshes();
     this.updateMeshes(dt);
     this.updateScoreBug();
     this.updateMiniMap();

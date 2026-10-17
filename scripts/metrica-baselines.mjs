@@ -90,6 +90,8 @@ let withBallSum = 0, withBallN = 0, withoutSum = 0, withoutN = 0
 let carrierFrames = 0
 const nearest = [[], [], []]
 let inRangeSum = 0, freeSum = 0
+const nearestFoe = []
+let within5 = 0, within10 = 0
 const CARRIER_RADIUS = 2.0, RANGE_MIN = 6.7, RANGE_MAX = 40.1, MARKED = 5.9 // model's 4u/24u/3.5u
 
 for (let i = FPS; i < n; i += FPS) {
@@ -139,6 +141,11 @@ for (let i = FPS; i < n; i += FPS) {
   const inRange = own.filter((p) => { const d = dist(p, carrier); return d > RANGE_MIN && d < RANGE_MAX })
   inRangeSum += inRange.length
   freeSum += inRange.filter((p) => Math.min(...foes.map((o) => dist(o, p))) > MARKED).length
+  // Pressing: how close the nearest opponent is, and how many are around him.
+  const foeGaps = foes.map((o) => dist(o, carrier)).sort((a, b) => a - b)
+  nearestFoe.push(foeGaps[0])
+  within5 += foeGaps.filter((d) => d <= 5).length
+  within10 += foeGaps.filter((d) => d <= 10).length
 }
 
 const med = (xs) => (xs.length ? xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)] : NaN)
@@ -155,7 +162,9 @@ console.log(`\nSUPPORT AROUND THE BALL  (${carrierFrames} sampled seconds with s
 console.log(`  nearest team-mate            ${med(nearest[0]).toFixed(1)} m`)
 console.log(`  2nd nearest                  ${med(nearest[1]).toFixed(1)} m`)
 console.log(`  3rd nearest                  ${med(nearest[2]).toFixed(1)} m`)
-console.log(`  team-mates in passing range  ${(inRangeSum / carrierFrames).toFixed(1)} of 9     model 5.9`)
+console.log(`  team-mates in passing range  ${(inRangeSum / carrierFrames).toFixed(1)} of 9`)
+console.log(`  nearest opponent to the ball ${med(nearestFoe).toFixed(1)} m`)
+console.log(`  opponents within 5 m / 10 m  ${(within5 / carrierFrames).toFixed(2)} / ${(within10 / carrierFrames).toFixed(2)}`)
 console.log(`  ... of those unmarked        ${(freeSum / carrierFrames).toFixed(1)}           model 4.3`)
 
 // --- the same quantities from the model, measured identically ---
@@ -163,6 +172,8 @@ function modelBaselines(games = 6, halfSeconds = 300) {
   let sp = 0, spN = 0, gk = 0, gkN = 0, wb = 0, wbN = 0, wo = 0, woN = 0
   let carrierFrames = 0, inRange = 0, free = 0
   const near = [[], [], []]
+  const mNearestFoe = []
+  let mWithin5 = 0, mWithin10 = 0
   const speeds = []
   for (let g = 0; g < games; g++) {
     const m = new SimpleMatchModel()
@@ -196,11 +207,16 @@ function modelBaselines(games = 6, halfSeconds = 300) {
       const options = own.filter((p) => { const d = dist2u(p.pos, carrier.pos); return d > 4 && d < 24 })
       inRange += options.length
       free += options.filter((p) => Math.min(...foes.map((o) => dist2u(o.pos, p.pos))) > 3.5).length
+      const foeGaps = foes.map((o) => dist2u(o.pos, carrier.pos) * U).sort((a, b) => a - b)
+      mNearestFoe.push(foeGaps[0])
+      mWithin5 += foeGaps.filter((d) => d <= 5).length
+      mWithin10 += foeGaps.filter((d) => d <= 10).length
     }
   }
   return {
     speed: sp / spN, gk: gk / gkN, withBall: wb / wbN, without: wo / woN,
     near: near.map(med), inRange: inRange / carrierFrames, free: free / carrierFrames, speeds,
+    nearestFoe: med(mNearestFoe), within5: mWithin5 / carrierFrames, within10: mWithin10 / carrierFrames,
   }
 }
 const dist2u = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
@@ -223,6 +239,9 @@ row('2nd nearest', med(nearest[1]), mdl.near[1])
 row('3rd nearest', med(nearest[2]), mdl.near[2])
 row('options in passing range', inRangeSum / carrierFrames, mdl.inRange)
 row('... unmarked', freeSum / carrierFrames, mdl.free)
+row('nearest opponent to ball', med(nearestFoe), mdl.nearestFoe)
+row('opponents within 5 m', within5 / carrierFrames, mdl.within5)
+row('opponents within 10 m', within10 / carrierFrames, mdl.within10)
 
 const pct = (xs, f) => { const a = xs.slice().sort((x, y) => x - y); return a[Math.floor(a.length * f)] }
 const share = (xs, lo, hi) => (xs.filter((v) => v >= lo && v < hi).length / xs.length * 100)
