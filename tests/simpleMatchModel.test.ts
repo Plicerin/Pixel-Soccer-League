@@ -8549,3 +8549,46 @@ test("an aimed shot goes where the stick points, not where its world z happens t
   assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, null, span), null);
   assert.equal(shotAimLateral({ x: 0, z: 0 }, goalX, { x: 0.01, z: 0.01 }, span), null);
 });
+
+test("fouling carries a consequence: cards, and a dismissal takes the player off", () => {
+  // Reported from play: "you can foul as much as you like and there is no
+  // consequence". There was no card system at all.
+  const model = new SimpleMatchModel();
+  model.setSeed("cards-behaviour");
+  model.setHalfDurationSeconds(2700);
+  model.startMatch();
+  const api = model as unknown as {
+    applyDiscipline: (c: unknown, f: unknown, pressure: number, penalty: boolean) => void;
+    disciplineRng: { next: () => number };
+  };
+
+  const [committer, fouled] = model.getPlayers().filter((p) => p.role !== "GK");
+  const startingCount = model.getPlayers().length;
+
+  // Force two cautions on the same player; the second must dismiss him.
+  // Discipline draws from its own stream so that card decisions cannot reshuffle
+  // the match simulation, so that is the one to stub. 0.02 clears
+  // STRAIGHT_RED_CHANCE (which would dismiss outright) but stays under the
+  // caution chance, including the reluctance applied to a second booking.
+  api.disciplineRng = { next: () => 0.02 } as never;
+  api.applyDiscipline(committer, fouled, 1, false);
+  assert.equal(committer.stats.cautions, 1, "a hard foul must be bookable");
+  assert.equal(model.getMatchSnapshot().yellowCardsA + model.getMatchSnapshot().yellowCardsB, 1);
+  assert.equal(model.getPlayers().length, startingCount, "a caution does not remove anyone");
+
+  api.applyDiscipline(committer, fouled, 1, false);
+  const snapshot = model.getMatchSnapshot();
+  assert.equal(snapshot.redCardsA + snapshot.redCardsB, 1, "a second caution is a dismissal");
+  assert.equal(model.getPlayers().length, startingCount - 1, "a dismissed player leaves the pitch");
+  assert.ok(
+    !model.getPlayers().some((p) => p.id === committer.id),
+    "and cannot still be selected, passed to or marked",
+  );
+  assert.equal(snapshot.sentOff.length, 1);
+  assert.equal(snapshot.sentOff[0].reason, "second_caution");
+
+  // A fresh match starts eleven a side again.
+  model.startMatch();
+  assert.equal(model.getPlayers().length, startingCount, "the roster is rebuilt for the next match");
+  assert.equal(model.getMatchSnapshot().sentOff.length, 0);
+});

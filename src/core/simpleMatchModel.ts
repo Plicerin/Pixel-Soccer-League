@@ -263,6 +263,8 @@ export type SimplePlayerStats = {
   tackles: number;
   fouls: number;
   fouled: number;
+  /** Cautions shown. Two is a dismissal. */
+  cautions: number;
   penaltiesTaken: number;
   penaltiesScored: number;
   interceptions: number;
@@ -304,6 +306,8 @@ type TeamStats = {
   tacklesWon: number;
   clearances: number;
   fouls: number;
+  yellowCards: number;
+  redCards: number;
   offsides: number;
   penaltiesAwarded: number;
   penaltiesTaken: number;
@@ -357,6 +361,8 @@ type BallFlightState = {
   from: Vec2;
   to: Vec2;
   followPlayerId?: string;
+  /** Set when the intended receiver was dismissed before the ball arrived. */
+  receiverDismissed?: boolean;
   settleSeconds?: number;
   aerial?: boolean;
   headerEligible?: boolean;
@@ -692,6 +698,20 @@ const SHOT_ON_TARGET_BASE = 0.51;
  */
 const GOAL_MOUTH_SCORING_HALF_Z = GOAL_MOUTH_HALF_Z;
 
+/** Chance an ordinary foul is cautioned, before situational loading. */
+const CAUTION_BASE_CHANCE = 0.075;
+/** Chance a foul is a straight dismissal on its own. */
+const STRAIGHT_RED_CHANCE = 0.004;
+/**
+ * How much likelier a second caution is to be waved away than a first.
+ *
+ * Without it second yellows dominated and the model showed 0.80 red cards a
+ * match against roughly 0.15 in real football. Referees are famously reluctant
+ * to send a booked player off for a second soft foul, and that reluctance is
+ * most of why reds are rare.
+ */
+const SECOND_CAUTION_RELUCTANCE = 0.33;
+
 const HEADER_MIN_ARC = 0.18;
 const HEADER_CONTEST_RADIUS = 3.2;
 const SIMULATED_HALF_DURATION_SECONDS = 45 * 60;
@@ -762,6 +782,7 @@ function createStats(): SimplePlayerStats {
     tackles: 0,
     fouls: 0,
     fouled: 0,
+    cautions: 0,
     penaltiesTaken: 0,
     penaltiesScored: 0,
     interceptions: 0,
@@ -785,6 +806,8 @@ function makeTeamStats(name: string, formation: SimpleFormationName): TeamStats 
     headerClearances: 0,
     passes: 0,
     passesCompleted: 0,
+    yellowCards: 0,
+    redCards: 0,
     tacklesWon: 0,
     clearances: 0,
     fouls: 0,
@@ -909,6 +932,17 @@ export class SimpleMatchModel {
   lastKeeperKickTelemetry: Record<string, unknown> | null = null;
   lastPassLoopTelemetry: Record<string, unknown> | null = null;
   private rng = new Rng(1);
+  /**
+   * A separate stream for disciplinary decisions.
+   *
+   * Drawing cards from the match RNG reshuffles everything downstream of each
+   * foul. With card chances set to zero but the draws still happening, the
+   * guard reported two empty flight landings that vanished when the feature was
+   * removed entirely -- the simulation had simply taken a different path, not a
+   * worse one. Keeping discipline on its own stream leaves the rest of the
+   * match bit-identical, so the check still means what it did before.
+   */
+  private disciplineRng = new Rng(2);
   private actionTimer = 0;
   private visualReceptionSettleRemaining = 0;
   private visualReceptionPlayerId: string | null = null;
@@ -924,6 +958,8 @@ export class SimpleMatchModel {
    */
   longBallBias: number | null = null;
   private ballVelY = 0;
+  /** Players dismissed this match, kept for the scoreline and stats. */
+  readonly sentOff: Array<{ id: string; team: SimpleTeamCode; name: string; reason: string }> = [];
   private keeperSeq = 0;
   private passLoopSeq = 0;
   private ballFlightSeq = 0;
@@ -1570,6 +1606,16 @@ export class SimpleMatchModel {
       passesCompletedB: this.teamB.passesCompleted,
       foulsA: this.teamA.fouls,
       foulsB: this.teamB.fouls,
+
+      yellowCardsA: this.teamA.yellowCards,
+
+      yellowCardsB: this.teamB.yellowCards,
+
+      redCardsA: this.teamA.redCards,
+
+      redCardsB: this.teamB.redCards,
+
+      sentOff: this.sentOff.slice(),
       offsidesA: this.teamA.offsides,
       offsidesB: this.teamB.offsides,
       penaltiesAwardedA: this.teamA.penaltiesAwarded,
@@ -5186,10 +5232,89 @@ export class SimpleMatchModel {
     this.finalizeActiveReceptionTelemetryForPlayer(fouled, "foul");
     this.recordFoul(committer, fouled, pressure, reason);
     if (this.isPenaltyFoul(committer, fouled)) {
+      this.applyDiscipline(committer, fouled, pressure, true);
       this.stagePenaltyRestart(fouled.team, committer.team, committer.id, fouled.id);
       return;
     }
+    this.applyDiscipline(committer, fouled, pressure, false);
     this.stageFreeKickRestart(fouled.team, fouled.pos, committer.team, committer.id);
+  }
+
+  /**
+   * Book or dismiss the offender.
+   *
+   * Fouling carried no consequence at all before this -- you could hack away
+   * for ninety minutes and nothing happened. A caution is likelier for a
+   * cynical foul: hard contact, and fouls close to your own goal where the
+   * attacker was getting somewhere.
+   */
+  private applyDiscipline(committer: SimplePlayer, fouled: SimplePlayer, pressure: number, penalty: boolean) {
+    const ownGoal = goalCenterForAttack((-this.attackSign(committer.team)) as 1 | -1);
+    const nearOwnGoal = dist2(fouled.pos, ownGoal) <= 26;
+    const cautionChance = clamp(
+      CAUTION_BASE_CHANCE
+      + (penalty ? 0.22 : 0)
+      + (nearOwnGoal ? 0.06 : 0)
+      + Math.max(0, pressure - 0.8) * 0.045,
+      0,
+      0.70,
+    );
+    const alreadyBooked = committer.stats.cautions >= 1;
+    const effectiveCaution = alreadyBooked ? cautionChance * SECOND_CAUTION_RELUCTANCE : cautionChance;
+    const straightRed = this.disciplineRng.next() < STRAIGHT_RED_CHANCE;
+    if (!straightRed && this.disciplineRng.next() >= effectiveCaution) return;
+
+    const stats = this.team(committer.team);
+    committer.stats.cautions += (straightRed ? 0 : 1);
+    const dismissed = straightRed || committer.stats.cautions >= 2;
+    if (!dismissed) {
+      stats.yellowCards += 1;
+      this.addLiveEvent(committer.team, "YELLOW_CARD", `${committer.label} booked`, {
+        playerId: committer.id,
+        playerName: committer.name,
+      });
+      this.recordEvent("YELLOW_CARD", committer.team, committer, { fouled: fouled.name });
+      return;
+    }
+    if (!straightRed) stats.yellowCards += 1;
+    stats.redCards += 1;
+    this.sendOff(committer, straightRed ? "straight_red" : "second_caution");
+  }
+
+  /**
+   * Take a dismissed player off the pitch.
+   *
+   * Removing him from `players` is what actually makes it stick: every selector
+   * in the model iterates that array, and the renderer reconciles its meshes
+   * against the live ids, so he stops being passed to, pressing, marking or
+   * drawn without touching fifty call sites.
+   */
+  private sendOff(player: SimplePlayer, reason: "straight_red" | "second_caution") {
+    const index = this.players.indexOf(player);
+    if (index < 0) return;
+    this.players.splice(index, 1);
+    this.sentOff.push({ id: player.id, team: player.team, name: player.name, reason });
+    if (this.possession?.id === player.id) this.possession = null;
+    // A ball already on its way to him has nobody to arrive at. Leaving the
+    // flight following a player who is no longer on the pitch lands it on
+    // empty grass, which the landing audit counts as a visual-reality
+    // violation. Let it come down loose instead.
+    // The landing audit exists to catch balls dropping on empty grass through a
+    // bug, and a red card is not one. Mark the flight rather than clearing its
+    // target -- clearing it just trips the MISSING_FLIGHT_TARGET branch.
+    if (this.ballFlight?.followPlayerId === player.id) {
+      this.ballFlight.receiverDismissed = true;
+      this.ballFlight.headerEligible = false;
+    }
+    for (const team of ["A", "B"] as const) {
+      if (this.manualControl[team].selectedPlayerId === player.id) this.manualControl[team].selectedPlayerId = null;
+    }
+    this.addLiveEvent(player.team, "RED_CARD", `${player.label} sent off`, {
+      playerId: player.id,
+      playerName: player.name,
+      reason,
+    });
+    this.recordEvent("RED_CARD", player.team, player, { reason });
   }
 
   private isPenaltyFoul(committer: SimplePlayer, fouled: SimplePlayer) {
@@ -5603,6 +5728,8 @@ export class SimpleMatchModel {
 
   private rebuildTeams() {
     this.players.length = 0;
+    // Dismissals are per match, and the roster is rebuilt from scratch here.
+    this.sentOff.length = 0;
     this.lastCompletedPass = null;
     this.addTeam("A", this.teamA);
     this.addTeam("B", this.teamB);
@@ -7600,6 +7727,9 @@ export class SimpleMatchModel {
 
   private auditFlightLanding(flight: BallFlightState) {
     if (flight.kind !== "pass" && flight.kind !== "interception" && flight.kind !== "save") return;
+    // The intended receiver was sent off mid-flight: the ball legitimately has
+    // nobody to arrive at, and that is the red card rather than a fault.
+    if (flight.receiverDismissed) return;
     if (flight.sourceAction === "header_clearance") return;
     if (flight.sourceAction === "keeper_parry_corner") return;
     const ball = { x: this.ball.pos.x, z: this.ball.pos.z };
@@ -8903,5 +9033,6 @@ export class SimpleMatchModel {
   private reseed() {
     const salt = this.seedSalt || String(Date.now());
     this.rng = new Rng(seededHash(`${this.teamA.name}|${this.teamB.name}|${salt}`));
+    this.disciplineRng = new Rng(seededHash(`discipline|${this.teamA.name}|${this.teamB.name}|${salt}`));
   }
 }
