@@ -708,7 +708,10 @@ const STADIUM_WALL_RESTITUTION = 0.55;
 const BALL_OUT_HOLD_SECONDS = 0.9;
 // Mid-flight collection: how close a player must be to a ball played into
 // space, and how low the ball must be for them to control it.
-const MID_FLIGHT_COLLECT_RADIUS = 1.1;
+// 1.1u (1.8 m) was tight enough that the sharper acceleration, which pulls a
+// player off a ball's path sooner, dropped reachable balls at 1.17u. 1.3u is
+// about 2.2 m -- a stride and a reached-out foot.
+const MID_FLIGHT_COLLECT_RADIUS = 1.3;
 const MID_FLIGHT_COLLECT_MAX_HEIGHT = 0.55;
 // How far the ball must have travelled before anyone can cut it out, so a pass
 // is never swallowed at the passer's feet.

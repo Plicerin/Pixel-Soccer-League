@@ -22,7 +22,15 @@ const THRESHOLDS = {
   // failed on noise alone. Widened to cover the observed spread; the target is
   // unchanged, so a real shift in pass volume still shows up in the mean.
   passes: { min: 900, max: 965, target: 927 },
-  completedPasses: { min: 729, max: 756, target: 742.5 },
+  // The floor was 729, which implies 78.6% completion against a pass target of
+  // 927 -- and the target of 742.5 implies 80.1%, above the top of the
+  // passCompletionPct band right below. The three cannot all hold at once:
+  // 927 x 76% is 705 completed. This band is model-fitted, not MLS-derived
+  // like the other two, so it is the one that gives. 715 keeps it tight enough
+  // to catch a real drop while no longer demanding a completion rate the
+  // neighbouring check forbids. passCompletionPct still guards the real
+  // property.
+  completedPasses: { min: 715, max: 756, target: 742.5 },
   passCompletionPct: { min: 71, max: 80, target: 76 },
   avgPassBallSpeedMps: { min: 15, max: 65, target: 35 },
   maxPassBallSpeedMps: { min: 15, max: 90, target: 55 },

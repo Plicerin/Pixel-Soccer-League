@@ -2178,6 +2178,7 @@ test("fouls can be switched off for a match", () => {
     return {
       fouls: snapshot.foulsA + snapshot.foulsB,
       freeKicks: snapshot.freeKicksA + snapshot.freeKicksB,
+      offsides: (snapshot.offsidesA ?? 0) + (snapshot.offsidesB ?? 0),
       finished: snapshot.phase === "FULL_TIME",
     };
   };
@@ -2187,7 +2188,15 @@ test("fouls can be switched off for a match", () => {
 
   const off = fouls(false);
   assert.equal(off.fouls, 0, `fouls off must award none, got ${off.fouls}`);
-  assert.equal(off.freeKicks, 0, `fouls off must award no free kicks, got ${off.freeKicks}`);
+  // Offside is not a foul, and its restart is a free kick that stats.freeKicks
+  // counts like any other, so "no free kicks at all" also forbade offsides --
+  // it only held because that seed happened not to produce one. Every free
+  // kick in a fouls-off match must come from an offside.
+  assert.equal(
+    off.freeKicks,
+    off.offsides,
+    `with fouls off the only free kicks may be offsides, got ${off.freeKicks} free kicks for ${off.offsides} offsides`,
+  );
   assert.ok(off.finished, "a match with fouls off must still reach full time");
 });
 
