@@ -1603,6 +1603,12 @@ class SimpleGameEngine {
         this.playGameplayBuffer('catch', 0.46, 0.30);
         this.playGameplayBuffer('kick', 0.18, 0.20);
         break;
+      case 'BLOCK':
+        // Box containment used to arrive here as a TACKLE. Reclassifying it as
+        // a block must not cost it its sound: a body in the way is a blunter,
+        // heavier contact than a challenge for the ball.
+        this.playGameplayBuffer('kick', 0.34, 0.16);
+        break;
       case 'TACKLE_MISS':
         // Missed: the same physical contact sample as a won tackle but quieter
         // and shorter, so a miss reads as a weak challenge rather than a clean
@@ -2922,6 +2928,8 @@ class SimpleGameEngine {
       // busy defence looked like it was doing nothing. Distinct colours so a
       // read of the pass is not mistaken for a challenge.
       if (event.action === 'INTERCEPTION') this.spawnEventCue(0x7dd3fc, 0.8, 0.9);
+      // Same reason: these were drawn while they were still called tackles.
+      if (event.action === 'BLOCK') this.spawnEventCue(0xf87171, 0.75, 0.9);
       if (event.action === 'CLEARANCE') this.spawnEventCue(0xfbbf24, 0.85, 1.0);
       if (event.action === 'TACKLE_MISS') this.spawnEventCue(0x9aa4b2, 0.42, 0.55);
       if (event.action === 'THROW_IN' || event.action === 'CORNER' || event.action === 'GOAL_KICK' || event.action === 'FREE_KICK' || event.action === 'PENALTY' || event.action === 'DROP_KICK') {

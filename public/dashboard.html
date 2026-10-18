@@ -913,7 +913,10 @@ let live = null;     // current live telemetry
 let prevD = null;    // comparison match data
 let _historyModeActive = false;  // flag: viewing historical match, don't overwrite with live data
 let lastUpdate = 0;
-let activeEventFilters = new Set(['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
+// BLOCK is a distinct event now: box containment used to be filed as a
+// TACKLE, so without it here those events vanish from the stream entirely,
+// even with ALL selected.
+let activeEventFilters = new Set(['PASS','SHOT','TACKLE','BLOCK','INTERCEPTION','FOUL','CLEARANCE','RECOVERY']);
 let activeTeamStyleTab = 'buildup';
 let activeSpatialTab = 'heatmap';
 let activePosTab = 'homeError';
@@ -1845,7 +1848,7 @@ function renderRolePanel() {
    RENDER: 5. EVENT STREAM
    ═══════════════════════════════════════════════════════════ */
 function renderEventFilters() {
-  const types = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  const types = ['PASS','SHOT','TACKLE','BLOCK','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
   $('eventFilters').innerHTML = types.map(t =>
     `<button class="${activeEventFilters.has(t) ? 'active' : ''}" onclick="toggleEventFilter('${t}')">${t}</button>`
   ).join('') + `<button onclick="toggleAllEvents()">ALL</button>`;
@@ -1859,7 +1862,7 @@ function toggleEventFilter(type) {
 }
 
 function toggleAllEvents() {
-  const all = ['PASS','SHOT','TACKLE','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
+  const all = ['PASS','SHOT','TACKLE','BLOCK','INTERCEPTION','FOUL','CLEARANCE','RECOVERY'];
   if (activeEventFilters.size === all.length) activeEventFilters.clear();
   else all.forEach(t => activeEventFilters.add(t));
   renderEventFilters();

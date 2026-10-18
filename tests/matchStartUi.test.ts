@@ -1302,3 +1302,31 @@ test('a team highlight is never white, so it cannot vanish into a light panel', 
   const mexicoGreen = clamped(0x006847);
   assert.deepEqual(mexicoGreen, { r: 0, g: 0x68, b: 0x47 }, 'a colour that already reads must be left alone');
 });
+
+test('reclassifying a tackle as a block keeps it visible, audible and counted', () => {
+  // Review on #10: box containment was recorded as a TACKLE and is a BLOCK
+  // now. The rename alone made 68 events a match disappear from the snapshot,
+  // the exports, the dashboard stream, and the pitch -- having just spent the
+  // session making defensive work visible.
+  const engine = readFileSync('src/gameEngine.ts', 'utf8');
+  assert.match(engine, /case 'BLOCK':/, 'a block needs a sound, as it had when it was a tackle');
+  assert.match(engine, /event\.action === 'BLOCK'[\s\S]{0,80}?spawnEventCue/, 'and a ring on the pitch');
+
+  const model = readFileSync('src/core/simpleMatchModel.ts', 'utf8');
+  assert.match(model, /blocksA: this\.teamA\.blocks/, 'blocks must reach the match snapshot');
+  assert.match(model, /blocks: st\.blocks/, 'and each player export row');
+  assert.equal(
+    (model.match(/blocks: stats\.blocks/g) ?? []).length,
+    2,
+    'both team mappings must carry blocks, or the reduced tackle total has no replacement',
+  );
+
+  // The dashboard filters out any type it does not list, so a missing BLOCK
+  // hides those events even with ALL selected.
+  const dashboard = readFileSync('public/dashboard.html', 'utf8');
+  const lists = dashboard.match(/\['PASS','SHOT','TACKLE'[^\]]*\]/g) ?? [];
+  assert.ok(lists.length >= 3, `expected the three event-type lists, found ${lists.length}`);
+  for (const list of lists) {
+    assert.ok(list.includes("'BLOCK'"), `event list is missing BLOCK: ${list}`);
+  }
+});
