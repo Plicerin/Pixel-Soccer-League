@@ -3053,7 +3053,15 @@ const RetroFootball: React.FC = () => {
               </div>
             )}
             <div className="mt-1 text-[11px] text-white/80">
-              Press <span className="font-bold text-white">SPACE</span> to play it
+              {matchSnapshot.manualRestartPrompt.choosesDelivery ? (
+                <>
+                  <span className="font-bold text-white">Pass</span>,{' '}
+                  <span className="font-bold text-white">shoot</span> or{' '}
+                  <span className="font-bold text-white">lob</span> to take it
+                </>
+              ) : (
+                <>Press <span className="font-bold text-white">SPACE</span> to play it</>
+              )}
               {' '}&middot;{' '}auto in {Math.ceil(matchSnapshot.manualRestartPrompt.secondsRemaining)}s
             </div>
           </div>
