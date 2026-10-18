@@ -65,3 +65,7 @@ Thumbs.db
 telemetry/worldcup-screenshots/
 telemetry/worldcup-smoke/
 telemetry/worldcup-ui-captures/
+
+# Built installers, kept out of src-tauri/target so cargo clean cannot take
+# the release history with the build cache.
+releases/
