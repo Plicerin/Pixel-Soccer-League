@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
-import { CPU_DIFFICULTY_INTENSITY, CORNER_ROUTINES, cpuDefenseIntensities, restartRoutineTeam, type CpuDifficultyKey } from './core/simpleMatchModel';
+import { CPU_DIFFICULTY_INTENSITY, cpuDefenseIntensities, restartRoutineTeam, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
   BALL_GROUND_Y,
@@ -540,14 +540,6 @@ const measurePslPerf = (name: string, start: string, end: string) => {
   } catch {}
 };
 
-/** D-pad direction -> index in CORNER_ROUTINES, derived so the two cannot drift. */
-const DPAD_ROUTINE_INDEX = {
-  up: CORNER_ROUTINES.findIndex((r) => r.direction === 'up'),
-  down: CORNER_ROUTINES.findIndex((r) => r.direction === 'down'),
-  left: CORNER_ROUTINES.findIndex((r) => r.direction === 'left'),
-  right: CORNER_ROUTINES.findIndex((r) => r.direction === 'right'),
-} as const;
-
 class SimpleGameEngine {
   readonly model = new SimpleMatchModel();
   private readonly scene = new THREE.Scene();
@@ -988,12 +980,24 @@ class SimpleGameEngine {
   setFoulsEnabled = (enabled: boolean) => { this.model.foulsEnabled = !!enabled; };
 
   /**
-   * CPU difficulty. Applied to whichever side the human is not controlling,
-   * so a harder CPU presses the player without altering match output.
+   * Call the routine at `direction` on the D-pad.
+   *
+   * Resolved against the table getRestartPlanOptions is currently offering,
+   * rather than a constant derived from the corner routines: free kicks have
+   * their own table and their own ordering, and a direction that table does
+   * not use (down, on a free kick) is simply ignored.
    */
+  private callRestartRoutineByDirection(direction: 'up' | 'down' | 'left' | 'right', requireTeam?: 'A' | 'B') {
+    const options = this.model.getRestartPlanOptions();
+    if (!options) return false;
+    const index = options.routines.findIndex((routine) => routine.direction === direction);
+    if (index < 0) return false;
+    return this.callRestartRoutine(index, requireTeam);
+  }
+
   /**
-   * Call the routine at `index` in CORNER_ROUTINES for whichever side is taking
-   * the restart.
+   * Call the routine at `index` in the live routine table for whichever side
+   * is taking the restart.
    *
    * This used to be hard-wired to team A, so in two-player mode the away player
    * could never call anything: getRestartPlanOptions reports team B, and the
@@ -1010,6 +1014,10 @@ class SimpleGameEngine {
     return this.model.setRestartPlan(team, routine.plan);
   }
 
+  /**
+   * CPU difficulty. Applied to whichever side the human is not controlling,
+   * so a harder CPU presses the player without altering match output.
+   */
   setCpuDifficulty = (key: string) => {
     this.cpuDifficulty = (CPU_DIFFICULTY_INTENSITY[key as CpuDifficultyKey] ? key : 'NORMAL') as CpuDifficultyKey;
     this.applyCpuDifficulty();
@@ -3727,10 +3735,10 @@ class SimpleGameEngine {
       }
       if (justPressed(3)) this.model.beginManualCharge('A', 'lob');
       // D-pad calls set-piece routines; it is otherwise unbound.
-      if (justPressed(12)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.up);
-      if (justPressed(13)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.down);
-      if (justPressed(14)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.left);
-      if (justPressed(15)) this.callRestartRoutine(DPAD_ROUTINE_INDEX.right);
+      if (justPressed(12)) this.callRestartRoutineByDirection('up');
+      if (justPressed(13)) this.callRestartRoutineByDirection('down');
+      if (justPressed(14)) this.callRestartRoutineByDirection('left');
+      if (justPressed(15)) this.callRestartRoutineByDirection('right');
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
       for (let i = 0; i < this.gameplayGpPrev.length; i++) {

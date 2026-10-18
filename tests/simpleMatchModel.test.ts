@@ -2647,7 +2647,7 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
   // rather than the real angle, and the manual on-target floor ignored angle
   // entirely -- so a 40-degree shot from six units out was *more* accurate
   // than one from straight in front.
-  const convert = (lateral: number, distFromGoal: number) => {
+  const convert = (lateral: number, distFromGoal: number, warmupTicks = 120) => {
     let goals = 0;
     let onTarget = 0;
     const attempts = 200;
@@ -2676,7 +2676,7 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
       // the teleport left him frozen on his kickoff spot at z = 0, so a shot
       // from the corner crossed his depth several units to his side and read as
       // unreachable -- the wide shot scored precisely because he had not moved.
-      for (let i = 0; i < 120; i++) {
+      for (let i = 0; i < warmupTicks; i++) {
         model.possession = carrier;
         carrier.pos = { x: goalX - sign * distFromGoal, y: 0, z: lateral };
         model.ball.pos = { x: carrier.pos.x, y: 0.18, z: lateral };
@@ -2700,11 +2700,29 @@ test("shooting from a tight angle is worse than shooting from in front", () => {
     const central = convert(0, distance);
     const angled = convert(distance * 0.85, distance);
     const veryWide = convert(distance * 1.7, distance);
-    // Accuracy is the mechanism the corner-shooting bug broke, and it carries a
-    // large enough effect to assert strictly at this sample size.
+    // Accuracy is the mechanism the corner-shooting bug broke, and against a
+    // central shot both angles carry an effect far larger than this sample's
+    // noise -- roughly 13 and 11 points at 10u, against a standard error of
+    // about 2.
     assert.ok(
-      central.onTarget > angled.onTarget && angled.onTarget > veryWide.onTarget,
-      `at ${distance}u accuracy must fall as the angle tightens: ${(central.onTarget * 100).toFixed(1)}% vs ${(angled.onTarget * 100).toFixed(1)}% vs ${(veryWide.onTarget * 100).toFixed(1)}%`,
+      central.onTarget > angled.onTarget && central.onTarget > veryWide.onTarget,
+      `at ${distance}u accuracy must fall away from a central shot: ${(central.onTarget * 100).toFixed(1)}% vs ${(angled.onTarget * 100).toFixed(1)}% vs ${(veryWide.onTarget * 100).toFixed(1)}%`,
+    );
+    // The angled-versus-very-wide step is deliberately not asserted here, and
+    // the reason is measured rather than assumed. These attempts warm up with
+    // 120 ticks of live play so the keeper is set, and in those two seconds the
+    // defence closes on the shooter. That pressure term dominates on-target and
+    // does not run the same way as the angle: a shooter out at z=17 stands in a
+    // wide channel fewer defenders converge on, so he ends up *less* crowded
+    // than one at z=8.5 and his accuracy comes out level or better. The
+    // ordering held on an older RNG trajectory and broke when an unrelated
+    // change re-rolled it, which is luck, not a property. The angle mechanism
+    // itself is asserted without the confound below, where it is strictly
+    // monotonic and much stronger.
+    const unpressured = [0, distance * 0.85, distance * 1.7].map((lateral) => convert(lateral, distance, 0).onTarget);
+    assert.ok(
+      unpressured[0] > unpressured[1] && unpressured[1] > unpressured[2],
+      `at ${distance}u, with no time for the defence to close, accuracy must fall monotonically as the angle tightens: ${unpressured.map((value) => `${(value * 100).toFixed(1)}%`).join(" vs ")}`,
     );
     // Conversion between central and a 40-degree angle differs by well under a
     // point, so 200 attempts cannot resolve it; only require that turning to an
@@ -8664,4 +8682,228 @@ test("a promoted keeper still stands in goal at the next kickoff", () => {
     fromGoal < 8,
     `the promoted keeper lined up ${fromGoal.toFixed(1)}u from his own goal instead of in it`,
   );
+});
+
+
+/**
+ * Free kicks.
+ *
+ * All of these pin one play-test report: fouled twice just outside the box,
+ * and there was "no setup, no wall, no option to restart, no option to shoot"
+ * -- the game played a short pass both times. Each cause got its own test,
+ * because they were four separate holes:
+ *   - no wall or setup code existed for free kicks at all;
+ *   - takeManualRestart ignored which button was pressed;
+ *   - executeBallOutRestart had no shot path, only a pass to a team-mate;
+ *   - the restart prompt never said the buttons meant different things.
+ */
+type FreeKickApi = {
+  attackSign: (team: string) => number;
+  stageFreeKickRestart: (team: string, spot: { x: number; z: number }, lastTouchTeam: string | null, lastTouchPlayerId: string | null) => void;
+  restartContext: { plan: string; wallIds?: string[]; spot: { x: number; z: number }; takerId?: string } | null;
+};
+
+/** Stage a free kick a given number of yards straight out from the goal. */
+const stageFreeKick = (model: SimpleMatchModel, yardsFromGoal: number, lateral = 0) => {
+  const api = model as unknown as FreeKickApi;
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  const spot = { x: goalX - sign * yardsFromGoal * FIELD_SCALE_PER_YARD, z: lateral };
+  model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
+  api.stageFreeKickRestart("A", spot, "B", null);
+  return spot;
+};
+
+test("a free kick in range builds a wall ten yards from the ball", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-wall");
+  model.startMatch();
+  const spot = stageFreeKick(model, 22);
+  const api = model as unknown as FreeKickApi;
+
+  const restart = api.restartContext;
+  assert.ok(restart, "the free kick must stage a restart");
+  const wallIds = restart.wallIds || [];
+  assert.ok(wallIds.length >= 3, `a central 22-yard free kick must draw a wall, got ${wallIds.length}`);
+
+  const tenYards = 10 * FIELD_SCALE_PER_YARD;
+  for (const id of wallIds) {
+    const player = model.getPlayers().find((candidate) => candidate.id === id);
+    assert.ok(player, "every wall member must be a real player");
+    assert.ok(player.targetPos, "every wall member must be given a position to stand in");
+    const gap = dist2(player.targetPos, spot);
+    assert.ok(
+      Math.abs(gap - tenYards) < 1.6,
+      `a wall member was sent ${(gap / FIELD_SCALE_PER_YARD).toFixed(1)}yd from the ball, not the regulation 10`,
+    );
+  }
+});
+
+test("the free-kick wall shades the near post rather than straddling the ball-to-goal line", () => {
+  // The whole point of a wall: it takes the side the ball reaches soonest and
+  // leaves the far half to the keeper. A wall centred on the direct line
+  // would cover neither properly.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-wall-side");
+  model.startMatch();
+  const api = model as unknown as FreeKickApi;
+  const spot = stageFreeKick(model, 22, 6);
+
+  const restart = api.restartContext;
+  assert.ok(restart, "the free kick must stage a restart");
+  const wall = (restart.wallIds || [])
+    .map((id) => model.getPlayers().find((candidate) => candidate.id === id))
+    .filter((player): player is NonNullable<typeof player> => !!player);
+  assert.ok(wall.length >= 3, "need a wall to test which way it leans");
+
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+  // Where the direct line crosses the wall's distance from the ball, in z.
+  const toGoal = { x: goalX - spot.x, z: 0 - spot.z };
+  const length = Math.hypot(toGoal.x, toGoal.z);
+  const onLineZ = spot.z + (toGoal.z / length) * 10 * FIELD_SCALE_PER_YARD;
+  const meanZ = wall.reduce((sum, player) => sum + player.targetPos.z, 0) / wall.length;
+  // The kick is taken from +z, so the near post is the +z one.
+  assert.ok(
+    meanZ > onLineZ,
+    `the wall centred on z=${meanZ.toFixed(2)} instead of shading past the direct line at z=${onLineZ.toFixed(2)}`,
+  );
+});
+
+test("nobody but the taker stands inside the ten-yard circle at a free kick", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-radius");
+  model.startMatch();
+  const spot = stageFreeKick(model, 24);
+  const api = model as unknown as FreeKickApi;
+  const restart = api.restartContext;
+  assert.ok(restart, "the free kick must stage a restart");
+
+  const tenYards = 10 * FIELD_SCALE_PER_YARD;
+  for (const player of model.getPlayers()) {
+    if (player.id === restart.takerId) continue;
+    // Keepers are deliberately exempt: for a kick near goal a keeper belongs
+    // on his line, not shoved off it to satisfy the circle.
+    if (player.role === "GK") continue;
+    const gap = dist2(player.targetPos, spot);
+    assert.ok(
+      gap >= tenYards - 0.01,
+      `${player.role} was left ${(gap / FIELD_SCALE_PER_YARD).toFixed(1)}yd from the ball, inside the ten`,
+    );
+  }
+});
+
+test("a midfield free kick does not build a wall", () => {
+  // 23 free kicks a match, half of them beyond 45 yards. Setting a wall for
+  // all of them would turn every midfield restart into a set piece and add
+  // dead time to the match for nothing.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-midfield");
+  model.startMatch();
+  stageFreeKick(model, 55);
+  const restart = (model as unknown as FreeKickApi).restartContext;
+  assert.ok(restart, "the free kick must stage a restart");
+  assert.equal((restart.wallIds || []).length, 0, "a 55-yard free kick must not draw a wall");
+});
+
+test("the shoot button takes a free kick as a shot, not as a short pass", () => {
+  // The reported bug, directly: every action fell through to the same scripted
+  // delivery, so pressing shoot from 22 yards played the ball to a team-mate.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-shoot");
+  model.startMatch();
+  model.setManualControlEnabled("A", true);
+  stageFreeKick(model, 22);
+
+  // Past the setup hold, which is capped so the button can never be dead.
+  for (let i = 0; i < 60 * 3; i++) model.step(1 / 60);
+  assert.equal(model.msm.state.kind, "ball_out", "the human's free kick must still be waiting on them");
+
+  const shotsBefore = model.getMatchSnapshot().shotsA;
+  assert.ok(model.triggerManualShot("A"), "the shoot button must take the free kick");
+  assert.equal(
+    model.getMatchSnapshot().shotsA,
+    shotsBefore + 1,
+    "pressing shoot on a free kick in range must register a shot",
+  );
+});
+
+test("the lob button crosses a free kick and the pass button plays it short", () => {
+  const planFor = (take: (model: SimpleMatchModel) => void) => {
+    const model = new SimpleMatchModel();
+    model.setSeed("free-kick-delivery");
+    model.startMatch();
+    model.setManualControlEnabled("A", true);
+    stageFreeKick(model, 26, 8);
+    for (let i = 0; i < 60 * 3; i++) model.step(1 / 60);
+    const before = (model as unknown as FreeKickApi).restartContext;
+    assert.ok(before, "the free kick must still be staged");
+    take(model);
+    return before.plan;
+  };
+
+  assert.equal(planFor((model) => model.triggerManualLobPass("A")), "free_kick_cross", "lob must whip one in");
+  assert.equal(planFor((model) => model.triggerManualPass("A")), "free_kick_direct", "pass must play it short");
+});
+
+test("a called free-kick routine beats the button used to take it", () => {
+  // Otherwise calling "shoot" on the D-pad and then tapping pass to strike it
+  // would quietly downgrade the choice the player had already made.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-routine-wins");
+  model.startMatch();
+  model.setManualControlEnabled("A", true);
+  stageFreeKick(model, 23);
+  for (let i = 0; i < 60 * 3; i++) model.step(1 / 60);
+
+  const options = model.getRestartPlanOptions();
+  assert.ok(options, "a free kick must offer its routines like a corner does");
+  assert.equal(options.restartType, "free_kick");
+  assert.ok(
+    options.routines.some((routine) => routine.plan === "free_kick_shoot"),
+    "shooting must be one of the offered routines",
+  );
+  assert.ok(model.setRestartPlan("A", "free_kick_shoot" as RestartPlan), "the routine must be accepted");
+
+  const restart = (model as unknown as FreeKickApi).restartContext;
+  assert.ok(restart, "the free kick must still be staged");
+  const shotsBefore = model.getMatchSnapshot().shotsA;
+  assert.ok(model.triggerManualPass("A"), "any ball button must still take the kick");
+  assert.equal(restart.plan, "free_kick_shoot", "the called routine must survive being taken with pass");
+  assert.equal(model.getMatchSnapshot().shotsA, shotsBefore + 1, "the called shoot routine must produce a shot");
+});
+
+test("the free-kick prompt tells the player the buttons choose the delivery", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-prompt");
+  model.startMatch();
+  model.setManualControlEnabled("A", true);
+  stageFreeKick(model, 22);
+
+  const prompt = model.getManualRestartPrompt();
+  assert.ok(prompt, "a held free kick must prompt");
+  assert.equal(prompt.label, "Free kick");
+  assert.equal(prompt.choosesDelivery, true, "a free kick must advertise that the button picks the delivery");
+  assert.ok(
+    prompt.secondsRemaining > 0,
+    "and it must still count down, so the hold never reads as the game freezing",
+  );
+});
+
+test("free kicks never stall the match waiting for a wall that cannot form", () => {
+  // The setup hold is bounded on purpose. An unreachable shape has to cost a
+  // short pause, not a stuck restart -- the same contract the called corner
+  // routines have.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-no-stall");
+  model.startMatch();
+  stageFreeKick(model, 22);
+
+  let seconds = 0;
+  for (let i = 0; i < 60 * 30 && model.msm.state.kind === "ball_out"; i++) {
+    model.step(1 / 60);
+    seconds += 1 / 60;
+  }
+  assert.equal(model.msm.state.kind, "live_play", "a CPU free kick must restart play");
+  assert.ok(seconds < 7, `a CPU free kick took ${seconds.toFixed(1)}s to be taken`);
 });

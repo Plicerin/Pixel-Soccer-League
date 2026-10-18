@@ -456,13 +456,59 @@ export type RestartPlan =
   | "throw_short"
   | "goal_kick_short"
   | "goal_kick_long"
+  // "free_kick_direct" is the played-short option, not a direct attempt at
+  // goal. The name predates there being anything else to choose, and the
+  // telemetry already carries it, so the shot and the cross got new names
+  // rather than a rename that would split every stored match in two.
   | "free_kick_direct"
+  | "free_kick_shoot"
+  | "free_kick_cross"
   | "penalty";
 
 /** A called routine's runners count as set once they are this close. */
 const CALLED_ROUTINE_ARRIVAL = 2.5;
 /** And they never hold the restart longer than this. */
 const CALLED_ROUTINE_MAX_WAIT_SECONDS = 2.5;
+
+/**
+ * Free-kick geometry.
+ *
+ * Ten yards is the laws-of-the-game retreat distance, and the rest is derived
+ * from it rather than tuned by feel, so the shape on screen is the shape a
+ * player expects. Before this there was no free-kick setup at all: a foul
+ * staged the spot and the restart passed short off whatever shape play had
+ * left behind.
+ */
+const FREE_KICK_WALL_DISTANCE = 10 * FIELD_SCALE_PER_YARD;
+/** Beyond this nobody forms a wall; it is a midfield restart, not a set piece. */
+const FREE_KICK_WALL_RANGE = 35 * FIELD_SCALE_PER_YARD;
+/**
+ * Inside this a direct attempt is on. Matches the band scripts/freekick-scope
+ * measured as 8.9 kicks a match, which is also why the CPU takes so few of
+ * them: shooting most would add several shots a match to a model already at
+ * the top of its band.
+ */
+const FREE_KICK_DIRECT_RANGE = 30 * FIELD_SCALE_PER_YARD;
+/** Shoulder to shoulder. */
+const FREE_KICK_WALL_SPACING = 1.15;
+const FREE_KICK_WALL_MAX = 4;
+/** Wall and taker count as set this close, and the wait is capped like a routine. */
+const FREE_KICK_SETUP_ARRIVAL = 1.8;
+const FREE_KICK_SETUP_MAX_WAIT_SECONDS = 2.5;
+/**
+ * A wall in the flight path. Real walls stop roughly a quarter of what is
+ * struck at them, which is also what makes bending it round the outside worth
+ * doing.
+ */
+const FREE_KICK_WALL_BLOCK_CHANCE = 0.26;
+/** Held well under the open-play curve: real direct free kicks score ~6%. */
+const FREE_KICK_DIRECT_GOAL_SCALE = 0.45;
+/** How high a whipped free kick into the box sits. */
+const FREE_KICK_CROSS_ARC = 0.95;
+/** How often the CPU goes direct from the shootable band, before rating bonus. */
+const FREE_KICK_DIRECT_BASE_CHANCE = 0.12;
+/** And how often it whips one in rather than playing short. */
+const FREE_KICK_CROSS_CHANCE = 0.42;
 
 /**
  * The routines a person can call on a corner, in D-pad order.
@@ -476,6 +522,27 @@ export const CORNER_ROUTINES = [
   { plan: "corner_near_post", direction: "up", key: "2", label: "Near post", hint: "attack the near stick" },
   { plan: "corner_far_post", direction: "right", key: "3", label: "Far post", hint: "overload the back stick" },
   { plan: "corner_edge", direction: "down", key: "4", label: "Edge of box", hint: "lay it off to the D" },
+] as const satisfies ReadonlyArray<{
+  plan: RestartPlan;
+  direction: "left" | "up" | "right" | "down";
+  key: string;
+  label: string;
+  hint: string;
+}>;
+
+/**
+ * The routines a person can call on a free kick.
+ *
+ * A play-tester was fouled twice outside the box and got a canned short pass
+ * both times: takeManualRestart ignored which button was pressed, so shoot,
+ * pass and lob all played the same ball, and nothing on screen said there was
+ * a choice. Same table contract as the corners, and deliberately the same
+ * D-pad directions for the first three slots so the muscle memory carries.
+ */
+export const FREE_KICK_ROUTINES = [
+  { plan: "free_kick_direct", direction: "left", key: "1", label: "Short", hint: "play it to feet" },
+  { plan: "free_kick_shoot", direction: "up", key: "2", label: "Shoot", hint: "strike it at goal" },
+  { plan: "free_kick_cross", direction: "right", key: "3", label: "Cross", hint: "whip it into the box" },
 ] as const satisfies ReadonlyArray<{
   plan: RestartPlan;
   direction: "left" | "up" | "right" | "down";
@@ -498,6 +565,11 @@ type BallOutRestartContext = {
   planChosenBy?: SimpleTeamCode;
   /** Dead-ball seconds at the moment it was called, to bound the wait. */
   planChosenAt?: number;
+  /** Who is in the free-kick wall, so readiness waits on them and nobody else. */
+  wallIds?: string[];
+  /** Aim and charge from the person taking it, for a direct attempt. */
+  manualAim?: Vec2;
+  manualPower?: number;
 };
 
 type VisibleBallOutPending = {
@@ -981,6 +1053,14 @@ export class SimpleMatchModel {
    * match bit-identical, so the check still means what it did before.
    */
   private disciplineRng = new Rng(2);
+  /**
+   * Restart decisions draw from their own stream.
+   *
+   * Two extra this.rng.next() calls once reshuffled the shared stream and
+   * broke a guard that had nothing to do with the change. Free-kick plans and
+   * wall blocks are decided here so the rest of the simulation is untouched.
+   */
+  private restartRng = new Rng(3);
   private actionTimer = 0;
   private visualReceptionSettleRemaining = 0;
   private visualReceptionPlayerId: string | null = null;
@@ -1249,6 +1329,10 @@ export class SimpleMatchModel {
       team: restart.restartTeam,
       restartType: restart.restartType,
       label,
+      // On a free kick the button chooses the delivery, so the prompt has to
+      // say so: a tester pressed shoot, got the canned short pass, and read
+      // that as the game taking the kick for them.
+      choosesDelivery: restart.restartType === "free_kick",
       secondsRemaining: Math.max(0, MANUAL_RESTART_WATCHDOG_SECONDS - this.deadBallStateWallSeconds),
     };
   }
@@ -1263,10 +1347,14 @@ export class SimpleMatchModel {
     if (!this.awaitingManualRestart()) return false;
     if (!this.manualControl[team].enabled) return false;
     if (restart.restartType === "corner" && !CORNER_ROUTINES.some((routine) => routine.plan === plan)) return false;
+    if (restart.restartType === "free_kick" && !FREE_KICK_ROUTINES.some((routine) => routine.plan === plan)) return false;
     restart.plan = plan;
     restart.planChosenBy = team;
     restart.planChosenAt = this.deadBallStateWallSeconds;
     if (restart.restartType === "corner") this.positionCornerPlayers(restart);
+    // Re-shape it: a cross loads the six-yard box, the other two do not, so
+    // calling one has to move bodies or the choice is cosmetic.
+    if (restart.restartType === "free_kick") this.positionFreeKickPlayers(restart);
     return true;
   }
 
@@ -1274,14 +1362,15 @@ export class SimpleMatchModel {
   getRestartPlanOptions() {
     const restart = this.restartContext;
     if (!restart || !this.awaitingManualRestart()) return null;
-    if (restart.restartType !== "corner") return null;
+    if (restart.restartType !== "corner" && restart.restartType !== "free_kick") return null;
     if (!this.manualControl[restart.restartTeam].enabled) return null;
+    const routines = restart.restartType === "corner" ? CORNER_ROUTINES : FREE_KICK_ROUTINES;
     return {
       team: restart.restartTeam,
       restartType: restart.restartType,
       selected: restart.plan ?? null,
       chosen: restart.planChosenBy === restart.restartTeam,
-      routines: CORNER_ROUTINES.map((routine) => ({ ...routine })),
+      routines: routines.map((routine) => ({ ...routine })),
     };
   }
 
@@ -1926,7 +2015,12 @@ export class SimpleMatchModel {
   }
 
   /** Player pressed a ball action while holding a restart: put it back in play. */
-  private takeManualRestart(team: SimpleTeamCode) {
+  private takeManualRestart(
+    team: SimpleTeamCode,
+    action: "pass" | "shot" | "lob" = "pass",
+    power = 1,
+    aim?: Vec2,
+  ) {
     const restart = this.restartContext;
     if (!restart || restart.restartTeam !== team) return false;
     if (!this.awaitingManualRestart()) return false;
@@ -1937,6 +2031,22 @@ export class SimpleMatchModel {
     // 4% of staged corners ever reach, so using it would leave the take button
     // dead until the 7s watchdog fired.
     if (restart.restartType === "corner" && !this.isCalledRoutineReady(restart)) return false;
+    // Free kicks honour which button was pressed. They used to ignore it
+    // entirely -- shoot, pass and lob all fell through to the same scripted
+    // delivery -- which is what a play-tester hit when they were fouled
+    // outside the box and the game "automatically did a short pass".
+    if (restart.restartType === "free_kick") {
+      if (!this.isFreeKickSetupReady(restart)) return false;
+      // A routine called on the D-pad or number keys wins, because that was
+      // deliberate; otherwise the button used to take it decides.
+      if (restart.planChosenBy !== team) {
+        restart.plan = action === "shot" ? "free_kick_shoot"
+          : action === "lob" ? "free_kick_cross"
+          : "free_kick_direct";
+      }
+      restart.manualAim = aim ? { ...aim } : undefined;
+      restart.manualPower = power;
+    }
     this.msm.restartTimer = 0;
     this.msm.state = { kind: "live_play", half: this.msm.clock.half, startTick: 0 };
     this.executeBallOutRestart();
@@ -1946,7 +2056,10 @@ export class SimpleMatchModel {
   private runManualAction(team: SimpleTeamCode, action: "pass" | "shot" | "lob", power = 1) {
     const state = this.manualControl[team];
     if (!state.enabled) return false;
-    if (this.msm.state.kind === "ball_out") return this.takeManualRestart(team);
+    // Hoisted above the restart branch: a free kick needs the aim and the
+    // charge to place a direct attempt, and this used to be computed below it.
+    const direction = Math.hypot(state.move.x, state.move.z) > 0.2 ? { ...state.move } : undefined;
+    if (this.msm.state.kind === "ball_out") return this.takeManualRestart(team, action, power, direction);
     if (this.msm.state.kind !== "live_play" || this.ballFlight) return false;
     const carrier = this.possession;
     if (!carrier || carrier.team !== team) {
@@ -1956,7 +2069,6 @@ export class SimpleMatchModel {
     if (carrier.role !== "GK") state.selectedPlayerId = carrier.id;
     const pressure = this.pressureOn(carrier);
     this.actionTimer = this.nextActionDelay();
-    const direction = Math.hypot(state.move.x, state.move.z) > 0.2 ? { ...state.move } : undefined;
     if (action === "pass" || action === "lob") {
       const played = this.resolvePass(carrier, pressure, {
         preferForward: !direction,
@@ -2194,6 +2306,14 @@ export class SimpleMatchModel {
     // Without this the timer expired and the CPU played the ball while the
     // player was still walking up to it.
     if (this.awaitingManualRestart()) {
+      this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
+    }
+    // And a free kick waits for its wall whoever is taking it, so the CPU does
+    // not restart into a defence that has not retreated. isFreeKickSetupReady
+    // is time-capped, so this cannot stall the match.
+    if (this.msm.state.kind === "ball_out"
+      && this.restartContext?.restartType === "free_kick"
+      && !this.isFreeKickSetupReady(this.restartContext)) {
       this.msm.restartTimer = Math.max(this.msm.restartTimer, dt + SIMULATION_DT);
     }
     if (this.msm.state.kind === "goal_scored" && this.goalNetVisualPending()) {
@@ -6647,6 +6767,7 @@ export class SimpleMatchModel {
       taker.targetPos = this.restartTakerTarget(restart);
     }
     if (restart.restartType === "corner") this.positionCornerPlayers(restart);
+    if (restart.restartType === "free_kick") this.positionFreeKickPlayers(restart);
     const stats = this.team(restart.restartTeam);
     if (restart.restartType === "corner") stats.corners += 1;
     if (restart.restartType === "throw_in") stats.throwIns += 1;
@@ -6933,6 +7054,183 @@ export class SimpleMatchModel {
     };
   }
 
+  /** How far the spot is from the goal it is attacking, in world units. */
+  private freeKickRange(restart: BallOutRestartContext) {
+    return dist2(restart.spot, goalCenterForAttack(this.attackSign(restart.restartTeam)));
+  }
+
+  /**
+   * How many bodies the wall gets.
+   *
+   * Close and central is the dangerous case and gets the full wall. From wide
+   * or long range a token two, because there the real threat is the cross and
+   * a four-man wall would just be four defenders out of the box.
+   */
+  private freeKickWallSize(restart: BallOutRestartContext) {
+    const range = this.freeKickRange(restart);
+    if (range > FREE_KICK_WALL_RANGE) return 0;
+    const lateral = Math.abs(restart.spot.z) / PENALTY_HALF_Z;
+    if (range <= FREE_KICK_DIRECT_RANGE && lateral <= 0.8) return FREE_KICK_WALL_MAX;
+    if (range <= FREE_KICK_DIRECT_RANGE) return 3;
+    return 2;
+  }
+
+  /**
+   * Where each wall member stands: on the arc ten yards from the ball, spread
+   * across the ball-to-goal line and shifted to the near-post side.
+   *
+   * That shift is the whole point of a wall. The keeper covers the far half
+   * (see positionFreeKickPlayers), so the wall takes the near post, which is
+   * the side the ball reaches soonest.
+   */
+  private freeKickWallSlots(restart: BallOutRestartContext, size: number): Vec2[] {
+    const goal = goalCenterForAttack(this.attackSign(restart.restartTeam));
+    const toGoal = { x: goal.x - restart.spot.x, z: goal.z - restart.spot.z };
+    const length = Math.hypot(toGoal.x, toGoal.z) || 1;
+    const unit = { x: toGoal.x / length, z: toGoal.z / length };
+    const nearSide = restart.spot.z >= 0 ? 1 : -1;
+    // Perpendicular to the ball-to-goal line, pointing at the near post.
+    const perp = { x: -unit.z * nearSide, z: unit.x * nearSide };
+    const centre = {
+      x: restart.spot.x + unit.x * FREE_KICK_WALL_DISTANCE,
+      z: restart.spot.z + unit.z * FREE_KICK_WALL_DISTANCE,
+    };
+    const slots: Vec2[] = [];
+    for (let i = 0; i < size; i += 1) {
+      // Biased half a body toward the near post, so the wall straddles the
+      // direct line rather than sitting centred on it.
+      const offset = (i - (size - 1) / 2 + 0.5) * FREE_KICK_WALL_SPACING;
+      slots.push(clampToPlayable({ x: centre.x + perp.x * offset, z: centre.z + perp.z * offset }));
+    }
+    return slots;
+  }
+
+  /**
+   * Set a free kick up: wall, keeper, bodies in the box, and ten clear yards
+   * around the ball.
+   *
+   * None of this existed. A foul staged the spot and play restarted off
+   * whatever shape it had interrupted, which is why a play-tester reported
+   * being fouled outside the box with "no setup, no wall".
+   */
+  private positionFreeKickPlayers(restart: BallOutRestartContext) {
+    const attackSign = this.attackSign(restart.restartTeam);
+    const defendingTeam = otherTeam(restart.restartTeam);
+    const goalX = goalCenterForAttack(attackSign).x;
+    const takerId = restart.takerId || null;
+    const wallSize = this.freeKickWallSize(restart);
+    const nearSide = restart.spot.z >= 0 ? 1 : -1;
+    const clampLane = (z: number) => clamp(z, -PENALTY_HALF_Z + 0.55, PENALTY_HALF_Z - 0.55);
+
+    if (wallSize === 0) {
+      // Midfield free kick. Leave the shape alone -- it is a restart, not a set
+      // piece -- and just clear the ten yards so it is not taken into shins.
+      restart.wallIds = [];
+      this.clearFreeKickRadius(restart, takerId);
+      return;
+    }
+
+    const defenders = this.players
+      .filter((player) => player.team === defendingTeam && player.role !== "GK")
+      .sort((a, b) => dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot));
+    const wallSlots = this.freeKickWallSlots(restart, wallSize);
+    const wall = defenders.slice(0, wallSize);
+    restart.wallIds = wall.map((player) => player.id);
+    for (const [index, player] of wall.entries()) {
+      player.targetPos = wallSlots[index];
+    }
+
+    // Everything below is deliberately restrained, and the restraint is the
+    // whole point.
+    //
+    // The first version of this also dropped the non-wall defenders onto a
+    // flat line in front of goal, shaded the keeper off-centre to let the wall
+    // have the near post, and loaded five attackers into the box on every
+    // free kick. All three read well on paper. Measured, they cost 0.87 extra
+    // goals a match with the new shoot and cross options both switched off --
+    // the shape alone was doing it. A deep flat line concedes the whole
+    // midfield, and an off-centre keeper is worse than that: keeperSaveGeometry
+    // treats out-of-reach as a conceded goal outright, so parking him off his
+    // spot at the restart is a direct goal source once play resumes.
+    //
+    // So the wall gets placed, the laws get respected, and the cross gets the
+    // bodies it needs to mean anything. The rest of both teams keep whatever
+    // the normal positioning AI wants, including the keeper, whose
+    // keeperCoverTarget already shades toward the ball on its own.
+    const crossing = restart.plan === "free_kick_cross";
+    const attackers = this.players
+      .filter((player) => player.team === restart.restartTeam && player.role !== "GK" && player.id !== takerId)
+      .sort((a, b) => dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot));
+    // One stands over the ball, so the short option exists at all.
+    if (attackers[0]) {
+      attackers[0].targetPos = clampToPlayable({
+        x: restart.spot.x - attackSign * 1.4,
+        z: clamp(restart.spot.z - nearSide * 3.2, -FIELD_D / 2 + 1, FIELD_D / 2 - 1),
+      });
+    }
+    if (crossing) {
+      // A whipped ball needs someone to attack it. Three, not five: enough to
+      // contest the delivery, few enough that a cleared one is not a counter
+      // into an empty half.
+      const boxSlots = [
+        { x: goalX - attackSign * 5.2, z: clampLane(nearSide * 2.8) },
+        { x: goalX - attackSign * 5.8, z: clampLane(-nearSide * 2.4) },
+        { x: goalX - attackSign * 7.4, z: clampLane(nearSide * 5.6) },
+      ];
+      for (const [index, slot] of boxSlots.entries()) {
+        const player = attackers[index + 1];
+        if (player) player.targetPos = clampToPlayable(slot);
+      }
+    }
+    this.clearFreeKickRadius(restart, takerId);
+  }
+
+  /**
+   * Push everyone except the taker out of the ten-yard circle.
+   *
+   * Runs after the slots rather than inside them, so a slot that happens to
+   * land inside the circle still gets moved out instead of the laws being
+   * broken by whichever assignment happened to run last. The keeper is exempt:
+   * for a kick close to goal he belongs on his line, not pushed off it.
+   */
+  private clearFreeKickRadius(restart: BallOutRestartContext, takerId: string | null) {
+    for (const player of this.players) {
+      if (player.id === takerId || player.role === "GK") continue;
+      const target = player.targetPos || player.pos;
+      if (dist2(target, restart.spot) >= FREE_KICK_WALL_DISTANCE) continue;
+      const dx = target.x - restart.spot.x;
+      const dz = target.z - restart.spot.z;
+      const length = Math.hypot(dx, dz);
+      // Standing on the ball: step back off it rather than dividing by zero.
+      const unit = length > 0.2
+        ? { x: dx / length, z: dz / length }
+        : { x: -this.attackSign(restart.restartTeam), z: 0 };
+      player.targetPos = clampToPlayable({
+        x: restart.spot.x + unit.x * FREE_KICK_WALL_DISTANCE,
+        z: restart.spot.z + unit.z * FREE_KICK_WALL_DISTANCE,
+      });
+    }
+  }
+
+  /**
+   * Is the free kick set?
+   *
+   * The wall and the taker only. The box runners are not worth holding a
+   * restart for, and the whole check is time-capped first, so the take button
+   * can never feel dead -- the same bound the called corner routines use.
+   */
+  private isFreeKickSetupReady(restart: BallOutRestartContext) {
+    if (this.deadBallStateWallSeconds >= FREE_KICK_SETUP_MAX_WAIT_SECONDS) return true;
+    const taker = restart.takerId ? this.players.find((player) => player.id === restart.takerId) : null;
+    if (taker && dist2(taker.pos, this.restartTakerTarget(restart)) > FREE_KICK_SETUP_ARRIVAL) return false;
+    const wallIds = restart.wallIds || [];
+    if (!wallIds.length) return true;
+    return wallIds.every((id) => {
+      const player = this.players.find((candidate) => candidate.id === id);
+      return !player || !player.targetPos || dist2(player.pos, player.targetPos) <= FREE_KICK_SETUP_ARRIVAL;
+    });
+  }
+
   /**
    * Have the runners for a called routine arrived?
    *
@@ -7013,6 +7311,16 @@ export class SimpleMatchModel {
       }
       return;
     }
+    if (restart.restartType === "free_kick" && restart.plan === "free_kick_shoot" && taker) {
+      const goalEvent = this.executeFreeKickShot(restart, taker);
+      this.restartContext = null;
+      if (goalEvent) {
+        this.msm.score[goalEvent.scoringTeam] += 1;
+        this.msm.state = { kind: "goal_scored", scoringTeam: goalEvent.scoringTeam, restartAfter: 2.0 };
+        this.msm.restartTimer = this.restartDelayGoal;
+      }
+      return;
+    }
     const goalKickPlan = restart.restartType === "goal_kick"
       ? this.goalKickRestartPlan(restart, taker?.id, restart.plan === "goal_kick_long")
       : null;
@@ -7027,6 +7335,7 @@ export class SimpleMatchModel {
     const longGoalKick = goalKickPlan?.style === "goal_kick_long";
     const groundedCorner = restart.restartType === "corner"
       && (restart.plan === "corner_short" || restart.plan === "corner_edge");
+    const loftedFreeKick = restart.restartType === "free_kick" && restart.plan === "free_kick_cross";
     const cornerDeliveryStyle = restart.restartType !== "corner"
       ? null
       : groundedCorner
@@ -7034,13 +7343,13 @@ export class SimpleMatchModel {
         : (this.rng.next() < 0.16 ? "DRIVEN" : this.rng.next() < 0.58 ? "MEDIUM_ARC" : "LOOPED");
     const arcHeight = restart.restartType === "throw_in" ? 0.85
       : restart.restartType === "corner" ? (groundedCorner ? 0.16 : cornerDeliveryStyle === "DRIVEN" ? 0.84 : cornerDeliveryStyle === "MEDIUM_ARC" ? 1.02 : CORNER_KICK_ARC)
-      : restart.restartType === "free_kick" ? 0.32
+      : restart.restartType === "free_kick" ? (loftedFreeKick ? FREE_KICK_CROSS_ARC : 0.32)
       : longGoalKick ? GOAL_KICK_LONG_ARC
       : 0.22;
-    const headerEligible = (restart.restartType === "corner" && !groundedCorner) || longGoalKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
+    const headerEligible = (restart.restartType === "corner" && !groundedCorner) || longGoalKick || loftedFreeKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
     const settleSeconds = this.visibleReceptionHoldSeconds();
     const flightSeconds = this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
-      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick,
+      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick || loftedFreeKick,
       headerEligible,
       settleSeconds,
       sourceAction: longGoalKick ? "goal_kick_long" : restart.restartType,
@@ -7068,7 +7377,7 @@ export class SimpleMatchModel {
       targetPoint: { x: +receiver.pos.x.toFixed(2), z: +receiver.pos.z.toFixed(2) },
       distance: +distance.toFixed(2),
       arcHeight,
-      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick,
+      aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick || loftedFreeKick,
       headerEligible,
       goalKickStyle: goalKickPlan?.style,
       cornerDeliveryStyle,
@@ -7110,6 +7419,71 @@ export class SimpleMatchModel {
     }
     this.deferActionAfterReception(flightSeconds, settleSeconds);
     this.restartContext = null;
+  }
+
+  /**
+   * A direct free kick: the taker strikes it at goal.
+   *
+   * Conversion is held well under the open-play curve. resolveShot from 22
+   * yards unpressured is a good chance, and a direct free kick is not one --
+   * the real rate is around 6% -- so without FREE_KICK_DIRECT_GOAL_SCALE a
+   * wall and a set keeper would still have conceded at open-play rates.
+   */
+  private executeFreeKickShot(restart: BallOutRestartContext, taker: SimplePlayer): GoalEvent | null {
+    const attackSign = this.attackSign(restart.restartTeam);
+    const distance = dist2(restart.spot, goalCenterForAttack(attackSign));
+    const wallIds = restart.wallIds || [];
+    const distYards = distance / FIELD_SCALE_PER_YARD;
+    // The wall gets its chance first, and a block is a shot that never
+    // reaches the keeper -- which is exactly what makes going round it worth
+    // the aim. Drawn from the restart stream, not the shared one.
+    if (wallIds.length && this.restartRng.next() < FREE_KICK_WALL_BLOCK_CHANCE) {
+      const blocker = this.players.find((player) => wallIds.includes(player.id)) || null;
+      const teamStats = this.team(restart.restartTeam);
+      teamStats.shots += 1;
+      taker.stats.shots += 1;
+      taker.stats.touches += 1;
+      if (blocker) {
+        this.team(blocker.team).blocks += 1;
+        blocker.stats.blocks += 1;
+        blocker.stats.touches += 1;
+        this.possession = blocker;
+        this.rememberTouch(blocker);
+        this.startBallFlight("interception", { ...restart.spot }, blocker.pos, this.flightDuration(0.34), 0.3, blocker);
+        this.addLiveEvent(blocker.team, "BLOCK", `${blocker.label} blocked ${taker.label}`, {
+          reason: "FREE_KICK_WALL_BLOCK",
+          distYards: +distYards.toFixed(1),
+          wallSize: wallIds.length,
+        });
+        this.recordEvent("BLOCK", blocker.team, blocker, {
+          reason: "FREE_KICK_WALL_BLOCK",
+          carrier: taker.name,
+          distYards: +distYards.toFixed(1),
+          wallSize: wallIds.length,
+        });
+      }
+      return null;
+    }
+    return this.resolveShot(taker, distance, 0, {
+      reason: "FREE_KICK_SHOT",
+      style: "placed",
+      aimDirection: restart.manualAim,
+      // "manual" in resolveShot means the aim and power were chosen rather
+      // than sampled, and it exempts the shot from the CPU selection gates
+      // that recycle long attempts into a pass. A dead-ball strike qualifies
+      // on both counts whoever took it: the alternative is the shoot button
+      // quietly playing a pass, which is the bug this change exists to fix.
+      manual: true,
+      power: restart.manualPower ?? 1,
+      goalChanceMultiplier: FREE_KICK_DIRECT_GOAL_SCALE,
+      details: {
+        restartType: "free_kick",
+        restartPlan: "free_kick_shoot",
+        wallSize: wallIds.length,
+        distYards: +distYards.toFixed(1),
+        manualAim: !!restart.manualAim,
+      },
+    });
   }
 
   private executePenaltyRestart(restart: BallOutRestartContext, taker: SimplePlayer): GoalEvent | null {
@@ -7421,6 +7795,14 @@ export class SimpleMatchModel {
               : { x: goal.x - attackSign * 4.8, z: (restart.plan === "corner_far_post" ? -nearSide : nearSide) * 3.5 };
           return dist2(a.pos, target) - dist2(b.pos, target);
         }
+        if (restart.restartType === "free_kick" && restart.plan === "free_kick_cross") {
+          // Whoever is closest to the near stick, not whoever is closest to
+          // the ball -- that is the short option, and it is a different plan.
+          const goal = goalCenterForAttack(attackSign);
+          const nearSide = restart.spot.z >= 0 ? 1 : -1;
+          const target = { x: goal.x - attackSign * 5.2, z: nearSide * 2.8 };
+          return dist2(a.pos, target) - dist2(b.pos, target);
+        }
         return dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot);
       });
     return candidates[0] || null;
@@ -7433,6 +7815,29 @@ export class SimpleMatchModel {
     if (restart.restartType === "throw_in") return "throw_short";
     if (restart.restartType === "goal_kick") return this.goalKickRestartPlan(restart, taker?.id).style === "goal_kick_long" ? "goal_kick_long" : "goal_kick_short";
     if (restart.restartType === "penalty") return "penalty";
+    return this.cpuFreeKickPlan(restart, taker);
+  }
+
+  /**
+   * What the CPU does with a free kick.
+   *
+   * Deliberately shy of the real rate of direct attempts. The scope harness
+   * measured 8.9 free kicks a match inside 30 yards, so going direct from
+   * most of them would add several shots a match to a model already sitting
+   * at the top of its 33-a-match band. Central and close only, nudged by the
+   * taker's shooting.
+   */
+  private cpuFreeKickPlan(restart: BallOutRestartContext, taker: SimplePlayer | null): RestartPlan {
+    const range = this.freeKickRange(restart);
+    const lateral = Math.abs(restart.spot.z) / PENALTY_HALF_Z;
+    if (range <= FREE_KICK_DIRECT_RANGE && lateral <= 0.75) {
+      const shooting = clamp(((taker?.ratings.shooting ?? 60) - 55) / 100, 0, 0.3);
+      if (this.restartRng.next() < FREE_KICK_DIRECT_BASE_CHANCE + shooting) return "free_kick_shoot";
+    }
+    // Wide of the posts, or too far to strike: whip it in rather than recycle.
+    if (range <= FREE_KICK_WALL_RANGE && (lateral > 0.55 || range > FREE_KICK_DIRECT_RANGE)) {
+      if (this.restartRng.next() < FREE_KICK_CROSS_CHANCE) return "free_kick_cross";
+    }
     return "free_kick_direct";
   }
 
@@ -9173,5 +9578,6 @@ export class SimpleMatchModel {
     const salt = this.seedSalt || String(Date.now());
     this.rng = new Rng(seededHash(`${this.teamA.name}|${this.teamB.name}|${salt}`));
     this.disciplineRng = new Rng(seededHash(`discipline|${this.teamA.name}|${this.teamB.name}|${salt}`));
+    this.restartRng = new Rng(seededHash(`restart|${this.teamA.name}|${this.teamB.name}|${salt}`));
   }
 }
