@@ -8701,16 +8701,19 @@ type FreeKickApi = {
   attackSign: (team: string) => number;
   stageFreeKickRestart: (team: string, spot: { x: number; z: number }, lastTouchTeam: string | null, lastTouchPlayerId: string | null) => void;
   restartContext: { plan: string; wallIds?: string[]; spot: { x: number; z: number }; takerId?: string } | null;
+  restartReceiver: (restart: unknown, takerId?: string) => { id: string; name: string } | null;
+  offsideInfraction: (carrier: unknown, target: unknown, ballAtTouch: { x: number; z: number }) => unknown;
+  freeKickWallIntersectors: (restart: unknown, targetPoint: { x: number; z: number }) => Array<{ id: string }>;
 };
 
 /** Stage a free kick a given number of yards straight out from the goal. */
-const stageFreeKick = (model: SimpleMatchModel, yardsFromGoal: number, lateral = 0) => {
+const stageFreeKick = (model: SimpleMatchModel, yardsFromGoal: number, lateral = 0, team: "A" | "B" = "A") => {
   const api = model as unknown as FreeKickApi;
-  const sign = api.attackSign("A");
+  const sign = api.attackSign(team);
   const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
   const spot = { x: goalX - sign * yardsFromGoal * FIELD_SCALE_PER_YARD, z: lateral };
   model.msm.state = { kind: "live_play", half: 1, startTick: 0 };
-  api.stageFreeKickRestart("A", spot, "B", null);
+  api.stageFreeKickRestart(team, spot, team === "A" ? "B" : "A", null);
   return spot;
 };
 
@@ -8739,35 +8742,134 @@ test("a free kick in range builds a wall ten yards from the ball", () => {
   }
 });
 
-test("the free-kick wall shades the near post rather than straddling the ball-to-goal line", () => {
+test("the free-kick wall shades the near post whichever way the kick attacks", () => {
   // The whole point of a wall: it takes the side the ball reaches soonest and
-  // leaves the far half to the keeper. A wall centred on the direct line
-  // would cover neither properly.
+  // leaves the far half to the keeper. Both attack directions, because the
+  // first version derived the shading side from the ball-to-goal x sign and
+  // quietly flipped to the far post for the team attacking -x -- which a
+  // one-team test could never have caught.
+  for (const team of ["A", "B"] as const) {
+    const model = new SimpleMatchModel();
+    model.setSeed(`free-kick-wall-side-${team}`);
+    model.startMatch();
+    const api = model as unknown as FreeKickApi;
+    const spot = stageFreeKick(model, 22, 6, team);
+
+    const restart = api.restartContext;
+    assert.ok(restart, "the free kick must stage a restart");
+    const wall = (restart.wallIds || [])
+      .map((id) => model.getPlayers().find((candidate) => candidate.id === id))
+      .filter((player): player is NonNullable<typeof player> => !!player);
+    assert.ok(wall.length >= 3, `team ${team} needs a wall to test which way it leans`);
+
+    const sign = api.attackSign(team);
+    const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+    // Where the direct line crosses the wall's distance from the ball, in z.
+    const toGoal = { x: goalX - spot.x, z: 0 - spot.z };
+    const length = Math.hypot(toGoal.x, toGoal.z);
+    const onLineZ = spot.z + (toGoal.z / length) * 10 * FIELD_SCALE_PER_YARD;
+    const meanZ = wall.reduce((sum, player) => sum + player.targetPos.z, 0) / wall.length;
+    // The kick is taken from +z, so the near post is the +z one.
+    assert.ok(
+      meanZ > onLineZ,
+      `team ${team}'s wall centred on z=${meanZ.toFixed(2)} instead of shading past the direct line at z=${onLineZ.toFixed(2)}`,
+    );
+  }
+});
+
+test("a free-kick delivery never picks an offside receiver", () => {
+  // Free kicks are not offside-exempt the way corners and throw-ins are, and
+  // the restart delivery bypasses resolvePass's infraction check -- so the
+  // receiver pool itself has to be filtered, or a runner parked past the line
+  // is an unflaggable goal.
   const model = new SimpleMatchModel();
-  model.setSeed("free-kick-wall-side");
+  model.setSeed("free-kick-onside");
   model.startMatch();
   const api = model as unknown as FreeKickApi;
-  const spot = stageFreeKick(model, 22, 6);
-
+  stageFreeKick(model, 34, 8);
   const restart = api.restartContext;
   assert.ok(restart, "the free kick must stage a restart");
-  const wall = (restart.wallIds || [])
-    .map((id) => model.getPlayers().find((candidate) => candidate.id === id))
-    .filter((player): player is NonNullable<typeof player> => !!player);
-  assert.ok(wall.length >= 3, "need a wall to test which way it leans");
+  restart.plan = "free_kick_cross";
 
   const sign = api.attackSign("A");
   const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
-  // Where the direct line crosses the wall's distance from the ball, in z.
-  const toGoal = { x: goalX - spot.x, z: 0 - spot.z };
-  const length = Math.hypot(toGoal.x, toGoal.z);
-  const onLineZ = spot.z + (toGoal.z / length) * 10 * FIELD_SCALE_PER_YARD;
-  const meanZ = wall.reduce((sum, player) => sum + player.targetPos.z, 0) / wall.length;
-  // The kick is taken from +z, so the near post is the +z one.
-  assert.ok(
-    meanZ > onLineZ,
-    `the wall centred on z=${meanZ.toFixed(2)} instead of shading past the direct line at z=${onLineZ.toFixed(2)}`,
+  // Park an attacker exactly on the cross's box target, two yards off the
+  // goal line -- past every defender, so he is the natural pick and offside.
+  const planted = model.getPlayers().find((p) => p.team === "A" && p.role !== "GK" && p.id !== restart.takerId);
+  assert.ok(planted, "need an outfielder to plant offside");
+  planted.pos = { ...planted.pos, x: goalX - sign * 5.2, z: 2.8 };
+
+  const taker = model.getPlayers().find((p) => p.id === restart.takerId);
+  assert.ok(taker, "the restart must have a taker");
+  assert.ok(api.offsideInfraction(taker, planted, restart.spot), "the planted striker must actually be offside");
+
+  const receiver = api.restartReceiver(restart, restart.takerId);
+  assert.ok(receiver, "the cross must still find someone");
+  assert.notEqual(receiver.id, planted.id, "the delivery must not pick the offside runner");
+  const picked = model.getPlayers().find((p) => p.id === receiver.id);
+  assert.equal(
+    api.offsideInfraction(taker, picked, restart.spot),
+    null,
+    "whoever it picks must be onside from the restart spot",
   );
+});
+
+test("cancelling a called cross releases its box runners", () => {
+  // Calling a cross commits three runners to the box. Switching to short or
+  // shoot has to send them back: nothing else refreshes targets while the
+  // restart holds the dead ball, so without the restore they stay committed
+  // to a delivery that is no longer coming.
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-cross-cancel");
+  model.startMatch();
+  model.setManualControlEnabled("A", true);
+  stageFreeKick(model, 26, 8);
+  const api = model as unknown as FreeKickApi;
+  const defendingLeft = api.attackSign("A") < 0;
+  const inBoxTargets = () => model.getPlayers()
+    .filter((p) => p.team === "A" && p.targetPos && isInPenaltyArea(p.targetPos, defendingLeft)).length;
+
+  const before = inBoxTargets();
+  assert.ok(model.setRestartPlan("A", "free_kick_cross" as RestartPlan), "the cross must be callable");
+  assert.ok(inBoxTargets() > before, "a called cross must send runners into the box");
+  assert.ok(model.setRestartPlan("A", "free_kick_direct" as RestartPlan), "switching back must be allowed");
+  assert.ok(
+    inBoxTargets() <= before,
+    `cancelling the cross must release its runners, ${inBoxTargets()} still targeted into the box vs ${before} before`,
+  );
+});
+
+test("the wall only blocks shots that actually pass through it", () => {
+  const model = new SimpleMatchModel();
+  model.setSeed("free-kick-wall-geometry");
+  model.startMatch();
+  const api = model as unknown as FreeKickApi;
+  const spot = stageFreeKick(model, 22, 0);
+  const restart = api.restartContext;
+  assert.ok(restart && (restart.wallIds || []).length >= 3, "a central 22-yard kick must draw a wall");
+  const wallMembers = (restart.wallIds || [])
+    .map((id) => model.getPlayers().find((p) => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => !!p);
+  // Stand the wall on its slots, as if fully set.
+  for (const member of wallMembers) {
+    member.pos = { ...member.pos, x: member.targetPos.x, z: member.targetPos.z };
+  }
+  const sign = api.attackSign("A");
+  const goalX = sign > 0 ? RIGHT_GOAL_X : LEFT_GOAL_X;
+
+  const through = api.freeKickWallIntersectors(restart, { x: goalX, z: 0 });
+  assert.ok(through.length > 0, "a shot driven through the middle must meet the wall");
+
+  const behind = api.freeKickWallIntersectors(restart, { x: spot.x - sign * 5, z: 0 });
+  assert.equal(behind.length, 0, "a ball played backwards can never be blocked by the wall");
+
+  // A wall that never arrived is judged where it stands, not where it was told
+  // to go -- the setup hold is time-capped, so this happens in play.
+  for (const member of wallMembers) {
+    member.pos = { ...member.pos, z: member.pos.z + 6 };
+  }
+  const around = api.freeKickWallIntersectors(restart, { x: goalX, z: 0 });
+  assert.equal(around.length, 0, "a wall nowhere near the flight path cannot block it");
 });
 
 test("nobody but the taker stands inside the ten-yard circle at a free kick", () => {

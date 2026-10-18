@@ -505,8 +505,15 @@ const FREE_KICK_WALL_BLOCK_CHANCE = 0.26;
 const FREE_KICK_DIRECT_GOAL_SCALE = 0.45;
 /** How high a whipped free kick into the box sits. */
 const FREE_KICK_CROSS_ARC = 0.95;
-/** How often the CPU goes direct from the shootable band, before rating bonus. */
-const FREE_KICK_DIRECT_BASE_CHANCE = 0.12;
+/**
+ * How often the CPU goes direct from the shootable band, before rating bonus.
+ *
+ * Centred so base plus the specialist bonus lands near one direct attempt a
+ * match, which is roughly the real rate. The first pass used 0.12 plus a hot
+ * bonus and produced 2.9 a match -- enough extra shots to threaten the
+ * 35-a-match guard ceiling on their own.
+ */
+const FREE_KICK_DIRECT_BASE_CHANCE = 0.06;
 /** And how often it whips one in rather than playing short. */
 const FREE_KICK_CROSS_CHANCE = 0.42;
 
@@ -570,6 +577,8 @@ type BallOutRestartContext = {
   /** Aim and charge from the person taking it, for a direct attempt. */
   manualAim?: Vec2;
   manualPower?: number;
+  /** Runners a called cross moved, with where each was headed before. */
+  crossRunnerRestore?: { id: string; target: Vec2 | null }[];
 };
 
 type VisibleBallOutPending = {
@@ -7089,8 +7098,15 @@ export class SimpleMatchModel {
     const length = Math.hypot(toGoal.x, toGoal.z) || 1;
     const unit = { x: toGoal.x / length, z: toGoal.z / length };
     const nearSide = restart.spot.z >= 0 ? 1 : -1;
-    // Perpendicular to the ball-to-goal line, pointing at the near post.
-    const perp = { x: -unit.z * nearSide, z: unit.x * nearSide };
+    // Perpendicular to the ball-to-goal line. Rotating by 90 degrees gives two
+    // candidates; take the one whose z points at the near post. The first
+    // version baked the side into the rotation as unit.x's sign, which held
+    // attacking +x and silently shaded the wall to the far post attacking -x.
+    const perp = { x: -unit.z, z: unit.x };
+    if (perp.z * nearSide < 0) {
+      perp.x = -perp.x;
+      perp.z = -perp.z;
+    }
     const centre = {
       x: restart.spot.x + unit.x * FREE_KICK_WALL_DISTANCE,
       z: restart.spot.z + unit.z * FREE_KICK_WALL_DISTANCE,
@@ -7179,8 +7195,25 @@ export class SimpleMatchModel {
       ];
       for (const [index, slot] of boxSlots.entries()) {
         const player = attackers[index + 1];
-        if (player) player.targetPos = clampToPlayable(slot);
+        if (!player) continue;
+        // Remember where each runner was headed. Calling a cross and then
+        // changing the plan has to send them back, or three attackers stay
+        // committed to a box the ball is no longer coming into -- and nothing
+        // else refreshes targets while the restart holds the dead ball.
+        if (!restart.crossRunnerRestore?.some((entry) => entry.id === player.id)) {
+          (restart.crossRunnerRestore ??= []).push({
+            id: player.id,
+            target: player.targetPos ? { ...player.targetPos } : null,
+          });
+        }
+        player.targetPos = clampToPlayable(slot);
       }
+    } else if (restart.crossRunnerRestore) {
+      for (const entry of restart.crossRunnerRestore) {
+        const runner = this.players.find((candidate) => candidate.id === entry.id);
+        if (runner) runner.targetPos = entry.target ? { ...entry.target } : runner.targetPos;
+      }
+      restart.crossRunnerRestore = undefined;
     }
     this.clearFreeKickRadius(restart, takerId);
   }
@@ -7205,10 +7238,24 @@ export class SimpleMatchModel {
       const unit = length > 0.2
         ? { x: dx / length, z: dz / length }
         : { x: -this.attackSign(restart.restartTeam), z: 0 };
-      player.targetPos = clampToPlayable({
+      let retreat = clampToPlayable({
         x: restart.spot.x + unit.x * FREE_KICK_WALL_DISTANCE,
         z: restart.spot.z + unit.z * FREE_KICK_WALL_DISTANCE,
       });
+      if (dist2(retreat, restart.spot) < FREE_KICK_WALL_DISTANCE - 0.1) {
+        // The clamp pulled the point back inside the circle: the spot is near
+        // a line and this player's direction pointed over it. Retreat toward
+        // the pitch centre instead, which is in bounds from anywhere on it.
+        const centreGap = Math.hypot(restart.spot.x, restart.spot.z);
+        const toCentre = centreGap > 0.5
+          ? { x: -restart.spot.x / centreGap, z: -restart.spot.z / centreGap }
+          : { x: -this.attackSign(restart.restartTeam), z: 0 };
+        retreat = clampToPlayable({
+          x: restart.spot.x + toCentre.x * FREE_KICK_WALL_DISTANCE,
+          z: restart.spot.z + toCentre.z * FREE_KICK_WALL_DISTANCE,
+        });
+      }
+      player.targetPos = retreat;
     }
   }
 
@@ -7331,11 +7378,32 @@ export class SimpleMatchModel {
     }
     this.possession = receiver;
     this.rememberTouch(receiver);
-    const distance = dist2(restart.spot, receiver.pos);
     const longGoalKick = goalKickPlan?.style === "goal_kick_long";
     const groundedCorner = restart.restartType === "corner"
       && (restart.plan === "corner_short" || restart.plan === "corner_edge");
     const loftedFreeKick = restart.restartType === "free_kick" && restart.plan === "free_kick_cross";
+    // A cross is a ball into the box, not a ball to wherever its receiver
+    // happens to stand. The take button can select it at the last moment,
+    // before any runner has reached the box, so lead the receiver toward the
+    // box target the way open-play led passes do -- capped well inside what he
+    // can cover during the flight, because a ball nobody meets is an
+    // empty-landing violation in the KPI guard.
+    let landing: Vec2 = { x: receiver.pos.x, z: receiver.pos.z };
+    if (loftedFreeKick) {
+      const crossGoal = goalCenterForAttack(this.attackSign(restart.restartTeam));
+      const crossSide = restart.spot.z >= 0 ? 1 : -1;
+      const boxTarget = { x: crossGoal.x - this.attackSign(restart.restartTeam) * 5.2, z: crossSide * 2.8 };
+      const toBox = { x: boxTarget.x - receiver.pos.x, z: boxTarget.z - receiver.pos.z };
+      const boxGap = Math.hypot(toBox.x, toBox.z);
+      if (boxGap > 1) {
+        const lead = Math.min(3.2, boxGap * 0.6);
+        landing = clampToPlayable({
+          x: receiver.pos.x + (toBox.x / boxGap) * lead,
+          z: receiver.pos.z + (toBox.z / boxGap) * lead,
+        });
+      }
+    }
+    const distance = dist2(restart.spot, landing);
     const cornerDeliveryStyle = restart.restartType !== "corner"
       ? null
       : groundedCorner
@@ -7348,7 +7416,7 @@ export class SimpleMatchModel {
       : 0.22;
     const headerEligible = (restart.restartType === "corner" && !groundedCorner) || longGoalKick || loftedFreeKick || (restart.restartType === "throw_in" && dist2(receiver.pos, goalCenterForAttack(this.attackSign(restart.restartTeam))) <= 14);
     const settleSeconds = this.visibleReceptionHoldSeconds();
-    const flightSeconds = this.startBallFlight("restart", restart.spot, receiver.pos, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
+    const flightSeconds = this.startBallFlight("restart", restart.spot, landing, this.flightDuration(clamp(distance / 24, 0.7, 1.45)), arcHeight, receiver, {
       aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick || loftedFreeKick,
       headerEligible,
       settleSeconds,
@@ -7374,7 +7442,7 @@ export class SimpleMatchModel {
       receiverId: receiver.id,
       receiverName: receiver.name,
       spot: { ...restart.spot },
-      targetPoint: { x: +receiver.pos.x.toFixed(2), z: +receiver.pos.z.toFixed(2) },
+      targetPoint: { x: +landing.x.toFixed(2), z: +landing.z.toFixed(2) },
       distance: +distance.toFixed(2),
       arcHeight,
       aerial: (restart.restartType === "corner" && !groundedCorner) || restart.restartType === "throw_in" || longGoalKick || loftedFreeKick,
@@ -7422,6 +7490,35 @@ export class SimpleMatchModel {
   }
 
   /**
+   * Which wall members actually stand in the flight path, nearest the ball
+   * first.
+   *
+   * Judged on current positions, not assigned slots: the setup hold is
+   * time-capped, so a taker who outwaits the wall is shooting past wherever it
+   * really is. The first version rolled a flat block chance against the wall's
+   * existence, which blocked kicks bent cleanly around it and could even pick
+   * a "blocker" standing behind the ball.
+   */
+  private freeKickWallIntersectors(restart: BallOutRestartContext, targetPoint: Vec2) {
+    const wallIds = restart.wallIds || [];
+    if (!wallIds.length) return [];
+    const dx = targetPoint.x - restart.spot.x;
+    const dz = targetPoint.z - restart.spot.z;
+    const lengthSq = dx * dx + dz * dz;
+    if (lengthSq < 1e-6) return [];
+    return this.players
+      .filter((player) => {
+        if (!wallIds.includes(player.id)) return false;
+        const t = ((player.pos.x - restart.spot.x) * dx + (player.pos.z - restart.spot.z) * dz) / lengthSq;
+        if (t <= 0.02 || t >= 0.98) return false;
+        const nearest = { x: restart.spot.x + dx * t, z: restart.spot.z + dz * t };
+        // A body plus a stretched boot either side of where he stands.
+        return dist2(player.pos, nearest) <= FREE_KICK_WALL_SPACING * 0.8;
+      })
+      .sort((a, b) => dist2(a.pos, restart.spot) - dist2(b.pos, restart.spot));
+  }
+
+  /**
    * A direct free kick: the taker strikes it at goal.
    *
    * Conversion is held well under the open-play curve. resolveShot from 22
@@ -7431,37 +7528,74 @@ export class SimpleMatchModel {
    */
   private executeFreeKickShot(restart: BallOutRestartContext, taker: SimplePlayer): GoalEvent | null {
     const attackSign = this.attackSign(restart.restartTeam);
-    const distance = dist2(restart.spot, goalCenterForAttack(attackSign));
+    const goal = goalCenterForAttack(attackSign);
+    const distance = dist2(restart.spot, goal);
     const wallIds = restart.wallIds || [];
     const distYards = distance / FIELD_SCALE_PER_YARD;
-    // The wall gets its chance first, and a block is a shot that never
-    // reaches the keeper -- which is exactly what makes going round it worth
-    // the aim. Drawn from the restart stream, not the shared one.
-    if (wallIds.length && this.restartRng.next() < FREE_KICK_WALL_BLOCK_CHANCE) {
-      const blocker = this.players.find((player) => wallIds.includes(player.id)) || null;
+    // Where the strike is headed, from the taker's aim; the CPU goes through
+    // the middle. The wall can only block what is actually hit at it, so the
+    // trajectory comes before the block roll.
+    const aimLateral = shotAimLateral(restart.spot, goal.x, restart.manualAim ?? null, GOAL_MOUTH_HALF_Z * 0.75);
+    const targetPoint = { x: goal.x, z: (aimLateral ?? 0) * GOAL_MOUTH_HALF_Z * 0.75 };
+    // Tell the renderer the kick is away. Without a release event the setup
+    // presentation keeps painting the ball on the restart spot while the
+    // simulated shot flies (restartPresentationBallPosition), which is the
+    // same visible-versus-simulated split as the side-netting bug.
+    const releaseMeta = {
+      phase: "release",
+      restartType: "free_kick",
+      presentationKind: "free_kick",
+      presentationSeconds: 0.8,
+      restartPlan: restart.plan,
+      takerId: taker.id,
+      takerName: taker.name,
+      spot: { ...restart.spot },
+      targetPoint: { x: +targetPoint.x.toFixed(2), z: +targetPoint.z.toFixed(2) },
+      distYards: +distYards.toFixed(1),
+    };
+    this.addLiveEvent(restart.restartTeam, "FREE_KICK", `${taker.label} strikes it`, releaseMeta);
+    this.recordEvent("FREE_KICK", restart.restartTeam, taker, releaseMeta);
+    const intersectors = this.freeKickWallIntersectors(restart, targetPoint);
+    // A block is a shot that never reaches the keeper -- which is exactly what
+    // makes bending it around the wall worth the aim. Drawn from the restart
+    // stream, not the shared one.
+    if (intersectors.length && this.restartRng.next() < FREE_KICK_WALL_BLOCK_CHANCE) {
+      const blocker = intersectors[0];
       const teamStats = this.team(restart.restartTeam);
       teamStats.shots += 1;
       taker.stats.shots += 1;
       taker.stats.touches += 1;
-      if (blocker) {
-        this.team(blocker.team).blocks += 1;
-        blocker.stats.blocks += 1;
-        blocker.stats.touches += 1;
-        this.possession = blocker;
-        this.rememberTouch(blocker);
-        this.startBallFlight("interception", { ...restart.spot }, blocker.pos, this.flightDuration(0.34), 0.3, blocker);
-        this.addLiveEvent(blocker.team, "BLOCK", `${blocker.label} blocked ${taker.label}`, {
-          reason: "FREE_KICK_WALL_BLOCK",
-          distYards: +distYards.toFixed(1),
-          wallSize: wallIds.length,
-        });
-        this.recordEvent("BLOCK", blocker.team, blocker, {
-          reason: "FREE_KICK_WALL_BLOCK",
-          carrier: taker.name,
-          distYards: +distYards.toFixed(1),
-          wallSize: wallIds.length,
-        });
-      }
+      // The attempt has to exist in the event stream too: the dashboards count
+      // shots from SHOT events, so a block that only bumped the snapshot
+      // totals would leave the two disagreeing by one per block.
+      this.recordShotPositionSnapshot(restart.restartTeam, taker, restart.spot, this.shotDefenseSnapshot(restart.restartTeam, restart.spot, taker));
+      this.recordEvent("SHOT", restart.restartTeam, taker, {
+        reason: "FREE_KICK_SHOT",
+        style: "placed",
+        outcome: "blocked",
+        onTarget: false,
+        blocked: true,
+        distYards: +distYards.toFixed(1),
+        wallSize: wallIds.length,
+      });
+      this.addLiveEvent(restart.restartTeam, "SHOT", `${taker.label} placed`);
+      this.team(blocker.team).blocks += 1;
+      blocker.stats.blocks += 1;
+      blocker.stats.touches += 1;
+      this.possession = blocker;
+      this.rememberTouch(blocker);
+      this.startBallFlight("interception", { ...restart.spot }, blocker.pos, this.flightDuration(0.34), 0.3, blocker);
+      this.addLiveEvent(blocker.team, "BLOCK", `${blocker.label} blocked ${taker.label}`, {
+        reason: "FREE_KICK_WALL_BLOCK",
+        distYards: +distYards.toFixed(1),
+        wallSize: wallIds.length,
+      });
+      this.recordEvent("BLOCK", blocker.team, blocker, {
+        reason: "FREE_KICK_WALL_BLOCK",
+        carrier: taker.name,
+        distYards: +distYards.toFixed(1),
+        wallSize: wallIds.length,
+      });
       return null;
     }
     return this.resolveShot(taker, distance, 0, {
@@ -7780,8 +7914,19 @@ export class SimpleMatchModel {
 
   private restartReceiver(restart: BallOutRestartContext, takerId?: string) {
     const attackSign = this.attackSign(restart.restartTeam);
-    const candidates = this.players
-      .filter((player) => player.team === restart.restartTeam && player.id !== takerId && player.role !== "GK")
+    const allCandidates = this.players
+      .filter((player) => player.team === restart.restartTeam && player.id !== takerId && player.role !== "GK");
+    // Free kicks are not offside-exempt the way corners, throw-ins and goal
+    // kicks are, and this delivery path bypasses resolvePass and its
+    // infraction check entirely -- so an unfiltered pick here could feed a
+    // runner standing past the line for a goal no flag can touch. Judged from
+    // the restart spot. A player behind the ball is always onside, so the
+    // fallback to the unfiltered list can only fire with no team-mates at all.
+    const offsideJudge = takerId ? this.players.find((player) => player.id === takerId) : null;
+    const onside = restart.restartType === "free_kick"
+      ? allCandidates.filter((player) => !this.offsideInfraction(offsideJudge || player, player, restart.spot))
+      : allCandidates;
+    const candidates = (onside.length ? onside : allCandidates)
       .sort((a, b) => {
         if (restart.restartType === "corner") {
           const goal = goalCenterForAttack(attackSign);
@@ -7831,7 +7976,11 @@ export class SimpleMatchModel {
     const range = this.freeKickRange(restart);
     const lateral = Math.abs(restart.spot.z) / PENALTY_HALF_Z;
     if (range <= FREE_KICK_DIRECT_RANGE && lateral <= 0.75) {
-      const shooting = clamp(((taker?.ratings.shooting ?? 60) - 55) / 100, 0, 0.3);
+      // Ratings come from simpleRatings' clamp01, so they live on 0-1: a
+      // striker is ~0.72, a centre-back ~0.18. The first version subtracted 55
+      // as if they were 0-100, which clamped the bonus to zero for everyone
+      // and gave the best and worst strikers of the ball the same 12%.
+      const shooting = clamp(((taker?.ratings.shooting ?? 0.5) - 0.55) * 0.9, 0, 0.15);
       if (this.restartRng.next() < FREE_KICK_DIRECT_BASE_CHANCE + shooting) return "free_kick_shoot";
     }
     // Wide of the posts, or too far to strike: whip it in rather than recycle.
