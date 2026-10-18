@@ -5277,8 +5277,11 @@ test("V178 poor forced box shots are contained before inflating shot and goal-ki
   assert.equal(contained, true);
   assert.equal(model.getMatchSnapshot().shotsA, 15, "poor forced-shot containment must not count as a shot");
   assert.equal(model.possession?.team, "B");
+  // Containment in the area is recorded as a BLOCK now, not a TACKLE: putting
+  // a body in the way is not a tackle, and counting it as one was most of why
+  // the model showed 228 tackles a match against roughly 35.
   const containment = model.getTuningBundle().events
-    .filter((row) => row.type === "TACKLE" && row.detail?.reason === "PENALTY_AREA_CONTAINMENT_BLOCK")
+    .filter((row) => row.type === "BLOCK" && row.detail?.reason === "PENALTY_AREA_CONTAINMENT_BLOCK")
     .at(-1);
   assert.ok(containment);
   assert.ok(Number(containment.detail?.shotQualityDebt) >= 0.4);
@@ -8605,7 +8608,9 @@ test("a dismissal leaves a keeper, keeps the player's stats, and the ball keeps 
 
   const keeper = model.getPlayers().find((p) => p.team === "A" && p.role === "GK");
   assert.ok(keeper, "team A should start with a keeper");
-  keeper.stats.saves = 3;
+  // `saves` is not one of the per-player export fields for anyone, active or
+  // not, so assert on one that is.
+  keeper.stats.touches = 37;
   const keeperLabel = keeper.label;
 
   api.sendOff(keeper, "straight_red");
@@ -8621,8 +8626,42 @@ test("a dismissal leaves a keeper, keeps the player's stats, and the ball keeps 
   // His match must survive in the exports, not vanish with him.
   const bundle = api.bundleTeam("A");
   assert.ok(bundle.roleStats, "team bundle should carry per-player stats");
-  const archived = bundle.roleStats![keeperLabel] as { saves?: number; dismissed?: boolean } | undefined;
+  const archived = bundle.roleStats![keeperLabel] as { touches?: number; name?: string; role?: string; dismissed?: boolean } | undefined;
   assert.ok(archived, `${keeperLabel} should still appear in the export`);
-  assert.equal(archived!.saves, 3, "his saves must not be erased by the red card");
+  assert.equal(archived!.touches, 37, "his match must not be erased by the red card");
+  // Archived rows go through the same mapping as active ones, so the fields the
+  // dashboard reads are all present rather than defaulting to zero.
+  assert.equal(archived!.name, keeper.name);
+  assert.equal(archived!.role, "GK");
   assert.equal(archived!.dismissed, true);
+});
+
+test("a promoted keeper still stands in goal at the next kickoff", () => {
+  // Review on #9: installKickoffSetup resolved each slot from the player's id
+  // index and overwrote homePos, so an outfielder promoted after a keeper's
+  // dismissal was put back in his old outfield slot -- and kickoffLegalPosition
+  // returns homePos unchanged for a GK, so he lined up there in goal.
+  const model = new SimpleMatchModel();
+  model.setSeed("promoted-keeper-kickoff");
+  model.startMatch();
+  const api = model as unknown as {
+    sendOff: (p: unknown, reason: string) => void;
+    installKickoffSetup: (team: "A" | "B", options?: { snapPlayers?: boolean }) => void;
+    attackSign: (t: "A" | "B") => number;
+  };
+
+  const keeper = model.getPlayers().find((p) => p.team === "A" && p.role === "GK");
+  assert.ok(keeper);
+  api.sendOff(keeper, "straight_red");
+  const promoted = model.getPlayers().find((p) => p.team === "A" && p.role === "GK");
+  assert.ok(promoted, "someone must take over in goal");
+
+  api.installKickoffSetup("A", { snapPlayers: true });
+
+  const ownGoalX = api.attackSign("A") > 0 ? LEFT_GOAL_X : RIGHT_GOAL_X;
+  const fromGoal = Math.abs(promoted.pos.x - ownGoalX);
+  assert.ok(
+    fromGoal < 8,
+    `the promoted keeper lined up ${fromGoal.toFixed(1)}u from his own goal instead of in it`,
+  );
 });
