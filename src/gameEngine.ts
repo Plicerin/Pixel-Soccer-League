@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createGamepadLatch, pickStandardGamepad } from './gamepadSelect';
+import { createGamepadPairLatch, pickStandardGamepads } from './gamepadSelect';
 import { CPU_DIFFICULTY_INTENSITY, cpuDefenseIntensities, restartRoutineTeam, type CpuDifficultyKey } from './core/simpleMatchModel';
 import { Text } from 'troika-three-text';
 import {
@@ -719,7 +719,8 @@ class SimpleGameEngine {
   private twoPlayerMode = false;
   private readonly pressedKeys = new Set<string>();
   private readonly gameplayGpPrev: boolean[] = new Array(17).fill(false);
-  private readonly gamepadLatch = createGamepadLatch();
+  private readonly gameplayGpPrevB: boolean[] = new Array(17).fill(false);
+  private readonly gamepadPairLatch = createGamepadPairLatch();
 
   private handleGameplayKeyDown = (event: KeyboardEvent) => {
     this.pressedKeys.add(event.code);
@@ -3656,8 +3657,12 @@ class SimpleGameEngine {
   };
 
   /** Delegates to the shared selector so the UI poller agrees on the device. */
-  private pickGamepad(): Gamepad | null {
-    return pickStandardGamepad(this.gamepadLatch, () => this.gameplayGpPrev.fill(false));
+  private pickGamepads(): [Gamepad | null, Gamepad | null] {
+    // A freed or re-latched slot resets that pad's edge-detection state, so a
+    // button held across a device switch cannot fire as freshly pressed.
+    return pickStandardGamepads(this.gamepadPairLatch, (slot) => {
+      (slot === 0 ? this.gameplayGpPrev : this.gameplayGpPrevB).fill(false);
+    });
   }
 
   private pollManualControls(modelActive: boolean) {
@@ -3686,7 +3691,7 @@ class SimpleGameEngine {
     if (this.pressedKeys.has('KeyA')) moveA.addScaledVector(right, -1);
     if (this.pressedKeys.has('KeyD')) moveA.add(right);
 
-    const gamepad = this.pickGamepad();
+    const [gamepad, gamepadB] = this.pickGamepads();
     const gamepadActive = this.humanControlEnabled && !!gamepad;
     if (gamepadActive && gamepad) {
       const axisX = Math.abs(gamepad.axes[0] ?? 0) > 0.2 ? (gamepad.axes[0] ?? 0) : 0;
@@ -3701,6 +3706,14 @@ class SimpleGameEngine {
     if (this.pressedKeys.has('ArrowLeft')) moveB.addScaledVector(right, -1);
     if (this.pressedKeys.has('ArrowRight')) moveB.add(right);
 
+    const gamepadBActive = this.twoPlayerMode && !!gamepadB;
+    if (gamepadBActive && gamepadB) {
+      const axisX = Math.abs(gamepadB.axes[0] ?? 0) > 0.2 ? (gamepadB.axes[0] ?? 0) : 0;
+      const axisY = Math.abs(gamepadB.axes[1] ?? 0) > 0.2 ? (gamepadB.axes[1] ?? 0) : 0;
+      moveB.addScaledVector(right, axisX);
+      moveB.addScaledVector(forward, -axisY);
+    }
+
     const normalizeMove = (vector: THREE.Vector3) => {
       vector.y = 0;
       if (vector.lengthSq() <= 0.0001) return { x: 0, z: 0 };
@@ -3713,10 +3726,12 @@ class SimpleGameEngine {
     this.model.setManualMove('A', nextA.x, nextA.z);
     this.model.setManualMove('B', nextB.x, nextB.z);
 
-    // Hold to sprint: Left Shift / gamepad RT for player 1, Right Shift for player 2.
+    // Hold to sprint: Left Shift / pad 1 triggers for player 1, Right Shift /
+    // pad 2 triggers for player 2.
     const gamepadSprint = !!gamepad && (!!gamepad.buttons[7]?.pressed || !!gamepad.buttons[6]?.pressed);
+    const gamepadSprintB = gamepadBActive && !!gamepadB && (!!gamepadB.buttons[7]?.pressed || !!gamepadB.buttons[6]?.pressed);
     this.model.setManualSprint('A', this.humanControlEnabled && (this.pressedKeys.has('ShiftLeft') || gamepadSprint));
-    this.model.setManualSprint('B', this.twoPlayerMode && this.pressedKeys.has('ShiftRight'));
+    this.model.setManualSprint('B', this.twoPlayerMode && (this.pressedKeys.has('ShiftRight') || gamepadSprintB));
 
     // Buttons are dispatched only after the aim above is committed to the
     // model. Dispatching first made pass/shot read the previous frame's stick,
@@ -3734,11 +3749,15 @@ class SimpleGameEngine {
         if (!this.model.triggerManualTackle('A')) this.model.selectNearestManualPlayer('A');
       }
       if (justPressed(3)) this.model.beginManualCharge('A', 'lob');
-      // D-pad calls set-piece routines; it is otherwise unbound.
-      if (justPressed(12)) this.callRestartRoutineByDirection('up');
-      if (justPressed(13)) this.callRestartRoutineByDirection('down');
-      if (justPressed(14)) this.callRestartRoutineByDirection('left');
-      if (justPressed(15)) this.callRestartRoutineByDirection('right');
+      // D-pad calls set-piece routines; it is otherwise unbound. With a lone
+      // pad in two-player mode it may call for whichever side has the restart
+      // (the away player is on the keyboard); once a second pad is claimed,
+      // each pad speaks only for its own team.
+      const padARoutineTeam = gamepadB ? ('A' as const) : undefined;
+      if (justPressed(12)) this.callRestartRoutineByDirection('up', padARoutineTeam);
+      if (justPressed(13)) this.callRestartRoutineByDirection('down', padARoutineTeam);
+      if (justPressed(14)) this.callRestartRoutineByDirection('left', padARoutineTeam);
+      if (justPressed(15)) this.callRestartRoutineByDirection('right', padARoutineTeam);
       if (justPressed(4)) this.model.cycleManualPlayer('A', -1);
       if (justPressed(5)) this.model.cycleManualPlayer('A', 1);
       for (let i = 0; i < this.gameplayGpPrev.length; i++) {
@@ -3746,6 +3765,29 @@ class SimpleGameEngine {
       }
     } else {
       this.gameplayGpPrev.fill(false);
+    }
+
+    if (gamepadBActive && gamepadB) {
+      const justPressedB = (index: number) => !!gamepadB.buttons[index]?.pressed && !this.gameplayGpPrevB[index];
+      const justReleasedB = (index: number) => !gamepadB.buttons[index]?.pressed && this.gameplayGpPrevB[index];
+      if (justPressedB(0)) this.model.beginManualCharge('B', 'pass');
+      if (justPressedB(1)) this.model.beginManualCharge('B', 'shot');
+      if (justReleasedB(0) || justReleasedB(1) || justReleasedB(3)) this.model.releaseManualCharge('B');
+      if (justPressedB(2)) {
+        if (!this.model.triggerManualTackle('B')) this.model.selectNearestManualPlayer('B');
+      }
+      if (justPressedB(3)) this.model.beginManualCharge('B', 'lob');
+      if (justPressedB(12)) this.callRestartRoutineByDirection('up', 'B');
+      if (justPressedB(13)) this.callRestartRoutineByDirection('down', 'B');
+      if (justPressedB(14)) this.callRestartRoutineByDirection('left', 'B');
+      if (justPressedB(15)) this.callRestartRoutineByDirection('right', 'B');
+      if (justPressedB(4)) this.model.cycleManualPlayer('B', -1);
+      if (justPressedB(5)) this.model.cycleManualPlayer('B', 1);
+      for (let i = 0; i < this.gameplayGpPrevB.length; i++) {
+        this.gameplayGpPrevB[i] = !!gamepadB.buttons[i]?.pressed;
+      }
+    } else {
+      this.gameplayGpPrevB.fill(false);
     }
   }
 
