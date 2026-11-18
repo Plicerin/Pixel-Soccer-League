@@ -2560,8 +2560,11 @@ test("both gamepad pollers share one standard-mapping selector", () => {
       /navigator\.getGamepads\?\.\(\)\?\.\[0\]/,
       `${name} must not hardcode pad slot 0`,
     );
-    assert.match(src, /pickStandardGamepad\(/, `${name} must use the shared pad selector`);
   }
+  // Gameplay polls the two-player selector; the menu poller only ever needs
+  // one pad, whichever it is, so it stays on the single-pad selector.
+  assert.match(engine, /pickStandardGamepads\(/, "engine must use the shared two-pad selector");
+  assert.match(retro, /pickStandardGamepad\(/, "ui must use the shared pad selector");
   assert.match(shared, /pad\.mapping === 'standard'/, "selector must require the standard mapping");
 });
 
@@ -2573,8 +2576,9 @@ test("gamepad selection ignores idle/virtual pads and latches the one in use", (
     "must not hardcode pad slot 0: virtual-pad drivers and idle wireless pads sit in low slots",
   );
   const selector = readFileSync("src/gamepadSelect.ts", "utf8");
-  assert.match(engine, /private pickGamepad\(\): Gamepad \| null/, "pad selection must be explicit");
+  assert.match(engine, /private pickGamepads\(\): \[Gamepad \| null, Gamepad \| null\]/, "pad selection must be explicit");
   assert.match(selector, /latch\.index = pad\.index;/, "the pad in use must be latched once found");
+  assert.match(selector, /latch\.indices\[slot\] = pad\.index;/, "each player's pad must be latched once touched");
   assert.match(
     selector,
     /pad\.buttons\.some\(\(button\) => button\?\.pressed\)[\s\S]{0,200}?Math\.abs\(axis \?\? 0\) > ACTIVE_AXIS_THRESHOLD/,
