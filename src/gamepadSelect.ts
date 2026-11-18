@@ -17,6 +17,20 @@ export function createGamepadLatch(): GamepadLatch {
   return { index: null };
 }
 
+/**
+ * `navigator.getGamepads()` that never throws. Browsers that enforce the
+ * `gamepad` Permissions-Policy throw SecurityError inside an iframe that was
+ * not granted it (itch.io embeds), and an uncaught throw in the splash
+ * handler left the title screen impossible to dismiss.
+ */
+export function readGamepads(): readonly (Gamepad | null)[] {
+  try {
+    return typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Deadzone above which stick movement counts as deliberate input. */
 const ACTIVE_AXIS_THRESHOLD = 0.35;
 
@@ -28,7 +42,7 @@ const deliberatelyTouched = (pad: Gamepad) =>
   || pad.axes.some((axis) => Math.abs(axis ?? 0) > ACTIVE_AXIS_THRESHOLD);
 
 export function pickStandardGamepad(latch: GamepadLatch, onSwitch?: () => void): Gamepad | null {
-  const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  const pads = readGamepads();
 
   if (latch.index !== null) {
     const held = pads[latch.index];
@@ -65,7 +79,7 @@ export function pickStandardGamepads(
   latch: GamepadPairLatch,
   onSwitch?: (slot: 0 | 1) => void,
 ): [Gamepad | null, Gamepad | null] {
-  const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  const pads = readGamepads();
   const held: [Gamepad | null, Gamepad | null] = [null, null];
 
   for (const slot of [0, 1] as const) {

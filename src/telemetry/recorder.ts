@@ -1,7 +1,7 @@
 import { createId, telemetryDb, type CorrectionActionRow, type MatchSnapshotRow, type PlayerSnapshotRow, type RealWorldBaselineRow, type TelemetryEventRow, type TelemetrySession } from './db';
 import { buildDriftDashboard, generateDriftRecommendations } from './analysis';
 import { seedMLS2025Baselines } from './mls2025-baselines';
-import { hasDevServer } from '../runtimeEnv';
+import { hasDevServer, isWebBuild } from '../runtimeEnv';
 
 type PlayerStatsLike = {
   role?: string;
@@ -330,7 +330,19 @@ export class TelemetryRecorder {
       notes: this.context.notes,
     };
 
-    await telemetryDb.sessions.put(newSession);
+    // itch.io serves every HTML game from one shared origin, so a web build
+    // must not grow its database without limit. Dev and desktop keep it all
+    // for the telemetry tooling.
+    if (isWebBuild()) await pruneTelemetrySessions(WEB_BUILD_SESSION_KEEP).catch(() => {});
+
+    try {
+      await telemetryDb.sessions.put(newSession);
+    } catch (err) {
+      // Storage is blocked (private mode, partitioned iframe) or full. The
+      // match plays fine without telemetry, so record nothing.
+      console.warn('[telemetry] storage unavailable, recording disabled:', err);
+      return null;
+    }
     this.sessionId = newSession.id;
     this.lastTickMs = performance.now();
     this.lastHeartbeatAt = Date.now();
@@ -702,21 +714,32 @@ export class TelemetryRecorder {
         };
       }
 
-      await telemetryDb.transaction(
-        'rw',
-        telemetryDb.matchSnapshots,
-        telemetryDb.playerSnapshots,
-        telemetryDb.performanceSamples,
-        telemetryDb.telemetryEvents,
-        async () => {
-          if (matchRow) await telemetryDb.matchSnapshots.add(matchRow);
-          await telemetryDb.playerSnapshots.bulkAdd([...playerRows, ...allPlayerRows]);
-          await telemetryDb.performanceSamples.add(perfRow);
-          if (eventRows.length > 0) {
-            await telemetryDb.telemetryEvents.bulkAdd(eventRows);
+      try {
+        await telemetryDb.transaction(
+          'rw',
+          telemetryDb.matchSnapshots,
+          telemetryDb.playerSnapshots,
+          telemetryDb.performanceSamples,
+          telemetryDb.telemetryEvents,
+          async () => {
+            if (matchRow) await telemetryDb.matchSnapshots.add(matchRow);
+            await telemetryDb.playerSnapshots.bulkAdd([...playerRows, ...allPlayerRows]);
+            await telemetryDb.performanceSamples.add(perfRow);
+            if (eventRows.length > 0) {
+              await telemetryDb.telemetryEvents.bulkAdd(eventRows);
+            }
           }
+        );
+      } catch (err) {
+        // Quota hit or storage revoked mid-match. Without this the interval
+        // threw an unhandled rejection every tick for the rest of the match.
+        console.warn('[telemetry] write failed, recording stopped:', err);
+        if (this.timerId !== null) {
+          window.clearInterval(this.timerId);
+          this.timerId = null;
         }
-      );
+        return;
+      }
 
       if (now - this.lastDiskMirrorAt >= 2000) {
         this.lastDiskMirrorAt = now;
@@ -756,7 +779,13 @@ export class TelemetryRecorder {
       eventType,
       payloadJson: JSON.stringify(payload ?? {}),
     };
-    await telemetryDb.telemetryEvents.add(row);
+    try {
+      await telemetryDb.telemetryEvents.add(row);
+    } catch {
+      // Callers fire and forget; a blocked or full store must not surface
+      // as an unhandled rejection.
+      return;
+    }
     // Auto-mirror shot events to disk
     if (eventType === 'shot_style_taken' && hasDevServer()) {
       fetch('/__telemetry/shot-events', {
@@ -1167,6 +1196,33 @@ export async function getTelemetryCounts() {
   ]);
 
   return { sessions, matchSnapshots, playerSnapshots, performanceSamples, telemetryEvents, baselines, corrections };
+}
+
+/** Sessions a web build keeps; enough for the STATS drift dashboard. */
+const WEB_BUILD_SESSION_KEEP = 5;
+
+/** Delete every session but the newest `keep`, with all of their rows. */
+export async function pruneTelemetrySessions(keep: number) {
+  const stale = await telemetryDb.sessions.orderBy('startedAt').reverse().offset(keep).primaryKeys();
+  if (stale.length === 0) return 0;
+  await telemetryDb.transaction(
+    'rw',
+    [
+      telemetryDb.sessions,
+      telemetryDb.matchSnapshots,
+      telemetryDb.playerSnapshots,
+      telemetryDb.performanceSamples,
+      telemetryDb.telemetryEvents,
+    ],
+    async () => {
+      await telemetryDb.matchSnapshots.where('sessionId').anyOf(stale).delete();
+      await telemetryDb.playerSnapshots.where('sessionId').anyOf(stale).delete();
+      await telemetryDb.performanceSamples.where('sessionId').anyOf(stale).delete();
+      await telemetryDb.telemetryEvents.where('sessionId').anyOf(stale).delete();
+      await telemetryDb.sessions.bulkDelete(stale);
+    }
+  );
+  return stale.length;
 }
 
 export async function clearTelemetryDatabase() {

@@ -19,7 +19,7 @@ import { buildMatchResultPayload } from '../telemetry/matchPersistencePayload';
 import { computeFixtureTimeoutMs, computeWatchedFixtureSpeedMul } from '../fixtureTiming';
 import { installSmokeTestApi } from '../smokeTest';
 import { hasDevServer } from '../runtimeEnv';
-import { createGamepadLatch, pickStandardGamepad } from '../gamepadSelect';
+import { createGamepadLatch, pickStandardGamepad, readGamepads } from '../gamepadSelect';
 import { PRACTICE_PLAYS, PRACTICE_AGGRESSIVENESS, type AggressivenessKey, getPlayRoutes } from '../practicePlays';
 import { createWorldCupRecord, deleteWorldCup, saveWorldCup } from '../worldCupManager';
 import {
@@ -1429,7 +1429,7 @@ const RetroFootball: React.FC = () => {
         splashAdvancedRef.current = true;
         // Snapshot current gamepad state into menuGpPrev so the menu poll
         // (which may run later in this same rAF batch) won't see a false "justPressed".
-        const gp0 = navigator.getGamepads()[0];
+        const gp0 = readGamepads()[0];
         if (gp0) menuGpPrev.current = Array.from(gp0.buttons).map(b => b.pressed);
         setShowSplash(false);
       }
@@ -1438,7 +1438,7 @@ const RetroFootball: React.FC = () => {
     const onClick = () => dismiss();
     let rafId = 0;
     const pollPad = () => {
-      const gp = navigator.getGamepads()[0];
+      const gp = readGamepads()[0];
       if (gp) {
         const anyBtn = Array.from(gp.buttons).some(b => b.pressed);
         if (anyBtn) { dismiss(); return; }
@@ -1462,12 +1462,12 @@ const RetroFootball: React.FC = () => {
       // Don't process menu gamepad input while splash screen is still showing
       if (!splashAdvancedRef.current) {
         // Keep prev state fresh so no false "just pressed" triggers after splash dismisses
-        const gp0 = navigator.getGamepads()[0];
+        const gp0 = readGamepads()[0];
         if (gp0) menuGpPrev.current = Array.from(gp0.buttons).map(b => b.pressed);
         rafId = requestAnimationFrame(poll);
         return;
       }
-      const pads = navigator.getGamepads();
+      const pads = readGamepads();
       const gp = pads[0];
       if (gp) {
         const btns = Array.from(gp.buttons).map(b => b.pressed);
@@ -1751,7 +1751,7 @@ const RetroFootball: React.FC = () => {
           m.seedMLS2025Baselines && m.seedMLS2025Baselines()
         ).then(() =>
           generateDriftRecommendations({ thresholdPct: 10 })
-        );
+        ).catch((err) => console.warn('[telemetry] full-time drift pass skipped:', err));
       }
     };
 
@@ -2364,7 +2364,7 @@ const RetroFootball: React.FC = () => {
         mode,
       });
     };
-    void kickoffTelemetry();
+    kickoffTelemetry().catch((err) => console.warn('[telemetry] kickoff recording skipped:', err));
     // AI state overlay is off by default; user can toggle it manually
     gameRef.current?.setHotSeatMode?.(isInteractivePlayerMode || isTesting);
     gameRef.current?.setTwoPlayerMode?.(isHotSeat);

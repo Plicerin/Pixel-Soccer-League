@@ -45,6 +45,8 @@ jobs:
         run: npm run build
         env:
           PSL_PAGES_BASE: ${{ steps.pages.outputs.base_path }}/
+          # No dev server behind Pages: switch the client's dev tooling off.
+          PSL_WEB_BUILD: '1'
       # A project site has no server-side routing; serving index.html for
       # unknown paths keeps a refresh or a deep link from 404ing.
       - run: cp dist/index.html dist/404.html

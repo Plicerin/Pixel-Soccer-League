@@ -21,6 +21,10 @@ View your app in AI Studio: https://ai.studio/apps/e23bf68b-d920-483f-b5a4-63603
 3. Run the app:
    `npm run dev`
 
+## Publish to itch.io
+
+`npm run build:itch` builds the browser package into `releases/`. Upload steps, embed settings and a store-page draft are in [ITCH.md](ITCH.md).
+
 ## Persistent Telemetry Database
 
 The app now includes a permanent, non-volatile telemetry database backed by IndexedDB (via Dexie).

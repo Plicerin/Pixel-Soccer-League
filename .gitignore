@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+dist-itch/
 src-tauri/target/
 src-tauri/gen/
 coverage/

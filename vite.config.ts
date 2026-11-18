@@ -573,11 +573,17 @@ export default defineConfig(() => {
         : true;
   return {
     // GitHub Pages serves a project site from /<repo>/, so the bundle needs a
-    // matching base. Only the Pages build sets it: the dev server, the preview
-    // server and Tauri's asset protocol all serve from the root, and a wrong
-    // base there breaks every asset.
+    // matching base; itch.io serves from a random CDN subpath and uses "./".
+    // Only those builds set it: the dev server, the preview server and Tauri's
+    // asset protocol all serve from the root, and a wrong base there breaks
+    // every asset.
     base: process.env.PSL_PAGES_BASE || '/',
-    define: { __APP_VERSION__: JSON.stringify(appVersion) },
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+      // Static hosts (itch.io, Pages) have none of the dev middleware above;
+      // this switches the client's dev tooling off. See src/runtimeEnv.ts.
+      __PSL_WEB_BUILD__: JSON.stringify(process.env.PSL_WEB_BUILD === '1'),
+    },
     plugins: [
       react(),
       tailwindcss(),
