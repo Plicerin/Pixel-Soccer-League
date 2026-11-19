@@ -30,7 +30,7 @@ test('world cup browser smoke harness is wired through the existing Playwright C
   assert.match(retro, /__pslUiTest = \{/);
   assert.match(retro, /openWorldCupMode: \(team\?: string\) => \{/);
   assert.match(hub, /__pslWorldCupTest = \{/);
-  assert.match(script, /World Cup Mode/);
+  assert.match(script, /'Tournament'/);
   assert.match(script, /__pslWorldCupTest\?\.simRound/);
   assert.match(script, /__pslWorldCupTest\?\.advance/);
   assert.match(script, /Champion:/);

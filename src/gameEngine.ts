@@ -675,8 +675,10 @@ class SimpleGameEngine {
   private readonly miniMapHeight = 203;
   private readonly miniMapPitchPad = 8;
   private readonly miniMapTiltTransform = 'translateX(-50%) perspective(900px) rotateX(56deg)';
-  private readonly miniMapPanelInset = 8;
-  private readonly miniMapPanelWidth = Math.floor((this.miniMapWidth - this.miniMapPanelInset * 3) / 2);
+  // Possession readouts sit beside the minimap, one each side, so they never
+  // cover the dots. Placing them inside its footprint hid the ball carrier.
+  private readonly miniMapPanelGap = 9;
+  private readonly miniMapPanelWidth = 140;
   private readonly miniMapPitchCanvas: HTMLCanvasElement;
   private readonly miniMapOverlayCanvas: HTMLCanvasElement;
   private readonly miniMapToggleBtn: HTMLButtonElement;
@@ -3256,10 +3258,9 @@ class SimpleGameEngine {
   }
 
   private createMiniMap() {
-    const panelInset = this.miniMapPanelInset;
+    const panelGap = this.miniMapPanelGap;
     const panelWidth = this.miniMapPanelWidth;
     const halfWidth = Math.round(this.miniMapWidth / 2);
-    const awayPanelOffset = -halfWidth + panelInset * 2 + panelWidth;
 
     const pitchCanvas = document.createElement('canvas');
     pitchCanvas.id = 'canvasPitch';
@@ -3317,14 +3318,14 @@ class SimpleGameEngine {
     homePanel.id = 'homePossessionPanel';
     Object.assign(homePanel.style, panelStyle, {
       width: `${panelWidth}px`,
-      left: `calc(50% - ${halfWidth - panelInset}px)`,
+      left: `calc(50% - ${halfWidth + panelGap + panelWidth}px)`,
     });
 
     const awayPanel = document.createElement('div');
     awayPanel.id = 'awayPossessionPanel';
     Object.assign(awayPanel.style, panelStyle, {
       width: `${panelWidth}px`,
-      left: `calc(50% + ${awayPanelOffset}px)`,
+      left: `calc(50% + ${halfWidth + panelGap}px)`,
     });
 
     const toggleButton = document.createElement('button');

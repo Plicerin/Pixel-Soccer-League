@@ -174,7 +174,7 @@ async function ensureMainMenuReady(page, options) {
     await closeOverlayButton.click().catch(() => {})
     await page.waitForTimeout(250)
   }
-  const worldCupButton = page.getByRole('button', { name: 'World Cup Mode', exact: true }).first()
+  const worldCupButton = page.getByRole('button', { name: 'Tournament', exact: true }).first()
   if (await worldCupButton.isVisible({ timeout: 1000 }).catch(() => false)) return
 
   await page.keyboard.press('Escape').catch(() => {})
@@ -220,7 +220,7 @@ async function openWorldCupMode(page, options) {
   }).catch(() => false)
   if (!bridged) {
     await ensureMainMenuReady(page, options)
-    await clickButton(page, 'World Cup Mode', options.timeoutMs)
+    await clickButton(page, 'Tournament', options.timeoutMs)
     return
   }
   await page.waitForTimeout(300)

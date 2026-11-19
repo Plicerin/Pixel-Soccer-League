@@ -218,7 +218,7 @@ test('browser main menu follows the World Cup mockup layout', () => {
   assert.match(source, /data-psl-main-menu="world-cup"/, 'main menu needs a stable World Cup layout marker');
   assert.doesNotMatch(source, /bg-\[url\('\/assets\/menu\.png'\)\]/, 'main menu must keep the live game canvas background instead of replacing it with the mockup image');
   assert.match(source, /<MenuTeamSelect[\s\S]*label="Home"[\s\S]*<MenuTeamSelect[\s\S]*label="Away"/, 'main menu must render side-by-side flag team selectors');
-  assert.match(source, /World Cup Mode/, 'main menu must expose the mockup World Cup Mode action');
+  assert.match(source, />\s*Tournament\s*</, 'main menu must expose the Tournament action');
   assert.match(source, /const MENU_ITEM_COUNT = 7/, 'gamepad focus count must match the two selectors plus five visible menu buttons');
   assert.doesNotMatch(source, /Real Data Replay[\s\S]*<\/button>/, 'main menu should not show the old replay button in the mockup layout');
 });
@@ -265,7 +265,7 @@ test('browser game restores the legacy two-canvas minimap', () => {
   assert.match(engine, /setMenuVisible = \(visible: boolean\) => \{[\s\S]*?this\.applyMiniMapVisibility\(\)/, 'menu visibility must hide/show the minimap without removing it');
 });
 
-test('V252 minimap overlay and possession panels stay inside the minimap footprint', () => {
+test('V252 minimap overlay alignment, with possession panels beside the minimap', () => {
   const engine = readFileSync('src/gameEngine.ts', 'utf8');
   assert.match(engine, /private readonly miniMapTiltTransform = 'translateX\(-50%\) perspective\(900px\) rotateX\(56deg\)';/, 'pitch and overlay must share one minimap tilt transform');
   assert.doesNotMatch(engine, /rotateX\(50deg\)/, 'overlay canvas must not use a different tilt than the pitch canvas');
@@ -274,10 +274,10 @@ test('V252 minimap overlay and possession panels stay inside the minimap footpri
   assert.match(engine, /y: pad \+ \(\(z \+ FIELD_D \/ 2\) \/ FIELD_D\) \* \(this\.miniMapHeight - pad \* 2\)/, 'world-to-minimap y projection must land inside the drawn pitch border');
   assert.match(engine, /THREE\.MathUtils\.clamp\(pos\.x, pad \+ radius, this\.miniMapWidth - pad - radius\)/, 'player dots must clamp against the inner pitch border, not the raw canvas edge');
   assert.match(engine, /THREE\.MathUtils\.clamp\(pos\.y, pad \+ radius, this\.miniMapHeight - pad - radius\)/, 'player dots must clamp against the inner pitch border, not the raw canvas edge');
-  assert.match(engine, /private readonly miniMapPanelInset = 8;/, 'minimap panels must use an explicit inset inside the minimap width');
-  assert.match(engine, /private readonly miniMapPanelWidth = Math\.floor\(\(this\.miniMapWidth - this\.miniMapPanelInset \* 3\) \/ 2\);/, 'minimap possession panels must size from the minimap width');
-  assert.doesNotMatch(engine, /left: 'calc\(50% - 310px\)'/, 'home possession panel must not sit outside the minimap footprint');
-  assert.doesNotMatch(engine, /left: 'calc\(50% \+ 170px\)'/, 'away possession panel must not sit outside the minimap footprint');
+  // User-rejected 2026-11-19: readouts inside the footprint covered the minimap dots.
+  assert.match(engine, /left: `calc\(50% - \$\{halfWidth \+ panelGap \+ panelWidth\}px\)`/, 'home possession panel must sit left of the minimap');
+  assert.match(engine, /left: `calc\(50% \+ \$\{halfWidth \+ panelGap\}px\)`/, 'away possession panel must sit right of the minimap');
+  assert.doesNotMatch(engine, /miniMapPanelInset/, 'possession panels must not be inset into the minimap footprint');
 });
 
 test('BUG-RENDER-002 player hair color varies deterministically', () => {

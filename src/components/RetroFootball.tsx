@@ -3228,7 +3228,7 @@ const RetroFootball: React.FC = () => {
                   CPU vs CPU
                 </MenuModeButton>
                 <MenuModeButton focused={menuFocusIndex === 5} tone="amber" onClick={() => setSeasonModeActive(true)}>
-                  World Cup Mode
+                  Tournament
                 </MenuModeButton>
                 <MenuModeButton focused={menuFocusIndex === 6} tone="green" onClick={() => setShowPracticeSetup(true)}>
                   Practice
