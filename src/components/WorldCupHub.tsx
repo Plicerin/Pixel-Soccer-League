@@ -291,7 +291,7 @@ export default function WorldCupHub({
         <div data-testid="worldcup-capture-root" ref={exportRootRef} className="flex flex-col items-center gap-6 w-full max-w-5xl px-6 py-8">
           <img src={assetUrl('/assets/Pixel%20Soccer%20League2.png')} alt="Pixel Soccer League" className="w-[38rem] max-w-[92vw] drop-shadow-lg" />
           <div className="flex w-full items-center gap-4">
-            <div className="text-amber-400 text-xl font-extrabold tracking-widest uppercase flex-1">World Cup Mode</div>
+            <div className="text-amber-400 text-xl font-extrabold tracking-widest uppercase flex-1">Tournament</div>
             <button
               data-export-ignore="true"
               onClick={() => handleExportScreenshot(`worldcup-team-select-${selectedTeam}`)}
@@ -346,7 +346,7 @@ export default function WorldCupHub({
                 data-psl-worldcup-start="true"
                 className="w-full py-3 bg-amber-500 text-black text-sm font-bold uppercase tracking-widest rounded hover:bg-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
-                Start World Cup as {selectedTeam}
+                Start Tournament as {selectedTeam}
               </button>
             </div>
           </div>
@@ -782,14 +782,14 @@ export default function WorldCupHub({
               onClick={handleDeleteWorldCup}
               className="flex-1 py-2.5 bg-amber-500 text-black text-xs font-bold uppercase tracking-widest rounded hover:bg-amber-400 transition-colors"
             >
-              New World Cup
+              New Tournament
             </button>
           )}
           <button
             onClick={onExit}
             className="py-2.5 px-4 border border-white/20 text-white/40 text-xs uppercase tracking-widest rounded hover:text-white hover:border-white/40 transition-colors"
           >
-            Exit World Cup
+            Exit Tournament
           </button>
         </div>
       </div>
