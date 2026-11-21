@@ -10,10 +10,12 @@ test('World Cup mode uses a dedicated hub instead of the season shell', () => {
   assert.doesNotMatch(retro, /<SeasonHub/);
   assert.match(retro, /<WorldCupHub/);
 
-  assert.match(hub, /World Cup Mode/);
+  // The mode is called Tournament everywhere a player can see it.
+  assert.match(hub, />Tournament</);
+  assert.doesNotMatch(hub, />\s*[^<{]*World Cup/);
   assert.match(hub, /Knockout Bracket/);
   assert.match(hub, /Group Tables/);
-  assert.match(hub, /Start World Cup as/);
+  assert.match(hub, /Start Tournament as/);
 });
 
 test('world cup browser smoke harness is wired through the existing Playwright CDP stack', () => {
